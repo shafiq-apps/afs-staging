@@ -32,7 +32,10 @@ Thumbs.db
 *~
 
 # Temporary files
-system/
+system/cache
+system/cache/*
+system/logs
+
 
 http_ca.crt
 *.crt
