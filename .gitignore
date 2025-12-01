@@ -108,4 +108,4 @@ nginx.conf
 build-production.sh
 deploy.sh
 
-.gitpsuh.sh
+gitpush.sh
