@@ -29,7 +29,8 @@ export const shopsSchema = `
     installedAt: String
     isActive: Boolean
     scopes: [String!]
-    token: ShopToken
+    accessToken: String
+    refreshToken: String
     lastAccessed: String
     updatedAt: String
     isDeleted: String
