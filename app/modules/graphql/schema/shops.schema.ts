@@ -4,7 +4,7 @@
  * Note: Sensitive fields (accessToken, refreshToken) are excluded
  * 
  * Index Configuration (optional - uses defaults if not specified):
- * @index shops idField=shop sensitiveFields=accessToken,refreshToken
+ * @index shops idField=shop
  */
 
 export const shopsSchema = `

@@ -26,7 +26,7 @@ interface IndexConfig {
  * Can be configured dynamically - no hardcoded values required
  */
 let DEFAULT_SENSITIVE_FIELDS: Record<string, string[]> = {
-  shops: ['accessToken', 'refreshToken'],
+  // shops: ['accessToken', 'refreshToken'],
   filters: ['internalId', 'secret'],
   // Add more as needed
 };
