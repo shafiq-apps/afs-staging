@@ -428,7 +428,7 @@ mutation ReindexProducts($shop: String!) {
   "data": {
     "reindexProducts": {
       "success": false,
-      "message": "Shop not found: example.myshopify.com. Please ensure the shop is saved in Elasticsearch."
+      "message": "Shop not found: example.myshopify.com"
     }
   }
 }

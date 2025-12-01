@@ -298,7 +298,7 @@ export const shopsResolvers = {
           logger.error(`Shop not found in ES: ${shop}`);
           return {
             success: false,
-            message: `Shop not found: ${shop}. Please ensure the shop is saved in Elasticsearch.`
+            message: `Shop not found: ${shop}`
           };
         }
 

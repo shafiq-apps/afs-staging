@@ -77,7 +77,7 @@ export class ShopifyAdminHandler {
 
       if (!shopData) {
         logger.error(`Shop not found in ES: ${shop}`);
-        throw new Error(`Shop not found: ${shop}. Please ensure the shop is saved in Elasticsearch.`);
+        throw new Error(`Shop not found: ${shop}`);
       }
 
       logger.debug(`Shop found in ES`, {

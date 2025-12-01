@@ -48,7 +48,7 @@ export const POST = handler(async (req: HttpRequest) => {
     logger.error(`Shop not found in ES: ${shopParam}`);
     return {
       statusCode: 404,
-      body: { success: false, message: `Shop not found: ${shopParam}. Please ensure the shop is saved in Elasticsearch.` }
+      body: { success: false, message: `Shop not found: ${shopParam}` }
     };
   }
 
