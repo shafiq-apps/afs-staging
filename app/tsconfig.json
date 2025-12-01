@@ -3,8 +3,8 @@
     "target": "es2024",
     "module": "es2022",
     "outDir": "./dist",
-    "rootDir": "./app",
-    "baseUrl": "./app",
+    "rootDir": "./",
+    "baseUrl": "./",
     "paths": {
       "@core/*": ["core/*"],
       "@shared/*": ["shared/*"],
@@ -17,6 +17,12 @@
     "forceConsistentCasingInFileNames": true,
     "moduleResolution": "node"
   },
-  "include": ["./**/*.ts"],
+  "include": [
+    "core/**/*.ts",
+    "modules/**/*.ts",
+    "shared/**/*.ts",
+    "system/**/*.ts",
+    "index.ts"
+  ],
   "exclude": ["node_modules", "dist"]
 }
