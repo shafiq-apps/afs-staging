@@ -1,0 +1,57 @@
+{% comment %}
+  Advanced Filter Search Initialization Snippet
+  Include this snippet to initialize the filter search functionality
+{% endcomment %}
+
+{% if block.settings.api_base_url and block.settings.shop_domain %}
+  <script>
+    (function() {
+      // Configuration from block settings
+      const config = {
+        apiBaseUrl: {{ block.settings.api_base_url | json }},
+        shop: {{ block.settings.shop_domain | json }},
+        container: '#afs-container-{{ block.id }}',
+        filtersContainer: {{ block.settings.filters_container_selector | default: '.afs-filters-container' | json }},
+        productsContainer: {{ block.settings.products_container_selector | default: '.afs-products-container' | json }},
+        pageSize: {{ block.settings.page_size | default: 20 }},
+        enableLogging: {{ block.settings.enable_logging | default: false }}
+      };
+
+      // Function to initialize AFS
+      function initializeAFS() {
+        if (typeof window.AFS !== 'undefined') {
+          try {
+            window.AFS.init(config);
+            
+            {% if block.settings.enable_logging %}
+              if (window.AFS.Logger) {
+                window.AFS.Logger.enable();
+              }
+            {% endif %}
+          } catch (error) {
+            console.error('Failed to initialize Advanced Filter Search:', error);
+          }
+        } else {
+          // If AFS is not loaded yet, wait a bit and try again
+          setTimeout(initializeAFS, 100);
+        }
+      }
+
+      // Wait for both DOM and script to be ready
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+          // Wait a bit for the deferred script to load
+          setTimeout(initializeAFS, 50);
+        });
+      } else {
+        // DOM is already ready, just wait for script
+        setTimeout(initializeAFS, 50);
+      }
+    })();
+  </script>
+{% else %}
+  <script>
+    console.warn('Advanced Filter Search: API Base URL and Shop Domain must be configured in block settings.');
+  </script>
+{% endif %}
+

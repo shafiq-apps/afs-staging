@@ -1,0 +1,50 @@
+/**
+ * GraphQL Handlers
+ * Exports ready-to-use handler instances
+ */
+
+import { GraphQLHandler } from './graphql-handler';
+import { GraphQLService } from './graphql.service';
+import { GraphQLSchema } from 'graphql';
+
+// Handler instance - will be initialized by factory
+let graphqlHandlerInstance: GraphQLHandler | null = null;
+
+/**
+ * Initialize handlers (called by factory)
+ */
+export function initializeHandlers(graphqlService: GraphQLService, schema: GraphQLSchema): void {
+  graphqlHandlerInstance = new GraphQLHandler(graphqlService, schema);
+}
+
+/**
+ * Get GraphQL handler instance
+ * @throws Error if handler not initialized
+ */
+export function getGraphQLHandler(): GraphQLHandler {
+  if (!graphqlHandlerInstance) {
+    throw new Error('GraphQL handler not initialized. Call initializeHandlers() first.');
+  }
+  return graphqlHandlerInstance;
+}
+
+/**
+ * Exported handler instance (for direct import)
+ * Use: import { graphqlHandler } from '@modules/graphql';
+ */
+export const graphqlHandler = new Proxy({} as GraphQLHandler, {
+  get(target, prop) {
+    if (!graphqlHandlerInstance) {
+      const error = new Error('GraphQL handler not initialized. Ensure GraphQL module is properly initialized in bootstrap.');
+      console.error('[GraphQL Handler]', error.message);
+      console.error('[GraphQL Handler] Stack:', error.stack);
+      throw error;
+    }
+    const method = (graphqlHandlerInstance as any)[prop];
+    if (typeof method === 'function') {
+      return method.bind(graphqlHandlerInstance);
+    }
+    return method;
+  },
+});
+

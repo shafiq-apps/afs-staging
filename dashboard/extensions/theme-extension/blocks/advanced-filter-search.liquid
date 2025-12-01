@@ -1,0 +1,72 @@
+{% comment %}
+  Advanced Filter Search Block
+  Add your block content here
+{% endcomment %}
+
+{{ 'advanced-filter-search.css' | asset_url | stylesheet_tag }}
+
+<div data-afs-container id="afs-container-{{ block.id }}">
+  {% comment %} Container will be populated by JavaScript {% endcomment %}
+</div>
+
+<script src="{{ 'advanced-filter-search.js' | asset_url }}" defer></script>
+
+{% render 'advanced-filter-search-init', block: block %}
+
+{% schema %}
+{
+  "name": "Advanced Filter Search",
+  "target": "section",
+  "settings": [
+    {
+      "type": "text",
+      "id": "api_base_url",
+      "label": "API Base URL",
+      "default": "http://localhost:3554",
+      "info": "The base URL for your API endpoint"
+    },
+    {
+      "type": "text",
+      "id": "shop_domain",
+      "label": "Shop Domain",
+      "info": "Your Shopify shop domain (e.g., your-shop.myshopify.com)"
+    },
+    {
+      "type": "text",
+      "id": "container_selector",
+      "label": "Container Selector",
+      "default": "[data-afs-container]",
+      "info": "CSS selector for the main container"
+    },
+    {
+      "type": "text",
+      "id": "filters_container_selector",
+      "label": "Filters Container Selector",
+      "default": ".afs-filters-container",
+      "info": "CSS selector for the filters container"
+    },
+    {
+      "type": "text",
+      "id": "products_container_selector",
+      "label": "Products Container Selector",
+      "default": ".afs-products-container",
+      "info": "CSS selector for the products container"
+    },
+    {
+      "type": "number",
+      "id": "page_size",
+      "label": "Products Per Page",
+      "default": 20,
+      "info": "Number of products to display per page"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_logging",
+      "label": "Enable Debug Logging",
+      "default": false,
+      "info": "Enable console logging for debugging"
+    }
+  ]
+}
+{% endschema %}
+

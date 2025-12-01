@@ -1,0 +1,48 @@
+{
+    "name": "advance-filters-search",
+    "version": "0.0.1",
+    "description": "",
+    "main": "dist/index.js",
+    "type": "module",
+    "scripts": {
+        "dev": "tsx watch -r tsconfig-paths/register index.ts",
+        "postman": "tsx -r tsconfig-paths/register system/cli/postman.ts",
+        "build": "tsc --noEmit && tsc && tsc-alias",
+        "check": "tsc --noEmit",
+        "lint": "eslint . --ext .ts",
+        "lint:fix": "eslint . --ext .ts --fix",
+        "format": "prettier --write .",
+        "start": "pm2 start dist/index.js -i 1",
+        "deploy": "bash system/cli/deploy.sh",
+        "gitpush": "bash system/cli/gitpush.sh",
+        "setup:env": "node system/cli/setup-env.js"
+    },
+    "author": "Digitalcoo",
+    "license": "ISC",
+    "dependencies": {
+        "@elastic/elasticsearch": "^9.2.0",
+        "axios": "^1.13.2",
+        "compression": "^1.8.1",
+        "cors": "^2.8.5",
+        "crypto": "^1.0.1",
+        "dotenv": "^17.2.3",
+        "express": "^5.1.0",
+        "graphql": "^16.12.0",
+        "readline": "^1.3.0",
+        "systeminformation": "^5.27.11",
+        "tsconfig-paths": "^4.2.0",
+        "uuid": "^13.0.0"
+    },
+    "devDependencies": {
+        "@types/compression": "^1.8.1",
+        "@types/cors": "^2.8.19",
+        "@types/express": "^5.0.5",
+        "@types/node": "^24.10.1",
+        "@types/systeminformation": "^3.23.1",
+        "ts-node": "^10.9.2",
+        "ts-node-dev": "^2.0.0",
+        "tsc-alias": "^1.8.16",
+        "tsx": "^4.20.6",
+        "typescript": "^5.9.3"
+    }
+}

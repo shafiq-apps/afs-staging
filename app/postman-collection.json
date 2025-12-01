@@ -1,0 +1,394 @@
+{
+  "info": {
+    "name": "Advanced Filters & Search App API",
+    "description": "Auto-generated Postman collection from route files",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "postman-generator"
+  },
+  "item": [
+    {
+      "name": "App",
+      "item": [
+        {
+          "name": "POST /app/events",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/app/events?shop={{shop_domain}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "app",
+                "events"
+              ],
+              "query": [
+                {
+                  "key": "shop",
+                  "value": "{{shop_domain}}",
+                  "description": "Shop domain (optional)"
+                }
+              ]
+            },
+            "description": "Route from modules\\app\\routes\\events.ts (app module)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Graphql",
+      "item": [
+        {
+          "name": "POST /graphql",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/graphql?shop={{shop_domain}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "graphql"
+              ],
+              "query": [
+                {
+                  "key": "shop",
+                  "value": "{{shop_domain}}",
+                  "description": "Shop domain (optional)"
+                }
+              ]
+            },
+            "description": "Route from modules\\graphql\\routes\\index.ts (graphql module)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Indexing",
+      "item": [
+        {
+          "name": "POST /indexing/best-seller-cleanup",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/indexing/best-seller-cleanup?shop={{shop_domain}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "indexing",
+                "best-seller-cleanup"
+              ],
+              "query": [
+                {
+                  "key": "shop",
+                  "value": "{{shop_domain}}",
+                  "description": "Shop domain (optional)"
+                }
+              ]
+            },
+            "description": "Route from modules\\indexing\\routes\\best-seller-cleanup.ts (indexing module)"
+          },
+          "response": []
+        },
+        {
+          "name": "POST /indexing/reindex",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/indexing/reindex?shop={{shop_domain}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "indexing",
+                "reindex"
+              ],
+              "query": [
+                {
+                  "key": "shop",
+                  "value": "{{shop_domain}}",
+                  "description": "Shop domain (required)"
+                }
+              ]
+            },
+            "description": "Route from modules\\indexing\\routes\\reindex.ts (indexing module)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Storefront",
+      "item": [
+        {
+          "name": "GET /storefront/filters",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/storefront/filters?shop={{shop_domain}}&search=&vendor=&productType=&tag=",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "storefront",
+                "filters"
+              ],
+              "query": [
+                {
+                  "key": "shop",
+                  "value": "{{shop_domain}}",
+                  "description": "Shop domain (required)"
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "Search query"
+                },
+                {
+                  "key": "vendor",
+                  "value": "",
+                  "description": "Filter by vendor"
+                },
+                {
+                  "key": "productType",
+                  "value": "",
+                  "description": "Filter by product type"
+                },
+                {
+                  "key": "tag",
+                  "value": "",
+                  "description": "Filter by tag"
+                }
+              ]
+            },
+            "description": "Route from modules\\products\\routes\\filters.ts (products module)"
+          },
+          "response": []
+        },
+        {
+          "name": "GET /storefront/products",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/storefront/products?shop={{shop_domain}}&search=&vendor=&productType=&tag=&collection=&page=1&limit=20&sort=",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "storefront",
+                "products"
+              ],
+              "query": [
+                {
+                  "key": "shop",
+                  "value": "{{shop_domain}}",
+                  "description": "Shop domain (required)"
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "Search query"
+                },
+                {
+                  "key": "vendor",
+                  "value": "",
+                  "description": "Filter by vendor"
+                },
+                {
+                  "key": "productType",
+                  "value": "",
+                  "description": "Filter by product type"
+                },
+                {
+                  "key": "tag",
+                  "value": "",
+                  "description": "Filter by tag"
+                },
+                {
+                  "key": "collection",
+                  "value": "",
+                  "description": "Filter by collection"
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number (default: 1)"
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Items per page (default: 20, max: 100)"
+                },
+                {
+                  "key": "sort",
+                  "value": "",
+                  "description": "Sort order (e.g., \"createdAt:desc\", \"title:asc\")"
+                }
+              ]
+            },
+            "description": "Route from modules\\products\\routes\\products.ts (products module)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "System",
+      "item": [
+        {
+          "name": "GET /system/health",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/system/health?shop={{shop_domain}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "system",
+                "health"
+              ],
+              "query": [
+                {
+                  "key": "shop",
+                  "value": "{{shop_domain}}",
+                  "description": "Shop domain (optional)"
+                }
+              ]
+            },
+            "description": "Route from modules\\system\\routes\\health.ts (system module)"
+          },
+          "response": []
+        },
+        {
+          "name": "GET /system/monitor",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/system/monitor?shop={{shop_domain}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "system",
+                "monitor"
+              ],
+              "query": [
+                {
+                  "key": "shop",
+                  "value": "{{shop_domain}}",
+                  "description": "Shop domain (optional)"
+                }
+              ]
+            },
+            "description": "Route from modules\\system\\routes\\monitor.ts (system module)"
+          },
+          "response": []
+        },
+        {
+          "name": "GET /system/status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/system/status?shop={{shop_domain}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "system",
+                "status"
+              ],
+              "query": [
+                {
+                  "key": "shop",
+                  "value": "{{shop_domain}}",
+                  "description": "Shop domain (optional)"
+                }
+              ]
+            },
+            "description": "Route from modules\\system\\routes\\status.ts (system module)"
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3554",
+      "type": "string"
+    },
+    {
+      "key": "shop_domain",
+      "value": "digitalcoo-filter-demo-10.myshopify.com",
+      "type": "string"
+    }
+  ]
+}

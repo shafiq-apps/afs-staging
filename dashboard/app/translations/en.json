@@ -1,0 +1,237 @@
+{
+  "filters": {
+    "pageTitle": "Filters",
+    "createFilter": "Create filter",
+    "noFilters": {
+      "title": "No filters yet",
+      "description": "Create custom filters to help customers find products quickly. Set up filters for price, color, size, brand, and more to improve your storefront shopping experience.",
+      "createFirst": "Create your first filter"
+    },
+    "table": {
+      "title": "Title",
+      "status": "Status",
+      "collectionDisplay": "Collection Display",
+      "actions": "Actions",
+      "edit": "Edit",
+      "delete": "Delete"
+    },
+    "deleteModal": {
+      "title": "Delete Filter",
+      "message": "Are you sure you want to delete \"{title}\"? This action cannot be undone.",
+      "confirm": "Delete",
+      "cancel": "Cancel"
+    },
+    "collectionDisplay": {
+      "all": "All Collections",
+      "specific": "{count} Collections",
+      "none": "No Collections"
+    }
+  },
+  "filterForm": {
+    "create": {
+      "pageTitle": "Create Filter",
+      "saveButton": "Create Filter"
+    },
+    "edit": {
+      "pageTitle": "Edit Filter",
+      "saveButton": "Save Filter"
+    },
+    "breadcrumb": "Filters",
+    "basicInformation": {
+      "title": "Basic Information",
+      "titleLabel": "Title",
+      "titlePlaceholder": "Enter filter title",
+      "titleError": "Filter title is required",
+      "statusLabel": "Status:",
+      "statusActive": "Active",
+      "statusInactive": "Inactive"
+    },
+    "collectionDisplay": {
+      "title": "Collection Display",
+      "question": "Where should this filter be displayed?",
+      "all": "All collections",
+      "specific": "Specific collections",
+      "selectCollections": "Select collections",
+      "selectedCollections": "Selected collections:"
+    },
+    "filterOptions": {
+      "title": "Filter Options",
+      "addOption": "Add filter option",
+      "noOptions": "No filter options added yet. Click \"Add filter option\" to start.",
+      "dragIcon": "Drag handle",
+      "showSettings": "Show settings",
+      "hideSettings": "Hide settings",
+      "delete": "Delete",
+      "newFilter": "New Filter",
+      "validationError": "At least one filter option must be active."
+    },
+    "settings": {
+      "basic": {
+        "title": "Basic Settings",
+        "selectionType": "Selection Type",
+        "displayStyle": "Display Style",
+        "enableFilter": "Enable this filter",
+        "priceRangeNote": "Price filters use a range slider. Display style is automatically set to \"Range\"."
+      },
+      "display": {
+        "title": "Display & Behavior",
+        "startCollapsed": "Start collapsed",
+        "enableSearch": "Enable search bar",
+        "showTooltip": "Show tooltip",
+        "tooltipContent": "Tooltip content",
+        "tooltipPlaceholder": "Enter tooltip text",
+        "showProductCount": "Show product count"
+      },
+      "valueSelection": {
+        "title": "Value Selection & Filtering",
+        "availableValues": "Available Values",
+        "availableValuesDescription": "Select specific values to include in this filter. If no values are selected, all available values will be used.",
+        "searchValues": "Search values",
+        "filterByPrefix": "Filter by prefix (comma-separated)",
+        "filterByPrefixPlaceholder": "e.g., winter_, summer_",
+        "removePrefix": "Remove prefix (comma-separated)",
+        "removePrefixPlaceholder": "e.g., color_, size_",
+        "removeSuffix": "Remove suffix (comma-separated)",
+        "removeSuffixPlaceholder": "e.g., _sale, _new",
+        "replaceText": "Replace text (from:to, from:to)",
+        "replaceTextPlaceholder": "e.g., old:new, red:crimson"
+      },
+      "grouping": {
+        "title": "Value Grouping & Normalization",
+        "groupSimilar": "Group similar values",
+        "valueNormalization": "Value normalization (original:normalized, ...)",
+        "valueNormalizationPlaceholder": "e.g., jacket:Jacket, jackets:Jacket",
+        "menuTree": "Menu Tree Configuration",
+        "menuTreeDescription": "Organize filter values into a hierarchical menu. Select values to include in the menu tree.",
+        "noValues": "No values available to build a menu tree."
+      },
+      "sorting": {
+        "title": "Sorting",
+        "sortOrder": "Sort order",
+        "ascending": "Alphabetical (A-Z)",
+        "descending": "Alphabetical (Z-A)",
+        "countDesc": "Product Count (High to Low)",
+        "countAsc": "Product Count (Low to High)",
+        "manual": "Manual",
+        "manualSortedValues": "Manually sorted values (comma-separated)",
+        "manualSortedValuesPlaceholder": "e.g., Red, Blue, Green"
+      },
+      "priceRange": {
+        "title": "Price Range Information",
+        "currentRange": "Current available price range in your store:",
+        "sliderNote": "Customers can drag the slider handles to select their desired price range."
+      }
+    },
+    "generalSettings": {
+      "title": "General Settings",
+      "showSettings": "Show settings",
+      "hideSettings": "Hide settings",
+      "layout": {
+        "title": "Layout & Display",
+        "filterOrientation": "Filter orientation",
+        "vertical": "Vertical",
+        "horizontal": "Horizontal",
+        "defaultView": "Default product view",
+        "gridView": "Grid view",
+        "listView": "List view",
+        "gridColumns": "Grid columns (for grid view)"
+      },
+      "productInfo": {
+        "title": "Product Information",
+        "showFilterCount": "Show product count in filters",
+        "showProductCount": "Show total product count on page",
+        "showActiveFilters": "Show active filters summary",
+        "showSortOptions": "Show sorting options"
+      }
+    },
+    "save": {
+      "saving": "Saving...",
+      "success": "Filter {mode} successfully",
+      "error": "Failed to {mode} filter"
+    }
+  },
+  "indexing": {
+    "pageTitle": "Product Sync",
+    "syncStatus": {
+      "title": "Sync Status",
+      "status": "Status",
+      "progress": "Progress",
+      "productsIndexed": "Products Indexed",
+      "failed": "Failed",
+      "startedAt": "Started At",
+      "completedAt": "Completed At",
+      "duration": "Duration",
+      "failedItems": "Failed Items",
+      "syncButton": "Sync Products Now",
+      "syncing": "Syncing... {progress}%"
+    },
+    "status": {
+      "success": "Success",
+      "failed": "Failed",
+      "inProgress": "In Progress",
+      "notStarted": "Not Started",
+      "unknown": "Unknown"
+    },
+    "documentation": {
+      "title": "About Product Sync",
+      "whyRequired": {
+        "question": "Why is sync required?",
+        "answer": "Product sync keeps your filter options up-to-date with your store's products. When you add new products, update variants, or change product information, these changes need to be synced so your filters can accurately display available options like colors, sizes, brands, and other attributes."
+      },
+      "howOften": {
+        "question": "How often are changes applied?",
+        "answer": "Product sync runs automatically on a schedule, typically every few hours. When you make changes to your products, they will be reflected in your filters after the next sync completes. You can also manually trigger a sync using the \"Sync Products Now\" button above if you need immediate updates."
+      }
+    },
+    "faq": {
+      "title": "Frequently Asked Questions",
+      "items": {
+        "duration": {
+          "question": "How long does a sync take?",
+          "answer": "Sync time depends on the number of products in your store. Typically, it takes a few minutes for stores with hundreds of products, and up to 5-10 minutes for stores with thousands of products."
+        },
+        "performance": {
+          "question": "Will syncing affect my store's performance?",
+          "answer": "No, product sync runs in the background and does not impact your store's performance or customer experience. Your storefront remains fully functional during the sync process."
+        },
+        "failure": {
+          "question": "What happens if a sync fails?",
+          "answer": "If a sync fails, you'll see an error message in the status section. You can try syncing again using the \"Sync Products Now\" button. If the issue persists, check that your products are properly configured and contact support if needed."
+        },
+        "newFilter": {
+          "question": "Do I need to sync after creating a new filter?",
+          "answer": "No, new filters automatically use the existing synced product data. You only need to sync when you've made changes to your products, such as adding new products, updating variants, or modifying product attributes."
+        },
+        "automatic": {
+          "question": "Can I schedule automatic syncs?",
+          "answer": "Yes, automatic syncs are enabled by default and run periodically to keep your product data up-to-date. You don't need to configure anything - it happens automatically in the background."
+        }
+      }
+    },
+    "messages": {
+      "syncStarted": "Reindexing started successfully. Monitoring progress...",
+      "syncCompleted": "Product sync completed successfully!",
+      "syncFailed": "Product sync failed. Check the error details below.",
+      "syncRequestReceived": "Sync request received. Status will update shortly.",
+      "failedToStart": "Failed to start reindexing",
+      "failedToFetch": "Failed to fetch indexing status"
+    }
+  },
+  "onboarding": {
+    "title": "Theme App Extension Setup Required",
+    "description": "To use Advanced Filters & Search on your storefront, you need to add the app block to your theme. Complete the setup steps below:",
+    "blockAdded": "App block is configured in your theme (found in: {templates})",
+    "blockNotAdded": "App block not found in your theme. Please add it using the steps below.",
+    "howToConfigure": {
+      "title": "How to Configure",
+      "description": "Follow these steps to add the Advanced Filter Search block to your theme:",
+      "step1": "Click the 'Open Theme Editor' button below or go to Online Store > Themes > Customize",
+      "step2": "Navigate to the template where you want to add filters (e.g., Collection, Product, or Index)",
+      "step3": "Click 'Add block' and search for 'Advanced Filter Search'",
+      "step4": "Add the block to your desired section and configure the settings"
+    },
+    "openThemeEditor": "Open Theme Editor"
+  }
+}
+
+

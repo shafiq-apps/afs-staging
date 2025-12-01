@@ -1,0 +1,109 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build outputs
+dist/
+build/
+**/dist/
+**/build/
+*.tsbuildinfo
+
+# Environment variables
+.env
+.env.*
+!.env.example
+!.env.production.template
+!.env.*.template
+*.env.local
+.env.production
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# PM2
+.pm2/
+ecosystem.config.js.backup
+pm2.log
+
+# System and OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+*.sublime-project
+*.sublime-workspace
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+.temp/
+
+# Database files
+*.sqlite
+*.sqlite3
+*.db
+*.sqlite-journal
+
+# Coverage and testing
+coverage/
+.nyc_output/
+*.lcov
+
+# Production deployment (keep templates, ignore actual configs)
+# Note: Keep nginx.conf and ecosystem.config.js as they're needed
+# But ignore any server-specific modifications
+nginx.conf.local
+nginx.conf.backup
+ecosystem.config.js.local
+ecosystem.config.js.backup
+
+# Shopify specific (from Remix app)
+.shopify/
+.shopify.lock
+.shopify/*
+
+# React Router specific
+.react-router/
+**/.react-router/
+
+# Prisma
+prisma/dev.sqlite
+prisma/dev.sqlite-journal
+prisma/migrations/*.sqlite
+prisma/migrations/*.sqlite-journal
+
+# Package manager locks (optional - uncomment if you want to ignore)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Optional: Keep these if you want to track them
+# !package-lock.json
+# !yarn.lock
+
+ecosystem.config.js
+nginx.conf
+build-production.sh
+deploy.sh
