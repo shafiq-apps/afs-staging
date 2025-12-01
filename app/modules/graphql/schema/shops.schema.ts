@@ -13,6 +13,10 @@ export const shopsSchema = `
     currencyCode: String
     email: String
   }
+  type ShopToken {
+    accessToken: String
+    refreshToken: String
+  }
   type ShopLocals {
     ip: String
     userAgent: String
@@ -20,11 +24,12 @@ export const shopsSchema = `
   # Shop type (public fields only, no sensitive data)
   # Includes session fields from Prisma Session model
   type Shop {
-    # @index shops idField=shop sensitiveFields=isDeleted
+    # @index shops idField=shop sensitiveFields=
     shop: String!
     installedAt: String
     isActive: Boolean
     scopes: [String!]
+    token: ShopToken
     lastAccessed: String
     updatedAt: String
     isDeleted: String
