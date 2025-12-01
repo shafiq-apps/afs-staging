@@ -7,7 +7,7 @@
     "scripts": {
         "dev": "tsx watch -r tsconfig-paths/register index.ts",
         "postman": "tsx -r tsconfig-paths/register system/cli/postman.ts",
-        "build": "tsc --noEmit && tsc && tsc-alias",
+        "build": "tsc && tsc-alias",
         "check": "tsc --noEmit",
         "lint": "eslint . --ext .ts",
         "lint:fix": "eslint . --ext .ts --fix",
