@@ -399,6 +399,44 @@ export class ProductBulkIndexer {
           LOGGER.log('Indexing run completed successfully');
           const finalCheckpoint = this.checkpointService.getCheckpoint();
           appendLog(`Indexer finished successfully. Indexed: ${finalCheckpoint.totalIndexed}, Failed: ${finalCheckpoint.totalFailed}, Deleted: ${deletedCount}`);
+          
+          // Create default filter if no filters exist (only on successful completion)
+          if (finalCheckpoint.status === 'success') {
+            try {
+              const { FiltersRepository } = await import('@modules/filters/filters.repository');
+              const filtersRepo = new FiltersRepository(this.esClient);
+              const existingFilters = await filtersRepo.listFilters(this.shop);
+              
+              if (existingFilters.total === 0) {
+                LOGGER.log(`No filters found for shop ${this.shop}, creating default filter`);
+                
+                const defaultFilter = {
+                  title: 'Default Filter',
+                  description: 'Default filter created automatically after product indexing',
+                  targetScope: 'all',
+                  status: 'published',
+                  options: [],
+                  settings: {
+                    defaultView: 'grid',
+                    showFilterCount: true,
+                    showActiveFilters: true,
+                    showProductCount: true,
+                    showSortOptions: true,
+                  },
+                };
+                
+                await filtersRepo.createFilter(this.shop, defaultFilter);
+                LOGGER.log(`Default filter created successfully for shop ${this.shop}`);
+              } else {
+                LOGGER.log(`Filters already exist for shop ${this.shop} (${existingFilters.total}), skipping default filter creation`);
+              }
+            } catch (filterError: any) {
+              LOGGER.warn(`Failed to create default filter for shop ${this.shop}`, {
+                error: filterError?.message || filterError,
+              });
+              // Don't fail the indexing process if filter creation fails
+            }
+          }
         } catch (error: any) {
           // Mark as failed but save progress
           this.checkpointService.updateCheckpoint({

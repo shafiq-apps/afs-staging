@@ -10,6 +10,13 @@ import { validate } from '@core/http/validation.middleware';
 import { rateLimit } from '@core/security/rate-limit.middleware';
 import { graphqlHandler } from '@modules/graphql';
 import { createModuleLogger } from '@shared/utils/logger.util';
+import { ProductBulkIndexer, BulkIndexerDependencies } from '@modules/indexing/indexing.bulk.service';
+import { IndexerOptions } from '@modules/indexing/indexing.type';
+import { getESClient } from '@core/elasticsearch/es.client';
+import { ShopsRepository } from '@modules/shops/shops.repository';
+import { getProductMapping } from '@modules/products/products.mapping';
+import { IndexingLockService } from '@modules/indexing/indexing.lock.service';
+import { IndexerCheckpointService } from '@modules/indexing/indexing.checkpoint.service';
 
 const logger = createModuleLogger('app-events');
 
@@ -41,6 +48,12 @@ export const POST = handler(async (req: HttpRequest) => {
 
   try {
     if (event === 'APP_INSTALLED') {
+      // Check if shop already exists to determine if this is a new installation
+      const esClient = getESClient();
+      const shopsRepository = new ShopsRepository(esClient, 'shops');
+      const existingShop = await shopsRepository.getShop(shop);
+      const isNewInstallation = !existingShop || !existingShop.installedAt;
+
       // Save/update shop data using GraphQL handler
       // Using write() for upsert - creates if doesn't exist, updates if exists
       // Data structure matches old saveShop() method from shops.repository.ts
@@ -78,11 +91,94 @@ export const POST = handler(async (req: HttpRequest) => {
         shop: savedShop.shop,
         isActive: savedShop.isActive,
         installedAt: savedShop.installedAt,
+        isNewInstallation,
       });
+
+      // Trigger reindexing automatically for new installations
+      // Check if we have accessToken (either from request or from existing shop)
+      const accessToken = req.body.accessToken || existingShop?.accessToken;
+      if (isNewInstallation && accessToken) {
+        logger.info(`New installation detected, starting automatic reindexing for shop: ${shop}`);
+        
+        // Start reindexing in background (non-blocking)
+        (async () => {
+          try {
+            const esClient = getESClient();
+            const shopsRepository = new ShopsRepository(esClient, 'shops');
+            const lockService = new IndexingLockService(esClient);
+            
+            // Check if indexing is already in progress
+            const isLocked = await lockService.isLocked(shop);
+            if (isLocked) {
+              logger.warn(`Indexing already in progress for shop: ${shop}, skipping auto-reindex`);
+              return;
+            }
+
+            // Try to acquire lock
+            const lockAcquired = await lockService.acquireLock(shop);
+            if (!lockAcquired) {
+              logger.warn(`Failed to acquire indexing lock for shop: ${shop}, skipping auto-reindex`);
+              return;
+            }
+
+            logger.log(`Starting background reindex for new installation: shop=${shop}`);
+            
+            const productMapping = getProductMapping();
+            const checkpointService = new IndexerCheckpointService(esClient, shop, 2000);
+            
+            // Initialize checkpoint with in_progress status
+            checkpointService.updateCheckpoint({
+              status: 'in_progress',
+              startedAt: new Date().toISOString(),
+              totalIndexed: 0,
+              totalFailed: 0,
+              failedItems: [],
+            });
+            await checkpointService.forceSave();
+            
+            logger.log(`Indexing status set to in_progress for shop=${shop}`);
+            
+            const deps: BulkIndexerDependencies = {
+              esClient,
+              shopsRepository,
+              esMapping: productMapping,
+            };
+
+            const opts: IndexerOptions = {
+              shop: shop,
+            };
+
+            logger.log('Creating ProductBulkIndexer instance...');
+            const indexer = new ProductBulkIndexer(opts, deps);
+            
+            logger.log('Starting indexer.run()...');
+            await indexer.run();
+            
+            logger.log(`Background reindex finished successfully for shop=${shop}`);
+          } catch (err: any) {
+            logger.error(`Background reindex error for shop=${shop}`, {
+              error: err?.message || err,
+              stack: err?.stack,
+            });
+          } finally {
+            // Always release the lock when done
+            try {
+              const esClient = getESClient();
+              const lockService = new IndexingLockService(esClient);
+              await lockService.releaseLock(shop);
+              logger.log(`Indexing lock released for shop=${shop}`);
+            } catch (releaseError: any) {
+              logger.warn(`Error releasing lock for shop=${shop}`, {
+                error: releaseError?.message || releaseError,
+              });
+            }
+          }
+        })();
+      }
 
       return {
         success: true,
-        message: `Shop installed and saved successfully`,
+        message: `Shop installed and saved successfully${isNewInstallation ? ', reindexing started' : ''}`,
         event,
         shop,
         data: {
