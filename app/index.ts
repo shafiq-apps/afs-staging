@@ -3,8 +3,8 @@
  * Loads environment variables first, then bootstraps the application
  */
 
-import { initEnv } from './core/config/env.loader';
-import { bootstrap } from './core/bootstrap/main';
+import { initEnv } from '@core/config/env.loader';
+import { bootstrap } from '@core/bootstrap/main';
 
 // Load environment variables as early as possible
 initEnv();
