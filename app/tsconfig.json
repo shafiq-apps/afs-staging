@@ -3,8 +3,8 @@
     "target": "es2024",
     "module": "es2022",
     "outDir": "./dist",
-    "rootDir": "./",
-    "baseUrl": "./",
+    "rootDir": "./app",
+    "baseUrl": "./app",
     "paths": {
       "@core/*": ["core/*"],
       "@shared/*": ["shared/*"],
