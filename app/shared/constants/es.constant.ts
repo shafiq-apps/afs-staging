@@ -1,0 +1,1 @@
+export const SHOPS_INDEX_NAME = 'shops';

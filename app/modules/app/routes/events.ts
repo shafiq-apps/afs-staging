@@ -16,6 +16,7 @@ import { ShopsRepository } from '@modules/shops/shops.repository';
 import { getProductMapping } from '@modules/products/products.mapping';
 import { IndexingLockService } from '@modules/indexing/indexing.lock.service';
 import { IndexerCheckpointService } from '@modules/indexing/indexing.checkpoint.service';
+import { SHOPS_INDEX_NAME } from '@shared/constants/es.constant';
 
 const logger = createModuleLogger('app-events');
 
@@ -49,7 +50,7 @@ export const POST = handler(async (req: HttpRequest) => {
     if (event === 'APP_INSTALLED') {
       // Check if shop already exists to determine if this is a new installation
       const esClient = getESClient();
-      const shopsRepository = new ShopsRepository(esClient, 'shops');
+      const shopsRepository = new ShopsRepository(esClient, SHOPS_INDEX_NAME);
       const existingShop = await shopsRepository.getShop(shop);
       const isNewInstallation = !existingShop || !existingShop.installedAt;
 
@@ -113,7 +114,7 @@ export const POST = handler(async (req: HttpRequest) => {
         (async () => {
           try {
             const esClient = getESClient();
-            const shopsRepository = new ShopsRepository(esClient, 'shops');
+            const shopsRepository = new ShopsRepository(esClient, SHOPS_INDEX_NAME);
             const lockService = new IndexingLockService(esClient);
             
             // Check if indexing is already in progress
@@ -199,7 +200,7 @@ export const POST = handler(async (req: HttpRequest) => {
     } else if (event === 'APP_UNINSTALLED') {
       // Update shop to mark as uninstalled (matches old uninstallShop() method)
       const esClient = getESClient();
-      const shopsRepository = new ShopsRepository(esClient, 'shops');
+      const shopsRepository = new ShopsRepository(esClient, SHOPS_INDEX_NAME);
       
       // Get existing shop to preserve data
       const existingShop = await shopsRepository.getShop(shop);

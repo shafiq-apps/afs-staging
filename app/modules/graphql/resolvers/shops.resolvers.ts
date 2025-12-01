@@ -14,6 +14,7 @@ import { getProductMapping } from '@modules/products/products.mapping';
 import { IndexingStatusService } from '@modules/indexing/indexing.status.service';
 import { IndexingLockService } from '@modules/indexing/indexing.lock.service';
 import { IndexerCheckpointService } from '@modules/indexing/indexing.checkpoint.service';
+import { SHOPS_INDEX_NAME } from '@shared/constants/es.constant';
 
 const logger = createModuleLogger('shops-resolvers');
 
@@ -40,7 +41,7 @@ function getShopsRepository(context: GraphQLContext): ShopsRepository {
   }
   
   if (!shopsRepo) {
-    shopsRepo = new ShopsRepository(esClient, 'shops');
+    shopsRepo = new ShopsRepository(esClient, SHOPS_INDEX_NAME);
   }
   return shopsRepo;
 }
@@ -65,7 +66,7 @@ export const shopsResolvers = {
         const esClient = getESClient(context);
         try {
           const response = await esClient.get({
-            index: 'shops',
+            index: SHOPS_INDEX_NAME,
             id: domain,
           });
 
@@ -266,7 +267,7 @@ export const shopsResolvers = {
         // Delete directly from ES (ShopsRepository doesn't have delete method)
         try {
           await esClient.delete({
-            index: 'shops',
+            index: SHOPS_INDEX_NAME,
             id: domain,
             refresh: true,
           });

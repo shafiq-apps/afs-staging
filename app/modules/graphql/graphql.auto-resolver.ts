@@ -72,38 +72,6 @@ export function getESServiceForType(
 }
 
 /**
- * Infer method name from GraphQL field name
- */
-function inferMethodName(fieldName: string, isMutation: boolean): string {
-  // Remove common prefixes/suffixes
-  let methodName = fieldName;
-
-  // For queries: shop -> getShop, shops -> getShops, shopExists -> shopExists
-  if (!isMutation) {
-    if (fieldName.endsWith('Exists')) {
-      return fieldName; // shopExists -> shopExists
-    }
-    if (fieldName.endsWith('s')) {
-      // Plural: shops -> getShops
-      return `get${fieldName.charAt(0).toUpperCase()}${fieldName.slice(1)}`;
-    }
-    // Singular: shop -> getShop
-    return `get${fieldName.charAt(0).toUpperCase()}${fieldName.slice(1)}`;
-  }
-
-  // For mutations: createShop -> createShop, updateShop -> updateShop, deleteShop -> deleteShop
-  const mutationPrefixes = ['create', 'update', 'delete', 'remove', 'activate', 'deactivate'];
-  for (const prefix of mutationPrefixes) {
-    if (fieldName.startsWith(prefix)) {
-      return fieldName; // Already has prefix
-    }
-  }
-
-  // Default: add create prefix
-  return `create${fieldName.charAt(0).toUpperCase()}${fieldName.slice(1)}`;
-}
-
-/**
  * Get return type name from GraphQL type
  */
 function getReturnTypeName(type: any): string | null {
