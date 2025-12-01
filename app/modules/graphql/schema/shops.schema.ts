@@ -20,7 +20,7 @@ export const shopsSchema = `
   # Shop type (public fields only, no sensitive data)
   # Includes session fields from Prisma Session model
   type Shop {
-    # @index shops idField=shop sensitiveFields=accessToken,refreshToken
+    # @index shops idField=shop
     shop: String!
     installedAt: String
     isActive: Boolean
@@ -33,7 +33,6 @@ export const shopsSchema = `
     reinstalled: String
     metadata: ShopMetadata
     locals: ShopLocals
-    # Session fields from Prisma Session model
     sessionId: String
     state: String
     isOnline: Boolean
@@ -50,7 +49,6 @@ export const shopsSchema = `
   }
 
   # Input types for mutations
-  # Note: Input types can include sensitive fields (accessToken, refreshToken)
   # They will be saved to ES but filtered from query responses
   input CreateShopInput {
     shop: String!
@@ -63,7 +61,6 @@ export const shopsSchema = `
     updatedAt: String
     metadata: JSON
     locals: JSON
-    # Session fields from Prisma Session model
     sessionId: String
     state: String
     isOnline: Boolean
@@ -92,7 +89,6 @@ export const shopsSchema = `
     updatedAt: String
     metadata: JSON
     locals: JSON
-    # Session fields from Prisma Session model
     sessionId: String
     state: String
     isOnline: Boolean
