@@ -14,8 +14,7 @@
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "moduleResolution": "bundler",
+    "forceConsistentCasingInFileNames": true
   },
   "include": [
     "core/**/*.ts",
