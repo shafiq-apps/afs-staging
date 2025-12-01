@@ -1,0 +1,389 @@
+/**
+ * Elasticsearch Session Storage Adapter
+ * Uses GraphQL mutations to save/read sessions from Elasticsearch shops index
+ * Also saves to context API for quick access token retrieval
+ */
+
+import type { Session } from "@shopify/shopify-app-react-router/server";
+
+// Simple logger for dashboard (no shared utils available)
+const logger = {
+  log: (message: string, meta?: any) => console.log(`[ES-SessionStorage] ${message}`, meta || ''),
+  error: (message: string, meta?: any) => console.error(`[ES-SessionStorage] ${message}`, meta || ''),
+  warn: (message: string, meta?: any) => console.warn(`[ES-SessionStorage] ${message}`, meta || ''),
+  debug: (message: string, meta?: any) => {
+    if (process.env.NODE_ENV === 'development') {
+      console.debug(`[ES-SessionStorage] ${message}`, meta || '');
+    }
+  },
+};
+
+// Get GraphQL endpoint from environment
+const GRAPHQL_ENDPOINT = process.env.GRAPHQL_ENDPOINT || "http://localhost:3554/graphql";
+
+/**
+ * Convert Shopify Session to shop document format
+ */
+function sessionToShopDocument(session: Session): any {
+  return {
+    shop: session.shop,
+    accessToken: session.accessToken,
+    refreshToken: (session as any).refreshToken || undefined,
+    scopes: session.scope ? session.scope.split(',') : [],
+    isActive: true,
+    lastAccessed: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    // Session fields
+    sessionId: session.id,
+    state: session.state,
+    isOnline: session.isOnline || false,
+    scope: session.scope,
+    expires: session.expires ? session.expires.toISOString() : null,
+    userId: session.onlineAccessInfo?.associated_user?.id?.toString(),
+    firstName: session.onlineAccessInfo?.associated_user?.first_name,
+    lastName: session.onlineAccessInfo?.associated_user?.last_name,
+    email: session.onlineAccessInfo?.associated_user?.email,
+    accountOwner: session.onlineAccessInfo?.associated_user?.account_owner || false,
+    locale: session.onlineAccessInfo?.associated_user?.locale,
+    collaborator: session.onlineAccessInfo?.associated_user?.collaborator || false,
+    emailVerified: session.onlineAccessInfo?.associated_user?.email_verified || false,
+  };
+}
+
+/**
+ * Convert shop document to Shopify Session
+ */
+function shopDocumentToSession(shopData: any): Session | null {
+  if (!shopData || !shopData.accessToken) {
+    return null;
+  }
+
+  const session: Session = {
+    id: shopData.sessionId || `${shopData.shop}-${Date.now()}`,
+    shop: shopData.shop,
+    state: shopData.state || '',
+    isOnline: shopData.isOnline || false,
+    scope: shopData.scope || (shopData.scopes ? shopData.scopes.join(',') : ''),
+    expires: shopData.expires ? new Date(shopData.expires) : undefined,
+    accessToken: shopData.accessToken,
+    ...(shopData.refreshToken && { refreshToken: shopData.refreshToken }),
+  };
+
+  // Add online access info if available
+  if (shopData.userId || shopData.firstName || shopData.email) {
+    const expiresIn = shopData.expires 
+      ? Math.floor((new Date(shopData.expires).getTime() - Date.now()) / 1000)
+      : 0;
+    
+    const onlineAccessInfo: any = {
+      associated_user: {
+        ...(shopData.userId && { id: BigInt(shopData.userId) }),
+        ...(shopData.firstName && { first_name: shopData.firstName }),
+        ...(shopData.lastName && { last_name: shopData.lastName }),
+        ...(shopData.email && { email: shopData.email }),
+        account_owner: shopData.accountOwner || false,
+        ...(shopData.locale && { locale: shopData.locale }),
+        collaborator: shopData.collaborator || false,
+        email_verified: shopData.emailVerified || false,
+      },
+      associated_user_scope: shopData.scope || shopData.scopes?.join(',') || '',
+    };
+    
+    if (expiresIn > 0) {
+      onlineAccessInfo.expires_in = expiresIn;
+    }
+    
+    session.onlineAccessInfo = onlineAccessInfo;
+  }
+
+  return session;
+}
+
+/**
+ * Make GraphQL request
+ */
+async function graphqlRequest(query: string, variables?: any): Promise<any> {
+  try {
+    const response = await fetch(GRAPHQL_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        query,
+        variables,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`GraphQL request failed: ${response.statusText}`);
+    }
+
+    const result = await response.json();
+
+    if (result.errors) {
+      logger.error('GraphQL errors', { errors: result.errors });
+      throw new Error(`GraphQL errors: ${JSON.stringify(result.errors)}`);
+    }
+
+    return result.data;
+  } catch (error: any) {
+    logger.error('GraphQL request error', { error: error?.message || error });
+    throw error;
+  }
+}
+
+/**
+ * Local in-memory cache for access tokens (dashboard side only)
+ * This provides quick access without hitting GraphQL on every request
+ */
+class LocalSessionCache {
+  private cache: Map<string, { accessToken: string; refreshToken?: string; data: any; expires: number }> = new Map();
+  private readonly TTL = 30 * 60 * 1000; // 30 minutes
+
+  set(shop: string, accessToken: string, refreshToken: string | undefined, data: any): void {
+    this.cache.set(shop, {
+      accessToken,
+      refreshToken,
+      data,
+      expires: Date.now() + this.TTL,
+    });
+    logger.debug('Session cached locally', { shop });
+  }
+
+  get(shop: string): { accessToken: string; refreshToken?: string; data: any } | null {
+    const cached = this.cache.get(shop);
+    if (!cached) {
+      return null;
+    }
+
+    // Check if expired
+    if (Date.now() > cached.expires) {
+      this.cache.delete(shop);
+      return null;
+    }
+
+    return {
+      accessToken: cached.accessToken,
+      refreshToken: cached.refreshToken,
+      data: cached.data,
+    };
+  }
+
+  delete(shop: string): void {
+    this.cache.delete(shop);
+  }
+
+  clear(): void {
+    this.cache.clear();
+  }
+}
+
+// Singleton cache instance
+const localCache = new LocalSessionCache();
+
+/**
+ * Elasticsearch Session Storage
+ * Implements Shopify SessionStorage interface
+ */
+export class ElasticsearchSessionStorage {
+  /**
+   * Store a session
+   */
+  async storeSession(session: Session): Promise<boolean> {
+    try {
+      logger.log('Storing session', { shop: session.shop, sessionId: session.id });
+
+      const shopDocument = sessionToShopDocument(session);
+
+      // Use createShop mutation (upsert behavior)
+      const mutation = `
+        mutation CreateShop($input: CreateShopInput!) {
+          createShop(input: $input) {
+            shop
+            isActive
+            installedAt
+          }
+        }
+      `;
+
+      const variables = {
+        input: shopDocument,
+      };
+
+      await graphqlRequest(mutation, variables);
+
+      // Cache locally in dashboard for quick access
+      if (session.shop && session.accessToken) {
+        localCache.set(
+          session.shop,
+          session.accessToken,
+          (session as any).refreshToken,
+          shopDocument
+        );
+      }
+
+      logger.log('Session stored successfully', { shop: session.shop });
+      return true;
+    } catch (error: any) {
+      logger.error('Error storing session', { error: error?.message || error, shop: session.shop });
+      return false;
+    }
+  }
+
+  /**
+   * Load a session by ID
+   */
+  async loadSession(id: string): Promise<Session | undefined> {
+    try {
+      logger.log('Loading session', { sessionId: id });
+
+      // Extract shop from session ID (format: shop-domain or shop-domain-timestamp)
+      // Session IDs from Shopify are typically: shop-domain or shop-domain-userId
+      const shopMatch = id.match(/^([^-\d]+(?:\.myshopify\.com)?)/);
+      if (!shopMatch || !shopMatch[1]) {
+        logger.warn('Could not extract shop from session ID', { sessionId: id });
+        return undefined;
+      }
+
+      const shop = shopMatch[1];
+
+      // Use shop query to get shop data
+      const query = `
+        query GetShop($domain: String!) {
+          shop(domain: $domain) {
+            shop
+            accessToken
+            refreshToken
+            scopes
+            isActive
+            sessionId
+            state
+            isOnline
+            scope
+            expires
+            userId
+            firstName
+            lastName
+            email
+            accountOwner
+            locale
+            collaborator
+            emailVerified
+          }
+        }
+      `;
+
+      const variables = { domain: shop };
+
+      const data = await graphqlRequest(query, variables);
+
+      if (!data?.shop) {
+        logger.warn('Shop not found', { shop, sessionId: id });
+        return undefined;
+      }
+
+      const session = shopDocumentToSession(data.shop);
+
+      if (!session) {
+        logger.warn('Could not convert shop data to session', { shop, sessionId: id });
+        return undefined;
+      }
+
+      // Verify session ID matches (if specific session ID was requested)
+      if (session.id !== id && !id.startsWith(shop)) {
+        logger.warn('Session ID mismatch', { requestedId: id, foundId: session.id, shop });
+        return undefined;
+      }
+
+      logger.log('Session loaded successfully', { shop, sessionId: session.id });
+      return session;
+    } catch (error: any) {
+      logger.error('Error loading session', { error: error?.message || error, sessionId: id });
+      return undefined;
+    }
+  }
+
+  /**
+   * Delete a session
+   */
+  async deleteSession(id: string): Promise<boolean> {
+    try {
+      logger.log('Deleting session', { sessionId: id });
+
+      // Extract shop from session ID
+      const shopMatch = id.match(/^([^-\d]+(?:\.myshopify\.com)?)/);
+      if (!shopMatch || !shopMatch[1]) {
+        logger.warn('Could not extract shop from session ID', { sessionId: id });
+        return false;
+      }
+
+      const shop = shopMatch[1];
+
+      // Remove from local cache
+      localCache.delete(shop);
+
+      // For session deletion, we typically just mark as inactive or remove access token
+      // But for complete deletion, use deleteShop mutation
+      const mutation = `
+        mutation DeleteShop($domain: String!) {
+          deleteShop(domain: $domain)
+        }
+      `;
+
+      const variables = { domain: shop };
+
+      const data = await graphqlRequest(mutation, variables);
+
+      if (data?.deleteShop) {
+        logger.log('Session deleted successfully', { shop, sessionId: id });
+        return true;
+      }
+
+      return false;
+    } catch (error: any) {
+      logger.error('Error deleting session', { error: error?.message || error, sessionId: id });
+      return false;
+    }
+  }
+
+  /**
+   * Delete all sessions for a shop (used during uninstall)
+   */
+  async deleteSessions(shop: string): Promise<boolean> {
+    try {
+      logger.log('Deleting all sessions for shop', { shop });
+
+      // Remove from local cache
+      localCache.delete(shop);
+
+      // Mark shop as inactive instead of deleting
+      const mutation = `
+        mutation UpdateShop($domain: String!, $input: UpdateShopInput!) {
+          updateShop(domain: $domain, input: $input) {
+            shop
+            isActive
+          }
+        }
+      `;
+
+      const variables = {
+        domain: shop,
+        input: {
+          isActive: false,
+          accessToken: null,
+          refreshToken: null,
+        },
+      };
+
+      await graphqlRequest(mutation, variables);
+
+      logger.log('All sessions deleted for shop', { shop });
+      return true;
+    } catch (error: any) {
+      logger.error('Error deleting sessions for shop', { error: error?.message || error, shop });
+      return false;
+    }
+  }
+}
+

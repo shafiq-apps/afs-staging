@@ -61,21 +61,35 @@ export const shopsResolvers = {
 
         const repo = getShopsRepository(context);
         
-        // ShopsRepository.getShop uses domain as document ID
-        const shop = await repo.getShop(domain);
-        
-        if (!shop) {
-          logger.warn('Shop not found', { domain });
-          return null;
+        // Get shop directly from ES to include accessToken (not filtered)
+        const esClient = getESClient(context);
+        try {
+          const response = await esClient.get({
+            index: 'shops',
+            id: domain,
+          });
+
+          if (response.found && response._source) {
+            const shop = response._source as any;
+
+            logger.log('Shop found', {
+              domain,
+              shop: shop.shop,
+              hasMetadata: !!shop.metadata,
+              hasAccessToken: !!shop.accessToken,
+            });
+
+            // Return shop data (accessToken will be filtered by GraphQL service if needed)
+            return shop;
+          }
+        } catch (esError: any) {
+          if (esError.statusCode !== 404) {
+            throw esError;
+          }
         }
-
-        logger.log('Shop found', {
-          domain,
-          shop: shop.shop,
-          hasMetadata: !!shop.metadata,
-        });
-
-        return shop;
+        
+        logger.warn('Shop not found', { domain });
+        return null;
       } catch (error: any) {
         logger.error('Error in shop resolver', {
           error: error?.message || error,

@@ -107,28 +107,45 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       };
     }
 
-    // Check if shop exists in backend to determine if this is a new installation
+    // Query shop data from GraphQL to get access token and install status
     if (shop) {
       try {
         const GRAPHQL_ENDPOINT = process.env.GRAPHQL_ENDPOINT || "http://localhost:3554/graphql";
-        const shopCheckQuery = `
-          query CheckShopExists($domain: String!) {
-            shopExists(domain: $domain)
+        const shopQuery = `
+          query GetShop($domain: String!) {
+            shop(domain: $domain) {
+              shop
+              isActive
+              installedAt
+              accessToken
+              scopes
+            }
           }
         `;
 
-        const shopCheckResponse = await fetch(GRAPHQL_ENDPOINT, {
+        const shopResponse = await fetch(GRAPHQL_ENDPOINT, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            query: shopCheckQuery,
+            query: shopQuery,
             variables: { domain: shop },
           }),
         });
 
-        const shopCheckResult = await shopCheckResponse.json();
-        // If shop doesn't exist, it's a new installation
-        isNewInstallation = !shopCheckResult.data?.shopExists;
+        const shopResult = await shopResponse.json();
+        
+        if (shopResult.data?.shop) {
+          const shopData = shopResult.data.shop;
+          // Shop exists - check if it's a new installation (no installedAt or very recent)
+          isNewInstallation = !shopData.installedAt || 
+            (new Date(shopData.installedAt).getTime() > Date.now() - 60000); // Installed less than 1 minute ago
+          
+          // Access token is available in shopData.accessToken (if not filtered)
+          // This will be used by the session storage adapter
+        } else {
+          // Shop doesn't exist - it's a new installation
+          isNewInstallation = true;
+        }
       } catch (error: any) {
         // If we can't check, assume it's not a new installation to be safe
         console.error("Error checking shop installation status:", error);

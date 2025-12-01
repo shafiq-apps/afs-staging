@@ -36,7 +36,7 @@ export class ShopsRepository {
 
       if (response.found && response._source) {
         const source = response._source as any;
-        return {
+        const shopData = {
           shop: source.shop || shop,
           accessToken: source.accessToken,
           installedAt: source.installedAt,
@@ -48,6 +48,8 @@ export class ShopsRepository {
           lastAccessed: source.lastAccessed,
           ...source,
         } as Shop;
+
+        return shopData;
       }
 
       return null;
@@ -74,6 +76,8 @@ export class ShopsRepository {
       isActive: true,
       metadata: input.metadata || {},
       locals: {},
+      // Include session fields if provided
+      ...(input as any),
     };
 
     await this.esClient.index({
@@ -104,6 +108,7 @@ export class ShopsRepository {
         ...updates,
         // Preserve installedAt if not updating
         installedAt: existing.installedAt,
+        updatedAt: new Date().toISOString(),
       };
 
       await this.esClient.index({

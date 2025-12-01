@@ -18,6 +18,7 @@ export const shopsSchema = `
     userAgent: String
   }
   # Shop type (public fields only, no sensitive data)
+  # Includes session fields from Prisma Session model
   type Shop {
     # @index shops idField=shop sensitiveFields=accessToken,refreshToken
     shop: String!
@@ -32,6 +33,20 @@ export const shopsSchema = `
     reinstalled: String
     metadata: ShopMetadata
     locals: ShopLocals
+    # Session fields from Prisma Session model
+    sessionId: String
+    state: String
+    isOnline: Boolean
+    scope: String
+    expires: String
+    userId: String
+    firstName: String
+    lastName: String
+    email: String
+    accountOwner: Boolean
+    locale: String
+    collaborator: Boolean
+    emailVerified: Boolean
   }
 
   # Input types for mutations
@@ -48,6 +63,20 @@ export const shopsSchema = `
     updatedAt: String
     metadata: JSON
     locals: JSON
+    # Session fields from Prisma Session model
+    sessionId: String
+    state: String
+    isOnline: Boolean
+    scope: String
+    expires: String
+    userId: String
+    firstName: String
+    lastName: String
+    email: String
+    accountOwner: Boolean
+    locale: String
+    collaborator: Boolean
+    emailVerified: Boolean
   }
 
   input UpdateShopInput {
@@ -63,6 +92,20 @@ export const shopsSchema = `
     updatedAt: String
     metadata: JSON
     locals: JSON
+    # Session fields from Prisma Session model
+    sessionId: String
+    state: String
+    isOnline: Boolean
+    scope: String
+    expires: String
+    userId: String
+    firstName: String
+    lastName: String
+    email: String
+    accountOwner: Boolean
+    locale: String
+    collaborator: Boolean
+    emailVerified: Boolean
   }
 
   # Reindex Result
