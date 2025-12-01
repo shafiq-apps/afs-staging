@@ -8,7 +8,6 @@ import { handler } from '@core/http/http.handler';
 import { HttpRequest } from '@core/http/http.types';
 import { validate } from '@core/http/validation.middleware';
 import { rateLimit } from '@core/security/rate-limit.middleware';
-import { graphqlHandler } from '@modules/graphql';
 import { createModuleLogger } from '@shared/utils/logger.util';
 import { ProductBulkIndexer, BulkIndexerDependencies } from '@modules/indexing/indexing.bulk.service';
 import { IndexerOptions } from '@modules/indexing/indexing.type';
@@ -54,31 +53,41 @@ export const POST = handler(async (req: HttpRequest) => {
       const existingShop = await shopsRepository.getShop(shop);
       const isNewInstallation = !existingShop || !existingShop.installedAt;
 
-      // Save/update shop data using GraphQL handler
-      // Using write() for upsert - creates if doesn't exist, updates if exists
-      // Data structure matches old saveShop() method from shops.repository.ts
-      const shopData = {
-        shop,
-        // OAuth tokens (will be saved to ES, filtered from query responses)
-        accessToken: req.body.accessToken,
-        refreshToken: req.body.refreshToken,
-        // Installation data
-        isActive: true,
-        installedAt: new Date().toISOString(),
-        lastAccessed: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        // OAuth scopes
-        scopes: req.body.scopes || [],
-        // Metadata and locals
-        metadata: req.body.metadata || {},
-        locals: req.body.locals || {},
-      };
-
-      // Use write() for upsert - shop domain is used as document ID in ES
-      const savedShop = await graphqlHandler.write('Shop', shopData, { id: shop });
+      // Save/update shop data using ShopsRepository directly
+      let savedShop: any;
+      
+      if (isNewInstallation) {
+        // New installation - use saveShop()
+        const shopData = {
+          shop,
+          // OAuth tokens
+          accessToken: req.body.accessToken,
+          refreshToken: req.body.refreshToken,
+          // OAuth scopes
+          scopes: req.body.scopes || [],
+          // Metadata and locals
+          metadata: req.body.metadata || {},
+          locals: req.body.locals || {},
+        };
+        savedShop = await shopsRepository.saveShop(shopData);
+      } else {
+        // Update existing shop - use updateShop() to preserve existing data
+        const updateData = {
+          isActive: true,
+          lastAccessed: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          // Update tokens if provided
+          ...(req.body.accessToken && { accessToken: req.body.accessToken }),
+          ...(req.body.refreshToken && { refreshToken: req.body.refreshToken }),
+          ...(req.body.scopes && { scopes: req.body.scopes }),
+          ...(req.body.metadata && { metadata: req.body.metadata }),
+          ...(req.body.locals && { locals: req.body.locals }),
+        };
+        savedShop = await shopsRepository.updateShop(shop, updateData);
+      }
       
       if (!savedShop) {
-        logger.error(`Failed to save shop: ${shop}`, { shopData });
+        logger.error(`Failed to save shop: ${shop}`);
         return {
           success: false,
           message: `Failed to save shop data`,
@@ -189,23 +198,41 @@ export const POST = handler(async (req: HttpRequest) => {
       };
     } else if (event === 'APP_UNINSTALLED') {
       // Update shop to mark as uninstalled (matches old uninstallShop() method)
+      const esClient = getESClient();
+      const shopsRepository = new ShopsRepository(esClient, 'shops');
+      
+      // Get existing shop to preserve data
+      const existingShop = await shopsRepository.getShop(shop);
+      
+      if (!existingShop) {
+        logger.warn(`Shop not found for uninstall: ${shop}`);
+        // Still return success as uninstall event was received
+        return {
+          success: true,
+          message: `Uninstall event processed (shop not found in database)`,
+          event,
+          shop,
+        };
+      }
+
+      // Update shop to mark as uninstalled
       const updateData = {
+        ...existingShop,
         isActive: false,
         uninstalledAt: new Date().toISOString(),
         lastAccessed: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
 
-      // Use write() for upsert - will update if exists
-      // Shop domain is used as document ID in ES
-      const updatedShop = await graphqlHandler.write('Shop', updateData, { id: shop });
+      // Use saveShop() for update - will update if exists
+      const updatedShop = await shopsRepository.saveShop(updateData);
 
       if (!updatedShop) {
-        logger.warn(`Shop not found for uninstall: ${shop}`);
+        logger.warn(`Failed to update shop for uninstall: ${shop}`);
         // Still return success as uninstall event was received
         return {
           success: true,
-          message: `Uninstall event processed (shop not found in database)`,
+          message: `Uninstall event processed (update failed)`,
           event,
           shop,
         };
