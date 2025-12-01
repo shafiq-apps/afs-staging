@@ -31,4 +31,4 @@ optional_scopes = [ ]
 use_legacy_install_flow = false
 
 [auth]
-redirect_urls = [ "https://fstaging.digitalcoo.com/app/auth/callback" ]
+redirect_urls = [ "https://fstaging.digitalcoo.com/auth/callback" ]

@@ -2,8 +2,7 @@ import type { ActionFunctionArgs } from "react-router";
 import { authenticate } from "../shopify.server";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const GRAPHQL_ENDPOINT =
-    process.env.GRAPHQL_ENDPOINT || "http://localhost:3554/graphql";
+  const GRAPHQL_ENDPOINT = process.env.GRAPHQL_ENDPOINT || "http://localhost:3554/graphql";
 
   try {
     const { session } = await authenticate.admin(request);
