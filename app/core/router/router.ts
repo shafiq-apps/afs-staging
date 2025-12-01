@@ -14,55 +14,6 @@ const logger = createModuleLogger('router');
 
 const VALID_METHODS = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']);
 
-/**
- * Get route prefix for a module
- * Checks for route.config.ts or routes.config.ts, then falls back to module name
- */
-async function getRoutePrefix(moduleDir: string, moduleName: string): Promise<string> {
-  // Check for route.config.ts or routes.config.ts in module directory
-  const configFiles = [
-    path.join(moduleDir, 'route.config.ts'),
-    path.join(moduleDir, 'routes.config.ts'),
-    path.join(moduleDir, 'route.config.js'),
-    path.join(moduleDir, 'routes.config.js'),
-  ];
-
-  for (const configFile of configFiles) {
-    if (fs.existsSync(configFile)) {
-      try {
-        const configPath = configFile.replace(/\.ts$/, '').replace(/\.js$/, '');
-        const configUrl = pathToFileURL(configPath).href;
-        const config = await import(configUrl);
-        
-        if (config.routePrefix && typeof config.routePrefix === 'string') {
-          return config.routePrefix.startsWith('/') ? config.routePrefix : `/${config.routePrefix}`;
-        }
-      } catch (err: any) {
-        logger.warn(`Failed to load route config from ${configFile}:`, err?.message);
-      }
-    }
-  }
-
-  // Check routes/index.ts for routePrefix export
-  const routesIndex = path.join(moduleDir, 'routes', 'index.ts');
-  if (fs.existsSync(routesIndex)) {
-    try {
-      const indexPath = routesIndex.replace(/\.ts$/, '');
-      const indexUrl = pathToFileURL(indexPath).href;
-      const indexModule = await import(indexUrl);
-      
-      if (indexModule.routePrefix && typeof indexModule.routePrefix === 'string') {
-        return indexModule.routePrefix.startsWith('/') ? indexModule.routePrefix : `/${indexModule.routePrefix}`;
-      }
-    } catch (err: any) {
-      // Ignore errors, fall back to default
-    }
-  }
-
-  // Default: use module name as route prefix
-  return `/${moduleName}`;
-}
-
 function isRouteFile(file: string): boolean {
   return file.endsWith('.ts') || file.endsWith('.js');
 }
@@ -86,14 +37,81 @@ function toRoutePart(name: string): string {
   return name;
 }
 
+/**
+ * Get route prefix for a module
+ * Checks for route.config.ts or routes.config.ts, then falls back to module name
+ */
+async function getRoutePrefix(moduleDir: string, moduleName: string): Promise<string> {
+  // Check for route.config files
+  const configFiles = [
+    path.join(moduleDir, 'route.config.ts'),
+    path.join(moduleDir, 'routes.config.ts'),
+    path.join(moduleDir, 'route.config.js'),
+    path.join(moduleDir, 'routes.config.js'),
+  ];
+
+  for (const configFile of configFiles) {
+    if (fs.existsSync(configFile)) {
+      try {
+        // For ES modules, always use .js extension
+        let importPath = configFile;
+        if (configFile.endsWith('.ts')) {
+          importPath = configFile.replace(/\.ts$/, '.js');
+        }
+        const configUrl = pathToFileURL(importPath).href;
+        const config = await import(configUrl);
+        
+        if (config.routePrefix && typeof config.routePrefix === 'string') {
+          return config.routePrefix.startsWith('/') ? config.routePrefix : `/${config.routePrefix}`;
+        }
+      } catch (err: any) {
+        logger.warn(`Failed to load route config from ${configFile}:`, err?.message);
+      }
+    }
+  }
+
+  // Check routes/index for routePrefix export
+  const routesIndexFiles = [
+    path.join(moduleDir, 'routes', 'index.ts'),
+    path.join(moduleDir, 'routes', 'index.js'),
+  ];
+
+  for (const routesIndex of routesIndexFiles) {
+    if (fs.existsSync(routesIndex)) {
+      try {
+        let importPath = routesIndex;
+        if (routesIndex.endsWith('.ts')) {
+          importPath = routesIndex.replace(/\.ts$/, '.js');
+        }
+        const indexUrl = pathToFileURL(importPath).href;
+        const indexModule = await import(indexUrl);
+        
+        if (indexModule.routePrefix && typeof indexModule.routePrefix === 'string') {
+          return indexModule.routePrefix.startsWith('/') ? indexModule.routePrefix : `/${indexModule.routePrefix}`;
+        }
+      } catch (err: any) {
+        // Ignore errors, fall back to default
+      }
+    }
+  }
+
+  // Default: use module name as route prefix
+  return `/${moduleName}`;
+}
+
 export async function loadRoutes(app: Express, options?: { routesDir?: string }): Promise<void> {
-  const baseDir = process.env.NODE_ENV === 'production'
-    ? path.join(process.cwd(), 'dist')
+  // Detect if we're running from dist folder by checking if dist folder exists and contains modules
+  const distPath = path.join(process.cwd(), 'dist');
+  const distModulesPath = path.join(distPath, 'modules');
+  const isRunningFromDist = fs.existsSync(distModulesPath) && fs.statSync(distModulesPath).isDirectory();
+  
+  const baseDir = (process.env.NODE_ENV === 'production' || isRunningFromDist)
+    ? distPath
     : process.cwd();
 
   const routesPath = options?.routesDir || path.join(baseDir, 'modules');
 
-  logger.info(`Loading routes from ${routesPath}`);
+  logger.info(`Loading routes from ${routesPath} (from dist: ${isRunningFromDist})`);
 
   if (!fs.existsSync(routesPath)) {
     logger.warn(`Routes directory not found: ${routesPath}`);
@@ -112,8 +130,7 @@ export async function loadRoutes(app: Express, options?: { routesDir?: string })
         const routesInDir = path.join(full, 'routes');
         if (fs.existsSync(routesInDir) && fs.statSync(routesInDir).isDirectory()) {
           // Determine route prefix: check for config file, then use module name as default
-          let routePrefix = await getRoutePrefix(full, item);
-          
+          const routePrefix = await getRoutePrefix(full, item);
           const nextBase = baseRoute + routePrefix;
           await walkRoutes(routesInDir, nextBase);
         }
@@ -126,14 +143,26 @@ export async function loadRoutes(app: Express, options?: { routesDir?: string })
       const seg = toRoutePart(name);
       const routePath = baseRoute + (seg ? `/${seg}` : '');
 
-      // Load module
+      // Load module using dynamic import for ES modules
       let mod: RouteModule;
       try {
-        // Use dynamic import for ES modules
-        // Remove .ts extension for import
-        const modulePath = full.replace(/\.ts$/, '');
+        // For ES modules, we need to handle .js extension in production
+        let importPath = full;
+        if (full.endsWith('.ts')) {
+          // Always convert .ts to .js for ES module imports
+          // In production (dist folder), files are .js
+          // In development, we still need .js extension for ES module imports
+          importPath = full.replace(/\.ts$/, '.js');
+        } else if (full.endsWith('.js')) {
+          // Already .js, use as is
+          importPath = full;
+        } else {
+          // No extension, add .js for ES modules
+          importPath = full + '.js';
+        }
+        
         // Convert to file:// URL for ES module import
-        const moduleUrl = pathToFileURL(modulePath).href;
+        const moduleUrl = pathToFileURL(importPath).href;
         const imported = await import(moduleUrl);
         mod = imported as RouteModule;
       } catch (err: any) {
@@ -153,13 +182,9 @@ export async function loadRoutes(app: Express, options?: { routesDir?: string })
         (app as any)[method.toLowerCase()](routePath || '/', ...middleware, async (req: any, res: any, next: any) => {
           try {
             const result = await handler(req, res, next);
+            // If handler already sent response, skip
             if (res.headersSent) return;
-            if (result === undefined) return;
-            // Handle statusCode in response
-            if (result && typeof result === 'object' && 'statusCode' in result) {
-              res.status(result.statusCode);
-              delete result.statusCode;
-            }
+            if (result === undefined) return; // assume handler handled response
             res.json(result);
           } catch (e) {
             next(e);
@@ -191,14 +216,26 @@ export async function loadRoutes(app: Express, options?: { routesDir?: string })
       const seg = toRoutePart(name);
       const routePath = baseRoute + (seg ? `/${seg}` : '');
 
-      // Load module
+      // Load module using dynamic import for ES modules
       let mod: RouteModule;
       try {
-        // Use dynamic import for ES modules
-        // Remove .ts extension for import
-        const modulePath = full.replace(/\.ts$/, '');
+        // For ES modules, we need to handle .js extension in production
+        let importPath = full;
+        if (full.endsWith('.ts')) {
+          // Always convert .ts to .js for ES module imports
+          // In production (dist folder), files are .js
+          // In development, we still need .js extension for ES module imports
+          importPath = full.replace(/\.ts$/, '.js');
+        } else if (full.endsWith('.js')) {
+          // Already .js, use as is
+          importPath = full;
+        } else {
+          // No extension, add .js for ES modules
+          importPath = full + '.js';
+        }
+        
         // Convert to file:// URL for ES module import
-        const moduleUrl = pathToFileURL(modulePath).href;
+        const moduleUrl = pathToFileURL(importPath).href;
         const imported = await import(moduleUrl);
         mod = imported as RouteModule;
       } catch (err: any) {
@@ -233,4 +270,3 @@ export async function loadRoutes(app: Express, options?: { routesDir?: string })
 
   await walk(routesPath);
 }
-
