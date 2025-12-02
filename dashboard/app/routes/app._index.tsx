@@ -129,7 +129,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       error: undefined,
     } as HomePageData;
   } catch (error: any) {
-    console.error("Error fetching home page data:", error);
     return {
       filters: [],
       totalFilters: 0,

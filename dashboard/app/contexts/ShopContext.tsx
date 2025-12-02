@@ -63,7 +63,6 @@ export function ShopProvider({ children, shopData, isLoading = false }: ShopProv
         ...options,
       }).format(dateObj);
     } catch (error) {
-      console.error("Error formatting date:", error);
       return "Invalid date";
     }
   };

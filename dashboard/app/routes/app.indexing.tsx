@@ -83,7 +83,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const result = await response.json();
 
     if (result.errors) {
-      console.error("GraphQL errors:", result.errors);
       // Return default status if query fails
       return {
         indexingStatus: {
@@ -106,7 +105,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       error: undefined,
     };
   } catch (error: any) {
-    console.error("Error fetching indexing status:", error);
     // Return default status on error
     return {
       indexingStatus: {
@@ -207,7 +205,6 @@ export default function IndexingPage() {
       if (error.name === 'AbortError') {
         return null;
       }
-      console.error("Error fetching indexing status:", error);
       setError(error.message || "Failed to fetch indexing status");
       return null;
     }
@@ -437,7 +434,6 @@ export default function IndexingPage() {
         }
       }
     } catch (error: any) {
-      console.error("Reindex error:", error);
       shopify.toast.show(error.message || "Failed to start reindexing", { isError: true });
       setIsReindexing(false);
     }

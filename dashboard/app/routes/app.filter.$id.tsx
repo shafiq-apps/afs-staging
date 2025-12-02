@@ -188,7 +188,7 @@ export default function EditFilterPage() {
 
   if (loadError) {
     return (
-      <s-page heading="Edit Filter">
+      <s-page heading={t("filterForm.edit.pageTitle")}>
         <s-section>
           <s-banner tone="critical">
             <s-text>Error: {loadError}</s-text>
@@ -200,7 +200,7 @@ export default function EditFilterPage() {
 
   if (!initialFilter) {
     return (
-      <s-page heading="Edit Filter">
+      <s-page heading={t("filterForm.edit.pageTitle")}>
         <s-section>
           <s-spinner size="large" />
           <s-text>Loading filter...</s-text>

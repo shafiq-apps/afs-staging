@@ -101,7 +101,7 @@ function generateAutoResolver(
   return async (parent: any, graphqlArgs: any, context: GraphQLContext) => {
     try {
       // Log immediately to confirm resolver is called
-      console.log(`[AUTO-RESOLVER] ${fieldName} called`, {
+      logger.log(`[AUTO-RESOLVER] ${fieldName} called`, {
         fieldName,
         returnTypeName,
         isMutation,

@@ -1,4 +1,9 @@
 {
+  "navigation": {
+    "home": "Home",
+    "filters": "Filters",
+    "indexing": "Products Sync"
+  },
   "filters": {
     "pageTitle": "Filters",
     "createFilter": "Create filter",
@@ -151,7 +156,7 @@
     }
   },
   "indexing": {
-    "pageTitle": "Product Sync",
+    "pageTitle": "Products Sync",
     "syncStatus": {
       "title": "Sync Status",
       "status": "Status",

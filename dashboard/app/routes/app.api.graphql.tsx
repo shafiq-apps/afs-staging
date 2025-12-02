@@ -50,7 +50,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("GraphQL endpoint error:", errorText);
       return new Response(
         JSON.stringify({ error: `GraphQL request failed: ${response.statusText}` }),
         { 
@@ -63,7 +62,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const result = await response.json();
 
     if (result.errors) {
-      console.error("GraphQL errors:", result.errors);
       return new Response(
         JSON.stringify({ 
           error: result.errors[0]?.message || "GraphQL mutation failed",
@@ -84,7 +82,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }
     );
   } catch (error: any) {
-    console.error("Error in GraphQL API route:", error);
     return new Response(
       JSON.stringify({ error: error.message || "Internal server error" }),
       { 

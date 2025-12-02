@@ -143,8 +143,7 @@ function attachResolversToSchema(schema: GraphQLSchema, resolvers: any): GraphQL
           // Wrap resolver to add logging
           const resolverFn = resolvers.Query[fieldName];
           (queryFields[fieldName] as any).resolve = async (...args: any[]) => {
-            // Use console.log for immediate visibility
-            console.log(`[RESOLVER-WRAPPER] Query.${fieldName} called`, {
+            logger.log(`Query.${fieldName} called`, {
               fieldName,
               argsCount: args.length,
               hasParent: !!args[0],
@@ -166,7 +165,7 @@ function attachResolversToSchema(schema: GraphQLSchema, resolvers: any): GraphQL
             try {
               const result = await resolverFn(...args);
               
-              console.log(`[RESOLVER-WRAPPER] Query.${fieldName} result`, {
+              logger.log(`Query.${fieldName} result`, {
                 fieldName,
                 hasResult: !!result,
                 resultType: typeof result,
@@ -183,7 +182,7 @@ function attachResolversToSchema(schema: GraphQLSchema, resolvers: any): GraphQL
               });
               return result;
             } catch (error: any) {
-              console.error(`[RESOLVER-WRAPPER] Query.${fieldName} error`, {
+              logger.error(`Query.${fieldName} error`, {
                 fieldName,
                 error: error?.message || error,
                 stack: error?.stack,

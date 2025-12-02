@@ -474,7 +474,6 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
         if (collectionsError) setCollectionsError("");
       }
     } catch (error) {
-      console.error('Error opening collection picker:', error);
       shopify.toast.show('Failed to open collection picker', { isError: true });
     }
   }, [shopify, selectedCollections]);
@@ -1284,7 +1283,6 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
       const result = await response.json();
 
       if (result.error || (result.errors && result.errors.length > 0)) {
-        console.error("GraphQL errors:", result.errors || result.error);
         const errorMessage = result.error || result.errors?.[0]?.message || `Failed to ${mode} filter`;
         shopify.toast.show(errorMessage, { isError: true });
       } else if (result.createFilter || result.updateFilter) {
@@ -1334,7 +1332,6 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
           }
         }, 100);
       } else {
-        console.error("Unexpected response:", result);
         shopify.toast.show(`Failed to ${mode} filter: Unexpected response`, { isError: true });
       }
     } catch (error: any) {

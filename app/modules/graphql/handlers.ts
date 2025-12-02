@@ -3,9 +3,12 @@
  * Exports ready-to-use handler instances
  */
 
+import { createModuleLogger } from '@shared/utils/logger.util';
 import { GraphQLHandler } from './graphql-handler';
 import { GraphQLService } from './graphql.service';
 import { GraphQLSchema } from 'graphql';
+
+const logger = createModuleLogger("GraphQLHandler");
 
 // Handler instance - will be initialized by factory
 let graphqlHandlerInstance: GraphQLHandler | null = null;
@@ -36,8 +39,8 @@ export const graphqlHandler = new Proxy({} as GraphQLHandler, {
   get(target, prop) {
     if (!graphqlHandlerInstance) {
       const error = new Error('GraphQL handler not initialized. Ensure GraphQL module is properly initialized in bootstrap.');
-      console.error('[GraphQL Handler]', error.message);
-      console.error('[GraphQL Handler] Stack:', error.stack);
+      logger.error(error.message);
+      logger.error('Stack:', error.stack);
       throw error;
     }
     const method = (graphqlHandlerInstance as any)[prop];

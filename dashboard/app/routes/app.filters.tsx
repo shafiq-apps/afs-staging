@@ -84,7 +84,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const result = await response.json();
 
     if (result.errors) {
-      console.error("GraphQL errors:", result.errors);
       return {
         filters: [],
         error: result.errors[0]?.message || "Failed to fetch filters",
@@ -99,7 +98,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       graphqlEndpoint: GRAPHQL_ENDPOINT,
     } as FiltersData;
   } catch (error: any) {
-    console.error("Error fetching filters:", error);
     return {
       filters: [],
       error: error.message || "Failed to fetch filters",

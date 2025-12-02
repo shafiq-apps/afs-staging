@@ -6,6 +6,7 @@ import { AppProvider } from "@shopify/shopify-app-react-router/react";
 
 import { authenticate } from "../shopify.server";
 import { ShopProvider, type ShopLocaleData } from "../contexts/ShopContext";
+import { useTranslation } from "app/utils/translations";
 
 const SHOP_DATA_CACHE_KEY = "shop_locale_data";
 const CACHE_DURATION = 1000 * 60 * 60; // 1 hour
@@ -34,7 +35,6 @@ function getCachedShopData(): ShopLocaleData | null {
     sessionStorage.removeItem(SHOP_DATA_CACHE_KEY);
     return null;
   } catch (error) {
-    console.error("Error reading cached shop data:", error);
     return null;
   }
 }
@@ -49,7 +49,6 @@ function setCachedShopData(data: ShopLocaleData): void {
     };
     sessionStorage.setItem(SHOP_DATA_CACHE_KEY, JSON.stringify(cache));
   } catch (error) {
-    console.error("Error caching shop data:", error);
   }
 }
 
@@ -147,12 +146,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         }
       } catch (error: any) {
         // If we can't check, assume it's not a new installation to be safe
-        console.error("Error checking shop installation status:", error);
         isNewInstallation = false;
       }
     }
   } catch (error: any) {
-    console.error("Error fetching shop locale data:", error);
     // Continue with null shopData - will use defaults
   }
 
@@ -162,6 +159,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 export default function App() {
   const { apiKey, shopData, shop } = useLoaderData<typeof loader>();
   const location = useLocation();
+  
+  const { t } = useTranslation();
 
   // Cache shop data on client side
   if (typeof window !== "undefined" && shopData) {
@@ -173,7 +172,6 @@ export default function App() {
 
   // Global cleanup: Clear orphaned slots on every navigation
   useEffect(() => {
-    console.log("Route loaded", location.pathname);
     // Small delay to let the new page render first
     const timeoutId = setTimeout(() => {
       // Find all slot elements
@@ -206,9 +204,9 @@ export default function App() {
     <AppProvider embedded apiKey={apiKey}>
       <ShopProvider shopData={effectiveShopData} isLoading={!effectiveShopData}>
         <s-app-nav>
-          <s-link href="/app">Home</s-link>
-          <s-link href="/app/filters">Filters</s-link>
-          <s-link href="/app/indexing">Product Sync</s-link>
+          <s-link href="/app">{t("navigation.home")}</s-link>
+          <s-link href="/app/filters">{t("navigation.filters")}</s-link>
+          <s-link href="/app/indexing">{t("navigation.indexing")}</s-link>
         </s-app-nav>
         
         <Outlet />
