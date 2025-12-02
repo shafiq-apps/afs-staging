@@ -109,3 +109,6 @@ build-production.sh
 deploy.sh
 
 gitpush.sh
+
+.cursor
+.gemini
