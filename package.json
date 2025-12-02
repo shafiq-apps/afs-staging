@@ -1,0 +1,22 @@
+{
+  "name": "afs-staging",
+  "version": "1.0.0",
+  "description": "",
+  "main": "ecosystem.config.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shafiq-apps/afs-staging.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/shafiq-apps/afs-staging/issues"
+  },
+  "homepage": "https://github.com/shafiq-apps/afs-staging#readme",
+  "dependencies": {
+    "dotenv": "^17.2.3"
+  }
+}
