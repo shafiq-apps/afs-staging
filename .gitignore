@@ -102,7 +102,7 @@ pnpm-lock.yaml
 # Optional: Keep these if you want to track them
 # !package-lock.json
 # !yarn.lock
-
+ecosystem.config*
 ecosystem.config.js
 nginx.conf
 build-production.sh
