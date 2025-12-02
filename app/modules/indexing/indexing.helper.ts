@@ -22,7 +22,7 @@ export function appendLog(message: string) {
     const baseDir = process.env.NODE_ENV === "production"
       ? path.join(process.cwd(), "dist")  // docker running compiled JS
       : process.cwd();
-    const logDir = path.join(baseDir, 'System', 'Logs');
+    const logDir = path.join(baseDir, 'system', 'logs');
     if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
     const file = path.join(logDir, `indexer-${new Date().toISOString().split('T')[0]}.log`);
     const entry = { ts: new Date().toISOString(), message };
