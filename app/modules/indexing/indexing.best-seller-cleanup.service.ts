@@ -6,9 +6,9 @@
 import { Client } from '@elastic/elasticsearch';
 import { createModuleLogger } from '@shared/utils/logger.util';
 import { BestSellerCollectionService } from './indexing.best-seller-collection.service';
-import { COLLECTION_UNUSED_DELETE_DAYS } from './indexing.constants';
 import { ShopifyGraphQLRepository } from './indexing.graphql.repository';
 import { ShopsRepository } from '@modules/shops/shops.repository';
+import { COLLECTION_UNUSED_DELETE_DAYS } from '@shared/constants/es.constant';
 
 const LOGGER = createModuleLogger('BestSellerCleanupService');
 

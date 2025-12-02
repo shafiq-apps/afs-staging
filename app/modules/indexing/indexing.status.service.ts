@@ -7,7 +7,7 @@ import { Client } from '@elastic/elasticsearch';
 import { createModuleLogger } from '@shared/utils/logger.util';
 import { CheckpointData } from './indexing.type';
 import { ShopifyShopName } from '@shared/utils/shopify-shop.util';
-import { CHECKPOINT_INDEX } from './indexing.constants';
+import { CHECKPOINT_INDEX_NAME } from '@shared/constants/es.constant';
 
 const LOGGER = createModuleLogger('IndexingStatusService');
 
@@ -48,7 +48,7 @@ export class IndexingStatusService {
       const checkpointId = `checkpoint_${ShopifyShopName(shop)}`;
       
       const response = await this.esClient.get({
-        index: CHECKPOINT_INDEX,
+        index: CHECKPOINT_INDEX_NAME,
         id: checkpointId,
       });
 

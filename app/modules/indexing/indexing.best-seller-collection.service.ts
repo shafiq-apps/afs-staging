@@ -22,17 +22,9 @@ import axios from 'axios';
 import readline from 'readline';
 import fs from 'fs';
 import path from 'path';
-
-import {
-  BEST_SELLER_COLLECTION_HANDLE,
-  BEST_SELLER_COLLECTION_INDEX,
-  COLLECTION_UNUSED_DELETE_DAYS,
-} from './indexing.constants';
+import { BEST_SELLER_COLLECTION_HANDLE, BEST_SELLER_COLLECTION_INDEX, COLLECTION_UNUSED_DELETE_DAYS } from '@shared/constants/es.constant';
 
 const LOGGER = createModuleLogger('BestSellerCollectionService');
-
-// Re-export for backward compatibility
-export { BEST_SELLER_COLLECTION_HANDLE, BEST_SELLER_COLLECTION_INDEX, COLLECTION_UNUSED_DELETE_DAYS };
 
 export interface BestSellerCollectionState {
   shop: string;

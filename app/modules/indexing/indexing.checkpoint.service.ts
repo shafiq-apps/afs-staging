@@ -8,7 +8,7 @@ import { Client } from '@elastic/elasticsearch';
 import { createModuleLogger } from '@shared/utils/logger.util';
 import { CheckpointData } from './indexing.type';
 import { ShopifyShopName } from '@shared/utils/shopify-shop.util';
-import { CHECKPOINT_INDEX } from './indexing.constants';
+import { CHECKPOINT_INDEX_NAME } from '@shared/constants/es.constant';
 
 const LOGGER = createModuleLogger('IndexerCheckpointService');
 const CHECKPOINT_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
@@ -62,10 +62,10 @@ export class IndexerCheckpointService {
    */
   private async ensureIndex(): Promise<void> {
     try {
-      const exists = await this.esClient.indices.exists({ index: CHECKPOINT_INDEX });
+      const exists = await this.esClient.indices.exists({ index: CHECKPOINT_INDEX_NAME });
       if (!exists) {
         await this.esClient.indices.create({
-          index: CHECKPOINT_INDEX,
+          index: CHECKPOINT_INDEX_NAME,
           mappings: {
             properties: {
               shop: { type: 'keyword' },
@@ -115,7 +115,7 @@ export class IndexerCheckpointService {
     
     try {
       const response = await this.esClient.get({
-        index: CHECKPOINT_INDEX,
+        index: CHECKPOINT_INDEX_NAME,
         id: this.checkpointId,
       });
 
@@ -306,7 +306,7 @@ export class IndexerCheckpointService {
       };
 
       await this.esClient.index({
-        index: CHECKPOINT_INDEX,
+        index: CHECKPOINT_INDEX_NAME,
         id: this.checkpointId,
         refresh: false, // Don't wait for refresh for speed
         document: checkpointDocument,
@@ -384,7 +384,7 @@ export class IndexerCheckpointService {
       };
 
       await this.esClient.index({
-        index: CHECKPOINT_INDEX,
+        index: CHECKPOINT_INDEX_NAME,
         id: this.checkpointId,
         refresh: true, // Force refresh for critical saves
         document: checkpointDocument,
@@ -413,7 +413,7 @@ export class IndexerCheckpointService {
     
     try {
       await this.esClient.delete({
-        index: CHECKPOINT_INDEX,
+        index: CHECKPOINT_INDEX_NAME,
         id: this.checkpointId,
         refresh: false,
       });

@@ -7,7 +7,7 @@
 import { Client } from '@elastic/elasticsearch';
 import { createModuleLogger } from '@shared/utils/logger.util';
 import { ShopifyShopName } from '@shared/utils/shopify-shop.util';
-import { LOCK_INDEX, CHECKPOINT_INDEX } from './indexing.constants';
+import { CHECKPOINT_INDEX_NAME, LOCK_INDEX_NAME } from '@shared/constants/es.constant';
 
 const LOGGER = createModuleLogger('IndexingLockService');
 const LOCK_TTL = 2 * 60 * 60 * 1000; // 2 hours - locks expire after 2 hours
@@ -24,10 +24,10 @@ export class IndexingLockService {
    */
   private async ensureIndex(): Promise<void> {
     try {
-      const exists = await this.esClient.indices.exists({ index: LOCK_INDEX });
+      const exists = await this.esClient.indices.exists({ index: LOCK_INDEX_NAME });
       if (!exists) {
         await this.esClient.indices.create({
-          index: LOCK_INDEX,
+          index: LOCK_INDEX_NAME,
           mappings: {
             properties: {
               shop: { type: 'keyword' },
@@ -63,7 +63,7 @@ export class IndexingLockService {
       // Try to create the lock (will fail if it already exists)
       try {
         await this.esClient.create({
-          index: LOCK_INDEX,
+          index: LOCK_INDEX_NAME,
           id: lockId,
           document: {
             shop,
@@ -80,7 +80,7 @@ export class IndexingLockService {
         if (error.statusCode === 409) {
           // Lock already exists - check if it's expired
           const existing = await this.esClient.get({
-            index: LOCK_INDEX,
+            index: LOCK_INDEX_NAME,
             id: lockId,
           });
 
@@ -93,13 +93,13 @@ export class IndexingLockService {
               // Lock expired - delete and create new one
               LOGGER.log('Existing lock expired, acquiring new lock', { shop });
               await this.esClient.delete({
-                index: LOCK_INDEX,
+                index: LOCK_INDEX_NAME,
                 id: lockId,
                 refresh: true,
               });
 
               await this.esClient.create({
-                index: LOCK_INDEX,
+                index: LOCK_INDEX_NAME,
                 id: lockId,
                 document: {
                   shop,
@@ -143,7 +143,7 @@ export class IndexingLockService {
       const lockId = `lock_${ShopifyShopName(shop)}`;
       
       await this.esClient.delete({
-        index: LOCK_INDEX,
+        index: LOCK_INDEX_NAME,
         id: lockId,
         refresh: false, // Don't wait for refresh
       });
@@ -168,7 +168,7 @@ export class IndexingLockService {
       const lockId = `lock_${ShopifyShopName(shop)}`;
       
       const response = await this.esClient.get({
-        index: LOCK_INDEX,
+        index: LOCK_INDEX_NAME,
         id: lockId,
       });
 
@@ -221,7 +221,7 @@ export class IndexingLockService {
 
       // Check if checkpoint exists and when it was last updated
       const checkpointResponse = await this.esClient.get({
-        index: CHECKPOINT_INDEX,
+        index: CHECKPOINT_INDEX_NAME,
         id: checkpointId,
       });
 
