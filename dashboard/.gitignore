@@ -25,5 +25,5 @@ database.sqlite
 
 gitpush.sh
 
-.cursor
-.gemini
+.cursor/*
+.gemini/*
