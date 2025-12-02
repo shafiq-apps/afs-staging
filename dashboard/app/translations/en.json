@@ -216,21 +216,6 @@
       "failedToStart": "Failed to start reindexing",
       "failedToFetch": "Failed to fetch indexing status"
     }
-  },
-  "onboarding": {
-    "title": "Theme App Extension Setup Required",
-    "description": "To use Advanced Filters & Search on your storefront, you need to add the app block to your theme. Complete the setup steps below:",
-    "blockAdded": "App block is configured in your theme (found in: {templates})",
-    "blockNotAdded": "App block not found in your theme. Please add it using the steps below.",
-    "howToConfigure": {
-      "title": "How to Configure",
-      "description": "Follow these steps to add the Advanced Filter Search block to your theme:",
-      "step1": "Click the 'Open Theme Editor' button below or go to Online Store > Themes > Customize",
-      "step2": "Navigate to the template where you want to add filters (e.g., Collection, Product, or Index)",
-      "step3": "Click 'Add block' and search for 'Advanced Filter Search'",
-      "step4": "Add the block to your desired section and configure the settings"
-    },
-    "openThemeEditor": "Open Theme Editor"
   }
 }
 

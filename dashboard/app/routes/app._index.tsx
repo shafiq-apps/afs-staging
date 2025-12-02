@@ -1,13 +1,10 @@
-import { useEffect } from "react";
 import type {
   HeadersFunction,
   LoaderFunctionArgs,
 } from "react-router";
 import { useLoaderData, useNavigate, useLocation } from "react-router";
-import { useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
-import { useTranslation } from "../utils/translations";
 import { useShop } from "../contexts/ShopContext";
 
 interface Filter {
@@ -30,13 +27,6 @@ interface IndexingStatus {
   lastUpdatedAt?: string | null;
 }
 
-interface OnboardingStatus {
-  themeExtensionEnabled: boolean;
-  blockPresent: boolean;
-  blockFoundInTemplates: string[];
-  currentThemeId?: string;
-  currentThemeName?: string;
-}
 
 interface HomePageData {
   filters: Filter[];
@@ -44,7 +34,6 @@ interface HomePageData {
   publishedFilters: number;
   draftFilters: number;
   indexingStatus: IndexingStatus;
-  onboardingStatus: OnboardingStatus;
   shopInfo?: { shop: string };
   apiKey?: string;
   error?: string;
@@ -129,104 +118,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       progress: 0,
     };
 
-    // Check onboarding status - theme app extension and block presence
-    let onboardingStatus: OnboardingStatus = {
-      themeExtensionEnabled: false,
-      blockPresent: false,
-      blockFoundInTemplates: [],
-    };
-
-    try {
-      // Get current theme
-      const themeQuery = `
-        query GetCurrentTheme {
-          themes(first: 1, roles: [MAIN]) {
-            edges {
-              node {
-                id
-                name
-                files(first: 100, filenames: ["templates/*.json"]) {
-                  edges {
-                    node {
-                      filename
-                      body {
-                        ... on OnlineStoreThemeFileBodyText {
-                          content
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      `;
-
-      const themeResponse = await admin.graphql(themeQuery);
-      const themeData = await themeResponse.json();
-
-      if (themeData.data?.themes?.edges?.length > 0) {
-        const currentTheme = themeData.data.themes.edges[0].node;
-        onboardingStatus.currentThemeId = currentTheme.id;
-        onboardingStatus.currentThemeName = currentTheme.name;
-
-        // Check if theme extension is enabled by looking for app blocks
-        // App blocks have type: "shopify://apps/{api_key}/blocks/{block_name}/{uuid}"
-        const blockName = "advanced-filter-search";
-        const templates = currentTheme.files?.edges || [];
-        const foundTemplates: string[] = [];
-
-        for (const templateEdge of templates) {
-          const template = templateEdge.node;
-          if (template.body?.content) {
-            try {
-              const templateJson = JSON.parse(template.body.content);
-              const sections = templateJson.sections || {};
-
-              // Check all sections for app blocks
-              for (const sectionId in sections) {
-                const section = sections[sectionId];
-                const blocks = section.blocks || {};
-
-                // Check all blocks for app block type
-                for (const blockId in blocks) {
-                  const block = blocks[blockId];
-                  if (block.type && typeof block.type === 'string') {
-                    // Check if it's an app block from this app
-                    if (block.type.includes(`apps/${apiKey}/blocks/${blockName}`) ||
-                        block.type.includes(`apps/`) && block.type.includes(`blocks/${blockName}`)) {
-                      onboardingStatus.themeExtensionEnabled = true;
-                      onboardingStatus.blockPresent = true;
-                      const templateName = template.filename.replace('templates/', '').replace('.json', '');
-                      if (!foundTemplates.includes(templateName)) {
-                        foundTemplates.push(templateName);
-                      }
-                    }
-                  }
-                }
-              }
-            } catch (e) {
-              // Skip invalid JSON files
-              console.error(`Error parsing template ${template.filename}:`, e);
-            }
-          }
-        }
-
-        onboardingStatus.blockFoundInTemplates = foundTemplates;
-      }
-    } catch (error: any) {
-      console.error("Error checking onboarding status:", error);
-      // Continue with default onboarding status
-    }
-
     return {
       filters: filters.slice(0, 5), // Show only recent 5
       totalFilters,
       publishedFilters,
       draftFilters,
       indexingStatus,
-      onboardingStatus,
       shopInfo: { shop },
       apiKey,
       error: undefined,
@@ -245,11 +142,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         totalFailed: 0,
         progress: 0,
       },
-      onboardingStatus: {
-        themeExtensionEnabled: false,
-        blockPresent: false,
-        blockFoundInTemplates: [],
-      },
       apiKey: process.env.SHOPIFY_API_KEY || "",
       error: error.message || "Failed to fetch data",
     } as HomePageData;
@@ -263,15 +155,12 @@ export default function Index() {
     publishedFilters,
     draftFilters,
     indexingStatus,
-    onboardingStatus,
     shopInfo,
     apiKey,
     error,
   } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
-  const shopify = useAppBridge();
   const location = useLocation();
-  const { t } = useTranslation();
   const { formatDate: formatShopDate } = useShop();
 
   const formatDate = (dateString: string | null | undefined) => {
@@ -299,92 +188,12 @@ export default function Index() {
   };
 
 
-  const isOnboardingComplete = onboardingStatus.themeExtensionEnabled && onboardingStatus.blockPresent;
-
   return (
     <s-page key={`home-${location.pathname}`} heading="Advanced Filters & Search" data-page-id="home">
       {error && (
         <s-section>
           <s-banner tone="critical">
             <s-text>Error: {error}</s-text>
-          </s-banner>
-        </s-section>
-      )}
-
-      {/* Onboarding Status */}
-      {!isOnboardingComplete && (
-        <s-section>
-          <s-banner tone="warning">
-            <s-stack direction="block" gap="base">
-              <s-heading>{t("onboarding.title")}</s-heading>
-              <s-stack direction="block" gap="small">
-                <s-text tone="auto">
-                  {t("onboarding.description")}
-                </s-text>
-                <s-unordered-list>
-                  <s-list-item>
-                    <s-stack direction="inline" gap="small" alignItems="center">
-                      {onboardingStatus.themeExtensionEnabled && onboardingStatus.blockPresent ? (
-                        <s-icon type="check" tone="success" />
-                      ) : (
-                        <s-icon type="x" tone="critical" />
-                      )}
-                      <s-text tone="auto">
-                        {onboardingStatus.themeExtensionEnabled && onboardingStatus.blockPresent
-                          ? t("onboarding.blockAdded", { templates: onboardingStatus.blockFoundInTemplates.join(", ") })
-                          : t("onboarding.blockNotAdded")}
-                      </s-text>
-                    </s-stack>
-                  </s-list-item>
-                </s-unordered-list>
-                <div style={{ marginTop: "16px" }}>
-                  <s-stack direction="block" gap="small">
-                  <s-heading>{t("onboarding.howToConfigure.title")}</s-heading>
-                  <s-text tone="auto">{t("onboarding.howToConfigure.description")}</s-text>
-                  <s-ordered-list>
-                    <s-list-item>
-                      <s-text tone="auto">{t("onboarding.howToConfigure.step1")}</s-text>
-                    </s-list-item>
-                    <s-list-item>
-                      <s-text tone="auto">{t("onboarding.howToConfigure.step2")}</s-text>
-                    </s-list-item>
-                    <s-list-item>
-                      <s-text tone="auto">{t("onboarding.howToConfigure.step3")}</s-text>
-                    </s-list-item>
-                    <s-list-item>
-                      <s-text tone="auto">{t("onboarding.howToConfigure.step4")}</s-text>
-                    </s-list-item>
-                  </s-ordered-list>
-                  <s-button
-                    variant="primary"
-                    onClick={() => {
-                      const shopDomain = shopInfo?.shop || '';
-                      const handle = 'app-embed'; // The filename of the app embed block
-                      
-                      if (shopDomain && apiKey) {
-                        // Deep link to activate app embed in theme editor
-                        const deepLink = `https://${shopDomain}/admin/themes/current/editor?context=apps&activateAppId=${apiKey}/${handle}`;
-                        window.open(deepLink, '_blank');
-                      } else {
-                        // Fallback: open theme editor without deep link
-                        if (shopDomain) {
-                          window.open(`https://${shopDomain}/admin/themes/current/editor?context=apps`, '_blank');
-                        } else {
-                          const hostname = window.location.hostname;
-                          if (hostname.includes('myshopify.com')) {
-                            window.open(`https://${hostname}/admin/themes/current/editor?context=apps`, '_blank');
-                          }
-                        }
-                      }
-                    }}
-                    icon="external"
-                  >
-                    {t("onboarding.openThemeEditor")}
-                  </s-button>
-                  </s-stack>
-                </div>
-              </s-stack>
-            </s-stack>
           </s-banner>
         </s-section>
       )}

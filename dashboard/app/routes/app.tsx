@@ -137,8 +137,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         if (shopResult.data?.shop) {
           const shopData = shopResult.data.shop;
           // Shop exists - check if it's a new installation (no installedAt or very recent)
-          isNewInstallation = !shopData.installedAt || 
-            (new Date(shopData.installedAt).getTime() > Date.now() - 60000); // Installed less than 1 minute ago
+          isNewInstallation = !shopData.installedAt || (new Date(shopData.installedAt).getTime() > Date.now() - 60000); // Installed less than 1 minute ago
           
           // Access token is available in shopData.accessToken (if not filtered)
           // This will be used by the session storage adapter
@@ -161,7 +160,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export default function App() {
-  const { apiKey, shopData, shop, isNewInstallation } = useLoaderData<typeof loader>();
+  const { apiKey, shopData, shop } = useLoaderData<typeof loader>();
   const location = useLocation();
 
   // Cache shop data on client side
@@ -172,45 +171,9 @@ export default function App() {
   // Try to get cached data if server data is not available
   const effectiveShopData = shopData || (typeof window !== "undefined" ? getCachedShopData() : null);
 
-  // Send APP_INSTALLED event only if this is a new installation
-  useEffect(() => {
-    if (!shop || !isNewInstallation) return;
-
-    const APP_INSTALLED_SENT_KEY = `app_installed_sent_${shop}`;
-    const alreadySent = sessionStorage.getItem(APP_INSTALLED_SENT_KEY);
-    
-    if (!alreadySent) {
-      // Mark as sent immediately to prevent duplicate sends
-      sessionStorage.setItem(APP_INSTALLED_SENT_KEY, "true");
-      
-      // Get API endpoint - use relative path which nginx will route to Node.js server
-      const API_ENDPOINT = "/api/app/events";
-      
-      // Send APP_INSTALLED event
-      fetch(API_ENDPOINT, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          event: "APP_INSTALLED",
-          shop: shop,
-        }),
-      })
-        .then((response) => response.json())
-        .then((data) => {
-          console.log("APP_INSTALLED event sent:", data);
-        })
-        .catch((error) => {
-          console.error("Error sending APP_INSTALLED event:", error);
-          // Remove the flag on error so it can be retried
-          sessionStorage.removeItem(APP_INSTALLED_SENT_KEY);
-        });
-    }
-  }, [shop, isNewInstallation]);
-
   // Global cleanup: Clear orphaned slots on every navigation
   useEffect(() => {
+    console.log("Route loaded", location.pathname);
     // Small delay to let the new page render first
     const timeoutId = setTimeout(() => {
       // Find all slot elements
@@ -247,6 +210,7 @@ export default function App() {
           <s-link href="/app/filters">Filters</s-link>
           <s-link href="/app/indexing">Product Sync</s-link>
         </s-app-nav>
+        
         <Outlet />
       </ShopProvider>
     </AppProvider>

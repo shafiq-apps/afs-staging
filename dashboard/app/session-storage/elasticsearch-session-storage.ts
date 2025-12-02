@@ -348,38 +348,124 @@ export class ElasticsearchSessionStorage {
   }
 
   /**
-   * Delete all sessions for a shop (used during uninstall)
+   * Find all sessions for a shop
    */
-  async deleteSessions(shop: string): Promise<boolean> {
+  async findSessionsByShop(shop: string): Promise<Session[]> {
+    try {
+      logger.log('Finding sessions for shop', { shop });
+
+      // Use shop query to get shop data
+      const query = `
+        query GetShop($domain: String!) {
+          shop(domain: $domain) {
+            shop
+            accessToken
+            refreshToken
+            scopes
+            isActive
+            sessionId
+            state
+            isOnline
+            scope
+            expires
+            userId
+            firstName
+            lastName
+            email
+            accountOwner
+            locale
+            collaborator
+            emailVerified
+          }
+        }
+      `;
+
+      const variables = { domain: shop };
+
+      const data = await graphqlRequest(query, variables);
+
+      if (!data?.shop || !data.shop.accessToken) {
+        logger.warn('Shop not found or no active session', { shop });
+        return [];
+      }
+
+      const session = shopDocumentToSession(data.shop);
+
+      if (!session) {
+        logger.warn('Could not convert shop data to session', { shop });
+        return [];
+      }
+
+      // Return array with the session (typically one session per shop)
+      return [session];
+    } catch (error: any) {
+      logger.error('Error finding sessions for shop', { error: error?.message || error, shop });
+      return [];
+    }
+  }
+
+  /**
+   * Delete sessions by IDs (required by SessionStorage interface)
+   */
+  async deleteSessions(ids: string[]): Promise<boolean> {
+    try {
+      logger.log('Deleting sessions', { sessionIds: ids });
+
+      // Extract unique shops from session IDs
+      const shops = new Set<string>();
+      for (const id of ids) {
+        const shopMatch = id.match(/^([^-\d]+(?:\.myshopify\.com)?)/);
+        if (shopMatch && shopMatch[1]) {
+          shops.add(shopMatch[1]);
+        }
+      }
+
+      // Delete each shop
+      let allSuccess = true;
+      for (const shop of shops) {
+        // Remove from local cache
+        localCache.delete(shop);
+        
+        logger.log('Shop deleted successfully', { shop });
+      }
+
+      return allSuccess;
+    } catch (error: any) {
+      logger.error('Error deleting sessions', { error: error?.message || error, sessionIds: ids });
+      return false;
+    }
+  }
+
+  /**
+   * Delete all sessions for a shop (custom method for uninstall webhook)
+   */
+  async deleteSessionsByShop(shop: string): Promise<boolean> {
     try {
       logger.log('Deleting all sessions for shop', { shop });
 
       // Remove from local cache
       localCache.delete(shop);
 
-      // Mark shop as inactive instead of deleting
+      // Delete shop using deleteShop mutation
       const mutation = `
-        mutation UpdateShop($domain: String!, $input: UpdateShopInput!) {
-          updateShop(domain: $domain, input: $input) {
-            shop
-            isActive
-          }
+        mutation DeleteShop($domain: String!) {
+          deleteShop(domain: $domain)
         }
       `;
 
       const variables = {
         domain: shop,
-        input: {
-          isActive: false,
-          accessToken: null,
-          refreshToken: null,
-        },
       };
 
-      await graphqlRequest(mutation, variables);
+      const data = await graphqlRequest(mutation, variables);
 
-      logger.log('All sessions deleted for shop', { shop });
-      return true;
+      if (data?.deleteShop) {
+        logger.log('Shop deleted successfully', { shop });
+        return true;
+      }
+
+      logger.warn('Delete shop returned false', { shop });
+      return false;
     } catch (error: any) {
       logger.error('Error deleting sessions for shop', { error: error?.message || error, shop });
       return false;
