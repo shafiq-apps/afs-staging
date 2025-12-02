@@ -1,6 +1,1 @@
-/**
- * Indexing Module Constants
- * Constants used for indexing operations
- */
-
-
+// Place all constants in the @shared/constants folder for centralized management
