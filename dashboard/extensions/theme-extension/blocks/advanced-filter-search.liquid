@@ -12,7 +12,8 @@
     "apiBaseUrl": "{{ block.settings.api_base_url | default: "https://fstaging.digitalcoo.com" }}",
     "container": "{{ block.settings.container_selector | default: "[data-afs-container]" }}",
     "filtersContainer": "{{ block.settings.filters_container_selector | default: ".afs-filters-container" }}",
-    "productsContainer": "{{ block.settings.products_container_selector | default: ".afs-products-container" }}"
+    "productsContainer": "{{ block.settings.products_container_selector | default: ".afs-products-container" }}",
+    "pageSize": {{ block.settings.page_size | default: 20 }}
   }'
 >
   {% comment %} Container will be populated by JavaScript {% endcomment %}
@@ -25,20 +26,11 @@
   Schema attributes can only load one JS file, so we load modules manually
   Modules must be loaded in the correct order
 {% endcomment %}
-<script src="{{ 'afs-constants.js' | asset_url }}" defer></script>
-<script src="{{ 'afs-utils-core.js' | asset_url }}" defer></script>
-<script src="{{ 'afs-logger.js' | asset_url }}" defer></script>
-<script src="{{ 'afs-utils.js' | asset_url }}" defer></script>
+<script src="{{ 'afs-core.js' | asset_url }}" defer></script>
 <script src="{{ 'afs-state.js' | asset_url }}" defer></script>
-<script src="{{ 'afs-url.js' | asset_url }}" defer></script>
 <script src="{{ 'afs-api.js' | asset_url }}" defer></script>
-<script src="{{ 'afs-dom.js' | asset_url }}" defer></script>
-<script src="{{ 'afs-filters.js' | asset_url }}" defer></script>
-<script src="{{ 'afs-events.js' | asset_url }}" defer></script>
+<script src="{{ 'afs-ui.js' | asset_url }}" defer></script>
 <script src="{{ 'afs-main.js' | asset_url }}" defer></script>
-
-{% comment %} Initialize AFS after modules load {% endcomment %}
-{% render 'advanced-filter-search-init', block: block %}
 
 {% schema %}
 {

@@ -12,7 +12,7 @@
   // Wait for DOM and all modules to be ready
   function initAFS() {
     // Check if all required modules are loaded
-    if (!window.AFS || !window.AFS.AFS) {
+    if (!window.AFS || typeof window.AFS.init !== 'function') {
       // Retry after a short delay if modules aren't loaded yet
       setTimeout(initAFS, 100);
       return;
@@ -28,11 +28,12 @@
     // Get settings from block data attribute or use defaults
     const blockData = container.getAttribute('data-afs-block-settings');
     let settings = {
-      shop: '{{ shop.permanent_domain }}',
+      shop: container.getAttribute('data-shop') || '',
       container: '[data-afs-container]',
       filtersContainer: '.afs-filters-container',
       productsContainer: '.afs-products-container',
-      apiBaseUrl: 'https://fstaging.digitalcoo.com'
+      apiBaseUrl: 'https://fstaging.digitalcoo.com',
+      pageSize: 20
     };
     
     if (blockData) {
@@ -46,7 +47,7 @@
     
     // Initialize AFS
     try {
-      window.AFS.AFS.init(settings);
+      window.AFS.init(settings);
     } catch (error) {
       console.error('[AFS] Initialization failed', error);
     }
