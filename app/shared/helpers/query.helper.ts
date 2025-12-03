@@ -21,6 +21,17 @@ export function sanitizeQueryKey(key: string): string {
 
 /**
  * Sanitize query parameter value - remove dangerous characters
+ * 
+ * NOTE: Quotes (both single and double) are removed for security to prevent
+ * HTML/script injection attacks. This means product option values that contain
+ * quotes will have them stripped (e.g., "24"+Plyobox" becomes "24+Plyobox").
+ * 
+ * Ensure the Elasticsearch index also stores values without quotes for consistent
+ * matching. If quotes are needed in stored values, they should be normalized
+ * during indexing to match this sanitization behavior.
+ * 
+ * Allowed characters: alphanumeric, spaces, underscore, hyphen, comma, plus, dot
+ * Removed characters: null bytes, control characters, HTML/script injection chars (< > " ' `)
  */
 export function sanitizeQueryValue(value: string): string {
   if (!value || typeof value !== 'string') return '';
@@ -29,7 +40,7 @@ export function sanitizeQueryValue(value: string): string {
   return value
     .replace(/\0/g, '') // Remove null bytes
     .replace(/[\x00-\x1F\x7F]/g, '') // Remove control characters
-    .replace(/[<>\"'`]/g, '') // Remove HTML/script injection chars
+    .replace(/[<>\"'`]/g, '') // Remove HTML/script injection chars (quotes removed here)
     .trim()
     .substring(0, 500); // Max length
 }

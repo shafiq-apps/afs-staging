@@ -28,15 +28,15 @@ export function generateShortId(prefix: string): string {
   // Generate short random string (5 chars: alphanumeric)
   // Using more characters for better uniqueness without timestamp
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-  const randomPart = Array.from({ length: 5 }, () => 
+  const randomPart = Array.from({ length: 4 }, () => 
     chars[Math.floor(Math.random() * chars.length)]
   ).join('');
   
   // Increment counter for additional uniqueness
   idCounter = (idCounter + 1) % 1000;
   
-  // Combine: prefix_random (e.g., "pr_a3k9x")
-  return `${normalizedPrefix}_${randomPart}`;
+  // Combine: prefixrandom (e.g., "pra3k9x")
+  return `${normalizedPrefix}${randomPart}`;
 }
 
 /**
@@ -59,7 +59,9 @@ export function generateFilterHandle(optionType?: string): string {
     'collection': 'cl',
     'collections': 'cl',
     'option': 'opt',
+    'options': 'opt',
     'filter': 'fl',
+    'filters': 'fl',
   };
   
   // Normalize option type

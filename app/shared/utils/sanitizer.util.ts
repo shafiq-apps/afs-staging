@@ -3,6 +3,10 @@
  * Sanitization to prevent injection attacks
  */
 
+import { createModuleLogger } from './logger.util';
+
+const logger = createModuleLogger('sanitizer');
+
 /**
  * Sanitize string input
  */
@@ -37,6 +41,12 @@ export function sanitizeSearchQuery(query: string | null | undefined): string {
 
 /**
  * Sanitize terms array for ES terms query
+ * 
+ * Rejects terms containing dangerous Elasticsearch query operators that could be used for injection.
+ * Note: The plus sign (+) is allowed as it's a valid character in product option values.
+ * 
+ * Rejected characters: - = & | ! ( ) { } [ ] ^ " ~ * ? : \
+ * Allowed special characters: + (plus sign), space, underscore, dot, comma
  */
 export function sanitizeTermsArray(terms: any, maxItems = 100, maxLength = 100): string[] {
   if (!terms) {
@@ -44,14 +54,43 @@ export function sanitizeTermsArray(terms: any, maxItems = 100, maxLength = 100):
   }
 
   const array = Array.isArray(terms) ? terms : [terms];
-  return array
+  const rejectedTerms: string[] = [];
+  
+  const sanitized = array
     .slice(0, maxItems)
     .map((item) => sanitizeString(String(item), maxLength))
     .filter((term) => {
-      if (term.length === 0 || term.length > maxLength) return false;
-      if (/[+\-=&|!(){}[\]^"~*?:\\]/.test(term)) return false;
+      if (term.length === 0 || term.length > maxLength) {
+        if (term.length > maxLength) {
+          rejectedTerms.push(term);
+          logger.warn('Filter term rejected: exceeds max length', { term, maxLength });
+        }
+        return false;
+      }
+      // Remove + from rejection pattern - it's a valid character in product option values
+      // Reject only truly dangerous ES query operators
+      if (/[\-=&|!(){}[\]^"~*?:\\]/.test(term)) {
+        rejectedTerms.push(term);
+        logger.warn('Filter term rejected: contains dangerous ES query operators', { 
+          term, 
+          rejectedChars: term.match(/[\-=&|!(){}[\]^"~*?:\\]/g) 
+        });
+        return false;
+      }
       return true;
     });
+  
+  // Log summary if any terms were rejected
+  if (rejectedTerms.length > 0 && array.length > 0) {
+    logger.debug('Some filter terms were rejected during sanitization', {
+      totalTerms: array.length,
+      acceptedTerms: sanitized.length,
+      rejectedTerms: rejectedTerms.length,
+      rejected: rejectedTerms
+    });
+  }
+  
+  return sanitized;
 }
 
 /**
