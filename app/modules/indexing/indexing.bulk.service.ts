@@ -27,6 +27,7 @@ import { filterProductFields } from '@modules/products/products.field.filter';
 import { ensureProductIndex } from '@modules/products/products.index.util';
 import { BestSellerCollectionService } from './indexing.best-seller-collection.service';
 import { PRODUCT_INDEX_NAME } from '@shared/constants/products.constants';
+import { SystemMonitor } from '@core/utils/system-monitor.util';
 
 const LOGGER = createModuleLogger('ProductBulkIndexer');
 
@@ -52,6 +53,7 @@ export class ProductBulkIndexer {
   private bestSellerCollectionService: BestSellerCollectionService | null = null;
   private productRanks: Map<string, number> = new Map();
   private indexedProductIds: Set<string> = new Set(); // Track products indexed in this run
+  private systemMonitor: SystemMonitor | null = null;
 
   constructor(opts: IndexerOptions, deps: BulkIndexerDependencies) {
     this.shop = opts.shop;
@@ -156,6 +158,36 @@ export class ProductBulkIndexer {
   // Start the whole flow
   public async run() {
     LOGGER.log('Starting product bulk indexer');
+    
+    // Initialize system monitor for resource tracking
+    this.systemMonitor = new SystemMonitor({ memory: 0.85, cpu: 0.85 });
+    
+    // Set up event listeners for high resource usage warnings
+    this.systemMonitor.on('high', (usage) => {
+      LOGGER.warn('⚠️ High system resource usage detected during indexing', {
+        cpu: `${usage.cpuPercent.toFixed(2)}%`,
+        memory: `${usage.memoryPercent.toFixed(2)}% (${usage.memoryUsed} / ${usage.memoryTotal})`,
+      });
+      appendLog(`WARNING: High resource usage - CPU: ${usage.cpuPercent.toFixed(1)}%, Memory: ${usage.memoryPercent.toFixed(1)}%`);
+    });
+    
+    // Start monitoring (check every 5 seconds during indexing)
+    this.systemMonitor.start(5000);
+    
+    // Check initial resource usage before starting
+    await new Promise((resolve) => setTimeout(resolve, 200)); // Wait for first reading
+    const initialUsage = this.systemMonitor.usage;
+    
+    LOGGER.log('System resource status before indexing:', {
+      cpu: `${initialUsage.cpuPercent.toFixed(2)}%`,
+      memory: `${initialUsage.memoryPercent.toFixed(2)}% (${initialUsage.memoryUsed} / ${initialUsage.memoryTotal})`,
+      isHigh: initialUsage.isHigh,
+    });
+    
+    if (initialUsage.isHigh) {
+      LOGGER.warn('⚠️ High system resource usage detected before indexing. Consider restarting the server if issues occur.');
+      appendLog(`WARNING: High resource usage before indexing - CPU: ${initialUsage.cpuPercent.toFixed(1)}%, Memory: ${initialUsage.memoryPercent.toFixed(1)}%`);
+    }
     
     // Ensure product index exists with proper settings (field limit, etc.)
     try {
@@ -503,6 +535,12 @@ export class ProductBulkIndexer {
       appendLog(`Indexer failed: ${err?.message || err}. Progress saved at line ${checkpoint.lastProcessedLine}`);
       throw err;
     } finally {
+      // Stop system monitoring
+      if (this.systemMonitor) {
+        this.systemMonitor.stop();
+        this.systemMonitor = null;
+      }
+      
       // Cleanup timers/intervals but don't save checkpoint (final status already saved above)
       await this.checkpointService.cleanup();
     }
@@ -697,17 +735,46 @@ export class ProductBulkIndexer {
     });
   }
 
+  /**
+   * Count total lines in file using streaming (memory-efficient)
+   * Replaces readFileSync to avoid loading entire file into memory
+   */
+  private async countTotalLines(filePath: string): Promise<number> {
+    return new Promise((resolve, reject) => {
+      let lineCount = 0;
+      const rl = readline.createInterface({
+        input: fs.createReadStream(filePath, { encoding: "utf8" }),
+        crlfDelay: Infinity
+      });
+
+      rl.on('line', (line) => {
+        if (line.trim()) {
+          lineCount++;
+        }
+      });
+
+      rl.on('close', () => {
+        resolve(lineCount);
+      });
+
+      rl.on('error', (error) => {
+        reject(error);
+      });
+    });
+  }
+
   // 4 & 5: Stream parse JSONL and bulk index
   private async streamAndIndex(filePath: string) {
     const checkpoint = this.checkpointService.getCheckpoint();
     const startLine = checkpoint.lastProcessedLine;
     
     // Count total lines first if not already set (for progress tracking)
+    // Use streaming approach to avoid loading entire file into memory
     let totalLines = checkpoint.totalLines;
     if (!totalLines) {
       try {
-        const fileContent = fs.readFileSync(filePath, 'utf8');
-        totalLines = fileContent.split('\n').filter(line => line.trim()).length;
+        LOGGER.log('Counting total lines in file using streaming (memory-efficient)...');
+        totalLines = await this.countTotalLines(filePath);
         this.checkpointService.updateCheckpoint({ 
           totalLines,
           status: 'in_progress', // Ensure status is in_progress
@@ -728,10 +795,48 @@ export class ProductBulkIndexer {
     let lineNum = 0;
     let batch: any[] = [];
 
-      // TEMP in-memory structures
+    // In-memory structures for accumulating product data
+    // These are periodically cleaned up to prevent memory buildup
     const products: Record<string, any> = {};
     const collections: Record<string, any> = {};
     const productCollections: Record<string, Set<string>> = {};
+    
+    // Memory monitoring and cleanup thresholds
+    const MEMORY_CHECK_INTERVAL = 50; // Check memory every 50 batches
+    const MAX_PRODUCTS_IN_MEMORY = 1000; // Flush if we have more than 1000 products in memory
+    let batchCount = 0;
+
+    /**
+     * Check memory usage using system monitor
+     */
+    const checkMemoryUsage = () => {
+      if (this.systemMonitor) {
+        const usage = this.systemMonitor.usage;
+        // SystemMonitor already emits 'high' events, but we can log periodic status
+        if (batchCount % (MEMORY_CHECK_INTERVAL * 2) === 0) {
+          LOGGER.log(`Memory status: ${usage.memoryPercent.toFixed(1)}% (${usage.memoryUsed} / ${usage.memoryTotal})`);
+        }
+      }
+    };
+
+    /**
+     * Force flush products if memory structures are getting too large
+     */
+    const flushIfNeeded = async () => {
+      const productsInMemory = Object.keys(products).length;
+      if (productsInMemory > MAX_PRODUCTS_IN_MEMORY) {
+        LOGGER.log(`Memory threshold reached (${productsInMemory} products in memory), flushing oldest products...`);
+        // Flush products in order (oldest first based on insertion order)
+        const productIds = Object.keys(products);
+        const toFlush = productIds.slice(0, Math.floor(productsInMemory / 2)); // Flush half
+        
+        for (const pid of toFlush) {
+          await flushProduct(pid);
+        }
+        
+        LOGGER.log(`Flushed ${toFlush.length} products, ${Object.keys(products).length} remaining in memory`);
+      }
+    };
 
     // ------------------------- FLUSH LOGIC -------------------------
     const flushProduct = async (productId: string) => {
@@ -798,7 +903,7 @@ export class ProductBulkIndexer {
           // Setting it repeatedly could interfere with final status save
         });
         // Force save checkpoint periodically (every 5 batches) to ensure progress is visible
-        const batchCount = Math.floor(lineNum / this.batchSize);
+        batchCount++;
         if (batchCount % 5 === 0) {
           // Use saveCheckpointImmediate instead of forceSave to avoid stopping the interval
           // We only want to stop the interval when setting final status
@@ -807,6 +912,12 @@ export class ProductBulkIndexer {
             ? Math.min(100, Math.round((lineNum / currentCheckpoint.totalLines) * 100))
             : 0;
           LOGGER.log(`Progress checkpoint saved: line ${lineNum}/${currentCheckpoint.totalLines || '?'}, indexed ${newTotalIndexed}, progress ${currentProgress}%`);
+          
+          // Check memory usage periodically
+          if (batchCount % MEMORY_CHECK_INTERVAL === 0) {
+            checkMemoryUsage();
+            await flushIfNeeded();
+          }
         }
         batch = [];
       }
@@ -849,6 +960,11 @@ export class ProductBulkIndexer {
 
         if (products[pid]) {
           await flushProduct(pid);
+        }
+
+        // Check if we need to flush products due to memory pressure
+        if (Object.keys(products).length > MAX_PRODUCTS_IN_MEMORY) {
+          await flushIfNeeded();
         }
 
         // Preserve options from Product row if they exist (JSONL format includes options in Product row)
