@@ -65,6 +65,30 @@
     },
 
     /**
+     * Escape CSS selector special characters
+     * Escapes characters that have special meaning in CSS attribute selectors
+     * This prevents invalid selectors when attribute values contain special characters
+     * 
+     * For attribute selectors with double quotes, we need to escape:
+     * - Backslashes: \ becomes \\
+     * - Double quotes: " becomes \" (backslash-quote in the final CSS selector)
+     * 
+     * Since we're using template literals, we need to escape properly:
+     * - To get \" in the final CSS, we need \\" in the JS string
+     */
+    escapeCSSSelector(str) {
+      if (typeof str !== 'string') return '';
+      // Escape backslashes first (they need to be escaped before other characters)
+      // In the final CSS selector, we need \\ so in JS string we need \\\\
+      let escaped = str.replace(/\\/g, '\\\\');
+      // Escape double quotes (since we use double quotes in the selector)
+      // In the final CSS selector, we need \" so in JS template literal we need \\"
+      // This means in the JS string we need \\" which is written as '\\"'
+      escaped = escaped.replace(/"/g, '\\"');
+      return escaped;
+    },
+
+    /**
      * Parse comma-separated string to array
      */
     parseCommaSeparated(value) {
@@ -1283,17 +1307,51 @@
      * Update filter item active state
      */
     updateFilterActiveState(filterType, value, active, optionName = null) {
-      let selector = `.afs-filter-item[data-afs-filter-type="${filterType}"][data-afs-filter-value="${value}"]`;
+      // Escape special characters in selector values to prevent invalid selectors
+      const escapedFilterType = Utils.escapeCSSSelector(String(filterType));
+      const escapedValue = Utils.escapeCSSSelector(String(value));
+      
+      let selector = `.afs-filter-item[data-afs-filter-type="${escapedFilterType}"][data-afs-filter-value="${escapedValue}"]`;
       if (optionName) {
-        selector = `.afs-filter-item[data-afs-filter-type="${filterType}"][data-afs-option-name="${optionName}"][data-afs-filter-value="${value}"]`;
+        const escapedOptionName = Utils.escapeCSSSelector(String(optionName));
+        selector = `.afs-filter-item[data-afs-filter-type="${escapedFilterType}"][data-afs-option-name="${escapedOptionName}"][data-afs-filter-value="${escapedValue}"]`;
       }
-      const item = this.filtersContainer.querySelector(selector);
-      if (item) {
-        const checkbox = item.querySelector('.afs-filter-item__checkbox');
-        if (checkbox) {
-          checkbox.checked = active;
+      
+      try {
+        const item = this.filtersContainer.querySelector(selector);
+        if (item) {
+          const checkbox = item.querySelector('.afs-filter-item__checkbox');
+          if (checkbox) {
+            checkbox.checked = active;
+          }
+          item.classList.toggle('afs-filter-item--active', active);
         }
-        item.classList.toggle('afs-filter-item--active', active);
+      } catch (error) {
+        Logger.error('Invalid selector in updateFilterActiveState', {
+          selector,
+          filterType,
+          value,
+          optionName,
+          error: error.message
+        });
+        // Fallback: find by iterating through elements
+        const allItems = this.filtersContainer.querySelectorAll('.afs-filter-item');
+        for (const item of allItems) {
+          const itemFilterType = item.getAttribute('data-afs-filter-type');
+          const itemValue = item.getAttribute('data-afs-filter-value');
+          const itemOptionName = item.getAttribute('data-afs-option-name');
+          
+          if (itemFilterType === String(filterType) && 
+              itemValue === String(value) &&
+              (!optionName || itemOptionName === String(optionName))) {
+            const checkbox = item.querySelector('.afs-filter-item__checkbox');
+            if (checkbox) {
+              checkbox.checked = active;
+            }
+            item.classList.toggle('afs-filter-item--active', active);
+            break;
+          }
+        }
       }
     },
 
