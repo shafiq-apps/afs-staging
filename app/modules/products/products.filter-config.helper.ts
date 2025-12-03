@@ -183,6 +183,58 @@ export function applyFilterConfigToInput(
     result.options = mappedOptions;
   }
 
+  // Convert standard filter types from options to their proper fields
+  // This handles cases where filter config defines vendor/productType/etc as options
+  // Standard filters should query their dedicated ES fields (vendor.keyword, productType.keyword, etc.)
+  // instead of being treated as variant options (optionPairs.keyword)
+  if (result.options) {
+    const STANDARD_FILTER_MAPPING: Record<string, keyof ProductFilterInput> = {
+      'vendor': 'vendors',
+      'vendors': 'vendors',
+      'producttype': 'productTypes',
+      'product-type': 'productTypes',
+      'product type': 'productTypes',
+      'product_type': 'productTypes',
+      'tags': 'tags',
+      'tag': 'tags',
+      'collection': 'collections',
+      'collections': 'collections',
+    };
+
+    const remainingOptions: Record<string, string[]> = {};
+    
+    for (const [optionName, values] of Object.entries(result.options)) {
+      if (!values || values.length === 0) continue;
+      
+      const normalizedName = optionName.toLowerCase().trim();
+      const standardField = STANDARD_FILTER_MAPPING[normalizedName];
+      
+      if (standardField) {
+        // Move to standard filter field
+        if (standardField === 'vendors' || standardField === 'productTypes' || 
+            standardField === 'tags' || standardField === 'collections') {
+          const existing = result[standardField] || [];
+          result[standardField] = [...new Set([...existing, ...values])];
+          
+          logger.debug('Converted standard filter from options to dedicated field', {
+            optionName,
+            standardField,
+            values,
+            existingCount: existing.length,
+            newCount: result[standardField].length,
+          });
+        }
+        // Don't add to remainingOptions - it's been moved to standard filter field
+      } else {
+        // Keep as option filter (variant option like Size, Color, etc.)
+        remainingOptions[optionName] = values;
+      }
+    }
+    
+    // Update options - only keep non-standard filters
+    result.options = Object.keys(remainingOptions).length > 0 ? remainingOptions : undefined;
+  }
+
   // Apply option-level restrictions
   if (filterConfig.options) {
     const optionRestrictions: Record<string, string[]> = {};
@@ -329,6 +381,7 @@ export function formatFilterConfigForStorefront(filterConfig: Filter | null): an
         optionId: opt.optionId,
         label: opt.label,
         optionType: opt.optionType,
+        status: opt.status,
         displayType: opt.displayType || 'list',
         selectionType: opt.selectionType || 'multiple',
         targetScope: opt.targetScope || 'all',
