@@ -98,9 +98,95 @@
     },
 
     /**
-     * Build query string from object
+     * Get handle for an option name from filterConfig
+     * Returns the handle if found, otherwise returns the original optionName
+     * 
+     * @param {string} optionName - The option name (e.g., "plyoboxes", "size", "color")
+     * @param {object|null} filterConfig - The filter configuration object
+     * @returns {string} - The handle (e.g., "pl_abc123") or original optionName if not found
      */
-    buildQueryString(params) {
+    getHandleForOptionName(optionName, filterConfig) {
+      if (!optionName || !filterConfig || !filterConfig.options) {
+        return optionName;
+      }
+
+      const lowerOptionName = String(optionName).toLowerCase().trim();
+      
+      // Find matching option in filterConfig
+      const option = filterConfig.options.find(opt => {
+        if (!opt.status || opt.status !== 'published') return false;
+        
+        // Match by variantOptionKey (most reliable)
+        if (opt.variantOptionKey && opt.variantOptionKey.toLowerCase().trim() === lowerOptionName) {
+          return true;
+        }
+        
+        // Match by optionType
+        if (opt.optionType && opt.optionType.toLowerCase().trim() === lowerOptionName) {
+          return true;
+        }
+        
+        // Match by label (case-insensitive)
+        if (opt.label && opt.label.toLowerCase().trim() === lowerOptionName) {
+          return true;
+        }
+        
+        return false;
+      });
+
+      // Return handle if found, otherwise return original optionName
+      if (option && option.handle) {
+        return option.handle;
+      }
+
+      return optionName;
+    },
+
+    /**
+     * Get option name for a handle from filterConfig
+     * Returns the variantOptionKey (or optionType) if found, otherwise returns the original handle
+     * 
+     * @param {string} handle - The handle (e.g., "pl_abc123")
+     * @param {object|null} filterConfig - The filter configuration object
+     * @returns {string} - The option name (e.g., "plyoboxes") or original handle if not found
+     */
+    getOptionNameForHandle(handle, filterConfig) {
+      if (!handle || !filterConfig || !filterConfig.options) {
+        return handle;
+      }
+
+      const handleStr = String(handle).trim();
+      
+      // Find matching option in filterConfig by handle or optionId
+      const option = filterConfig.options.find(opt => {
+        if (!opt.status || opt.status !== 'published') return false;
+        
+        // Match by handle
+        if (opt.handle && opt.handle === handleStr) {
+          return true;
+        }
+        
+        // Match by optionId (alternative ID)
+        if (opt.optionId && opt.optionId === handleStr) {
+          return true;
+        }
+        
+        return false;
+      });
+
+      // Return variantOptionKey if available, otherwise optionType, otherwise original handle
+      if (option) {
+        return option.variantOptionKey || option.optionType || handle;
+      }
+
+      return handle;
+    },
+
+    /**
+     * Build query string from object
+     * For options, converts option names to handles using filterConfig
+     */
+    buildQueryString(params, filterConfig = null) {
       const searchParams = new URLSearchParams();
       Object.keys(params).forEach(key => {
         const value = params[key];
@@ -110,16 +196,21 @@
             Object.keys(value).forEach(optKey => {
               const optValues = value[optKey];
               if (optValues !== null && optValues !== undefined && optValues !== '') {
+                // Convert option name to handle using filterConfig
+                const handle = filterConfig 
+                  ? Utils.getHandleForOptionName(optKey, filterConfig)
+                  : optKey;
+                
                 if (Array.isArray(optValues) && optValues.length > 0) {
                   // Ensure all values are strings
                   optValues.forEach(v => {
                     const stringValue = String(v).trim();
                     if (stringValue && stringValue !== '[object Object]') {
-                      searchParams.append(`options[${optKey}]`, stringValue);
+                      searchParams.append(`options[${handle}]`, stringValue);
                     }
                   });
                 } else if (typeof optValues === 'string' && optValues.trim() !== '') {
-                  searchParams.set(`options[${optKey}]`, optValues.trim());
+                  searchParams.set(`options[${handle}]`, optValues.trim());
                 }
               }
             });
@@ -341,8 +432,9 @@
   const URLManager = {
     /**
      * Parse URL parameters
+     * Converts handles in query params back to option names using filterConfig
      */
-    parseURL() {
+    parseURL(filterConfig = null) {
       const url = new URL(window.location);
       const params = {};
       
@@ -369,7 +461,12 @@
           const [field, order] = value.split(':');
           params.sort = { field, order: order || 'desc' };
         } else if (key.startsWith('options[') || key.startsWith('option.')) {
-          const optionName = key.replace(/^options?\[|\]|^option\./g, '');
+          // Extract handle from query param
+          const handle = key.replace(/^options?\[|\]|^option\./g, '');
+          // Convert handle to option name using filterConfig
+          const optionName = filterConfig 
+            ? Utils.getOptionNameForHandle(handle, filterConfig)
+            : handle;
           if (!params.options) params.options = {};
           params.options[optionName] = Utils.parseCommaSeparated(value);
         }
@@ -411,9 +508,13 @@
     /**
      * Update URL without page refresh
      * Only includes parameters that user explicitly set (filters, pagination if > 1)
+     * For options, converts option names to handles using filterConfig
      */
     updateURL(filters, pagination, sort, options = {}) {
       const url = new URL(window.location);
+      
+      // Get filterConfig from state if available
+      const filterConfig = options.filterConfig || StateManager.getState().filterConfig;
       
       // Clear existing params
       url.search = '';
@@ -432,12 +533,16 @@
           if (Array.isArray(value) && value.length > 0) {
             url.searchParams.set(key, value.join(','));
           } 
-          // Handle options object
+          // Handle options object - convert option names to handles
           else if (key === 'options' && typeof value === 'object' && !Array.isArray(value)) {
             Object.keys(value).forEach(optKey => {
               const optValues = value[optKey];
               if (!this.isEmpty(optValues) && Array.isArray(optValues) && optValues.length > 0) {
-                url.searchParams.set(`options[${optKey}]`, optValues.join(','));
+                // Convert option name to handle using filterConfig
+                const handle = filterConfig 
+                  ? Utils.getHandleForOptionName(optKey, filterConfig)
+                  : optKey;
+                url.searchParams.set(`options[${handle}]`, optValues.join(','));
               }
             });
           }
@@ -583,7 +688,9 @@
         params.sort = `${sort.field}:${sort.order || 'desc'}`;
       }
       
-      const queryString = Utils.buildQueryString(params);
+      // Get filterConfig from state for handle conversion
+      const filterConfig = StateManager.getState().filterConfig;
+      const queryString = Utils.buildQueryString(params, filterConfig);
       const url = `${this.baseURL}/storefront/products?${queryString}`;
       
       Logger.debug('Fetching products', { url, filters, pagination });
@@ -657,7 +764,9 @@
         ...filters
       };
       
-      const queryString = Utils.buildQueryString(params);
+      // Get filterConfig from state for handle conversion
+      const filterConfig = StateManager.getState().filterConfig;
+      const queryString = Utils.buildQueryString(params, filterConfig);
       const url = `${this.baseURL}/storefront/filters?${queryString}`;
       
       Logger.debug('Fetching filters', { url, filters });
@@ -1854,7 +1963,8 @@
       URLManager.updateURL(
         { ...state.filters, [filterType]: newValues },
         updatedPagination,
-        state.sort
+        state.sort,
+        { filterConfig: state.filterConfig }
       );
       
       // Update active state in DOM
@@ -1910,7 +2020,8 @@
       URLManager.updateURL(
         { ...state.filters, options: currentOptions },
         updatedPagination,
-        state.sort
+        state.sort,
+        { filterConfig: state.filterConfig }
       );
       
       // Update active state in DOM
@@ -2189,7 +2300,8 @@
         URLManager.updateURL(
           { ...state.filters, options: currentOptions },
           updatedPagination,
-          state.sort
+          state.sort,
+          { filterConfig: state.filterConfig }
         );
         FilterManager.applyFilters();
       } else if (filterType && filterValue) {
@@ -2223,7 +2335,8 @@
       URLManager.updateURL(
         { vendor: [], productType: [], tags: [], collections: [], options: {}, search: '' },
         { ...state.pagination, page: 1 },
-        state.sort
+        state.sort,
+        { filterConfig: state.filterConfig }
       );
       
       // Apply filters
@@ -2245,7 +2358,12 @@
         pagination: { ...state.pagination, page }
       });
       
-      URLManager.updateURL(state.filters, { ...state.pagination, page }, state.sort);
+      URLManager.updateURL(
+        state.filters, 
+        { ...state.pagination, page }, 
+        state.sort,
+        { filterConfig: state.filterConfig }
+      );
       FilterManager.applyFilters();
     },
 
@@ -2255,7 +2373,9 @@
     handlePopState(e) {
       Logger.debug('Popstate event', e.state);
       
-      const urlParams = URLManager.parseURL();
+      // Get filterConfig from state for handle-to-option-name conversion
+      const state = StateManager.getState();
+      const urlParams = URLManager.parseURL(state.filterConfig);
       
       // Don't restore shop from URL - it's in config
       // Restore filters from URL (only user-applied filters)
@@ -2344,9 +2464,6 @@
           APIClient.setBaseURL(config.apiBaseUrl);
         }
         
-        // Parse URL to get initial state
-        const urlParams = URLManager.parseURL();
-        
         // Initialize state - shop comes from config only, not URL
         if (config.shop) {
           StateManager.updateState({ shop: config.shop });
@@ -2354,7 +2471,53 @@
           throw new Error('Shop parameter is required in config');
         }
         
+        // Initialize DOM
+        const containerSelector = config.container || '[data-afs-container]';
+        const filtersSelector = config.filtersContainer || '.afs-filters-container';
+        const productsSelector = config.productsContainer || '.afs-products-container';
+        
+        DOMRenderer.init(containerSelector, filtersSelector, productsSelector);
+        
+        // Attach event listeners
+        EventHandlers.attach();
+        
+        // Load initial data (this will load filterConfig first, then parse URL with it)
+        this.loadInitialData();
+        
+        Logger.info('Initialization complete');
+        
+      } catch (error) {
+        Logger.error('Initialization failed', error);
+        throw error;
+      }
+    },
+
+    /**
+     * Load initial data
+     */
+    async loadInitialData() {
+      const state = StateManager.getState();
+      
+      try {
+        StateManager.setLoading(true);
+        DOMRenderer.showLoading();
+        
+        // Load filters first to get filterConfig
+        const filtersData = await APIClient.fetchFilters(state.filters);
+        if (filtersData && filtersData.filters) {
+          // Store both filters and filterConfig
+          StateManager.updateState({ 
+            availableFilters: filtersData.filters,
+            filterConfig: filtersData.filterConfig 
+          });
+        }
+        
+        // Parse URL now that we have filterConfig (converts handles to option names)
+        const updatedState = StateManager.getState();
+        const urlParams = URLManager.parseURL(updatedState.filterConfig);
+        
         // Initialize filters from URL (only user-applied filters)
+        // This will override any default filters with URL params
         if (urlParams.vendor || urlParams.productType || urlParams.tags || urlParams.collections || urlParams.search || urlParams.options) {
           StateManager.updateFilters({
             vendor: urlParams.vendor || [],
@@ -2376,54 +2539,20 @@
           });
         }
         
-        // Initialize DOM
-        const containerSelector = config.container || '[data-afs-container]';
-        const filtersSelector = config.filtersContainer || '.afs-filters-container';
-        const productsSelector = config.productsContainer || '.afs-products-container';
+        // Get updated state after URL parsing
+        const finalState = StateManager.getState();
         
-        DOMRenderer.init(containerSelector, filtersSelector, productsSelector);
-        
-        // Attach event listeners
-        EventHandlers.attach();
-        
-        // Load initial data
-        this.loadInitialData();
-        
-        Logger.info('Initialization complete');
-        
-      } catch (error) {
-        Logger.error('Initialization failed', error);
-        throw error;
-      }
-    },
-
-    /**
-     * Load initial data
-     */
-    async loadInitialData() {
-      const state = StateManager.getState();
-      
-      try {
-        StateManager.setLoading(true);
-        DOMRenderer.showLoading();
-        
-        // Load filters first
-        const filtersData = await APIClient.fetchFilters(state.filters);
+        // Render filters with filterConfig
         if (filtersData && filtersData.filters) {
-          // Store both filters and filterConfig
-          StateManager.updateState({ 
-            availableFilters: filtersData.filters,
-            filterConfig: filtersData.filterConfig 
-          });
           DOMRenderer.renderFilters(filtersData.filters, filtersData.filterConfig);
           FilterManager.updateFilterActiveStates();
         }
         
-        // Load products
+        // Load products with filters from URL
         const productsData = await APIClient.fetchProducts(
-          state.filters,
-          state.pagination,
-          state.sort
+          finalState.filters,
+          finalState.pagination,
+          finalState.sort
         );
         
         if (productsData) {
@@ -2445,7 +2574,7 @@
           DOMRenderer.renderProducts(products);
           DOMRenderer.renderProductsInfo(paginationData, paginationData.total || 0);
           DOMRenderer.renderPagination(paginationData);
-          DOMRenderer.renderAppliedFilters(state.filters);
+          DOMRenderer.renderAppliedFilters(finalState.filters);
         }
         
         DOMRenderer.hideLoading();
