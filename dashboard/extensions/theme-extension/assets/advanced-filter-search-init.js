@@ -11,6 +11,12 @@
   
   // Wait for DOM and all modules to be ready
   function initAFS() {
+    // Check if AFS is enabled (default to true if not set for backward compatibility)
+    if (window.AFS_ENABLED === false) {
+      console.info('[AFS] Advanced Filter Search is disabled via theme settings');
+      return;
+    }
+    
     // Check if all required modules are loaded
     if (!window.AFS || typeof window.AFS.init !== 'function') {
       // Retry after a short delay if modules aren't loaded yet
@@ -25,15 +31,27 @@
       return;
     }
     
+    // Get shop domain from global variable set by Liquid
+    const shopDomain = window.AFS_SHOP_DOMAIN || '';
+    
     // Get settings from block data attribute or use defaults
     const blockData = container.getAttribute('data-afs-block-settings');
+    
+    // Find containers within this specific block
+    const filtersContainer = container.querySelector('.afs-filters-container');
+    const productsContainer = container.querySelector('.afs-products-container');
+    
+    if (!filtersContainer || !productsContainer) {
+      console.warn('[AFS] Filters or products container not found within block');
+      return;
+    }
+    
     let settings = {
-      shop: container.getAttribute('data-shop') || '',
-      container: '[data-afs-container]',
-      filtersContainer: '.afs-filters-container',
-      productsContainer: '.afs-products-container',
-      apiBaseUrl: 'https://fstaging.digitalcoo.com',
-      pageSize: 20
+      shop: shopDomain,
+      container: container,
+      filtersContainer: filtersContainer,
+      productsContainer: productsContainer,
+      apiBaseUrl: 'https://fstaging.digitalcoo.com'
     };
     
     if (blockData) {

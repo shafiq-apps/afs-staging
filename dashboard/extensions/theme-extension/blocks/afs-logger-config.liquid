@@ -1,32 +1,57 @@
 {% comment %}
-  Advanced Filter Search - Logger Configuration (App Embed Block)
-  This block loads on all pages to configure logging
-  Settings are configured in the theme editor
+  Advanced Filter Search - Main Settings (App Embed Block)
+  This block controls the main enable/disable switch for AFS functionality
+  and optional debug logging settings
 {% endcomment %}
 
-{% if block.settings.enable_logging %}
+{% if block.settings.enable_afs %}
   <script>
-    // Enable logger from block settings
-    window.AFS_LOGGER_ENABLED = true;
-    {% if block.settings.log_level %}
-      // Set log level from block settings
-      window.AFS_LOG_LEVEL = '{{ block.settings.log_level }}';
+    // Enable AFS functionality
+    window.AFS_ENABLED = true;
+    
+    {% if block.settings.enable_logging %}
+      // Enable logger from block settings
+      window.AFS_LOGGER_ENABLED = true;
+      {% if block.settings.log_level %}
+        // Set log level from block settings
+        window.AFS_LOG_LEVEL = '{{ block.settings.log_level }}';
+      {% endif %}
     {% endif %}
+  </script>
+{% else %}
+  <script>
+    // Disable AFS functionality
+    window.AFS_ENABLED = false;
   </script>
 {% endif %}
 
 {% schema %}
 {
-  "name": "AFS Logger Config",
+  "name": "Advanced Filter Search Settings",
   "target": "body",
   "settings": [
     {
       "type": "header",
-      "content": "Debug Settings"
+      "content": "Functionality Control"
     },
     {
       "type": "paragraph",
-      "content": "Enable logging for debugging purposes. Keep disabled in production for better performance."
+      "content": "Use this toggle to enable or disable the Advanced Filter Search functionality across your theme. When disabled, all AFS sections will be inactive."
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_afs",
+      "label": "Enable Advanced Filter Search",
+      "default": true,
+      "info": "Turn this on to activate the Advanced Filter Search functionality. Turn off to disable all AFS features without removing sections."
+    },
+    {
+      "type": "header",
+      "content": "Debug & Logging"
+    },
+    {
+      "type": "paragraph",
+      "content": "Optional debug logging settings. Enable only when troubleshooting. Keep disabled in production for better performance."
     },
     {
       "type": "checkbox",
@@ -63,4 +88,3 @@
   ]
 }
 {% endschema %}
-

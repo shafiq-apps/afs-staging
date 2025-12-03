@@ -3,22 +3,36 @@
   Main filter and product display block
 {% endcomment %}
 
+{% comment %}
+  Set global shop domain variable from Shopify Liquid
+{% endcomment %}
+<script>
+  window.AFS_SHOP_DOMAIN = "{{ shop.permanent_domain }}";
+</script>
+
+{% comment %}
+  Inject custom CSS if provided
+{% endcomment %}
+{% if block.settings.custom_css != blank %}
+  <style id="afs-custom-css-{{ block.id }}">
+    /* Custom CSS for Advanced Filter Search Block #{{ block.id }} */
+    {{ block.settings.custom_css }}
+  </style>
+{% endif %}
+
 <div 
   data-afs-container 
   id="afs-container-{{ block.id }}" 
   class="afs-container"
   data-afs-block-settings='{
-    "shop": "{{ shop.permanent_domain }}",
-    "apiBaseUrl": "{{ block.settings.api_base_url | default: "https://fstaging.digitalcoo.com" }}",
-    "container": "{{ block.settings.container_selector | default: "[data-afs-container]" }}",
-    "filtersContainer": "{{ block.settings.filters_container_selector | default: ".afs-filters-container" }}",
-    "productsContainer": "{{ block.settings.products_container_selector | default: ".afs-products-container" }}",
-    "pageSize": {{ block.settings.page_size | default: 20 }}
+    "apiBaseUrl": "{{ block.settings.api_base_url | default: "https://fstaging.digitalcoo.com" }}"
   }'
 >
   {% comment %} Container will be populated by JavaScript {% endcomment %}
-  <div class="afs-filters-container"></div>
-  <div class="afs-products-container"></div>
+  <div class="afs-main-content">
+    <div class="afs-filters-container"></div>
+    <div class="afs-products-container"></div>
+  </div>
 </div>
 
 {% comment %}
@@ -51,47 +65,20 @@
       "info": "The base URL for your API endpoint"
     },
     {
-      "type": "text",
-      "id": "shop_domain",
-      "label": "Shop Domain",
-      "default": "{{ shop.permanent_domain }}",
-      "info": "Your Shopify shop domain (automatically set)"
-    },
-    {
       "type": "header",
-      "content": "Container Selectors"
+      "content": "Custom Styling"
     },
     {
-      "type": "text",
-      "id": "container_selector",
-      "label": "Container Selector",
-      "default": "[data-afs-container]",
-      "info": "CSS selector for the main container"
+      "type": "paragraph",
+      "content": "Add custom CSS to fix style conflicts or customize the appearance for your theme. Use the block ID selector (#afs-container-{block_id}) to target this specific block instance."
     },
     {
-      "type": "text",
-      "id": "filters_container_selector",
-      "label": "Filters Container Selector",
-      "default": ".afs-filters-container",
-      "info": "CSS selector for the filters container"
-    },
-    {
-      "type": "text",
-      "id": "products_container_selector",
-      "label": "Products Container Selector",
-      "default": ".afs-products-container",
-      "info": "CSS selector for the products container"
-    },
-    {
-      "type": "header",
-      "content": "Pagination"
-    },
-    {
-      "type": "number",
-      "id": "page_size",
-      "label": "Products Per Page",
-      "default": 20,
-      "info": "Number of products to display per page"
+      "type": "textarea",
+      "id": "custom_css",
+      "label": "Custom CSS",
+      "default": "",
+      "info": "Enter custom CSS rules to fix style conflicts or customize appearance. The block ID is automatically available as #afs-container-{block_id}. You can also use class selectors like .afs-filters-container or .afs-products-grid.",
+      "placeholder": "/* Example: Adjust filter width */\n.afs-filters-container {\n  width: 280px;\n  min-width: 250px;\n}\n\n/* Example: Fix product grid layout */\n.afs-products-grid {\n  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));\n  gap: 20px;\n}\n\n/* Example: Override theme conflicts */\n#afs-container-{block_id} {\n  padding: 0 !important;\n}"
     }
   ]
 }

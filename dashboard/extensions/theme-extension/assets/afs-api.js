@@ -183,8 +183,9 @@
       if (this.pendingRequests.has(cacheKey)) {
         this.pendingRequests.get(cacheKey).abort();
       }
+      const state = StateManager.getState ? StateManager.getState() : {};
       const params = {
-        shop: StateManager.state?.shop,
+        shop: state.shop,
         ...filters,
         page: pagination.page,
         limit: pagination.limit
@@ -304,8 +305,9 @@
           throw error;
         }
       }
+      const state = StateManager.getState ? StateManager.getState() : {};
       const params = {
-        shop: StateManager.state?.shop,
+        shop: state.shop,
         ...filters
       };
       const queryString = Utils.buildQueryString ? Utils.buildQueryString(params, false) : new URLSearchParams(params).toString();

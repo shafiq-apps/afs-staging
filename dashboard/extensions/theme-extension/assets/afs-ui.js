@@ -21,17 +21,37 @@
     domCache: new Map(),
     
     init(container, filtersContainer, productsContainer) {
-      this.filtersContainer = typeof filtersContainer === 'string' 
-        ? document.querySelector(filtersContainer) 
-        : filtersContainer;
-      this.productsContainer = typeof productsContainer === 'string'
-        ? document.querySelector(productsContainer)
-        : productsContainer;
+      // If containers are already DOM elements, use them directly
+      // Otherwise, try to find them within the container or globally
+      if (filtersContainer && filtersContainer.nodeType === 1) {
+        this.filtersContainer = filtersContainer;
+      } else if (container && container.querySelector) {
+        this.filtersContainer = typeof filtersContainer === 'string'
+          ? container.querySelector(filtersContainer)
+          : (container.querySelector('.afs-filters-container') || document.querySelector(filtersContainer || '.afs-filters-container'));
+      } else {
+        this.filtersContainer = typeof filtersContainer === 'string'
+          ? document.querySelector(filtersContainer)
+          : filtersContainer;
+      }
+      
+      if (productsContainer && productsContainer.nodeType === 1) {
+        this.productsContainer = productsContainer;
+      } else if (container && container.querySelector) {
+        this.productsContainer = typeof productsContainer === 'string'
+          ? container.querySelector(productsContainer)
+          : (container.querySelector('.afs-products-container') || document.querySelector(productsContainer || '.afs-products-container'));
+      } else {
+        this.productsContainer = typeof productsContainer === 'string'
+          ? document.querySelector(productsContainer)
+          : productsContainer;
+      }
+      
       if (!this.filtersContainer) {
-        Logger.warn('Filters container not found', { selector: filtersContainer });
+        Logger.warn('Filters container not found', { selector: filtersContainer, container: container });
       }
       if (!this.productsContainer) {
-        Logger.warn('Products container not found', { selector: productsContainer });
+        Logger.warn('Products container not found', { selector: productsContainer, container: container });
       }
     },
     

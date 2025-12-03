@@ -20,6 +20,12 @@
     config: null,
     
     init(config) {
+      // Check if AFS is enabled globally
+      if (typeof window !== 'undefined' && window.AFS_ENABLED === false) {
+        Logger.info('AFS initialization skipped - disabled via theme settings');
+        return;
+      }
+      
       if (this.initialized) {
         Logger.warn('AFS already initialized');
         return;
@@ -66,7 +72,7 @@
       }
       const state = StateManager.getState ? StateManager.getState() : {};
       const filters = FilterManager.applyFilters ? FilterManager.applyFilters() : (state.filters || {});
-      const pagination = state.pagination || { page: 1, limit: this.config.pageSize || CONSTANTS.DEFAULT_PAGE_SIZE };
+      const pagination = state.pagination || { page: 1, limit: CONSTANTS.DEFAULT_PAGE_SIZE };
       const sort = state.sort || null;
       StateManager.setLoading(true);
       StateManager.setError(null);
