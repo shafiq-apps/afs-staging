@@ -19,9 +19,10 @@ export function ensureCacheDir(dir: string) {
 
 export function appendLog(message: string) {
   try {
-    const baseDir = process.env.NODE_ENV === "production"
-      ? path.join(process.cwd(), "dist")  // docker running compiled JS
-      : process.cwd();
+    // Write logs to app/system/logs (project root) instead of dist/system/logs
+    // This prevents PM2 watch from detecting log file changes and restarting the server
+    // In production, process.cwd() is already the app directory (set in ecosystem.config.js)
+    const baseDir = process.cwd(); // Always use current working directory (app folder)
     const logDir = path.join(baseDir, 'system', 'logs');
     if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
     const file = path.join(logDir, `indexer-${new Date().toISOString().split('T')[0]}.log`);
