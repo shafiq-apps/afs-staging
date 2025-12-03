@@ -127,7 +127,18 @@ function getVariantOptionKeys(filterConfig: Filter | null): Set<string> {
       continue;
     }
     
-    // Priority 2: For derived options, extract from baseOptionType
+    // Priority 2: For variant options (baseOptionType === "Option"), use optionType
+    // baseOptionType "Option" is a category, not the actual variant option name
+    if (option.baseOptionType && option.baseOptionType.toLowerCase().trim() === 'option') {
+      // For variant options, use optionType as the key
+      const optionType = option.optionType?.toLowerCase().trim() || '';
+      if (optionType && !STANDARD_FILTER_TYPES.has(optionType)) {
+        variantOptionKeys.add(optionType);
+      }
+      continue;
+    }
+    
+    // Priority 3: For other derived options, extract from baseOptionType
     if (option.baseOptionType) {
       const baseOptionName = option.baseOptionType.trim();
       if (baseOptionName) {
@@ -140,7 +151,7 @@ function getVariantOptionKeys(filterConfig: Filter | null): Set<string> {
       continue;
     }
     
-    // Priority 3: Try to extract from optionType (fallback for legacy filters)
+    // Priority 4: Try to extract from optionType (fallback for legacy filters)
     const optionType = option.optionType?.toLowerCase().trim() || '';
     if (!optionType) continue;
     
@@ -413,6 +424,7 @@ export class productsRepository {
     
     // If we have variant option keys, filter the optionPairs buckets to only include matching keys
     // Variant option keys are already normalized to lowercase in getVariantOptionKeys()
+    // If variantOptionKeys is empty, include all buckets (backward compatibility)
     if (variantOptionKeys.size > 0 && filteredOptionPairs.buckets && filteredOptionPairs.buckets.length > 0) {
       const filteredBuckets = filteredOptionPairs.buckets.filter((bucket: AggregationBucket) => {
         const key = bucket.key || '';
@@ -434,6 +446,19 @@ export class productsRepository {
         originalBuckets: aggregations.optionPairs?.buckets?.length || 0,
         filteredBuckets: filteredBuckets.length,
         variantOptionKeys: Array.from(variantOptionKeys),
+        sampleBucketKeys: filteredOptionPairs.buckets.slice(0, 5).map(b => b.key),
+      });
+    } else if (variantOptionKeys.size === 0 && filterConfig && filterConfig.options) {
+      // If we have filterConfig but no variant option keys, log for debugging
+      logger.debug('No variant option keys found in filterConfig', {
+        totalOptions: filterConfig.options.length,
+        publishedOptions: filterConfig.options.filter(o => o.status === 'published').length,
+        optionTypes: filterConfig.options.map(o => ({
+          optionType: o.optionType,
+          variantOptionKey: o.variantOptionKey,
+          baseOptionType: o.baseOptionType,
+          status: o.status,
+        })),
       });
     }
 
@@ -821,6 +846,7 @@ export class productsRepository {
       
       // Filter optionPairs aggregation to only include relevant variant option keys
       // Variant option keys are already normalized to lowercase in getVariantOptionKeys()
+      // If variantOptionKeys is empty, include all buckets (backward compatibility)
       const aggregations = { ...response.aggregations } as any;
       if (aggregations.optionPairs && variantOptionKeys.size > 0) {
         const filteredBuckets = aggregations.optionPairs.buckets?.filter((bucket: AggregationBucket) => {
@@ -843,6 +869,19 @@ export class productsRepository {
           originalBuckets: response.aggregations.optionPairs?.buckets?.length || 0,
           filteredBuckets: filteredBuckets.length,
           variantOptionKeys: Array.from(variantOptionKeys),
+          sampleBucketKeys: filteredBuckets.slice(0, 5).map(b => b.key),
+        });
+      } else if (variantOptionKeys.size === 0 && filterConfig && filterConfig.options) {
+        // If we have filterConfig but no variant option keys, log for debugging
+        logger.debug('No variant option keys found in filterConfig (searchProducts)', {
+          totalOptions: filterConfig.options.length,
+          publishedOptions: filterConfig.options.filter(o => o.status === 'published').length,
+          optionTypes: filterConfig.options.map(o => ({
+            optionType: o.optionType,
+            variantOptionKey: o.variantOptionKey,
+            baseOptionType: o.baseOptionType,
+            status: o.status,
+          })),
         });
       }
       
