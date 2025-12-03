@@ -252,7 +252,8 @@
       },
       loading: false,
       error: null,
-      availableFilters: {}
+      availableFilters: {},
+      filterConfig: null
     },
 
     /**
@@ -518,8 +519,12 @@
       if (!data.success) {
         throw new Error(data.message || 'API request failed');
       }
-      if (!Array.isArray(data.data)) {
-        throw new Error('Invalid response: data must be an array');
+      if (!data.data || typeof data.data !== 'object') {
+        throw new Error('Invalid response: data must be an object');
+      }
+      // For products response, check if products array exists
+      if (data.data.products && !Array.isArray(data.data.products)) {
+        throw new Error('Invalid response: products must be an array');
       }
       return true;
     },
@@ -577,31 +582,29 @@
         const responseData = await response.json();
         
         Logger.debug('Products response received', { 
-          hasBody: !!responseData.body,
           hasData: !!responseData.data,
           responseKeys: Object.keys(responseData || {})
         });
         
-        // Handle response structure: { statusCode, body } or direct { success, data }
-        let data = responseData;
-        if (responseData && responseData.body) {
-          data = responseData.body;
-        }
+        // Response structure: { success: true, data: { products, pagination, filters, filterConfig } }
+        this.validateResponse(responseData);
         
-        this.validateResponse(data);
+        // Extract the data object (contains products, pagination, filters, filterConfig)
+        const productsData = responseData.data;
         
-        // Cache response (cache the processed data)
-        this.setCache(cacheKey, data);
+        // Cache the processed data object (not the full response)
+        this.setCache(cacheKey, productsData);
         
         // Clean up
         this.pendingRequests.delete(cacheKey);
         
         Logger.info('Products fetched successfully', { 
-          count: data.data ? data.data.length : 0,
-          pagination: data.pagination 
+          count: productsData?.products ? productsData.products.length : 0,
+          pagination: productsData?.pagination 
         });
         
-        return data;
+        // Return the data object (contains products, pagination, filters, filterConfig)
+        return productsData;
         
       } catch (error) {
         this.pendingRequests.delete(cacheKey);
@@ -650,37 +653,35 @@
         
         Logger.debug('Filters response received', { responseData });
         
-        // Handle response structure: { statusCode, body } or direct { success, data }
-        let data = responseData;
-        if (responseData && responseData.body) {
-          data = responseData.body;
-        }
-        
-        if (!data) {
+        // Response structure: { success: true, data: { filters, filterConfig, appliedFilters } }
+        if (!responseData) {
           Logger.error('Empty filters response', { responseData });
           throw new Error('Empty filters response');
         }
         
-        if (!data.success) {
+        if (!responseData.success) {
           Logger.error('Filters request failed', { 
-            message: data.message || 'Unknown error',
-            data 
+            message: responseData.message || 'Unknown error',
+            responseData 
           });
-          throw new Error(data.message || 'Filters request failed');
+          throw new Error(responseData.message || 'Filters request failed');
         }
         
-        if (!data.data) {
-          Logger.error('Invalid filters response: missing data', { data });
+        if (!responseData.data) {
+          Logger.error('Invalid filters response: missing data', { responseData });
           throw new Error('Invalid filters response: missing data');
         }
         
-        const filterCount = typeof data.data === 'object' && !Array.isArray(data.data) 
-          ? Object.keys(data.data).length 
-          : (Array.isArray(data.data) ? data.data.length : 0);
+        // Return filters object (contains filters, filterConfig, appliedFilters)
+        const filtersData = responseData.data.filters || {};
+        const filterCount = typeof filtersData === 'object' && !Array.isArray(filtersData) 
+          ? Object.keys(filtersData).length 
+          : (Array.isArray(filtersData) ? filtersData.length : 0);
         
         Logger.info('Filters fetched successfully', { filterCount });
         
-        return data.data;
+        // Return the full data object (contains filters, filterConfig, appliedFilters)
+        return responseData.data;
         
       } catch (error) {
         Logger.error('Failed to fetch filters', {
@@ -1691,14 +1692,13 @@
         
         // Update state
         const oldProducts = state.products;
-        StateManager.updateProducts(
-          productsData.data,
-          productsData.pagination || state.pagination
-        );
+        const products = productsData.products || [];
+        const paginationData = productsData.pagination || state.pagination;
+        
+        StateManager.updateProducts(products, paginationData);
         
         // Render products
-        const paginationData = productsData.pagination || state.pagination;
-        DOMRenderer.renderProducts(productsData.data, oldProducts);
+        DOMRenderer.renderProducts(products, oldProducts);
         DOMRenderer.renderProductsInfo(paginationData, paginationData.total || 0);
         DOMRenderer.renderPagination(paginationData);
         DOMRenderer.renderAppliedFilters(state.filters);
@@ -1707,14 +1707,18 @@
         // Fetch updated filters
         const filtersData = await APIClient.fetchFilters(state.filters);
         if (filtersData) {
-          StateManager.updateState({ availableFilters: filtersData });
-          DOMRenderer.renderFilters(filtersData);
+          // Store both filters and filterConfig
+          StateManager.updateState({ 
+            availableFilters: filtersData.filters || filtersData,
+            filterConfig: filtersData.filterConfig 
+          });
+          DOMRenderer.renderFilters(filtersData.filters || filtersData);
           FilterManager.updateFilterActiveStates();
         }
         
         // Dispatch event
         const event = new CustomEvent('afs:productsLoaded', {
-          detail: { products: productsData.data, pagination: productsData.pagination }
+          detail: { products, pagination: paginationData }
         });
         DOMRenderer.container.dispatchEvent(event);
         
@@ -2142,8 +2146,12 @@
         // Load filters first
         const filtersData = await APIClient.fetchFilters(state.filters);
         if (filtersData) {
-          StateManager.updateState({ availableFilters: filtersData });
-          DOMRenderer.renderFilters(filtersData);
+          // Store both filters and filterConfig
+          StateManager.updateState({ 
+            availableFilters: filtersData.filters || filtersData,
+            filterConfig: filtersData.filterConfig 
+          });
+          DOMRenderer.renderFilters(filtersData.filters || filtersData);
           FilterManager.updateFilterActiveStates();
         }
         
@@ -2155,9 +2163,11 @@
         );
         
         if (productsData) {
+          const products = productsData.products || [];
           const paginationData = productsData.pagination || state.pagination;
-          StateManager.updateProducts(productsData.data, paginationData);
-          DOMRenderer.renderProducts(productsData.data);
+          
+          StateManager.updateProducts(products, paginationData);
+          DOMRenderer.renderProducts(products);
           DOMRenderer.renderProductsInfo(paginationData, paginationData.total || 0);
           DOMRenderer.renderPagination(paginationData);
           DOMRenderer.renderAppliedFilters(state.filters);
@@ -2190,7 +2200,8 @@
         sort: { field: 'createdAt', order: 'desc' },
         loading: false,
         error: null,
-        availableFilters: {}
+        availableFilters: {},
+        filterConfig: null
       };
       
       // Clear cache
