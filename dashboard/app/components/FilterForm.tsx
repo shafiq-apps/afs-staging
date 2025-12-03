@@ -980,8 +980,28 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
         if (opt.optionId === optionId) {
           const updated = { ...opt, [field]: value };
           
-          // When optionType changes, update baseOptionType and related fields
+          // When optionType changes, update handle, optionId, baseOptionType and related fields
           if (field === "optionType") {
+            // Check if option was expanded before regenerating ID
+            const wasExpanded = expandedOptions.has(optionId);
+            
+            // Regenerate handle based on new optionType
+            updated.handle = generateFilterHandle(value as string);
+            
+            // Regenerate optionId to ensure uniqueness
+            const newOptionId = generateOptionId();
+            updated.optionId = newOptionId;
+            
+            // Update expandedOptions set with new optionId if it was expanded
+            if (wasExpanded) {
+              setExpandedOptions((prev) => {
+                const newSet = new Set(prev);
+                newSet.delete(optionId); // Remove old ID
+                newSet.add(newOptionId); // Add new ID
+                return newSet;
+              });
+            }
+            
             // Update baseOptionType based on new optionType
             updated.baseOptionType = getBaseOptionType(value as string);
             
@@ -997,6 +1017,20 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
               if (updated.displayType === "range") {
                 updated.displayType = "list";
               }
+            }
+            
+            // Update variantOptionKey for variant options
+            // For standard types (Price, Vendor, etc.), variantOptionKey should be undefined
+            // For variant options (Color, Size, etc.), variantOptionKey should be the normalized optionType
+            const normalizedType = (value as string).toLowerCase().trim();
+            const isStandardType = ['price', 'vendor', 'product type', 'producttype', 'tags', 'tag', 'collection', 'collections'].includes(normalizedType);
+            
+            if (isStandardType) {
+              // Standard types don't need variantOptionKey
+              updated.variantOptionKey = undefined;
+            } else {
+              // Variant options: store normalized optionType as variantOptionKey
+              updated.variantOptionKey = normalizedType;
             }
           }
           
