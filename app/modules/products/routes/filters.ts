@@ -65,7 +65,7 @@ export const GET = handler(async (req: HttpRequest) => {
   return {
     success: true,
     data: {
-      settings: filterConfig ? formatFilterConfigForStorefront(filterConfig) : null,
+      filterConfig: filterConfig ? formatFilterConfigForStorefront(filterConfig) : null,
       filters: filters, // Filter aggregations (facets)
       appliedFilters: filterInput ?? {},
     }
