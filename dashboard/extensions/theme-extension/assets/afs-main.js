@@ -46,13 +46,20 @@
         );
         EventHandlers.init();
         const urlParams = URLManager.parseURL ? URLManager.parseURL() : {};
-        if (urlParams.filters) {
+        if (urlParams.filters && typeof urlParams.filters === 'object') {
           StateManager.updateFilters(urlParams.filters);
         }
-        if (urlParams.pagination) {
-          StateManager.updateState({ pagination: urlParams.pagination });
+        if (urlParams.pagination && typeof urlParams.pagination === 'object') {
+          // Ensure pagination has required fields
+          const pagination = {
+            page: urlParams.pagination.page || 1,
+            limit: urlParams.pagination.limit || CONSTANTS.DEFAULT_PAGE_SIZE,
+            total: urlParams.pagination.total || 0,
+            totalPages: urlParams.pagination.totalPages || 0
+          };
+          StateManager.updateState({ pagination });
         }
-        if (urlParams.sort) {
+        if (urlParams.sort && typeof urlParams.sort === 'object') {
           StateManager.updateState({ sort: urlParams.sort });
         }
         this.initialized = true;
@@ -97,8 +104,16 @@
         }
         if (productsData && productsData.data) {
           StateManager.updateProducts(productsData.data);
-          StateManager.updateState({ pagination: productsData.pagination || pagination });
-          DOMRenderer.renderProducts(productsData.data, productsData.pagination || pagination);
+          // Ensure pagination has all required fields
+          const updatedPagination = productsData.pagination || pagination;
+          const fullPagination = {
+            page: updatedPagination.page || pagination.page || 1,
+            limit: updatedPagination.limit || pagination.limit || CONSTANTS.DEFAULT_PAGE_SIZE,
+            total: updatedPagination.total || 0,
+            totalPages: updatedPagination.totalPages || 0
+          };
+          StateManager.updateState({ pagination: fullPagination });
+          DOMRenderer.renderProducts(productsData.data, fullPagination);
         } else {
           DOMRenderer.renderProducts([], pagination);
         }

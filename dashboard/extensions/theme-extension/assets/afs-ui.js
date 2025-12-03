@@ -106,46 +106,104 @@
     
     buildFiltersHTML(aggregations, filterConfig) {
       if (!aggregations || (typeof aggregations === 'object' && Object.keys(aggregations).length === 0)) {
+        Logger.debug('No aggregations to build HTML from', { aggregations });
         return '<p class="afs-no-filters">No filters available</p>';
       }
+      
+      Logger.debug('Building filters HTML', { 
+        isArray: Array.isArray(aggregations),
+        keys: Array.isArray(aggregations) ? aggregations.length : Object.keys(aggregations).length,
+        sample: Array.isArray(aggregations) ? aggregations[0] : Object.values(aggregations)[0]
+      });
+      
       let html = '<div class="afs-filters">';
       const filterEntries = Array.isArray(aggregations) ? aggregations : Object.entries(aggregations);
+      let renderedCount = 0;
+      
       filterEntries.forEach((entry, index) => {
         const [key, value] = Array.isArray(entry) ? entry : [index, entry];
         const filterKey = typeof key === 'string' ? key : `filter_${index}`;
         const filterData = typeof value === 'object' && value !== null ? value : { values: [] };
-        const filterValues = Array.isArray(filterData.values) ? filterData.values : [];
-        if (filterValues.length === 0) return;
-        const filterLabel = filterData.label || filterKey;
-        const filterHandle = filterData.handle || filterKey;
+        
+        // Handle different data structures
+        let filterValues = [];
+        if (Array.isArray(filterData.values)) {
+          filterValues = filterData.values;
+        } else if (Array.isArray(filterData)) {
+          // If filterData itself is an array, use it directly
+          filterValues = filterData;
+        } else if (Array.isArray(value)) {
+          // If value is an array, use it directly
+          filterValues = value;
+        } else if (typeof filterData === 'object' && filterData !== null) {
+          // Try to find values in nested structure
+          filterValues = filterData.options || filterData.items || filterData.buckets || [];
+        }
+        
+        if (filterValues.length === 0) {
+          Logger.debug('Skipping filter with no values', { filterKey, filterData });
+          return;
+        }
+        
+        const filterLabel = filterData.label || filterData.name || filterKey;
+        const filterHandle = filterData.handle || filterData.key || filterKey;
+        
         html += `<div class="afs-filter-group" data-filter-key="${Utils.sanitizeHTML(filterHandle)}">`;
-        html += `<h3 class="afs-filter-title">${Utils.sanitizeHTML(filterLabel)}</h3>`;
-        html += '<div class="afs-filter-options">';
+        html += '<div class="afs-filter-group__header">';
+        html += `<button type="button" class="afs-filter-group__toggle" aria-expanded="true">`;
+        html += '<span class="afs-filter-group__icon">▼</span>';
+        html += `<span class="afs-filter-group__label">${Utils.sanitizeHTML(filterLabel)}</span>`;
+        html += '</button>';
+        html += '</div>';
+        html += '<div class="afs-filter-group__content">';
+        html += '<div class="afs-filter-group__items">';
+        
         filterValues.forEach(option => {
           const optionValue = typeof option === 'object' && option !== null 
-            ? (option.value || option.handle || option.name || '')
+            ? (option.value || option.handle || option.key || option.name || option.id || '')
             : String(option);
           const optionLabel = typeof option === 'object' && option !== null
-            ? (option.label || option.name || optionValue)
+            ? (option.label || option.name || option.title || optionValue)
             : optionValue;
           const optionHandle = typeof option === 'object' && option !== null
-            ? (option.handle || option.optionId || optionValue)
+            ? (option.handle || option.optionId || option.id || optionValue)
             : optionValue;
           const optionCount = typeof option === 'object' && option !== null
-            ? (option.count || 0)
+            ? (option.count || option.doc_count || 0)
             : 0;
-          const isActive = this.isFilterActive(filterHandle, optionHandle);
-          html += `<label class="afs-filter-option ${isActive ? 'active' : ''}">`;
-          html += `<input type="checkbox" value="${Utils.sanitizeHTML(optionHandle)}" ${isActive ? 'checked' : ''} data-filter-key="${Utils.sanitizeHTML(filterHandle)}">`;
-          html += `<span class="afs-filter-option-label">${Utils.sanitizeHTML(optionLabel)}</span>`;
-          if (optionCount > 0) {
-            html += `<span class="afs-filter-option-count">(${optionCount})</span>`;
+          
+          if (!optionValue || optionValue === '') {
+            Logger.debug('Skipping option with empty value', { option });
+            return;
           }
-          html += '</label>';
+          
+          const isActive = this.isFilterActive(filterHandle, optionHandle);
+          html += `<div class="afs-filter-item ${isActive ? 'afs-filter-item--active' : ''}">`;
+          html += `<input type="checkbox" class="afs-filter-item__checkbox" value="${Utils.sanitizeHTML(optionHandle)}" ${isActive ? 'checked' : ''} data-filter-key="${Utils.sanitizeHTML(filterHandle)}">`;
+          html += `<span class="afs-filter-item__label">${Utils.sanitizeHTML(optionLabel)}</span>`;
+          if (optionCount > 0) {
+            html += `<span class="afs-filter-item__count">(${optionCount})</span>`;
+          }
+          html += '</div>';
         });
-        html += '</div></div>';
+        
+        html += '</div>'; // Close afs-filter-group__items
+        html += '</div>'; // Close afs-filter-group__content
+        html += '</div>'; // Close afs-filter-group
+        renderedCount++;
       });
+      
       html += '</div>';
+      
+      if (renderedCount === 0) {
+        Logger.warn('No filters rendered despite having aggregations', { 
+          aggregations,
+          filterEntriesLength: filterEntries.length 
+        });
+        return '<p class="afs-no-filters">No filter options available</p>';
+      }
+      
+      Logger.debug('Filters HTML built', { renderedCount, totalEntries: filterEntries.length });
       return html;
     },
     
@@ -389,7 +447,7 @@
     
     attachEventListeners() {
       document.addEventListener('change', (e) => {
-        if (e.target.matches && e.target.matches('.afs-filter-option input[type="checkbox"]')) {
+        if (e.target.matches && e.target.matches('.afs-filter-item__checkbox')) {
           this.debouncedFilterChange(e);
         }
       });

@@ -58,43 +58,53 @@
     },
     
     validateStateUpdate(updates) {
-      if (updates.filters) {
+      // Only validate filters if filters are being updated
+      if (updates.filters && typeof updates.filters === 'object') {
         const validFilterKeys = ['vendor', 'productType', 'tags', 'collections', 'options', 'search'];
         for (const key of Object.keys(updates.filters)) {
-          if (!validFilterKeys.includes(key)) {
-            Logger.warn('Invalid filter key in state update', { key, updates });
-            return false;
+          // Allow dynamic filter keys (from URL parsing, etc.) but log a warning
+          if (!validFilterKeys.includes(key) && !key.startsWith('options[') && key !== 'page' && key !== 'limit' && key !== 'sort') {
+            Logger.debug('Unknown filter key in state update (may be from URL)', { key });
+            // Don't fail validation for unknown keys - they might be valid dynamic filters
           }
-        }
-        for (const [key, value] of Object.entries(updates.filters)) {
+          const value = updates.filters[key];
+          if (value === null || value === undefined || value === '') {
+            continue; // Empty values are fine (will be removed)
+          }
           if (key === 'options') {
-            if (value !== null && typeof value !== 'object') {
-              Logger.warn('Invalid options filter value', { key, value });
+            if (typeof value !== 'object' || Array.isArray(value)) {
+              Logger.warn('Invalid options filter value - must be object', { key, value });
               return false;
             }
           } else if (key === 'search') {
-            if (value !== null && typeof value !== 'string') {
-              Logger.warn('Invalid search filter value', { key, value });
+            if (typeof value !== 'string') {
+              Logger.warn('Invalid search filter value - must be string', { key, value });
               return false;
             }
-          } else {
-            if (!Array.isArray(value)) {
-              Logger.warn('Invalid filter array value', { key, value });
-              return false;
-            }
+          } else if (!Array.isArray(value) && typeof value !== 'string') {
+            // Allow strings for single values (will be normalized)
+            Logger.debug('Filter value is not array (will be normalized)', { key, value });
           }
         }
       }
-      if (updates.pagination) {
-        if (typeof updates.pagination.page !== 'number' || updates.pagination.page < 1) {
-          Logger.warn('Invalid pagination page', { pagination: updates.pagination });
-          return false;
+      // Validate pagination only if pagination object exists and has values
+      if (updates.pagination && typeof updates.pagination === 'object') {
+        // Allow partial pagination updates - only validate fields that are present
+        if ('page' in updates.pagination) {
+          if (typeof updates.pagination.page !== 'number' || updates.pagination.page < 1) {
+            Logger.warn('Invalid pagination page', { pagination: updates.pagination });
+            return false;
+          }
         }
-        if (typeof updates.pagination.limit !== 'number' || updates.pagination.limit < 1) {
-          Logger.warn('Invalid pagination limit', { pagination: updates.pagination });
-          return false;
+        if ('limit' in updates.pagination) {
+          if (typeof updates.pagination.limit !== 'number' || updates.pagination.limit < 1) {
+            Logger.warn('Invalid pagination limit', { pagination: updates.pagination });
+            return false;
+          }
         }
+        // total and totalPages are optional and can be numbers or undefined
       }
+      // Allow other state fields (shop, filterConfig, loading, error, products, etc.) without strict validation
       return true;
     },
     

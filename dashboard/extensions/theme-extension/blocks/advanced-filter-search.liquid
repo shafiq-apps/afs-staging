@@ -4,10 +4,27 @@
 {% endcomment %}
 
 {% comment %}
-  Set global shop domain variable from Shopify Liquid
+  Set global shop domain variable and AFS settings from Shopify Liquid
 {% endcomment %}
 <script>
   window.AFS_SHOP_DOMAIN = "{{ shop.permanent_domain }}";
+  
+  {% if block.settings.enable_afs != false %}
+    // Enable AFS functionality (default: enabled)
+    window.AFS_ENABLED = true;
+    
+    {% if block.settings.enable_logging %}
+      // Enable logger from block settings
+      window.AFS_LOGGER_ENABLED = true;
+      {% if block.settings.log_level %}
+        // Set log level from block settings
+        window.AFS_LOG_LEVEL = '{{ block.settings.log_level }}';
+      {% endif %}
+    {% endif %}
+  {% else %}
+    // Disable AFS functionality
+    window.AFS_ENABLED = false;
+  {% endif %}
 </script>
 
 {% comment %}
@@ -62,6 +79,17 @@
   "settings": [
     {
       "type": "header",
+      "content": "Functionality Control"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_afs",
+      "label": "Enable Advanced Filter Search",
+      "default": true,
+      "info": "Turn this on to activate the Advanced Filter Search functionality. Turn off to disable this section."
+    },
+    {
+      "type": "header",
       "content": "API Configuration"
     },
     {
@@ -70,6 +98,46 @@
       "label": "API Base URL",
       "default": "https://fstaging.digitalcoo.com",
       "info": "The base URL for your API endpoint"
+    },
+    {
+      "type": "header",
+      "content": "Debug & Logging"
+    },
+    {
+      "type": "paragraph",
+      "content": "Optional debug logging settings. Enable only when troubleshooting. Keep disabled in production for better performance."
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_logging",
+      "label": "Enable Debug Logging",
+      "default": false,
+      "info": "When enabled, logs filter operations, API calls, and performance metrics to the browser console. Disable in production."
+    },
+    {
+      "type": "select",
+      "id": "log_level",
+      "label": "Log Level",
+      "default": "debug",
+      "options": [
+        {
+          "value": "error",
+          "label": "Errors Only"
+        },
+        {
+          "value": "warn",
+          "label": "Warnings and Errors"
+        },
+        {
+          "value": "info",
+          "label": "Info, Warnings, and Errors"
+        },
+        {
+          "value": "debug",
+          "label": "All Logs (Debug)"
+        }
+      ],
+      "info": "Choose the level of detail for logging. 'Debug' shows all logs including performance metrics."
     },
     {
       "type": "header",
@@ -83,7 +151,6 @@
       "type": "textarea",
       "id": "custom_css",
       "label": "Custom CSS",
-      "default": "",
       "info": "Enter custom CSS rules to fix style conflicts or customize appearance. The block ID is automatically available as #afs-container-{block_id}. You can also use class selectors like .afs-filters-container or .afs-products-grid.",
       "placeholder": "/* Example: Adjust filter width */\n.afs-filters-container {\n  width: 280px;\n  min-width: 250px;\n}\n\n/* Example: Fix product grid layout */\n.afs-products-grid {\n  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));\n  gap: 20px;\n}\n\n/* Example: Override theme conflicts */\n#afs-container-{block_id} {\n  padding: 0 !important;\n}"
     }
