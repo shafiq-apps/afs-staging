@@ -1,97 +1,23 @@
 {% comment %}
   Advanced Filter Search Block
-  Main filter and product display block
+  Add your block content here
 {% endcomment %}
 
-{% comment %}
-  Set global shop domain variable and AFS settings from Shopify Liquid
-{% endcomment %}
-<script>
-  window.AFS_SHOP_DOMAIN = "{{ shop.permanent_domain }}";
-  
-  {% if block.settings.enable_afs != false %}
-    // Enable AFS functionality (default: enabled)
-    window.AFS_ENABLED = true;
-    
-    {% if block.settings.enable_logging %}
-      // Enable logger from block settings
-      window.AFS_LOGGER_ENABLED = true;
-      {% if block.settings.log_level %}
-        // Set log level from block settings
-        window.AFS_LOG_LEVEL = '{{ block.settings.log_level }}';
-      {% endif %}
-    {% endif %}
-  {% else %}
-    // Disable AFS functionality
-    window.AFS_ENABLED = false;
-  {% endif %}
-</script>
+{{ 'advanced-filter-search.css' | asset_url | stylesheet_tag }}
 
-{% comment %}
-  Load stylesheet inline to ensure it only loads when section is rendered
-{% endcomment %}
-<link rel="stylesheet" href="{{ 'advanced-filter-search.css' | asset_url }}">
-
-{% comment %}
-  Inject custom CSS if provided
-{% endcomment %}
-{% if block.settings.custom_css != blank %}
-  <style id="afs-custom-css-{{ block.id }}">
-    /* Custom CSS for Advanced Filter Search Block #{{ block.id }} */
-    {{ block.settings.custom_css }}
-  </style>
-{% endif %}
-
-<div 
-  data-afs-container 
-  id="afs-container-{{ block.id }}" 
-  class="afs-container"
-  data-afs-block-settings='{
-    "apiBaseUrl": "{{ block.settings.api_base_url | default: "https://fstaging.digitalcoo.com" }}"
-  }'
->
+<div data-afs-container id="afs-container-{{ block.id }}">
   {% comment %} Container will be populated by JavaScript {% endcomment %}
-  <div class="afs-main-content">
-    <div class="afs-filters-container"></div>
-    <div class="afs-products-container"></div>
-  </div>
 </div>
 
-{% comment %}
-  Load AFS modules manually (since they're split into multiple files)
-  Modules must be loaded in the correct order
-{% endcomment %}
-<script src="{{ 'afs-core.js' | asset_url }}" defer></script>
-<script src="{{ 'afs-state.js' | asset_url }}" defer></script>
-<script src="{{ 'afs-api.js' | asset_url }}" defer></script>
-<script src="{{ 'afs-ui.js' | asset_url }}" defer></script>
-<script src="{{ 'afs-main.js' | asset_url }}" defer></script>
+<script src="{{ 'advanced-filter-search.js' | asset_url }}" defer></script>
 
-{% comment %}
-  Load initialization script inline to ensure it only executes when section is rendered
-{% endcomment %}
-<script src="{{ 'advanced-filter-search-init.js' | asset_url }}" defer></script>
+{% render 'advanced-filter-search-init', block: block %}
 
 {% schema %}
 {
   "name": "Advanced Filter Search",
   "target": "section",
   "settings": [
-    {
-      "type": "header",
-      "content": "Functionality Control"
-    },
-    {
-      "type": "checkbox",
-      "id": "enable_afs",
-      "label": "Enable Advanced Filter Search",
-      "default": true,
-      "info": "Turn this on to activate the Advanced Filter Search functionality. Turn off to disable this section."
-    },
-    {
-      "type": "header",
-      "content": "API Configuration"
-    },
     {
       "type": "text",
       "id": "api_base_url",
@@ -100,59 +26,11 @@
       "info": "The base URL for your API endpoint"
     },
     {
-      "type": "header",
-      "content": "Debug & Logging"
-    },
-    {
-      "type": "paragraph",
-      "content": "Optional debug logging settings. Enable only when troubleshooting. Keep disabled in production for better performance."
-    },
-    {
       "type": "checkbox",
       "id": "enable_logging",
       "label": "Enable Debug Logging",
       "default": false,
-      "info": "When enabled, logs filter operations, API calls, and performance metrics to the browser console. Disable in production."
-    },
-    {
-      "type": "select",
-      "id": "log_level",
-      "label": "Log Level",
-      "default": "debug",
-      "options": [
-        {
-          "value": "error",
-          "label": "Errors Only"
-        },
-        {
-          "value": "warn",
-          "label": "Warnings and Errors"
-        },
-        {
-          "value": "info",
-          "label": "Info, Warnings, and Errors"
-        },
-        {
-          "value": "debug",
-          "label": "All Logs (Debug)"
-        }
-      ],
-      "info": "Choose the level of detail for logging. 'Debug' shows all logs including performance metrics."
-    },
-    {
-      "type": "header",
-      "content": "Custom Styling"
-    },
-    {
-      "type": "paragraph",
-      "content": "Add custom CSS to fix style conflicts or customize the appearance for your theme. Use the block ID selector (#afs-container-{block_id}) to target this specific block instance."
-    },
-    {
-      "type": "textarea",
-      "id": "custom_css",
-      "label": "Custom CSS",
-      "info": "Enter custom CSS rules to fix style conflicts or customize appearance. The block ID is automatically available as #afs-container-{block_id}. You can also use class selectors like .afs-filters-container or .afs-products-grid.",
-      "placeholder": "/* Example: Adjust filter width */\n.afs-filters-container {\n  width: 280px;\n  min-width: 250px;\n}\n\n/* Example: Fix product grid layout */\n.afs-products-grid {\n  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));\n  gap: 20px;\n}\n\n/* Example: Override theme conflicts */\n#afs-container-{block_id} {\n  padding: 0 !important;\n}"
+      "info": "Enable console logging for debugging"
     }
   ]
 }
