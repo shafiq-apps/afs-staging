@@ -11,8 +11,11 @@
     prefix: '[AFS]',
     enable() {
       this.enabled = true;
-      this.level = 'debug';
-      this.info('Logger enabled');
+      // Don't auto-set to debug - use the level from settings or keep default
+      if (!this.level || this.level === 'error') {
+        this.level = 'debug'; // Default to debug if not set
+      }
+      this.info('Logger enabled', { level: this.level });
     },
     disable() {
       this.enabled = false;
@@ -54,11 +57,32 @@
     }
   };
   
-  // Auto-enable in development
+  // Check for enable flag from Liquid/theme settings
+  // Logs are disabled by default for production
+  // Enable via: window.AFS_LOGGER_ENABLED = true (set from Liquid)
   if (typeof window !== 'undefined') {
-    const hostname = window.location.hostname;
-    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname.includes('dev')) {
+    // Check for explicit enable flag from theme settings
+    if (window.AFS_LOGGER_ENABLED === true) {
       Logger.enable();
+      // Set log level if provided from theme settings
+      if (window.AFS_LOG_LEVEL) {
+        Logger.setLevel(window.AFS_LOG_LEVEL);
+      }
+    }
+    // Also check data attribute on body/html for theme setting
+    else if (document.body && document.body.getAttribute('data-afs-logger-enabled') === 'true') {
+      Logger.enable();
+      const logLevel = document.body.getAttribute('data-afs-log-level');
+      if (logLevel) {
+        Logger.setLevel(logLevel);
+      }
+    }
+    else if (document.documentElement && document.documentElement.getAttribute('data-afs-logger-enabled') === 'true') {
+      Logger.enable();
+      const logLevel = document.documentElement.getAttribute('data-afs-log-level');
+      if (logLevel) {
+        Logger.setLevel(logLevel);
+      }
     }
   }
   

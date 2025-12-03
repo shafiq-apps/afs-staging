@@ -1,57 +1,64 @@
 {% comment %}
   Advanced Filter Search Initialization Snippet
-  Include this snippet to initialize the filter search functionality
+  This snippet initializes AFS after all modules are loaded
+  Block settings are passed via data attribute in the block Liquid file
 {% endcomment %}
 
-{% if block.settings.api_base_url and block.settings.shop_domain %}
-  <script>
-    (function() {
-      // Configuration from block settings
-      const config = {
-        apiBaseUrl: {{ block.settings.api_base_url | json }},
-        shop: {{ block.settings.shop_domain | json }},
+<script>
+  (function() {
+    'use strict';
+    
+    // Function to initialize AFS
+    function initializeAFS() {
+      // Check if all required modules are loaded
+      if (!window.AFS || !window.AFS.AFS) {
+        // Retry after a short delay if modules aren't loaded yet
+        setTimeout(initializeAFS, 100);
+        return;
+      }
+      
+      // Find container for this block
+      const container = document.querySelector('#afs-container-{{ block.id }}');
+      if (!container) {
+        console.warn('[AFS] Container not found for block {{ block.id }}');
+        return;
+      }
+      
+      // Get settings from data attribute or use defaults
+      const blockData = container.getAttribute('data-afs-block-settings');
+      let settings = {
+        shop: '{{ shop.permanent_domain }}',
         container: '#afs-container-{{ block.id }}',
-        filtersContainer: {{ block.settings.filters_container_selector | default: '.afs-filters-container' | json }},
-        productsContainer: {{ block.settings.products_container_selector | default: '.afs-products-container' | json }},
-        pageSize: {{ block.settings.page_size | default: 20 }},
-        enableLogging: {{ block.settings.enable_logging | default: false }}
+        filtersContainer: '{{ block.settings.filters_container_selector | default: ".afs-filters-container" }}',
+        productsContainer: '{{ block.settings.products_container_selector | default: ".afs-products-container" }}',
+        apiBaseUrl: '{{ block.settings.api_base_url | default: "https://fstaging.digitalcoo.com" }}'
       };
-
-      // Function to initialize AFS
-      function initializeAFS() {
-        if (typeof window.AFS !== 'undefined') {
-          try {
-            window.AFS.init(config);
-            
-            {% if block.settings.enable_logging %}
-              if (window.AFS.Logger) {
-                window.AFS.Logger.enable();
-              }
-            {% endif %}
-          } catch (error) {
-            console.error('Failed to initialize Advanced Filter Search:', error);
-          }
-        } else {
-          // If AFS is not loaded yet, wait a bit and try again
-          setTimeout(initializeAFS, 100);
+      
+      // Override with data attribute if available
+      if (blockData) {
+        try {
+          const parsed = JSON.parse(blockData);
+          settings = { ...settings, ...parsed };
+        } catch (e) {
+          console.warn('[AFS] Failed to parse block settings', e);
         }
       }
-
-      // Wait for both DOM and script to be ready
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', function() {
-          // Wait a bit for the deferred script to load
-          setTimeout(initializeAFS, 50);
-        });
-      } else {
-        // DOM is already ready, just wait for script
-        setTimeout(initializeAFS, 50);
+      
+      // Initialize AFS
+      try {
+        window.AFS.AFS.init(settings);
+      } catch (error) {
+        console.error('[AFS] Initialization failed', error);
       }
-    })();
-  </script>
-{% else %}
-  <script>
-    console.warn('Advanced Filter Search: API Base URL and Shop Domain must be configured in block settings.');
-  </script>
-{% endif %}
+    }
+    
+    // Start initialization when DOM is ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initializeAFS);
+    } else {
+      // DOM already ready, wait a bit for deferred scripts
+      setTimeout(initializeAFS, 50);
+    }
+  })();
+</script>
 

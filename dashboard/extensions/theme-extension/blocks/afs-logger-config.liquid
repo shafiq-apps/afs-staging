@@ -1,0 +1,66 @@
+{% comment %}
+  Advanced Filter Search - Logger Configuration (App Embed Block)
+  This block loads on all pages to configure logging
+  Settings are configured in the theme editor
+{% endcomment %}
+
+{% if block.settings.enable_logging %}
+  <script>
+    // Enable logger from block settings
+    window.AFS_LOGGER_ENABLED = true;
+    {% if block.settings.log_level %}
+      // Set log level from block settings
+      window.AFS_LOG_LEVEL = '{{ block.settings.log_level }}';
+    {% endif %}
+  </script>
+{% endif %}
+
+{% schema %}
+{
+  "name": "AFS Logger Config",
+  "target": "body",
+  "settings": [
+    {
+      "type": "header",
+      "content": "Debug Settings"
+    },
+    {
+      "type": "paragraph",
+      "content": "Enable logging for debugging purposes. Keep disabled in production for better performance."
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_logging",
+      "label": "Enable Debug Logging",
+      "default": false,
+      "info": "When enabled, logs filter operations, API calls, and performance metrics to the browser console. Disable in production."
+    },
+    {
+      "type": "select",
+      "id": "log_level",
+      "label": "Log Level",
+      "default": "debug",
+      "options": [
+        {
+          "value": "error",
+          "label": "Errors Only"
+        },
+        {
+          "value": "warn",
+          "label": "Warnings and Errors"
+        },
+        {
+          "value": "info",
+          "label": "Info, Warnings, and Errors"
+        },
+        {
+          "value": "debug",
+          "label": "All Logs (Debug)"
+        }
+      ],
+      "info": "Choose the level of detail for logging. 'Debug' shows all logs including performance metrics."
+    }
+  ]
+}
+{% endschema %}
+

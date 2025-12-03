@@ -1,35 +1,73 @@
 {% comment %}
   Advanced Filter Search Block
-  Add your block content here
+  Main filter and product display block
 {% endcomment %}
 
-{{ 'advanced-filter-search.css' | asset_url | stylesheet_tag }}
-
-<div data-afs-container id="afs-container-{{ block.id }}">
+<div 
+  data-afs-container 
+  id="afs-container-{{ block.id }}" 
+  class="afs-container"
+  data-afs-block-settings='{
+    "shop": "{{ shop.permanent_domain }}",
+    "apiBaseUrl": "{{ block.settings.api_base_url | default: "https://fstaging.digitalcoo.com" }}",
+    "container": "{{ block.settings.container_selector | default: "[data-afs-container]" }}",
+    "filtersContainer": "{{ block.settings.filters_container_selector | default: ".afs-filters-container" }}",
+    "productsContainer": "{{ block.settings.products_container_selector | default: ".afs-products-container" }}"
+  }'
+>
   {% comment %} Container will be populated by JavaScript {% endcomment %}
+  <div class="afs-filters-container"></div>
+  <div class="afs-products-container"></div>
 </div>
 
-<script src="{{ 'advanced-filter-search.js' | asset_url }}" defer></script>
+{% comment %}
+  Load AFS modules manually (since they're split into multiple files)
+  Schema attributes can only load one JS file, so we load modules manually
+  Modules must be loaded in the correct order
+{% endcomment %}
+<script src="{{ 'afs-constants.js' | asset_url }}" defer></script>
+<script src="{{ 'afs-utils-core.js' | asset_url }}" defer></script>
+<script src="{{ 'afs-logger.js' | asset_url }}" defer></script>
+<script src="{{ 'afs-utils.js' | asset_url }}" defer></script>
+<script src="{{ 'afs-state.js' | asset_url }}" defer></script>
+<script src="{{ 'afs-url.js' | asset_url }}" defer></script>
+<script src="{{ 'afs-api.js' | asset_url }}" defer></script>
+<script src="{{ 'afs-dom.js' | asset_url }}" defer></script>
+<script src="{{ 'afs-filters.js' | asset_url }}" defer></script>
+<script src="{{ 'afs-events.js' | asset_url }}" defer></script>
+<script src="{{ 'afs-main.js' | asset_url }}" defer></script>
 
+{% comment %} Initialize AFS after modules load {% endcomment %}
 {% render 'advanced-filter-search-init', block: block %}
 
 {% schema %}
 {
   "name": "Advanced Filter Search",
   "target": "section",
+  "javascript": "advanced-filter-search-init.js",
+  "stylesheet": "advanced-filter-search.css",
   "settings": [
+    {
+      "type": "header",
+      "content": "API Configuration"
+    },
     {
       "type": "text",
       "id": "api_base_url",
       "label": "API Base URL",
-      "default": "http://localhost:3554",
+      "default": "https://fstaging.digitalcoo.com",
       "info": "The base URL for your API endpoint"
     },
     {
       "type": "text",
       "id": "shop_domain",
       "label": "Shop Domain",
-      "info": "Your Shopify shop domain (e.g., your-shop.myshopify.com)"
+      "default": "{{ shop.permanent_domain }}",
+      "info": "Your Shopify shop domain (automatically set)"
+    },
+    {
+      "type": "header",
+      "content": "Container Selectors"
     },
     {
       "type": "text",
@@ -53,18 +91,15 @@
       "info": "CSS selector for the products container"
     },
     {
+      "type": "header",
+      "content": "Pagination"
+    },
+    {
       "type": "number",
       "id": "page_size",
       "label": "Products Per Page",
       "default": 20,
       "info": "Number of products to display per page"
-    },
-    {
-      "type": "checkbox",
-      "id": "enable_logging",
-      "label": "Enable Debug Logging",
-      "default": false,
-      "info": "Enable console logging for debugging"
     }
   ]
 }
