@@ -64,8 +64,10 @@ export const GET = handler(async (req: HttpRequest) => {
   // Return response with filter configuration (for storefront script)
   return {
     success: true,
-    filterConfig: filterConfig ? formatFilterConfigForStorefront(filterConfig) : null,
-    aggregations: filters, // Filter aggregations (facets)
-    appliedFilters: filterInput ?? {},
+    data: {
+      settings: filterConfig ? formatFilterConfigForStorefront(filterConfig) : null,
+      filters: filters, // Filter aggregations (facets)
+      appliedFilters: filterInput ?? {},
+    }
   };
 });

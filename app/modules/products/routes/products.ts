@@ -46,23 +46,26 @@ export const GET = handler(async (req: HttpRequest) => {
 
   const responseBody: any = {
     success: true,
-    data: result.products,
-    pagination: {
-      total: result.total,
-      page: result.page,
-      limit: result.limit,
-      totalPages: result.totalPages,
+    data: {
+      products: result.products,
+      pagination: {
+        total: result.total,
+        page: result.page,
+        limit: result.limit,
+        totalPages: result.totalPages,
+      },
+      appliedFilters: searchInput,
     },
-    appliedFilters: searchInput,
+    
   };
 
   if (result.filters) {
-    responseBody.filters = formatFilters(result.filters);
+    responseBody.data.filters = formatFilters(result.filters);
   }
 
   // Include filter configuration for storefront script
   if (filterConfig) {
-    responseBody.filterConfig = formatFilterConfigForStorefront(filterConfig);
+    responseBody.data.settings = formatFilterConfigForStorefront(filterConfig);
   }
 
   return responseBody;
