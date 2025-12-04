@@ -355,7 +355,7 @@ export default function FiltersPage() {
                   <s-table-cell>
                     {filter.status && (
                       <s-badge 
-                        tone={filter.status === "published" ? "success" : filter.status === "draft" ? "warning" : "neutral"}
+                        tone={filter.status === "PUBLISHED" ? "success" : "neutral"}
                       >
                         {filter.status.charAt(0).toUpperCase() + filter.status.slice(1)}
                       </s-badge>
