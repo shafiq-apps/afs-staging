@@ -54,20 +54,31 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
             selectionType
             targetScope
             allowedOptions
-            groups
             collapsed
             searchable
             tooltipContent
-            removePrefix
-            filterByPrefix
-            sortBy
-            manualSortedValues
-            menus
             showMenu
-            textTransform
-            paginationType
-            groupBySimilarValues
             status
+            optionSettings {
+              baseOptionType
+              selectedValues
+              removeSuffix
+              replaceText {
+                from
+                to
+              }
+              variantOptionKey
+              valueNormalization
+              groupBySimilarValues
+              removePrefix
+              filterByPrefix
+              sortBy
+              manualSortedValues
+              groups
+              menus
+              textTransform
+              paginationType
+            }
           }
           settings {
             defaultView
@@ -144,16 +155,32 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     const storefrontFilters = storefrontResult.data?.storefrontFilters || null;
     
     if (filter && filter.options) {
-      filter.options = filter.options.map((option: any) => ({
-        ...option,
-        tooltipContent: option.tooltipContent ?? "",
-        allowedOptions: option.allowedOptions ?? [],
-        groups: option.groups ?? [],
-        removePrefix: option.removePrefix ?? [],
-        filterByPrefix: option.filterByPrefix ?? [],
-        manualSortedValues: option.manualSortedValues ?? [],
-        menus: option.menus ?? [],
-      }));
+      filter.options = filter.options.map((option: any) => {
+        const optionSettings = option.optionSettings || {};
+        return {
+          ...option,
+          tooltipContent: option.tooltipContent ?? "",
+          allowedOptions: option.allowedOptions ?? [],
+          // Extract fields from optionSettings to top level for backward compatibility
+          groups: optionSettings.groups ?? [],
+          removePrefix: optionSettings.removePrefix ?? [],
+          filterByPrefix: optionSettings.filterByPrefix ?? [],
+          manualSortedValues: optionSettings.manualSortedValues ?? [],
+          menus: optionSettings.menus ?? [],
+          removeSuffix: optionSettings.removeSuffix ?? [],
+          replaceText: optionSettings.replaceText ?? [],
+          sortBy: optionSettings.sortBy ?? "ASCENDING",
+          textTransform: optionSettings.textTransform ?? "NONE",
+          paginationType: optionSettings.paginationType ?? "SCROLL",
+          groupBySimilarValues: optionSettings.groupBySimilarValues ?? false,
+          valueNormalization: optionSettings.valueNormalization ?? {},
+          baseOptionType: optionSettings.baseOptionType,
+          variantOptionKey: optionSettings.variantOptionKey,
+          selectedValues: optionSettings.selectedValues ?? [],
+          // Keep optionSettings for reference
+          optionSettings: optionSettings,
+        };
+      });
     }
 
     return {

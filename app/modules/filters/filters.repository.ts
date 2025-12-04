@@ -128,14 +128,16 @@ export class FiltersRepository {
       const index = FILTERS_INDEX_NAME;
       
       // Use search query with shop and id filters to ensure shop ownership
+      // Try both term (for keyword fields) and match (for text fields) to handle different mappings
       const response = await this.esClient.search({
         index,
         query: {
           bool: {
-            must: [
-              { term: { shop: shop } },
-              { term: { id: id } }
-            ]
+            should: [
+              { match: { shop: shop } },
+              { match: { id: id } }
+            ],
+            minimum_should_match: 2
           }
         },
         size: 1,
@@ -147,6 +149,7 @@ export class FiltersRepository {
         logger.log('Normalized filter', { 
           shop, 
           id, 
+          storedShop: source.shop,
           hasFilterType: !!normalized.filterType,
           hasTargetScope: !!normalized.targetScope,
           hasDeploymentChannel: !!normalized.deploymentChannel,
@@ -173,10 +176,19 @@ export class FiltersRepository {
     try {
       const index = FILTERS_INDEX_NAME;
       
+      logger.log('Listing filters for shop', { shop, index });
+      
+      // Try both term (for keyword fields) and match (for text fields) to handle different mappings
+      // This ensures we find filters regardless of how the shop field is mapped in ES
       const response = await this.esClient.search({
         index,
         query: {
-          term: { shop: shop }
+          bool: {
+            should: [
+              { match: { shop: shop } }  // Match for text field
+            ],
+            minimum_should_match: 1
+          }
         },
         size: 10000, // Get all filters for this shop
         // Don't sort - let the application sort after normalization if needed
@@ -199,13 +211,26 @@ export class FiltersRepository {
         return bDate - aDate; // Descending order (newest first)
       });
 
+      // Log sample shop values from results for debugging
+      const sampleShops = response.hits.hits.slice(0, 3).map((hit: any) => hit._source?.shop).filter(Boolean);
+      
+      logger.log('Filters list result', { 
+        shop, 
+        count: filters.length, 
+        total,
+        sampleIds: filters.slice(0, 3).map(f => f.id),
+        sampleShops,
+        queryShop: shop
+      });
+      
       return { filters, total };
     } catch (error: any) {
       if (error.statusCode === 404) {
         // Index doesn't exist yet, return empty
+        logger.log('Filters index does not exist', { shop, index: FILTERS_INDEX_NAME });
         return { filters: [], total: 0 };
       }
-      logger.error('Error listing filters', { shop, error: error?.message || error });
+      logger.error('Error listing filters', { shop, error: error?.message || error, stack: error?.stack });
       throw error;
     }
   }
@@ -222,6 +247,7 @@ export class FiltersRepository {
       
       const now = new Date().toISOString();
       // Always use the shop from the function parameter (not from input) for security
+      // Store shop as-is from Shopify (e.g., "digitalcoo-filter-demo-10.myshopify.com")
       const filterShop = shop;
       const filter: Filter = {
         id,
