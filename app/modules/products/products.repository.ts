@@ -716,12 +716,12 @@ export class productsRepository {
 
     // Build aggregations if filters are requested
     // Only include aggregations for enabled filter options
-    const enabledAggregations = filters?.includeFilters ? getEnabledAggregations(filterConfig) : new Set<string>();
-    const aggs = filters?.includeFilters && enabledAggregations.size > 0
+    const enabledAggregations = filters?.includeFilters ? getEnabledAggregations(filterConfig) : { standard: new Set<string>(), variantOptions: new Map<string, string>() };
+    const aggs = filters?.includeFilters && (enabledAggregations.standard.size > 0 || enabledAggregations.variantOptions.size > 0)
       ? (() => {
           const aggregationObject: any = {};
           
-          if (enabledAggregations.has('vendors')) {
+          if (enabledAggregations.standard.has('vendors')) {
             aggregationObject.vendors = {
               terms: {
                 field: 'vendor.keyword',
@@ -731,7 +731,7 @@ export class productsRepository {
             };
           }
           
-          if (enabledAggregations.has('productTypes')) {
+          if (enabledAggregations.standard.has('productTypes')) {
             aggregationObject.productTypes = {
               terms: {
                 field: 'productType.keyword',
@@ -741,7 +741,7 @@ export class productsRepository {
             };
           }
           
-          if (enabledAggregations.has('tags')) {
+          if (enabledAggregations.standard.has('tags')) {
             aggregationObject.tags = {
               terms: {
                 field: 'tags.keyword', // Use keyword field for aggregations
@@ -751,7 +751,7 @@ export class productsRepository {
             };
           }
           
-          if (enabledAggregations.has('collections')) {
+          if (enabledAggregations.standard.has('collections')) {
             aggregationObject.collections = {
               terms: {
                 field: 'collections.keyword', // Use keyword field for aggregations
@@ -761,10 +761,31 @@ export class productsRepository {
             };
           }
           
-          if (enabledAggregations.has('optionPairs')) {
+          if (enabledAggregations.variantOptions.size > 0) {
+            // Build specific variant option aggregations
+            for (const [aggName, optionType] of enabledAggregations.variantOptions.entries()) {
+              aggregationObject[aggName] = {
+                filter: {
+                  prefix: {
+                    'optionPairs.keyword': `${optionType}${PRODUCT_OPTION_PAIR_SEPARATOR}`,
+                  },
+                },
+                aggs: {
+                  values: {
+                    terms: {
+                      field: 'optionPairs.keyword',
+                      size: DEFAULT_BUCKET_SIZE * 2,
+                      order: { _count: 'desc' as const },
+                    },
+                  },
+                },
+              };
+            }
+          } else {
+            // Fallback: fetch all optionPairs
             aggregationObject.optionPairs = {
               terms: {
-                field: 'optionPairs.keyword', // Use keyword field for aggregations
+                field: 'optionPairs.keyword',
                 size: DEFAULT_BUCKET_SIZE * 5,
                 order: { _count: 'desc' as const },
               },
@@ -772,7 +793,7 @@ export class productsRepository {
           }
           
           // Price range stats aggregation (product-level: minPrice/maxPrice)
-          if (enabledAggregations.has('priceRange')) {
+          if (enabledAggregations.standard.has('priceRange')) {
             aggregationObject.priceRange = {
               stats: {
                 field: 'minPrice',
@@ -781,7 +802,7 @@ export class productsRepository {
           }
           
           // Variant price range stats aggregation (variant.price)
-          if (enabledAggregations.has('variantPriceRange')) {
+          if (enabledAggregations.standard.has('variantPriceRange')) {
             aggregationObject.variantPriceRange = {
               nested: {
                 path: 'variants',
@@ -877,55 +898,30 @@ export class productsRepository {
     };
 
     if (filters?.includeFilters && response.aggregations) {
-      // Get variant option keys from filter config for optimization
-      const variantOptionKeys = getVariantOptionKeys(filterConfig);
-      
-      // Filter optionPairs aggregation to only include relevant variant option keys
-      // Use case-insensitive comparison since ES stores keys in original case
+      // Process aggregations - handle variant option-specific aggregations
       const aggregations = { ...response.aggregations } as any;
-      if (aggregations.optionPairs && variantOptionKeys.size > 0) {
-        // Create a lowercase map for case-insensitive lookup
-        const variantKeysLowerMap = new Map<string, string>();
-        variantOptionKeys.forEach(key => {
-          variantKeysLowerMap.set(key.toLowerCase(), key);
-        });
+      
+      // Process variant option-specific aggregations (option.Color, option.Size, etc.)
+      let combinedOptionPairs: TermsAggregation;
+      
+      if (enabledAggregations.variantOptions.size > 0) {
+        // Build from specific variant option aggregations
+        const optionPairsBuckets: AggregationBucket[] = [];
         
-        const filteredBuckets = aggregations.optionPairs.buckets?.filter((bucket: AggregationBucket) => {
-          const key = bucket.key || '';
-          if (!key.includes(PRODUCT_OPTION_PAIR_SEPARATOR)) return false;
-          
-          const [optionName] = key.split(PRODUCT_OPTION_PAIR_SEPARATOR);
-          const normalizedOptionName = optionName.trim();
-          // Case-insensitive comparison: check if lowercase version exists in our set
-          return variantKeysLowerMap.has(normalizedOptionName.toLowerCase());
-        }) || [];
+        for (const [aggName, optionType] of enabledAggregations.variantOptions.entries()) {
+          const variantAgg = aggregations[aggName];
+          if (variantAgg?.values?.buckets) {
+            optionPairsBuckets.push(...variantAgg.values.buckets);
+          }
+        }
         
-        aggregations.optionPairs = {
-          ...aggregations.optionPairs,
-          buckets: filteredBuckets,
+        combinedOptionPairs = {
+          buckets: optionPairsBuckets,
         };
-        
-        logger.debug('Filtered optionPairs aggregation in searchProducts', {
-          originalBuckets: response.aggregations.optionPairs?.buckets?.length || 0,
-          filteredBuckets: filteredBuckets.length,
-          variantOptionKeys: Array.from(variantOptionKeys),
-          sampleBucketKeys: filteredBuckets.slice(0, 5).map(b => b.key),
-        });
-      } else if (variantOptionKeys.size === 0 && filterConfig && filterConfig.options) {
-        // If we have filterConfig but no variant option keys, log for debugging
-        logger.debug('No variant option keys found in filterConfig (searchProducts)', {
-          totalOptions: filterConfig.options.length,
-          publishedOptions: filterConfig.options.filter(o => o.status === 'PUBLISHED').length,
-          optionTypes: filterConfig.options.map(o => {
-            const optionSettings = o.optionSettings || {};
-            return {
-              optionType: o.optionType,
-              variantOptionKey: optionSettings.variantOptionKey,
-              baseOptionType: optionSettings.baseOptionType,
-              status: o.status,
-            };
-          }),
-        });
+        aggregations.optionPairs = combinedOptionPairs;
+      } else {
+        // Use all optionPairs (fallback)
+        combinedOptionPairs = aggregations.optionPairs || { buckets: [] };
       }
       
       // Format price range aggregations (similar to getFacets)
@@ -935,13 +931,13 @@ export class productsRepository {
       // Build formatted aggregations with price ranges
       const formattedAggregations: FacetAggregations = {
         ...aggregations,
-        priceRange: enabledAggregations.has('priceRange') && priceRangeStats && (priceRangeStats.min !== null || priceRangeStats.max !== null)
+        priceRange: enabledAggregations.standard.has('priceRange') && priceRangeStats && (priceRangeStats.min !== null || priceRangeStats.max !== null)
           ? {
               min: priceRangeStats.min ?? 0,
               max: priceRangeStats.max ?? 0,
             }
           : undefined,
-        variantPriceRange: enabledAggregations.has('variantPriceRange') && variantPriceRangeStats && (variantPriceRangeStats.min !== null || variantPriceRangeStats.max !== null)
+        variantPriceRange: enabledAggregations.standard.has('variantPriceRange') && variantPriceRangeStats && (variantPriceRangeStats.min !== null || variantPriceRangeStats.max !== null)
           ? {
               min: variantPriceRangeStats.min ?? 0,
               max: variantPriceRangeStats.max ?? 0,
