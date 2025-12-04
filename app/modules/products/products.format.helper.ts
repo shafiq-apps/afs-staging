@@ -163,18 +163,21 @@ function processOptions(
   // Process options in position order
   for (const configOption of sortedConfigOptions) {
     // Get the option name to look up in options
-    const variantKey = configOption.variantOptionKey?.toLowerCase().trim();
-    const optionType = configOption.optionType?.toLowerCase().trim();
-    const label = configOption.label?.toLowerCase().trim();
+    const optionSettings = configOption.optionSettings || {};
+    // Keep original case for matching (ES stores in original case)
+    const variantKey = optionSettings.variantOptionKey?.trim();
+    const optionType = configOption.optionType?.trim();
+    const label = configOption.label?.trim();
 
-    // Find matching option in options object
+    // Find matching option in options object (case-insensitive matching)
     let matchedKey: string | null = null;
     let optionItems: FacetValue[] | null = null;
 
-    // Try exact match with variantOptionKey (most reliable)
+    // Try case-insensitive match with variantOptionKey (most reliable)
     if (variantKey) {
+      const variantKeyLower = variantKey.toLowerCase();
       for (const key of Object.keys(options)) {
-        if (key.toLowerCase().trim() === variantKey) {
+        if (key.toLowerCase().trim() === variantKeyLower) {
           matchedKey = key;
           optionItems = options[key];
           break;
@@ -182,10 +185,11 @@ function processOptions(
       }
     }
 
-    // Try exact match with optionType
+    // Try case-insensitive match with optionType
     if (!matchedKey && optionType) {
+      const optionTypeLower = optionType.toLowerCase();
       for (const key of Object.keys(options)) {
-        if (key.toLowerCase().trim() === optionType) {
+        if (key.toLowerCase().trim() === optionTypeLower) {
           matchedKey = key;
           optionItems = options[key];
           break;
@@ -193,10 +197,11 @@ function processOptions(
       }
     }
 
-    // Try exact match with label
+    // Try case-insensitive match with label
     if (!matchedKey && label) {
+      const labelLower = label.toLowerCase();
       for (const key of Object.keys(options)) {
-        if (key.toLowerCase().trim() === label) {
+        if (key.toLowerCase().trim() === labelLower) {
           matchedKey = key;
           optionItems = options[key];
           break;
@@ -224,8 +229,8 @@ function processOptions(
         if (!value) continue;
 
         // Apply removePrefix
-        if (configOption.removePrefix && Array.isArray(configOption.removePrefix)) {
-          for (const prefix of configOption.removePrefix) {
+        if (optionSettings.removePrefix && Array.isArray(optionSettings.removePrefix)) {
+          for (const prefix of optionSettings.removePrefix) {
             if (value.toLowerCase().startsWith(prefix.toLowerCase())) {
               value = value.substring(prefix.length).trim();
               break;
@@ -234,8 +239,8 @@ function processOptions(
         }
 
         // Apply removeSuffix
-        if (configOption.removeSuffix && Array.isArray(configOption.removeSuffix)) {
-          for (const suffix of configOption.removeSuffix) {
+        if (optionSettings.removeSuffix && Array.isArray(optionSettings.removeSuffix)) {
+          for (const suffix of optionSettings.removeSuffix) {
             if (value.toLowerCase().endsWith(suffix.toLowerCase())) {
               value = value.substring(0, value.length - suffix.length).trim();
               break;
@@ -244,8 +249,8 @@ function processOptions(
         }
 
         // Apply replaceText
-        if (configOption.replaceText && Array.isArray(configOption.replaceText)) {
-          for (const replacement of configOption.replaceText) {
+        if (optionSettings.replaceText && Array.isArray(optionSettings.replaceText)) {
+          for (const replacement of optionSettings.replaceText) {
             if (typeof replacement === 'object' && replacement.from && replacement.to) {
               const regex = new RegExp(replacement.from, 'gi');
               value = value.replace(regex, replacement.to);
@@ -254,9 +259,9 @@ function processOptions(
         }
 
         // Apply filterByPrefix
-        if (configOption.filterByPrefix && Array.isArray(configOption.filterByPrefix) && configOption.filterByPrefix.length > 0) {
+        if (optionSettings.filterByPrefix && Array.isArray(optionSettings.filterByPrefix) && optionSettings.filterByPrefix.length > 0) {
           const originalValue = String(item.value || '').trim();
-          const matches = configOption.filterByPrefix.some((prefix: string) =>
+          const matches = optionSettings.filterByPrefix.some((prefix: string) =>
             originalValue.toLowerCase().startsWith(prefix.toLowerCase())
           );
           if (!matches) continue; // Skip this value
@@ -271,14 +276,14 @@ function processOptions(
       // Step 3: Group similar values if enabled (case-insensitive grouping)
       // This groups BEFORE textTransform so "Black", "BLACK", "black" all group together
       let groupedItems: FacetValue[] = processedItems;
-      if (configOption.groupBySimilarValues === true) {
+      if (optionSettings.groupBySimilarValues === true) {
         groupedItems = groupSimilarValues(processedItems);
       }
 
       // Step 4: Apply textTransform AFTER grouping
       let finalItems = groupedItems.map(item => ({
         ...item,
-        value: applyTextTransform(item.value, configOption.textTransform),
+        value: applyTextTransform(item.value, optionSettings.textTransform),
       }));
 
       // Step 5: Remove count if showCount is false
@@ -296,7 +301,7 @@ function processOptions(
     }
   }
 
-  // Also include any options not in filterConfig (for backward compatibility)
+  // Include any options not in filterConfig (only if they have data and weren't processed)
   for (const [optionName, optionItems] of Object.entries(options)) {
     if (!processedOptions[optionName] && optionItems && optionItems.length > 0) {
       processedOptions[optionName] = optionItems;

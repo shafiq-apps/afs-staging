@@ -25,7 +25,6 @@ export async function getActiveFilterConfig(
     
     // Find active, published filter for storefront (app or theme deployment)
     // Note: status === 'published' is the single source of truth for active filters
-    // isActive field is redundant and should be removed in future versions
     const activeFilter = filters.find(
       (f) =>
         f.status === 'published' &&
@@ -100,7 +99,8 @@ export function mapOptionKeyToName(filterConfig: Filter | null, optionKey: strin
 
   if (option) {
     // Return the variantOptionKey if available, otherwise use optionType
-    const baseName = option.variantOptionKey || 
+    const optionSettings = option.optionSettings || {};
+    const baseName = optionSettings.variantOptionKey || 
                      option.optionType?.trim() || 
                      optionKey;
     return baseName;
@@ -160,11 +160,7 @@ export function applyFilterConfigToInput(
     for (const [queryKey, values] of Object.entries(result.options)) {
       // Check if this key matches an actual option in the filter config
       // This ensures we only process valid option filters
-      if (!isOptionKey(filterConfig, queryKey) && queryKey.toLowerCase() !== 'price') {
-        // If it doesn't match any option, it might be a direct option name
-        // We'll still try to map it, but log a warning for unknown keys
-        // Note: 'price' is a special case that might not have a filter option but is still valid
-      }
+      // Note: 'price' is a special case that might not have a filter option but is still valid
       
       // Map handle/ID to actual option name
       const optionName = mapOptionKeyToName(filterConfig, queryKey);
@@ -244,7 +240,8 @@ export function applyFilterConfigToInput(
       if (option.status !== 'published') continue;
 
       // Get the actual option name (variantOptionKey or optionType)
-      const optionName = option.variantOptionKey || 
+      const optionSettings = option.optionSettings || {};
+      const optionName = optionSettings.variantOptionKey || 
                          option.optionType?.trim() || 
                          option.handle;
       
@@ -263,13 +260,13 @@ export function applyFilterConfigToInput(
       }
 
       // Apply selectedValues if baseOptionType is used
-      if (option.baseOptionType && option.selectedValues?.length > 0) {
+      if (optionSettings.baseOptionType && optionSettings.selectedValues?.length > 0) {
         // This is a derived option - map to base option type
-        const baseName = option.baseOptionType.trim();
+        const baseName = optionSettings.baseOptionType.trim();
         if (result.options && result.options[baseName]) {
           // Filter to only selected values
           result.options[baseName] = result.options[baseName].filter((val) =>
-            option.selectedValues!.includes(val)
+            optionSettings.selectedValues!.includes(val)
           );
         }
       }
@@ -324,21 +321,23 @@ export function getFilterConfigHash(filterConfig: Filter | null): string {
     // Include all options with their full configuration that affects aggregations
     // Sort by handle for consistent hashing
     options: filterConfig.options
-      ?.map(opt => ({
-        handle: opt.handle,
-        optionType: opt.optionType,
-        status: opt.status, // Include status to detect published/draft changes
-        variantOptionKey: opt.variantOptionKey ? opt.variantOptionKey.toLowerCase() : undefined, // Normalize to lowercase
-        targetScope: opt.targetScope,
-        // Include fields that affect which aggregations are calculated
-        allowedOptions: opt.allowedOptions && opt.allowedOptions.length > 0 
-          ? [...opt.allowedOptions].sort() 
-          : undefined,
-        selectedValues: opt.selectedValues && opt.selectedValues.length > 0
-          ? [...opt.selectedValues].sort()
-          : undefined,
-        baseOptionType: opt.baseOptionType,
-      }))
+      ?.map(opt => {
+        const optionSettings = opt.optionSettings || {};
+        return {
+          handle: opt.handle,
+          optionType: opt.optionType,
+          status: opt.status,
+          variantOptionKey: optionSettings.variantOptionKey || undefined, // Keep original case
+          targetScope: opt.targetScope,
+          allowedOptions: opt.allowedOptions && opt.allowedOptions.length > 0 
+            ? [...opt.allowedOptions].sort() 
+            : undefined,
+          selectedValues: optionSettings.selectedValues && optionSettings.selectedValues.length > 0
+            ? [...optionSettings.selectedValues].sort()
+            : undefined,
+          baseOptionType: optionSettings.baseOptionType,
+        };
+      })
       .sort((a, b) => a.handle.localeCompare(b.handle)) || [],
   };
   
@@ -375,56 +374,61 @@ export function formatFilterConfigForStorefront(filterConfig: Filter | null): an
     allowedCollections: filterConfig.allowedCollections || [],
     options: filterConfig.options
       ?.filter((opt) => opt.status === 'published') // Only include published options
-      .map((opt) => ({
-        handle: opt.handle,
-        position: opt.position,
-        optionId: opt.optionId,
-        label: opt.label,
-        optionType: opt.optionType,
-        status: opt.status,
-        displayType: opt.displayType || 'list',
-        selectionType: opt.selectionType || 'multiple',
-        targetScope: opt.targetScope || 'all',
-        allowedOptions: opt.allowedOptions || [],
-        
-        // Value Selection & Filtering
-        baseOptionType: opt.baseOptionType,
-        selectedValues: opt.selectedValues || [],
-        removeSuffix: opt.removeSuffix || [],
-        replaceText: opt.replaceText || [],
-        
-        // Value Grouping & Normalization
-        valueNormalization: opt.valueNormalization,
-        groupBySimilarValues: opt.groupBySimilarValues || false,
-        
-        // Display Options
-        collapsed: opt.collapsed || false,
-        searchable: opt.searchable || false,
-        showTooltip: opt.showTooltip || false,
-        tooltipContent: opt.tooltipContent || '',
-        showCount: opt.showCount || false,
-        
-        // Filtering & Prefixes
-        removePrefix: opt.removePrefix || [],
-        filterByPrefix: opt.filterByPrefix || [],
-        
-        // Sorting
-        sortBy: opt.sortBy || 'ascending',
-        manualSortedValues: opt.manualSortedValues || [],
-        
-        // Advanced
-        groups: opt.groups || [],
-        menus: opt.menus || [],
-        showMenu: opt.showMenu || false,
-        textTransform: opt.textTransform || 'none',
-        paginationType: opt.paginationType || 'scroll',
-        
-        // Performance Optimization: Include variant option key for frontend use
-        variantOptionKey: opt.variantOptionKey,
-      }))
+      .map((opt) => {
+        const optionSettings = opt.optionSettings || {};
+        return {
+          handle: opt.handle,
+          position: opt.position,
+          optionId: opt.optionId,
+          label: opt.label,
+          optionType: opt.optionType,
+          status: opt.status,
+          displayType: opt.displayType || 'list',
+          selectionType: opt.selectionType || 'multiple',
+          targetScope: opt.targetScope || 'all',
+          allowedOptions: opt.allowedOptions || [],
+          
+          // Display Options
+          collapsed: opt.collapsed || false,
+          searchable: opt.searchable || false,
+          showTooltip: opt.showTooltip || false,
+          tooltipContent: opt.tooltipContent || '',
+          showCount: opt.showCount || false,
+          showMenu: opt.showMenu || false,
+          
+          // Option Settings (nested per new schema)
+          optionSettings: {
+            // Value Selection & Filtering
+            baseOptionType: optionSettings.baseOptionType,
+            selectedValues: optionSettings.selectedValues || [],
+            removeSuffix: optionSettings.removeSuffix || [],
+            replaceText: optionSettings.replaceText || [],
+            
+            // Value Grouping & Normalization
+            valueNormalization: optionSettings.valueNormalization,
+            groupBySimilarValues: optionSettings.groupBySimilarValues || false,
+            
+            // Filtering & Prefixes
+            removePrefix: optionSettings.removePrefix || [],
+            filterByPrefix: optionSettings.filterByPrefix || [],
+            
+            // Sorting
+            sortBy: optionSettings.sortBy || 'ascending',
+            manualSortedValues: optionSettings.manualSortedValues || [],
+            
+            // Advanced
+            groups: optionSettings.groups || [],
+            menus: optionSettings.menus || [],
+            textTransform: optionSettings.textTransform || 'none',
+            paginationType: optionSettings.paginationType || 'scroll',
+            
+            // Performance Optimization: Include variant option key for frontend use
+            variantOptionKey: optionSettings.variantOptionKey,
+          },
+        };
+      })
       .sort((a, b) => a.position - b.position) || [], // Sort by position
     settings: {
-      // Legacy settings
       displayQuickView: filterConfig.settings?.displayQuickView,
       displayItemsCount: filterConfig.settings?.displayItemsCount,
       displayVariantInsteadOfProduct: filterConfig.settings?.displayVariantInsteadOfProduct,
@@ -435,8 +439,6 @@ export function formatFilterConfigForStorefront(filterConfig: Filter | null): an
       onLaptop: filterConfig.settings?.onLaptop,
       onTablet: filterConfig.settings?.onTablet,
       onMobile: filterConfig.settings?.onMobile,
-      
-      // New nested structure
       productDisplay: filterConfig.settings?.productDisplay || {},
       pagination: filterConfig.settings?.pagination || {},
       showFilterCount: filterConfig.settings?.showFilterCount,
@@ -446,8 +448,6 @@ export function formatFilterConfigForStorefront(filterConfig: Filter | null): an
     },
     deploymentChannel: filterConfig.deploymentChannel,
     status: filterConfig.status,
-    // Note: isActive is no longer included in storefront response
-    // Use status === 'published' to determine if filter is active
   };
 }
 

@@ -33,7 +33,7 @@ function getEnabledAggregations(filterConfig: Filter | null): Set<string> {
   const enabled = new Set<string>();
   
   if (!filterConfig || !filterConfig.options) {
-    // If no filter config, enable all aggregations (backward compatibility)
+    // If no filter config, enable all aggregations
     return new Set(['vendors', 'productTypes', 'tags', 'collections', 'optionPairs', 'priceRange', 'variantPriceRange']);
   }
   
@@ -62,18 +62,21 @@ function getEnabledAggregations(filterConfig: Filter | null): Set<string> {
     // Check if it's a standard filter type
     if (optionTypeToAggregation[optionType]) {
       enabled.add(optionTypeToAggregation[optionType]);
-    } else if (option.baseOptionType) {
-      // Derived option - check base option type
-      const baseType = option.baseOptionType.toLowerCase().trim();
-      if (optionTypeToAggregation[baseType]) {
-        enabled.add(optionTypeToAggregation[baseType]);
+    } else {
+      const optionSettings = option.optionSettings || {};
+      if (optionSettings.baseOptionType) {
+        // Derived option - check base option type
+        const baseType = optionSettings.baseOptionType.toLowerCase().trim();
+        if (optionTypeToAggregation[baseType]) {
+          enabled.add(optionTypeToAggregation[baseType]);
+        } else {
+          // Custom option - use optionPairs aggregation
+          enabled.add('optionPairs');
+        }
       } else {
-        // Custom option - use optionPairs aggregation
+        // Custom option (not a standard type) - use optionPairs aggregation
         enabled.add('optionPairs');
       }
-    } else {
-      // Custom option (not a standard type) - use optionPairs aggregation
-      enabled.add('optionPairs');
     }
   }
   
@@ -108,7 +111,7 @@ const STANDARD_FILTER_TYPES = new Set([
  * Standard filter types (vendor, productType, tags, collections, price) are excluded.
  * 
  * @param filterConfig - The filter configuration to extract keys from
- * @returns A set of normalized (lowercase) variant option keys
+ * @returns A set of variant option keys in original case (matching ES storage)
  */
 function getVariantOptionKeys(filterConfig: Filter | null): Set<string> {
   const variantOptionKeys = new Set<string>();
@@ -121,50 +124,48 @@ function getVariantOptionKeys(filterConfig: Filter | null): Set<string> {
     // Only include published options
     if (option.status !== 'published') continue;
     
-    // Priority 1: If variantOptionKey is explicitly stored, use it (normalized to lowercase)
-    if (option.variantOptionKey) {
-      variantOptionKeys.add(option.variantOptionKey.toLowerCase().trim());
+    const optionSettings = option.optionSettings || {};
+    
+    // Priority 1: If variantOptionKey is explicitly stored, use it (keep original case)
+    if (optionSettings.variantOptionKey) {
+      variantOptionKeys.add(optionSettings.variantOptionKey.trim());
       continue;
     }
     
     // Priority 2: For variant options (baseOptionType === "Option"), use optionType
     // baseOptionType "Option" is a category, not the actual variant option name
-    if (option.baseOptionType && option.baseOptionType.toLowerCase().trim() === 'option') {
-      // For variant options, use optionType as the key
-      const optionType = option.optionType?.toLowerCase().trim() || '';
-      if (optionType && !STANDARD_FILTER_TYPES.has(optionType)) {
+    if (optionSettings.baseOptionType && optionSettings.baseOptionType.toLowerCase().trim() === 'option') {
+      // For variant options, use optionType as the key (keep original case)
+      const optionType = option.optionType?.trim() || '';
+      if (optionType && !STANDARD_FILTER_TYPES.has(optionType.toLowerCase())) {
         variantOptionKeys.add(optionType);
       }
       continue;
     }
     
     // Priority 3: For other derived options, extract from baseOptionType
-    if (option.baseOptionType) {
-      const baseOptionName = option.baseOptionType.trim();
+    if (optionSettings.baseOptionType) {
+      const baseOptionName = optionSettings.baseOptionType.trim();
       if (baseOptionName) {
-        const normalizedBase = baseOptionName.toLowerCase();
-        // Only add if it's not a standard type
-        if (!STANDARD_FILTER_TYPES.has(normalizedBase)) {
-          variantOptionKeys.add(normalizedBase);
+        // Keep original case, but check against lowercase for standard types
+        if (!STANDARD_FILTER_TYPES.has(baseOptionName.toLowerCase())) {
+          variantOptionKeys.add(baseOptionName);
         }
       }
       continue;
     }
     
     // Priority 4: Try to extract from optionType (fallback for legacy filters)
-    const optionType = option.optionType?.toLowerCase().trim() || '';
+    const optionType = option.optionType?.trim() || '';
     if (!optionType) continue;
     
-    // Check if it's a standard type - if so, skip it
-    if (STANDARD_FILTER_TYPES.has(optionType)) {
+    // Check if it's a standard type - if so, skip it (case-insensitive check)
+    if (STANDARD_FILTER_TYPES.has(optionType.toLowerCase())) {
       continue;
     }
     
-    // Extract the option name from optionType
-    const optionName = option.optionType.trim();
-    if (optionName) {
-      variantOptionKeys.add(optionName.toLowerCase());
-    }
+    // Extract the option name from optionType (keep original case)
+    variantOptionKeys.add(optionType);
   }
   
   return variantOptionKeys;
@@ -423,18 +424,22 @@ export class productsRepository {
       : { buckets: [] };
     
     // If we have variant option keys, filter the optionPairs buckets to only include matching keys
-    // Variant option keys are already normalized to lowercase in getVariantOptionKeys()
-    // If variantOptionKeys is empty, include all buckets (backward compatibility)
+    // Use case-insensitive comparison since ES stores keys in original case
     if (variantOptionKeys.size > 0 && filteredOptionPairs.buckets && filteredOptionPairs.buckets.length > 0) {
+      // Create a lowercase map for case-insensitive lookup
+      const variantKeysLowerMap = new Map<string, string>();
+      variantOptionKeys.forEach(key => {
+        variantKeysLowerMap.set(key.toLowerCase(), key);
+      });
+      
       const filteredBuckets = filteredOptionPairs.buckets.filter((bucket: AggregationBucket) => {
         const key = bucket.key || '';
         if (!key.includes(PRODUCT_OPTION_PAIR_SEPARATOR)) return false;
         
         const [optionName] = key.split(PRODUCT_OPTION_PAIR_SEPARATOR);
-        // Normalize option name to lowercase for comparison (variant keys are already lowercase)
-        const normalizedOptionName = optionName.toLowerCase().trim();
-        // Check if this option name matches any of our variant option keys
-        return variantOptionKeys.has(normalizedOptionName);
+        const normalizedOptionName = optionName.trim();
+        // Case-insensitive comparison: check if lowercase version exists in our set
+        return variantKeysLowerMap.has(normalizedOptionName.toLowerCase());
       });
       
       filteredOptionPairs = {
@@ -453,12 +458,15 @@ export class productsRepository {
       logger.debug('No variant option keys found in filterConfig', {
         totalOptions: filterConfig.options.length,
         publishedOptions: filterConfig.options.filter(o => o.status === 'published').length,
-        optionTypes: filterConfig.options.map(o => ({
-          optionType: o.optionType,
-          variantOptionKey: o.variantOptionKey,
-          baseOptionType: o.baseOptionType,
-          status: o.status,
-        })),
+        optionTypes: filterConfig.options.map(o => {
+          const optionSettings = o.optionSettings || {};
+          return {
+            optionType: o.optionType,
+            variantOptionKey: optionSettings.variantOptionKey,
+            baseOptionType: optionSettings.baseOptionType,
+            status: o.status,
+          };
+        }),
       });
     }
 
@@ -845,19 +853,23 @@ export class productsRepository {
       const variantOptionKeys = getVariantOptionKeys(filterConfig);
       
       // Filter optionPairs aggregation to only include relevant variant option keys
-      // Variant option keys are already normalized to lowercase in getVariantOptionKeys()
-      // If variantOptionKeys is empty, include all buckets (backward compatibility)
+      // Use case-insensitive comparison since ES stores keys in original case
       const aggregations = { ...response.aggregations } as any;
       if (aggregations.optionPairs && variantOptionKeys.size > 0) {
+        // Create a lowercase map for case-insensitive lookup
+        const variantKeysLowerMap = new Map<string, string>();
+        variantOptionKeys.forEach(key => {
+          variantKeysLowerMap.set(key.toLowerCase(), key);
+        });
+        
         const filteredBuckets = aggregations.optionPairs.buckets?.filter((bucket: AggregationBucket) => {
           const key = bucket.key || '';
           if (!key.includes(PRODUCT_OPTION_PAIR_SEPARATOR)) return false;
           
           const [optionName] = key.split(PRODUCT_OPTION_PAIR_SEPARATOR);
-          // Normalize option name to lowercase for comparison (variant keys are already lowercase)
-          const normalizedOptionName = optionName.toLowerCase().trim();
-          // Check if this option name matches any of our variant option keys
-          return variantOptionKeys.has(normalizedOptionName);
+          const normalizedOptionName = optionName.trim();
+          // Case-insensitive comparison: check if lowercase version exists in our set
+          return variantKeysLowerMap.has(normalizedOptionName.toLowerCase());
         }) || [];
         
         aggregations.optionPairs = {
@@ -876,12 +888,15 @@ export class productsRepository {
         logger.debug('No variant option keys found in filterConfig (searchProducts)', {
           totalOptions: filterConfig.options.length,
           publishedOptions: filterConfig.options.filter(o => o.status === 'published').length,
-          optionTypes: filterConfig.options.map(o => ({
-            optionType: o.optionType,
-            variantOptionKey: o.variantOptionKey,
-            baseOptionType: o.baseOptionType,
-            status: o.status,
-          })),
+          optionTypes: filterConfig.options.map(o => {
+            const optionSettings = o.optionSettings || {};
+            return {
+              optionType: o.optionType,
+              variantOptionKey: optionSettings.variantOptionKey,
+              baseOptionType: optionSettings.baseOptionType,
+              status: o.status,
+            };
+          }),
         });
       }
       

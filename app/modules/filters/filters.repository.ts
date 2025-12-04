@@ -5,23 +5,16 @@
  */
 
 import { Client } from '@elastic/elasticsearch';
-import { FILTERS_INDEX_NAME } from '@shared/constants/filters.constants';
 import { createModuleLogger } from '@shared/utils/logger.util';
 import { v4 as uuidv4 } from 'uuid';
 import { Filter, CreateFilterInput, UpdateFilterInput } from './filters.type';
 import { getCacheService } from '@core/cache';
+import { FILTERS_INDEX_NAME } from '@shared/constants/es.constant';
 
 const logger = createModuleLogger('filters-repository');
 
 export class FiltersRepository {
   constructor(private esClient: Client) {}
-
-  /**
-   * Get index name for a shop
-   */
-  private getIndexName(shop: string): string {
-    return FILTERS_INDEX_NAME(shop);
-  }
 
   /**
    * Normalize filter data from Elasticsearch
@@ -40,55 +33,63 @@ export class FiltersRepository {
       filterType: data.filterType ?? data.filter_type ?? data.type ?? 'custom',
       targetScope: data.targetScope ?? data.target_scope ?? data.target_selection ?? 'all',
       allowedCollections: data.allowedCollections ?? data.allowed_collections ?? data.entitled_collections ?? [],
-      options: (data.options ?? []).map((opt: any) => ({
-        handle: opt.handle,
-        position: opt.position,
-        optionId: opt.optionId ?? opt.option_id ?? opt.uid ?? '',
-        label: opt.label,
-        optionType: opt.optionType ?? opt.option_type ?? opt.type ?? '',
-        displayType: opt.displayType ?? opt.display_type ?? 'list',
-        selectionType: opt.selectionType ?? opt.selection_type ?? 'multiple',
-        targetScope: opt.targetScope ?? opt.target_scope ?? opt.target_selection ?? 'all',
-        allowedOptions: opt.allowedOptions ?? opt.allowed_options ?? opt.entitled_options ?? [],
+      options: (data.options ?? []).map((opt: any) => {
+        // Extract optionSettings if present (new schema) or build from legacy fields
+        const optionSettings = opt.optionSettings || {};
         
-        // Value Selection & Filtering
-        baseOptionType: opt.baseOptionType ?? undefined,
-        selectedValues: opt.selectedValues ?? [],
-        removeSuffix: opt.removeSuffix ?? [],
-        replaceText: opt.replaceText ?? [],
-        
-        // Value Grouping & Normalization
-        valueNormalization: opt.valueNormalization ?? undefined,
-        groupBySimilarValues: opt.groupBySimilarValues ?? opt.group_by_similar_values ?? false,
-        
-        // Display Options
-        collapsed: opt.collapsed ?? false,
-        searchable: opt.searchable ?? false,
-        showTooltip: opt.showTooltip ?? false,
-        tooltipContent: opt.tooltipContent ?? opt.tooltip_content ?? '',
-        showCount: opt.showCount ?? false,
-        
-        // Filtering & Prefixes
-        removePrefix: opt.removePrefix ?? opt.remove_prefix ?? [],
-        filterByPrefix: opt.filterByPrefix ?? opt.filter_by_prefix ?? [],
-        
-        // Sorting
-        sortBy: opt.sortBy ?? opt.sort_by ?? 'ascending',
-        manualSortedValues: opt.manualSortedValues ?? opt.manual_sorted_values ?? [],
-        
-        // Advanced
-        groups: opt.groups ?? [],
-        menus: opt.menus ?? [],
-        showMenu: opt.showMenu ?? opt.show_menu ?? false,
-        textTransform: opt.textTransform ?? opt.text_transform ?? 'none',
-        paginationType: opt.paginationType ?? opt.pagination_type ?? 'scroll',
-        status: opt.status ?? 'published',
-        
-        // Performance Optimization: Pre-computed variant option keys
-        variantOptionKey: opt.variantOptionKey ?? opt.variant_option_key ?? undefined,
-      })),
-      status: data.status ?? 'published',
-      deploymentChannel: data.deploymentChannel ?? data.deployment_channel ?? data.channel ?? 'app',
+        return {
+          handle: opt.handle,
+          position: opt.position,
+          optionId: opt.optionId ?? opt.option_id ?? opt.uid ?? '',
+          label: opt.label,
+          optionType: opt.optionType ?? opt.option_type ?? opt.type ?? '',
+          displayType: opt.displayType ?? opt.display_type ?? 'LIST',
+          selectionType: opt.selectionType ?? opt.selection_type ?? 'MULTIPLE',
+          targetScope: opt.targetScope ?? opt.target_scope ?? opt.target_selection ?? 'all',
+          allowedOptions: opt.allowedOptions ?? opt.allowed_options ?? opt.entitled_options ?? [],
+          
+          // Display Options (top-level)
+          collapsed: opt.collapsed ?? false,
+          searchable: opt.searchable ?? false,
+          showTooltip: opt.showTooltip ?? false,
+          tooltipContent: opt.tooltipContent ?? opt.tooltip_content ?? '',
+          showCount: opt.showCount ?? false,
+          showMenu: opt.showMenu ?? opt.show_menu ?? false,
+          status: opt.status ?? 'PUBLISHED',
+          
+          // Option Settings (nested object per new schema)
+          optionSettings: {
+            // Value Selection & Filtering (from optionSettings or legacy top-level)
+            baseOptionType: optionSettings.baseOptionType ?? opt.baseOptionType,
+            selectedValues: optionSettings.selectedValues ?? opt.selectedValues ?? [],
+            removeSuffix: optionSettings.removeSuffix ?? opt.removeSuffix ?? [],
+            replaceText: optionSettings.replaceText ?? opt.replaceText ?? [],
+            
+            // Value Grouping & Normalization
+            valueNormalization: optionSettings.valueNormalization ?? opt.valueNormalization,
+            groupBySimilarValues: optionSettings.groupBySimilarValues ?? opt.groupBySimilarValues ?? opt.group_by_similar_values ?? false,
+            
+            // Filtering & Prefixes
+            removePrefix: optionSettings.removePrefix ?? opt.removePrefix ?? opt.remove_prefix ?? [],
+            filterByPrefix: optionSettings.filterByPrefix ?? opt.filterByPrefix ?? opt.filter_by_prefix ?? [],
+            
+            // Sorting
+            sortBy: optionSettings.sortBy ?? opt.sortBy ?? opt.sort_by ?? 'ASCENDING',
+            manualSortedValues: optionSettings.manualSortedValues ?? opt.manualSortedValues ?? opt.manual_sorted_values ?? [],
+            
+            // Advanced
+            groups: optionSettings.groups ?? opt.groups ?? [],
+            menus: optionSettings.menus ?? opt.menus ?? [],
+            textTransform: optionSettings.textTransform ?? opt.textTransform ?? opt.text_transform ?? 'NONE',
+            paginationType: optionSettings.paginationType ?? opt.paginationType ?? opt.pagination_type ?? 'SCROLL',
+            
+            // Performance Optimization: Pre-computed variant option keys
+            variantOptionKey: optionSettings.variantOptionKey ?? opt.variantOptionKey ?? opt.variant_option_key,
+          },
+        };
+      }),
+      status: data.status ?? 'PUBLISHED',
+      deploymentChannel: data.deploymentChannel ?? data.deployment_channel ?? data.channel ?? 'APP',
       settings: data.settings ? {
         // Legacy fields
         displayQuickView: data.settings.displayQuickView ?? data.settings.display_quick_view ?? undefined,
@@ -119,18 +120,31 @@ export class FiltersRepository {
   }
 
   /**
-   * Get filter by ID
+   * Get filter by ID for a specific shop
+   * Uses shop field to filter in single index for all shops
+   * Verifies that the filter belongs to the specified shop
    */
   async getFilter(shop: string, id: string): Promise<Filter | null> {
     try {
-      const index = this.getIndexName(shop);
-      const response = await this.esClient.get({
+      const index = FILTERS_INDEX_NAME;
+      
+      // Use search query with shop and id filters to ensure shop ownership
+      const response = await this.esClient.search({
         index,
-        id,
+        query: {
+          bool: {
+            must: [
+              { term: { shop: shop } },
+              { term: { id: id } }
+            ]
+          }
+        },
+        size: 1,
       });
 
-      if (response.found && response._source) {
-        const normalized = this.normalizeFilter(response._source);
+      if (response.hits.hits.length > 0 && response.hits.hits[0]._source) {
+        const source = response.hits.hits[0]._source as any;
+        const normalized = this.normalizeFilter(source);
         logger.log('Normalized filter', { 
           shop, 
           id, 
@@ -154,15 +168,18 @@ export class FiltersRepository {
 
   /**
    * List all filters for a shop
+   * Filters by shop field in single index for all shops
    */
   async listFilters(shop: string): Promise<{ filters: Filter[]; total: number }> {
     try {
-      const index = this.getIndexName(shop);
+      const index = FILTERS_INDEX_NAME;
       
       const response = await this.esClient.search({
         index,
-        query: { match_all: {} },
-        size: 10000, // Get all filters
+        query: {
+          term: { shop: shop }
+        },
+        size: 10000, // Get all filters for this shop
         // Don't sort - let the application sort after normalization if needed
         // This avoids issues with missing field mappings
       });
@@ -196,70 +213,82 @@ export class FiltersRepository {
 
   /**
    * Create a new filter
+   * Always uses the shop parameter (never trusts input.shop) for security
+   * Stores in single index with shop field for identification
    */
   async createFilter(shop: string, input: CreateFilterInput): Promise<Filter> {
     try {
-      const index = this.getIndexName(shop);
+      const index = FILTERS_INDEX_NAME;
       const id = uuidv4();
       
       const now = new Date().toISOString();
+      // Always use the shop from the function parameter (not from input) for security
+      const filterShop = shop;
       const filter: Filter = {
         id,
-        shop: input.shop || shop,
+        shop: filterShop, // Always use the shop parameter, never trust input.shop
         title: input.title,
         description: input.description,
         filterType: input.filterType || 'custom',
         targetScope: input.targetScope || 'all',
         allowedCollections: input.allowedCollections || [],
-        options: input.options.map((opt) => ({
-          handle: opt.handle,
-          position: opt.position,
-          optionId: opt.optionId,
-          label: opt.label,
-          optionType: opt.optionType,
-          displayType: opt.displayType || 'list',
-          selectionType: opt.selectionType || 'multiple',
-          targetScope: opt.targetScope || 'all',
-          allowedOptions: opt.allowedOptions || [],
+        options: input.options.map((opt) => {
+          // Extract optionSettings if present (new schema) or use empty object
+          const optionSettings = opt.optionSettings || {};
           
-          // Value Selection & Filtering
-          baseOptionType: opt.baseOptionType,
-          selectedValues: opt.selectedValues || [],
-          removeSuffix: opt.removeSuffix || [],
-          replaceText: opt.replaceText || [],
-          
-          // Value Grouping & Normalization
-          valueNormalization: opt.valueNormalization,
-          groupBySimilarValues: opt.groupBySimilarValues ?? false,
-          
-          // Display Options
-          collapsed: opt.collapsed ?? false,
-          searchable: opt.searchable ?? false,
-          showTooltip: opt.showTooltip ?? false,
-          tooltipContent: opt.tooltipContent ?? '',
-          showCount: opt.showCount ?? false,
-          
-          // Filtering & Prefixes
-          removePrefix: opt.removePrefix || [],
-          filterByPrefix: opt.filterByPrefix || [],
-          
-          // Sorting
-          sortBy: opt.sortBy || 'ascending',
-          manualSortedValues: opt.manualSortedValues || [],
-          
-          // Advanced
-          groups: opt.groups || [],
-          menus: opt.menus || [],
-          showMenu: opt.showMenu ?? false,
-          textTransform: opt.textTransform || 'none',
-          paginationType: opt.paginationType || 'scroll',
-          status: opt.status || 'published',
-          
-          // Performance Optimization: Pre-computed variant option keys
-          variantOptionKey: opt.variantOptionKey,
-        })),
-        status: input.status || 'published',
-        deploymentChannel: input.deploymentChannel || 'app',
+          return {
+            handle: opt.handle,
+            position: opt.position,
+            optionId: opt.optionId || '',
+            label: opt.label,
+            optionType: opt.optionType,
+            displayType: opt.displayType || 'LIST',
+            selectionType: opt.selectionType || 'MULTIPLE',
+            targetScope: opt.targetScope || 'all',
+            allowedOptions: opt.allowedOptions || [],
+            
+            // Display Options (top-level)
+            collapsed: opt.collapsed ?? false,
+            searchable: opt.searchable ?? false,
+            showTooltip: opt.showTooltip ?? false,
+            tooltipContent: opt.tooltipContent ?? '',
+            showCount: opt.showCount ?? false,
+            showMenu: opt.showMenu ?? false,
+            status: opt.status || 'PUBLISHED',
+            
+            // Option Settings (nested object per new schema)
+            optionSettings: {
+              // Value Selection & Filtering
+              baseOptionType: optionSettings.baseOptionType,
+              selectedValues: optionSettings.selectedValues || [],
+              removeSuffix: optionSettings.removeSuffix || [],
+              replaceText: optionSettings.replaceText || [],
+              
+              // Value Grouping & Normalization
+              valueNormalization: optionSettings.valueNormalization,
+              groupBySimilarValues: optionSettings.groupBySimilarValues ?? false,
+              
+              // Filtering & Prefixes
+              removePrefix: optionSettings.removePrefix || [],
+              filterByPrefix: optionSettings.filterByPrefix || [],
+              
+              // Sorting
+              sortBy: optionSettings.sortBy || 'ASCENDING',
+              manualSortedValues: optionSettings.manualSortedValues || [],
+              
+              // Advanced
+              groups: optionSettings.groups || [],
+              menus: optionSettings.menus || [],
+              textTransform: optionSettings.textTransform || 'NONE',
+              paginationType: optionSettings.paginationType || 'SCROLL',
+              
+              // Performance Optimization: Pre-computed variant option keys
+              variantOptionKey: optionSettings.variantOptionKey,
+            },
+          };
+        }),
+        status: input.status || 'PUBLISHED',
+        deploymentChannel: input.deploymentChannel || 'APP',
         settings: input.settings,
         tags: input.tags || [],
         // Note: isActive is no longer stored - use status === 'published' instead
@@ -308,15 +337,22 @@ export class FiltersRepository {
 
   /**
    * Update an existing filter
+   * Ensures the filter belongs to the specified shop before updating
+   * Uses shop field to filter in single index for all shops
    */
   async updateFilter(shop: string, id: string, input: UpdateFilterInput): Promise<Filter> {
     try {
-      const index = this.getIndexName(shop);
+      const index = FILTERS_INDEX_NAME;
       
-      // Get existing filter
+      // Get existing filter (this already verifies shop ownership)
       const existing = await this.getFilter(shop, id);
       if (!existing) {
-        throw new Error(`Filter with id ${id} not found`);
+        throw new Error(`Filter with id ${id} not found for shop ${shop}`);
+      }
+      
+      // Double-check shop ownership
+      if (existing.shop !== shop) {
+        throw new Error(`Filter ${id} does not belong to shop ${shop}`);
       }
 
       // Merge updates
@@ -380,10 +416,29 @@ export class FiltersRepository {
 
   /**
    * Delete a filter
+   * Verifies the filter belongs to the specified shop before deleting
+   * Uses shop field to filter in single index for all shops
    */
   async deleteFilter(shop: string, id: string): Promise<boolean> {
     try {
-      const index = this.getIndexName(shop);
+      const index = FILTERS_INDEX_NAME;
+      
+      // Verify filter exists and belongs to this shop before deleting
+      const existing = await this.getFilter(shop, id);
+      if (!existing) {
+        logger.warn('Filter not found for deletion', { shop, id });
+        return false; // Filter doesn't exist or doesn't belong to this shop
+      }
+      
+      // Double-check shop ownership
+      if (existing.shop !== shop) {
+        logger.error('Attempted to delete filter from wrong shop', {
+          requestedShop: shop,
+          filterShop: existing.shop,
+          id,
+        });
+        throw new Error(`Filter ${id} does not belong to shop ${shop}`);
+      }
       
       await this.esClient.delete({
         index,

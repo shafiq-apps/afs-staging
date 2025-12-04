@@ -27,43 +27,46 @@ export interface Filter {
     targetScope?: string;
     allowedOptions?: string[];
     
-    // Value Selection & Filtering
-    baseOptionType?: string;
-    selectedValues?: string[];
-    removeSuffix?: string[];
-    replaceText?: Array<{ from: string; to: string }>;
-    
-    // Value Grouping & Normalization
-    valueNormalization?: Record<string, string>;
-    groupBySimilarValues?: boolean;
-    
     // Display Options
     collapsed?: boolean;
     searchable?: boolean;
     showTooltip?: boolean;
     tooltipContent?: string;
     showCount?: boolean;
-    
-    // Filtering & Prefixes
-    removePrefix?: string[];
-    filterByPrefix?: string[];
-    
-    // Sorting
-    sortBy?: string;
-    manualSortedValues?: string[];
-    
-    // Advanced
-    groups?: string[];
-    menus?: string[];
     showMenu?: boolean;
-    textTransform?: string;
-    paginationType?: string;
     status?: string;
     
-    // Performance Optimization: Pre-computed variant option keys
-    // Stores the variant option key (e.g., "Color", "Size", "Material") for this filter option
-    // This allows faster aggregations by filtering optionPairs to only relevant keys
-    variantOptionKey?: string;
+    // Option Settings (nested object per new schema)
+    optionSettings?: {
+      // Value Selection & Filtering
+      baseOptionType?: string;
+      selectedValues?: string[];
+      removeSuffix?: string[];
+      replaceText?: Array<{ from: string; to: string }>;
+      
+      // Value Grouping & Normalization
+      valueNormalization?: Record<string, string>;
+      groupBySimilarValues?: boolean;
+      
+      // Filtering & Prefixes
+      removePrefix?: string[];
+      filterByPrefix?: string[];
+      
+      // Sorting
+      sortBy?: string;
+      manualSortedValues?: string[];
+      
+      // Advanced
+      groups?: string[];
+      menus?: string[];
+      textTransform?: string;
+      paginationType?: string;
+      
+      // Performance Optimization: Pre-computed variant option keys
+      // Stores the variant option key (e.g., "Color", "Size", "Material") for this filter option
+      // This allows faster aggregations by filtering optionPairs to only relevant keys
+      variantOptionKey?: string;
+    };
   }>;
   status: string;
   deploymentChannel: string; // "app", "theme", "admin"
@@ -127,43 +130,33 @@ export interface CreateFilterInput {
     targetScope?: string;
     allowedOptions?: string[];
     
-    // Value Selection & Filtering
-    baseOptionType?: string;
-    selectedValues?: string[];
-    removeSuffix?: string[];
-    replaceText?: Array<{ from: string; to: string }>;
-    
-    // Value Grouping & Normalization
-    valueNormalization?: Record<string, string>;
-    groupBySimilarValues?: boolean;
-    
     // Display Options
     collapsed?: boolean;
     searchable?: boolean;
     showTooltip?: boolean;
     tooltipContent?: string;
     showCount?: boolean;
-    
-    // Filtering & Prefixes
-    removePrefix?: string[];
-    filterByPrefix?: string[];
-    
-    // Sorting
-    sortBy?: string;
-    manualSortedValues?: string[];
-    
-    // Advanced
-    groups?: string[];
-    menus?: string[];
     showMenu?: boolean;
-    textTransform?: string;
-    paginationType?: string;
     status?: string;
     
-    // Performance Optimization: Pre-computed variant option keys
-    // Stores the variant option key (e.g., "Color", "Size", "Material") for this filter option
-    // This allows faster aggregations by filtering optionPairs to only relevant keys
-    variantOptionKey?: string;
+    // Option Settings (nested object per new schema)
+    optionSettings?: {
+      baseOptionType?: string;
+      selectedValues?: string[];
+      removeSuffix?: string[];
+      replaceText?: Array<{ from: string; to: string }>;
+      valueNormalization?: Record<string, string>;
+      groupBySimilarValues?: boolean;
+      removePrefix?: string[];
+      filterByPrefix?: string[];
+      sortBy?: string;
+      manualSortedValues?: string[];
+      groups?: string[];
+      menus?: string[];
+      textTransform?: string;
+      paginationType?: string;
+      variantOptionKey?: string;
+    };
   }>;
   status?: string;
   deploymentChannel?: string;
@@ -222,26 +215,30 @@ export interface UpdateFilterInput {
     selectionType?: string;
     targetScope?: string;
     allowedOptions?: string[];
-    groups?: string[];
     collapsed?: boolean;
     searchable?: boolean;
     tooltipContent?: string;
-    removePrefix?: string[];
-    filterByPrefix?: string[];
-    sortBy?: string;
-    manualSortedValues?: string[];
-    manualSortedData?: string[];
-    menus?: string[];
     showMenu?: boolean;
-    textTransform?: string;
-    paginationType?: string;
-    groupBySimilarValues?: boolean;
     status?: string;
     
-    // Performance Optimization: Pre-computed variant option keys
-    // Stores the variant option key (e.g., "Color", "Size", "Material") for this filter option
-    // This allows faster aggregations by filtering optionPairs to only relevant keys
-    variantOptionKey?: string;
+    // Option Settings (nested object per new schema)
+    optionSettings?: {
+      baseOptionType?: string;
+      selectedValues?: string[];
+      removeSuffix?: string[];
+      replaceText?: Array<{ from: string; to: string }>;
+      valueNormalization?: Record<string, string>;
+      groupBySimilarValues?: boolean;
+      removePrefix?: string[];
+      filterByPrefix?: string[];
+      sortBy?: string;
+      manualSortedValues?: string[];
+      groups?: string[];
+      menus?: string[];
+      textTransform?: string;
+      paginationType?: string;
+      variantOptionKey?: string;
+    };
   }>;
   status?: string;
   deploymentChannel?: string;

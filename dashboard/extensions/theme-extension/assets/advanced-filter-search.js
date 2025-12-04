@@ -1011,13 +1011,23 @@
               availableFilterKeysCount: availableFilterKeys.length
             });
             
-            // Render options based on filterConfig order
-            filterConfig.options.forEach(configOption => {
+            // Sort options by position (ascending), then render
+            const sortedOptions = [...filterConfig.options].sort((a, b) => {
+              const posA = a.position !== undefined ? Number(a.position) : 999;
+              const posB = b.position !== undefined ? Number(b.position) : 999;
+              return posA - posB;
+            });
+            
+            // Render options based on sorted filterConfig order
+            sortedOptions.forEach(configOption => {
+              // Get optionSettings (nested per new schema)
+              const optionSettings = configOption.optionSettings || {};
+              
               // Get the option name to look up in filters
               // Priority: variantOptionKey > optionType > label
               // variantOptionKey is the actual key used in optionPairs (e.g., "size", "color")
               // optionType is the display name (e.g., "Size", "Color")
-              const variantKey = configOption.variantOptionKey;
+              const variantKey = optionSettings.variantOptionKey;
               const optionType = configOption.optionType;
               const label = configOption.label;
               
@@ -1074,12 +1084,25 @@
               });
               
               if (optionItems && Array.isArray(optionItems) && optionItems.length > 0) {
-                // Use label from config for display
+                // Filter by targetScope if needed
+                let filteredItems = optionItems;
+                if (configOption.targetScope === 'entitled' && configOption.allowedOptions && Array.isArray(configOption.allowedOptions)) {
+                  const allowedSet = new Set(configOption.allowedOptions.map(v => String(v).toLowerCase().trim()));
+                  filteredItems = optionItems.filter(item => {
+                    const itemValue = typeof item === 'string' ? item : (item.value || item.key || item.name || '');
+                    return allowedSet.has(String(itemValue).toLowerCase().trim());
+                  });
+                }
+                
+                // Skip if no items after filtering
+                if (filteredItems.length === 0) return;
+                
+                // Use label from config for display (always show label)
                 const displayName = configOption.label || optionType || matchedKey;
                 // Use the matched key (from filters.options) for filtering
                 // This is the actual key that will be used in queries
                 const filterKey = matchedKey || variantKey || optionType;
-                const filterGroup = this.createFilterGroup(`options_${filterKey}`, optionItems, filterKey, displayName);
+                const filterGroup = this.createFilterGroup(`options_${filterKey}`, filteredItems, filterKey, displayName, configOption);
                 const key = `options_${filterKey}`;
                 
                 // Restore saved state
@@ -1114,7 +1137,8 @@
             // This handles cases where new options exist but aren't in config yet
             const renderedOptionKeys = new Set();
             filterConfig.options.forEach(opt => {
-              const key = opt.variantOptionKey || opt.optionType;
+              const optionSettings = opt.optionSettings || {};
+              const key = optionSettings.variantOptionKey || opt.optionType;
               if (key) renderedOptionKeys.add(key.toLowerCase());
             });
             
@@ -1128,7 +1152,7 @@
                   optionName,
                   itemsCount: optionItems.length
                 });
-                const filterGroup = this.createFilterGroup(`options_${optionName}`, optionItems, optionName);
+                const filterGroup = this.createFilterGroup(`options_${optionName}`, optionItems, optionName, null, null);
                 const key = `options_${optionName}`;
                 
                 // Restore saved state
@@ -1158,7 +1182,7 @@
             Object.keys(filterData).forEach(optionName => {
               const optionItems = filterData[optionName];
               if (Array.isArray(optionItems) && optionItems.length > 0) {
-                const filterGroup = this.createFilterGroup(`options_${optionName}`, optionItems, optionName);
+                const filterGroup = this.createFilterGroup(`options_${optionName}`, optionItems, optionName, null, null);
                 const key = `options_${optionName}`;
                 
                 // Restore saved state
@@ -1222,8 +1246,9 @@
      * @param {Array} items - Array of filter items
      * @param {string|null} optionName - Option name/key for filtering (used for data attributes)
      * @param {string|null} displayName - Display name for label (optional, defaults to optionName)
+     * @param {object|null} configOption - Filter option config with settings (searchable, showCount, etc.)
      */
-    createFilterGroup(filterType, items, optionName = null, displayName = null) {
+    createFilterGroup(filterType, items, optionName = null, displayName = null, configOption = null) {
       const group = document.createElement('div');
       // For options, use the base filterType but store optionName
       const baseFilterType = filterType.startsWith('options_') ? 'options' : filterType;
@@ -1266,18 +1291,21 @@
       // Set initial state (expanded by default)
       group.setAttribute('data-afs-collapsed', 'false');
       
-      // Search input
-      const searchContainer = document.createElement('div');
-      searchContainer.className = 'afs-filter-group__search';
-      
-      const searchInput = document.createElement('input');
-      searchInput.type = 'text';
-      searchInput.className = 'afs-filter-group__search-input';
-      searchInput.placeholder = 'Search...';
-      searchInput.setAttribute('aria-label', `Search ${displayName || optionName || this.formatFilterLabel(baseFilterType)}`);
-      searchContainer.appendChild(searchInput);
-      
-      content.appendChild(searchContainer);
+      // Search input - only show if searchable is true (top-level field)
+      const isSearchable = configOption && configOption.searchable === true;
+      if (isSearchable) {
+        const searchContainer = document.createElement('div');
+        searchContainer.className = 'afs-filter-group__search';
+        
+        const searchInput = document.createElement('input');
+        searchInput.type = 'text';
+        searchInput.className = 'afs-filter-group__search-input';
+        searchInput.placeholder = 'Search...';
+        searchInput.setAttribute('aria-label', `Search ${displayName || optionName || this.formatFilterLabel(baseFilterType)}`);
+        searchContainer.appendChild(searchInput);
+        
+        content.appendChild(searchContainer);
+      }
       
       // Filter items container
       const itemsContainer = document.createElement('div');
@@ -1289,7 +1317,7 @@
       })));
       
       items.forEach(item => {
-        const itemElement = this.createFilterItem(baseFilterType, item, optionName);
+        const itemElement = this.createFilterItem(baseFilterType, item, optionName, configOption);
         if (itemElement) {
           itemsContainer.appendChild(itemElement);
         }
@@ -1317,8 +1345,12 @@
 
     /**
      * Create filter item (checkbox style)
+     * @param {string} filterType - The filter type
+     * @param {object|string} item - Filter item data
+     * @param {string|null} optionName - Option name for options filters
+     * @param {object|null} configOption - Filter option config with settings (showCount, etc.)
      */
-    createFilterItem(filterType, item, optionName = null) {
+    createFilterItem(filterType, item, optionName = null, configOption = null) {
       // Handle different item structures
       let itemValue, itemLabel;
       
@@ -1395,14 +1427,15 @@
       checkbox.checked = false;
       itemElement.appendChild(checkbox);
       
-      // Item label
+      // Item label (always show)
       const label = document.createElement('span');
       label.className = 'afs-filter-item__label';
       label.textContent = String(itemLabel || itemValue);
       itemElement.appendChild(label);
       
-      // Count badge
-      if (item && typeof item === 'object' && item.count !== undefined) {
+      // Count badge - only show if showCount is true (top-level field)
+      const shouldShowCount = configOption && configOption.showCount === true;
+      if (shouldShowCount && item && typeof item === 'object' && item.count !== undefined) {
         const count = document.createElement('span');
         count.className = 'afs-filter-item__count';
         count.textContent = `(${item.count})`;
