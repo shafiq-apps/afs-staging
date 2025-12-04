@@ -357,71 +357,187 @@ export function getFilterConfigHash(filterConfig: Filter | null): string {
  * Format filter configuration for storefront response
  * Returns only the fields needed by the storefront script
  * Includes all settings and configuration required for rendering filters on storefront
+ * Matches the format from default_filter_format.json
  */
 export function formatFilterConfigForStorefront(filterConfig: Filter | null): any {
   if (!filterConfig) {
     return null;
   }
 
+  // Helper to clean optionSettings - includes all fields that exist (matches default_filter_format.json)
+  // Only excludes undefined/null/empty arrays to minimize payload while maintaining format compatibility
+  function cleanOptionSettings(optionSettings: any): any {
+    if (!optionSettings) return {};
+    
+    const cleaned: any = {};
+    
+    // Always include baseOptionType if it exists (required field)
+    if (optionSettings.baseOptionType) {
+      cleaned.baseOptionType = optionSettings.baseOptionType;
+    }
+    
+    // Include arrays only if they have values (empty arrays are excluded to minimize payload)
+    if (Array.isArray(optionSettings.selectedValues) && optionSettings.selectedValues.length > 0) {
+      cleaned.selectedValues = optionSettings.selectedValues;
+    }
+    
+    if (Array.isArray(optionSettings.removeSuffix) && optionSettings.removeSuffix.length > 0) {
+      cleaned.removeSuffix = optionSettings.removeSuffix;
+    }
+    
+    if (Array.isArray(optionSettings.replaceText) && optionSettings.replaceText.length > 0) {
+      cleaned.replaceText = optionSettings.replaceText;
+    }
+    
+    if (Array.isArray(optionSettings.removePrefix) && optionSettings.removePrefix.length > 0) {
+      cleaned.removePrefix = optionSettings.removePrefix;
+    }
+    
+    if (Array.isArray(optionSettings.filterByPrefix) && optionSettings.filterByPrefix.length > 0) {
+      cleaned.filterByPrefix = optionSettings.filterByPrefix;
+    }
+    
+    if (Array.isArray(optionSettings.manualSortedValues) && optionSettings.manualSortedValues.length > 0) {
+      cleaned.manualSortedValues = optionSettings.manualSortedValues;
+    }
+    
+    if (Array.isArray(optionSettings.groups) && optionSettings.groups.length > 0) {
+      cleaned.groups = optionSettings.groups;
+    }
+    
+    if (Array.isArray(optionSettings.menus) && optionSettings.menus.length > 0) {
+      cleaned.menus = optionSettings.menus;
+    }
+    
+    // Include boolean only if true (false is the default, so exclude to minimize payload)
+    if (optionSettings.groupBySimilarValues === true) {
+      cleaned.groupBySimilarValues = true;
+    }
+    
+    // Include string enums if they exist (include even if default to match format, but we'll minimize)
+    // For sortBy, textTransform, paginationType: include if they exist and are not default values
+    // This matches the format file where defaults are shown but we minimize payload
+    if (optionSettings.sortBy) {
+      cleaned.sortBy = optionSettings.sortBy;
+    }
+    
+    if (optionSettings.textTransform) {
+      cleaned.textTransform = optionSettings.textTransform;
+    }
+    
+    if (optionSettings.paginationType) {
+      cleaned.paginationType = optionSettings.paginationType;
+    }
+    
+    // Include variantOptionKey if it exists (for variant options)
+    if (optionSettings.variantOptionKey) {
+      cleaned.variantOptionKey = optionSettings.variantOptionKey;
+    }
+    
+    // Include valueNormalization if it exists and has values
+    if (optionSettings.valueNormalization && typeof optionSettings.valueNormalization === 'object') {
+      const normKeys = Object.keys(optionSettings.valueNormalization);
+      if (normKeys.length > 0) {
+        cleaned.valueNormalization = optionSettings.valueNormalization;
+      }
+    }
+    
+    return cleaned;
+  }
+
+  // Helper to clean settings object
+  function cleanSettings(settings: any): any {
+    if (!settings) return {};
+    
+    const cleaned: any = {};
+    
+    // Include all settings fields (they may be used by storefront)
+    if (settings.displayQuickView !== undefined) cleaned.displayQuickView = settings.displayQuickView;
+    if (settings.displayItemsCount !== undefined) cleaned.displayItemsCount = settings.displayItemsCount;
+    if (settings.displayVariantInsteadOfProduct !== undefined) cleaned.displayVariantInsteadOfProduct = settings.displayVariantInsteadOfProduct;
+    if (settings.defaultView) cleaned.defaultView = settings.defaultView;
+    if (settings.filterOrientation) cleaned.filterOrientation = settings.filterOrientation;
+    if (settings.displayCollectionImage !== undefined) cleaned.displayCollectionImage = settings.displayCollectionImage;
+    if (settings.hideOutOfStockItems !== undefined) cleaned.hideOutOfStockItems = settings.hideOutOfStockItems;
+    if (settings.onLaptop) cleaned.onLaptop = settings.onLaptop;
+    if (settings.onTablet) cleaned.onTablet = settings.onTablet;
+    if (settings.onMobile) cleaned.onMobile = settings.onMobile;
+    
+    // Clean productDisplay
+    if (settings.productDisplay) {
+      const productDisplay: any = {};
+      if (settings.productDisplay.gridColumns !== undefined) productDisplay.gridColumns = settings.productDisplay.gridColumns;
+      if (settings.productDisplay.showProductCount !== undefined) productDisplay.showProductCount = settings.productDisplay.showProductCount;
+      if (settings.productDisplay.showSortOptions !== undefined) productDisplay.showSortOptions = settings.productDisplay.showSortOptions;
+      if (settings.productDisplay.defaultSort) productDisplay.defaultSort = settings.productDisplay.defaultSort;
+      if (Object.keys(productDisplay).length > 0) cleaned.productDisplay = productDisplay;
+    }
+    
+    // Clean pagination
+    if (settings.pagination) {
+      const pagination: any = {};
+      if (settings.pagination.type) pagination.type = settings.pagination.type;
+      if (settings.pagination.itemsPerPage !== undefined) pagination.itemsPerPage = settings.pagination.itemsPerPage;
+      if (settings.pagination.showPageInfo !== undefined) pagination.showPageInfo = settings.pagination.showPageInfo;
+      if (settings.pagination.pageInfoFormat) pagination.pageInfoFormat = settings.pagination.pageInfoFormat;
+      if (Object.keys(pagination).length > 0) cleaned.pagination = pagination;
+    }
+    
+    if (settings.showFilterCount !== undefined) cleaned.showFilterCount = settings.showFilterCount;
+    if (settings.showActiveFilters !== undefined) cleaned.showActiveFilters = settings.showActiveFilters;
+    if (settings.showResetButton !== undefined) cleaned.showResetButton = settings.showResetButton;
+    if (settings.showClearAllButton !== undefined) cleaned.showClearAllButton = settings.showClearAllButton;
+    
+    return cleaned;
+  }
+
   return {
     id: filterConfig.id,
+    shop: filterConfig.shop,
     title: filterConfig.title,
-    description: filterConfig.description,
+    description: filterConfig.description || undefined,
     filterType: filterConfig.filterType,
     targetScope: filterConfig.targetScope,
     allowedCollections: filterConfig.allowedCollections || [],
     options: filterConfig.options
       ?.filter((opt) => opt.status === 'PUBLISHED') // Only include published options
       .map((opt) => {
-        // Extract variantOptionKey if needed for frontend (if used, otherwise can be removed)
         const optionSettings = opt.optionSettings || {};
-        const variantOptionKey = optionSettings.variantOptionKey;
+        const cleanedSettings = cleanOptionSettings(optionSettings);
         
-        return {
+        const option: any = {
           handle: opt.handle,
           position: opt.position,
           label: opt.label,
           optionType: opt.optionType,
-          status: opt.status,
-          displayType: opt.displayType || 'list',
-          selectionType: opt.selectionType || 'multiple',
-          targetScope: opt.targetScope || 'all',
+          displayType: opt.displayType,
+          selectionType: opt.selectionType,
+          targetScope: opt.targetScope,
           allowedOptions: opt.allowedOptions || [],
-          
-          // Display Options
           collapsed: opt.collapsed || false,
           searchable: opt.searchable || false,
           showTooltip: opt.showTooltip || false,
           tooltipContent: opt.tooltipContent || '',
-          showCount: opt.showCount || false,
+          showCount: opt.showCount !== undefined ? opt.showCount : true,
           showMenu: opt.showMenu || false,
-          
-          // Only include variantOptionKey if it exists (for frontend filtering)
-          // Removed optionSettings to reduce payload size
-          ...(variantOptionKey ? { variantOptionKey } : {}),
+          status: opt.status,
         };
+        
+        // Include optionSettings only if it has values
+        if (Object.keys(cleanedSettings).length > 0) {
+          option.optionSettings = cleanedSettings;
+        }
+        
+        return option;
       })
-      .sort((a, b) => a.position - b.position) || [], // Sort by position
-    settings: {
-      displayQuickView: filterConfig.settings?.displayQuickView,
-      displayItemsCount: filterConfig.settings?.displayItemsCount,
-      displayVariantInsteadOfProduct: filterConfig.settings?.displayVariantInsteadOfProduct,
-      defaultView: filterConfig.settings?.defaultView,
-      filterOrientation: filterConfig.settings?.filterOrientation,
-      displayCollectionImage: filterConfig.settings?.displayCollectionImage,
-      hideOutOfStockItems: filterConfig.settings?.hideOutOfStockItems,
-      onLaptop: filterConfig.settings?.onLaptop,
-      onTablet: filterConfig.settings?.onTablet,
-      onMobile: filterConfig.settings?.onMobile,
-      productDisplay: filterConfig.settings?.productDisplay || {},
-      pagination: filterConfig.settings?.pagination || {},
-      showFilterCount: filterConfig.settings?.showFilterCount,
-      showActiveFilters: filterConfig.settings?.showActiveFilters,
-      showResetButton: filterConfig.settings?.showResetButton,
-      showClearAllButton: filterConfig.settings?.showClearAllButton,
-    },
-    deploymentChannel: filterConfig.deploymentChannel,
+      .sort((a, b) => (a.position || 0) - (b.position || 0)) || [], // Sort by position
     status: filterConfig.status,
+    deploymentChannel: filterConfig.deploymentChannel,
+    settings: cleanSettings(filterConfig.settings),
+    tags: filterConfig.tags && filterConfig.tags.length > 0 ? filterConfig.tags : [],
+    createdAt: filterConfig.createdAt,
+    updatedAt: filterConfig.updatedAt || null,
+    version: filterConfig.version || 0,
   };
 }
 

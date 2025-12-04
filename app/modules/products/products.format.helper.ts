@@ -286,7 +286,49 @@ function processOptions(
         value: applyTextTransform(item.value, optionSettings.textTransform),
       }));
 
-      // Step 5: Remove count if showCount is false
+      // Step 5: Apply sorting based on sortBy and manualSortedValues
+      if (optionSettings.manualSortedValues && Array.isArray(optionSettings.manualSortedValues) && optionSettings.manualSortedValues.length > 0) {
+        // Manual sort order: sort by the order specified in manualSortedValues
+        const sortOrder = optionSettings.manualSortedValues.map(v => String(v).toLowerCase().trim());
+        finalItems.sort((a, b) => {
+          const aIndex = sortOrder.indexOf(String(a.value || '').toLowerCase().trim());
+          const bIndex = sortOrder.indexOf(String(b.value || '').toLowerCase().trim());
+          
+          // Items in manualSortedValues come first, in the specified order
+          if (aIndex !== -1 && bIndex !== -1) {
+            return aIndex - bIndex;
+          }
+          if (aIndex !== -1) return -1; // a comes first
+          if (bIndex !== -1) return 1; // b comes first
+          
+          // Both not in manualSortedValues: use sortBy or default to original order
+          return 0;
+        });
+      } else if (optionSettings.sortBy) {
+        // Apply sortBy (ASCENDING, DESCENDING, MANUAL)
+        const sortBy = String(optionSettings.sortBy).toUpperCase();
+        if (sortBy === 'ASCENDING' || sortBy === 'ASC') {
+          finalItems.sort((a, b) => {
+            const aVal = String(a.value || '').toLowerCase();
+            const bVal = String(b.value || '').toLowerCase();
+            return aVal.localeCompare(bVal);
+          });
+        } else if (sortBy === 'DESCENDING' || sortBy === 'DESC') {
+          finalItems.sort((a, b) => {
+            const aVal = String(a.value || '').toLowerCase();
+            const bVal = String(b.value || '').toLowerCase();
+            return bVal.localeCompare(aVal);
+          });
+        } else if (sortBy === 'COUNT' || sortBy === 'COUNT_DESC') {
+          // Sort by count descending
+          finalItems.sort((a, b) => (b.count || 0) - (a.count || 0));
+        } else if (sortBy === 'COUNT_ASC') {
+          // Sort by count ascending
+          finalItems.sort((a, b) => (a.count || 0) - (b.count || 0));
+        }
+      }
+
+      // Step 6: Remove count if showCount is false
       if (configOption.showCount === false) {
         finalItems = finalItems.map(item => {
           const { count, ...rest } = item;
