@@ -49,7 +49,7 @@ export const filtersSchema = `
   }
 
   enum TextTransform {
-     NONE
+    NONE
     UPPERCASE
     LOWERCASE
     CAPITALIZE
@@ -59,6 +59,15 @@ export const filtersSchema = `
     APP
     THEME
     ADMIN
+  }
+
+  enum BaseOptionType {
+    PRICE
+    VENDOR
+    PRODUCT_TYPE
+    TAGS
+    COLLECTION
+    OPTION
   }
 
   type CollectionReference {

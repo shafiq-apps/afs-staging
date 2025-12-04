@@ -37,7 +37,7 @@ export const GET = handler(async (req: HttpRequest) => {
 
   logger.log(`Fetching storefront filters for shop=${shopParam}`, filterInput ? `with filters=${JSON.stringify(filterInput)}` : '');
 
-  // Get products service from request (injected by bootstrap/factory)
+  // Get services from request (injected by bootstrap/factory)
   const productsService = (req as any).productsService;
   const filtersRepository = (req as any).filtersRepository;
 
@@ -46,25 +46,80 @@ export const GET = handler(async (req: HttpRequest) => {
     throw new Error('Products service not available');
   }
 
+  // Access repository through service instance (repository is private, but we can access it via type casting)
+  // The service has a private 'repo' property that contains the productsRepository instance
+  const productsRepository = (productsService as any).repo;
+  
+  if (!productsRepository) {
+    logger.error('Products repository not available - cannot get raw aggregations');
+    throw new Error('Products repository not available');
+  }
+
   // Get active filter configuration
   let filterConfig = null;
   if (filtersRepository) {
     filterConfig = await getActiveFilterConfig(filtersRepository, shopParam);
     
-    // Apply filter configuration to filter input
-    if (filterConfig && filterInput) {
-      const collection = filterInput.collections?.[0];
-      filterInput = applyFilterConfigToInput(filterConfig, filterInput, collection);
+    if (filterConfig) {
+      logger.log('Active filter configuration found', {
+        shop: shopParam,
+        filterId: filterConfig.id,
+        title: filterConfig.title,
+        optionsCount: filterConfig.options?.length || 0,
+        publishedOptionsCount: filterConfig.options?.filter(o => o.status === 'PUBLISHED').length || 0,
+      });
+      
+      // Apply filter configuration to filter input
+      if (filterInput) {
+        const collection = filterInput.collections?.[0];
+        filterInput = applyFilterConfigToInput(filterConfig, filterInput, collection);
+      }
+    } else {
+      logger.log('No active filter configuration found for shop', { shop: shopParam });
     }
+  } else {
+    logger.warn('Filters repository not available', { shop: shopParam });
   }
 
-  // Get filters (aggregations) from service
-  // Pass filterConfig to only calculate aggregations for enabled options
-  const filters = await productsService.getFilters(shopParam, filterInput, filterConfig);
+  // Get raw aggregations from repository (not formatted yet)
+  // We need FacetAggregations (raw ES format) to pass to formatFilters
+  // This allows formatFilters to apply filterConfig settings (position sorting, targetScope filtering, etc.)
+  const { aggregations } = await productsRepository.getFacets(shopParam, filterInput, filterConfig);
+  
+  logger.debug('Raw aggregations from repository', {
+    shop: shopParam,
+    hasVendors: !!aggregations?.vendors?.buckets?.length,
+    hasProductTypes: !!aggregations?.productTypes?.buckets?.length,
+    hasTags: !!aggregations?.tags?.buckets?.length,
+    hasCollections: !!aggregations?.collections?.buckets?.length,
+    hasOptionPairs: !!aggregations?.optionPairs?.buckets?.length,
+    hasPriceRange: !!aggregations?.priceRange,
+    vendorsBucketCount: aggregations?.vendors?.buckets?.length || 0,
+    productTypesBucketCount: aggregations?.productTypes?.buckets?.length || 0,
+    tagsBucketCount: aggregations?.tags?.buckets?.length || 0,
+    collectionsBucketCount: aggregations?.collections?.buckets?.length || 0,
+    optionPairsBucketCount: aggregations?.optionPairs?.buckets?.length || 0,
+  });
 
   // Format filters with filterConfig settings applied (position sorting, targetScope filtering, etc.)
   // This pre-compiles filters on server-side for optimal performance
-  const formattedFilters = formatFilters(filters, filterConfig);
+  // formatFilters expects FacetAggregations (raw ES format), not ProductFilters
+  const formattedFilters = formatFilters(aggregations, filterConfig);
+  
+  logger.debug('Formatted filters', {
+    shop: shopParam,
+    formattedKeys: Object.keys(formattedFilters),
+    hasVendors: !!formattedFilters.vendors,
+    hasProductTypes: !!formattedFilters.productTypes,
+    hasTags: !!formattedFilters.tags,
+    hasCollections: !!formattedFilters.collections,
+    hasOptions: !!formattedFilters.options,
+    hasPriceRange: !!formattedFilters.priceRange,
+    vendorsCount: Array.isArray(formattedFilters.vendors) ? formattedFilters.vendors.length : 0,
+    productTypesCount: Array.isArray(formattedFilters.productTypes) ? formattedFilters.productTypes.length : 0,
+    tagsCount: Array.isArray(formattedFilters.tags) ? formattedFilters.tags.length : 0,
+    collectionsCount: Array.isArray(formattedFilters.collections) ? formattedFilters.collections.length : 0,
+  });
 
   // Return response with filter configuration (for storefront script)
   // Remove empty values from appliedFilters as well

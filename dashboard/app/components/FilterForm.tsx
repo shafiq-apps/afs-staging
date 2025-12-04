@@ -29,8 +29,10 @@ import {
   DEFAULT_FILTER,
   PRICE_FILTER_DEFAULTS,
   getBaseOptionType,
+  getOptionType,
   getAvailableSelectionTypes,
   getAvailableDisplayTypes,
+  type StorefrontFilterData,
 } from "../utils/filter.constants";
 
 interface FilterOption {
@@ -93,17 +95,8 @@ interface CollectionReference {
   id: string;
 }
 
-interface StorefrontFilterData {
-  vendors: Array<{ value: string; count: number }>;
-  productTypes: Array<{ value: string; count: number }>;
-  tags: Array<{ value: string; count: number }>;
-  collections: Array<{ value: string; count: number }>;
-  options: Record<string, Array<{ value: string; count: number }>>;
-  priceRange: {
-    min: number;
-    max: number;
-  };
-}
+// StorefrontFilterData is imported from filter.constants.ts
+// It matches the FacetAggregations structure from products.type.ts
 
 interface MenuTreeNode {
   id: string;
@@ -665,7 +658,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
             handle: generateFilterHandle('price'),
             position: position++,
             label: "Price",
-            optionType: "Price",
+            optionType: getOptionType("Price"),
             displayType: PRICE_FILTER_DEFAULTS.displayType,
             selectionType: PRICE_FILTER_DEFAULTS.selectionType,
             targetScope: DEFAULT_FILTER_OPTION.targetScope,
@@ -692,7 +685,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
             status: DEFAULT_FILTER_OPTION.status,
             minPrice: storefrontFilters.priceRange.min,
             maxPrice: storefrontFilters.priceRange.max,
-            baseOptionType: "price",
+            baseOptionType: getBaseOptionType("Price"),
           });
         }
 
@@ -702,7 +695,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
             handle: generateFilterHandle('vendor'),
             position: position++,
             label: "Vendor",
-            optionType: "vendor",
+            optionType: getOptionType("Vendor"),
             displayType: "LIST",
             selectionType: "MULTIPLE",
             targetScope: TargetScope.ALL,
@@ -727,7 +720,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
             paginationType: PaginationType.SCROLL,
             groupBySimilarValues: false,
             status: "PUBLISHED",
-            baseOptionType: "vendor",
+            baseOptionType: getBaseOptionType("Vendor"),
           });
         }
 
@@ -737,7 +730,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
             handle: generateFilterHandle('product-type'),
             position: position++,
             label: "ProductType",
-            optionType: "productType",
+            optionType: getOptionType("productType"),
             displayType: "LIST",
             selectionType: "MULTIPLE",
             targetScope: TargetScope.ALL,
@@ -762,7 +755,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
             paginationType: PaginationType.SCROLL,
             groupBySimilarValues: false,
             status: "PUBLISHED",
-            baseOptionType: "productType",
+            baseOptionType: getBaseOptionType("ProductType"),
           });
         }
 
@@ -772,7 +765,8 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
             handle: generateFilterHandle('tags'),
             position: position++,
             label: "Tags",
-            optionType: "Tags",
+            optionType: getOptionType("Tags"),
+            baseOptionType: getBaseOptionType("Tags"),
             displayType: "LIST",
             selectionType: "MULTIPLE",
             targetScope: TargetScope.ALL,
@@ -796,8 +790,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
             textTransform: "NONE",
             paginationType: PaginationType.SCROLL,
             groupBySimilarValues: false,
-            status: "PUBLISHED",
-            baseOptionType: "tags",
+            status: "PUBLISHED"
           });
         }
 
@@ -807,7 +800,8 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
             handle: generateFilterHandle('collection'),
             position: position++,
             label: "Collection",
-            optionType: "Collection",
+            optionType: getOptionType("Collection"),
+            baseOptionType: getBaseOptionType("Collection"),
             displayType: "LIST",
             selectionType: "MULTIPLE",
             targetScope: TargetScope.ALL,
@@ -831,15 +825,15 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
             textTransform: "NONE",
             paginationType: PaginationType.SCROLL,
             groupBySimilarValues: false,
-            status: "PUBLISHED",
-            baseOptionType: "collections",
+            status: "PUBLISHED"
           });
         }
 
         // Add dynamic variant options
-        if (storefrontFilters.options) {
-          Object.keys(storefrontFilters.options).forEach((optionKey) => {
-            const optionValues = storefrontFilters.options[optionKey];
+        if (storefrontFilters.options && typeof storefrontFilters.options === 'object') {
+          const options = storefrontFilters.options;
+          Object.keys(options).forEach((optionKey) => {
+            const optionValues = options[optionKey];
             if (optionValues && optionValues.length > 0) {
               // Keep original case for variantOptionKey
               // Backend does case-insensitive matching but expects original case for consistency
@@ -850,7 +844,8 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                 handle: generateFilterHandle(optionKey),
                 position: position++,
                 label: optionKey.charAt(0).toUpperCase() + optionKey.slice(1),
-                optionType: optionKey,
+                optionType: getOptionType(optionKey),
+                baseOptionType: getBaseOptionType(optionKey),
                 displayType: DEFAULT_FILTER_OPTION.displayType,
                 selectionType: DEFAULT_FILTER_OPTION.selectionType,
                 targetScope: DEFAULT_FILTER_OPTION.targetScope,
@@ -875,9 +870,6 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                 paginationType: DEFAULT_FILTER_OPTION.paginationType,
                 groupBySimilarValues: DEFAULT_FILTER_OPTION.groupBySimilarValues,
                 status: DEFAULT_FILTER_OPTION.status,
-                // baseOptionType should be the actual category name, not the variant option key
-                // For variant options (color, size, etc.), use "Option" as the base type
-                baseOptionType: "option",
                 // Performance Optimization: Store variant option key for faster aggregations
                 // Keep original case - backend does case-insensitive matching but ES stores in original case
                 variantOptionKey: variantOptionKey,
@@ -1036,7 +1028,8 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
       handle: generateFilterHandle('filter'),
       position: filterOptions.length,
       label: "New Filter",
-      optionType: "Collection",
+      optionType: getOptionType("Collection"),
+      baseOptionType: getBaseOptionType("Collection"),
       displayType: "list",
       selectionType: "multiple",
       targetScope: "all",
@@ -1061,7 +1054,6 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
       paginationType: PaginationType.SCROLL,
       groupBySimilarValues: false,
       status: "PUBLISHED",
-      baseOptionType: "Collection",
     };
     updateFilterState({ filterOptions: [...filterOptions, newOption] });
     setExpandedOptions(new Set([...expandedOptions, newOption.handle]));
@@ -1104,13 +1096,20 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
             }
             
             // Update baseOptionType based on new optionType
+            // This uses FacetAggregations structure to map optionType to baseOptionType
+            // Standard types (Price, Vendor, ProductType, Tags, Collection) map to themselves
+            // All variant options (Color, Size, etc.) map to "Option"
             updated.baseOptionType = getBaseOptionType(value as string);
             
             // Price-specific updates
-            if (value === "Price") {
+            // Normalize both values for comparison
+            const normalizedNewValue = getOptionType(value as string);
+            const normalizedOldValue = getOptionType(opt.optionType);
+            
+            if (normalizedNewValue === "Price") {
               updated.selectionType = SelectionType.RANGE;
               updated.displayType = DisplayType.RANGE;
-            } else if (opt.optionType === "Price" && value !== "Price") {
+            } else if (normalizedOldValue === "Price" && normalizedNewValue !== "Price") {
               // Changing from Price to something else
               if (toSelectionType(updated.selectionType) === SelectionType.RANGE) {
                 updated.selectionType = SelectionType.MULTIPLE;
@@ -1121,10 +1120,13 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
             }
             
             // Update variantOptionKey for variant options
-            // For standard types (Price, Vendor, etc.), variantOptionKey should be undefined
+            // For standard types (PRICE, VENDOR, PRODUCT_TYPE, TAGS, COLLECTION), variantOptionKey should be undefined
             // For variant options (Color, Size, etc.), variantOptionKey should be the optionType in original case
-            const normalizedType = (value as string).toLowerCase().trim();
-            const isStandardType = ['price', 'vendor', 'product type', 'producttype', 'tags', 'tag', 'collection', 'collections'].includes(normalizedType);
+            // Use getBaseOptionType to check if it's a standard type (returns GraphQL enum values)
+            const baseOptionType = getBaseOptionType(value as string);
+            // Standard types are: PRICE, VENDOR, PRODUCT_TYPE, TAGS, COLLECTION
+            // OPTION is for variant options (Color, Size, etc.)
+            const isStandardType = baseOptionType !== "OPTION";
             
             if (isStandardType) {
               // Standard types don't need variantOptionKey
@@ -1167,7 +1169,13 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
   const getAvailableValues = (optionType: string): Array<{ value: string; count: number }> => {
     if (!storefrontFilters) return [];
     
-    switch (optionType) {
+    // Normalize optionType using getOptionType to ensure consistent matching
+    const normalizedOptionType = getOptionType(optionType);
+    
+    switch (normalizedOptionType) {
+      case "Price":
+        // Price doesn't have a list of values, it's a range
+        return [];
       case "Vendor":
         return storefrontFilters.vendors || [];
       case "ProductType":
@@ -1177,6 +1185,8 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
       case "Collection":
         return storefrontFilters.collections || [];
       default:
+        // For variant options, use the original optionType (not normalized) to look up in options
+        // because variant option keys are stored in their original case
         if (storefrontFilters.options && storefrontFilters.options[optionType]) {
           return storefrontFilters.options[optionType];
         }
@@ -1186,7 +1196,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
 
   const getFilterTypes = (): string[] => {
     const types = [...BASE_FILTER_TYPES];
-    if (storefrontFilters?.options) {
+    if (storefrontFilters?.options && typeof storefrontFilters.options === 'object') {
       const variantOptionKeys = Object.keys(storefrontFilters.options);
       types.push(...variantOptionKeys);
     }
@@ -1549,7 +1559,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
     setCancelModalOpen(false);
   };
 
-  const isPriceFilter = (optionType: string) => optionType === "Price";
+  const isPriceFilter = (optionType: string) => getOptionType(optionType) === "Price";
   const getSelectionTypes = (optionType: string) => {
     return getAvailableSelectionTypes(optionType);
   };

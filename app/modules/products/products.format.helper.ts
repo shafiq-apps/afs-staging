@@ -356,6 +356,7 @@ function processOptions(
 /**
  * Format filter aggregations to ProductFilters format
  * Optimized: Removes empty arrays/objects and applies filterConfig settings
+ * When filterConfig is null, returns all available aggregations (even if empty) for storefront compatibility
  */
 export function formatFilters(aggregations?: FacetAggregations, filterConfig?: Filter | null) {
   if (!aggregations) {
@@ -366,28 +367,61 @@ export function formatFilters(aggregations?: FacetAggregations, filterConfig?: F
 
   // Process standard filters
   const vendors = normalizeBuckets(aggregations.vendors);
-  if (vendors.length > 0) {
-    formatted.vendors = vendors;
-  }
-
   const productTypes = normalizeBuckets(aggregations.productTypes);
-  if (productTypes.length > 0) {
-    formatted.productTypes = productTypes;
-  }
-
   const tags = normalizeBuckets(aggregations.tags);
-  if (tags.length > 0) {
-    formatted.tags = tags;
-  }
-
   const collections = normalizeBuckets(aggregations.collections);
-  if (collections.length > 0) {
-    formatted.collections = collections;
-  }
 
   // Process options with filterConfig settings
   const rawOptions = formatOptionPairs(aggregations.optionPairs?.buckets);
   const processedOptions = processOptions(rawOptions, filterConfig || null);
+
+  // When filterConfig is null, include all aggregations (even if empty) to maintain API structure
+  // This ensures the frontend always knows what filter types are available
+  if (!filterConfig) {
+    formatted.vendors = vendors;
+    formatted.productTypes = productTypes;
+    formatted.tags = tags;
+    formatted.collections = collections;
+    formatted.options = processedOptions;
+    
+    // Price ranges (only include if they have valid values)
+    if (aggregations.priceRange && (aggregations.priceRange.min !== null || aggregations.priceRange.max !== null)) {
+      formatted.priceRange = aggregations.priceRange;
+    }
+    
+    if (aggregations.variantPriceRange && (aggregations.variantPriceRange.min !== null || aggregations.variantPriceRange.max !== null)) {
+      formatted.variantPriceRange = aggregations.variantPriceRange;
+    }
+    
+    // When no filterConfig, return all aggregations (including empty arrays) to maintain API structure
+    // Don't call removeEmptyValues as it would remove empty arrays
+    // Only remove undefined/null values manually
+    const cleaned: any = {};
+    for (const [key, value] of Object.entries(formatted)) {
+      if (value !== undefined && value !== null) {
+        cleaned[key] = value;
+      }
+    }
+    return cleaned;
+  }
+
+  // When filterConfig exists, only include non-empty aggregations (optimized response)
+  if (vendors.length > 0) {
+    formatted.vendors = vendors;
+  }
+
+  if (productTypes.length > 0) {
+    formatted.productTypes = productTypes;
+  }
+
+  if (tags.length > 0) {
+    formatted.tags = tags;
+  }
+
+  if (collections.length > 0) {
+    formatted.collections = collections;
+  }
+
   if (Object.keys(processedOptions).length > 0) {
     formatted.options = processedOptions;
   }
@@ -401,7 +435,7 @@ export function formatFilters(aggregations?: FacetAggregations, filterConfig?: F
     formatted.variantPriceRange = aggregations.variantPriceRange;
   }
 
-  // Remove any remaining empty values
+  // Remove any remaining empty values when filterConfig exists
   return removeEmptyValues(formatted);
 }
 

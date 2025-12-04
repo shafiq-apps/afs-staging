@@ -17,6 +17,26 @@ import {
 } from "./filter.enums";
 
 /**
+ * StorefrontFilterData interface (matches FacetAggregations structure from products.type.ts)
+ * Used to extract available base option types from aggregations
+ */
+export interface StorefrontFilterData {
+  vendors?: Array<{ value: string; count: number }>;
+  productTypes?: Array<{ value: string; count: number }>;
+  tags?: Array<{ value: string; count: number }>;
+  collections?: Array<{ value: string; count: number }>;
+  options?: Record<string, Array<{ value: string; count: number }>>;
+  priceRange?: {
+    min: number;
+    max: number;
+  };
+  variantPriceRange?: {
+    min: number;
+    max: number;
+  };
+}
+
+/**
  * Default filter option values
  */
 export const DEFAULT_FILTER_OPTION = {
@@ -68,7 +88,7 @@ export const PRICE_FILTER_DEFAULTS = {
   displayType: DisplayType.RANGE,
   selectionType: SelectionType.RANGE,
   optionType: "Price",
-  baseOptionType: "Price",
+  baseOptionType: "PRICE", // Matches GraphQL BaseOptionType enum
 } as const;
 
 /**
@@ -118,40 +138,160 @@ export const FILTER_ORIENTATIONS = Object.values(FilterOrientation) as readonly 
 export const DEFAULT_VIEWS = Object.values(DefaultView) as readonly string[];
 
 /**
+ * Standard base option types that correspond to FacetAggregations fields
+ * These match the structure in products.type.ts FacetAggregations interface:
+ * - priceRange -> "PRICE"
+ * - vendors -> "VENDOR"
+ * - productTypes -> "PRODUCT_TYPE"
+ * - tags -> "TAGS"
+ * - collections -> "COLLECTION"
+ * - optionPairs -> "OPTION" (for all variant options like Color, Size, etc.)
+ * 
+ * IMPORTANT: Values match GraphQL BaseOptionType enum exactly
+ */
+export const STANDARD_BASE_OPTION_TYPES = [
+  "PRICE",        // priceRange
+  "VENDOR",       // vendors
+  "PRODUCT_TYPE", // productTypes
+  "TAGS",         // tags
+  "COLLECTION",   // collections
+  "OPTION",       // optionPairs (variant options like Color, Size, etc.)
+] as const;
+
+/**
+ * Get all available base option types from storefront filters
+ * Uses FacetAggregations structure to determine what base option types are available
+ * 
+ * IMPORTANT: Returns values matching GraphQL BaseOptionType enum exactly
+ * 
+ * @param storefrontFilters - The storefront filter data (matches FacetAggregations structure)
+ * @returns Array of available base option types matching GraphQL BaseOptionType enum
+ */
+export function getAvailableBaseOptionTypes(
+  storefrontFilters: StorefrontFilterData | null
+): string[] {
+  const baseTypes: string[] = [];
+  
+  // Always include standard base types that are available in FacetAggregations
+  // These correspond to the fields in products.type.ts FacetAggregations interface
+  // Returns values matching GraphQL BaseOptionType enum exactly
+  if (storefrontFilters?.priceRange) {
+    baseTypes.push("PRICE");
+  }
+  if (storefrontFilters?.vendors && storefrontFilters.vendors.length > 0) {
+    baseTypes.push("VENDOR");
+  }
+  if (storefrontFilters?.productTypes && storefrontFilters.productTypes.length > 0) {
+    baseTypes.push("PRODUCT_TYPE");
+  }
+  if (storefrontFilters?.tags && storefrontFilters.tags.length > 0) {
+    baseTypes.push("TAGS");
+  }
+  if (storefrontFilters?.collections && storefrontFilters.collections.length > 0) {
+    baseTypes.push("COLLECTION");
+  }
+  
+  // Option is always available for variant options (optionPairs)
+  // Variant options are dynamic and come from product data
+  if (storefrontFilters?.options && Object.keys(storefrontFilters.options).length > 0) {
+    baseTypes.push("OPTION");
+  }
+  
+  // If no filters provided, return all standard types
+  if (baseTypes.length === 0) {
+    return [...STANDARD_BASE_OPTION_TYPES];
+  }
+  
+  return baseTypes;
+}
+
+/**
  * Get base option type from option type
  * 
- * Standard option types (Price, Vendor, ProductType, Tags, Collection, Metafield) 
+ * Standard option types (Price, Vendor, ProductType, Tags, Collection) 
  * use their own name as the base type.
  * 
  * All other option types are variant options (Color, Size, Material, Style, etc.) 
  * and use "Option" as the base type. Variant options are fully dynamic and come 
- * from product data, so we cannot predict or hardcode them.
+ * from product data (optionPairs in FacetAggregations), so we cannot predict or hardcode them.
+ * 
+ * This function maps optionType to baseOptionType based on FacetAggregations structure:
+ * - priceRange -> "PRICE"
+ * - vendors -> "VENDOR"
+ * - productTypes -> "PRODUCT_TYPE"
+ * - tags -> "TAGS"
+ * - collections -> "COLLECTION"
+ * - optionPairs -> "OPTION" (for all variant options)
+ * 
+ * IMPORTANT: Returns values matching the GraphQL BaseOptionType enum exactly:
+ * PRICE, VENDOR, PRODUCT_TYPE, TAGS, COLLECTION, OPTION
  * 
  * @param optionType - The option type to get the base type for
- * @returns The base option type ("Price", "Vendor", "ProductType", "Tags", "Collection", "Metafield", or "Option")
+ * @returns The base option type matching GraphQL BaseOptionType enum ("PRICE", "VENDOR", "PRODUCT_TYPE", "TAGS", "COLLECTION", or "OPTION")
  */
 export function getBaseOptionType(optionType: string): string {
   if (!optionType) {
-    return "Option";
+    return "OPTION";
   }
   
   // Normalize the option type for comparison (case-insensitive, trim whitespace)
   const normalizedType = optionType.trim().toLowerCase();
   
   // Standard/base option types that use their own name as base type
-  // These are the known standard types - everything else is a variant option
-  if (normalizedType === "price") return "Price";
-  if (normalizedType === "category") return "Category";
-  if (normalizedType === "vendor") return "Vendor";
-  if (normalizedType === "product type" || normalizedType === "producttype") return "ProductType";
-  if (normalizedType === "tags" || normalizedType === "tag") return "Tags";
-  if (normalizedType === "collection" || normalizedType === "collections") return "Collection";
-  if (normalizedType === "metafield" || normalizedType === "metafields") return "Metafield";
+  // These correspond to FacetAggregations fields in products.type.ts
+  // Returns values matching GraphQL BaseOptionType enum exactly
+  if (normalizedType === "price" || normalizedType === "pricerange" || normalizedType === "price range") {
+    return "PRICE";
+  }
+  if (normalizedType === "vendor" || normalizedType === "vendors") {
+    return "VENDOR";
+  }
+  if (normalizedType === "product type" || normalizedType === "producttype" || normalizedType === "product_type") {
+    return "PRODUCT_TYPE";
+  }
+  if (normalizedType === "tags" || normalizedType === "tag") {
+    return "TAGS";
+  }
+  if (normalizedType === "collection" || normalizedType === "collections") {
+    return "COLLECTION";
+  }
   
   // Everything else is a variant option (Color, Size, Material, Style, etc.)
-  // These are fully dynamic and come from product variant options
+  // These come from optionPairs in FacetAggregations and are fully dynamic
+  // We cannot predict or hardcode them, so any unknown type is treated as "OPTION"
+  return "OPTION";
+}
+
+export function getOptionType(optionType: string): string {
+  if (!optionType) {
+    return "Unknown"
+  }
+  
+  // Normalize the option type for comparison (case-insensitive, trim whitespace)
+  const normalizedType = optionType.trim().toLowerCase();
+  
+  // Standard/base option types that use their own name as base type
+  // These correspond to FacetAggregations fields in products.type.ts
+  if (normalizedType === "price" || normalizedType === "pricerange" || normalizedType === "price range") {
+    return "Price";
+  }
+  if (normalizedType === "vendor" || normalizedType === "vendors") {
+    return "Vendor";
+  }
+  if (normalizedType === "product type" || normalizedType === "producttype" || normalizedType === "product_type") {
+    return "ProductType";
+  }
+  if (normalizedType === "tags" || normalizedType === "tag") {
+    return "Tags";
+  }
+  if (normalizedType === "collection" || normalizedType === "collections") {
+    return "Collection";
+  }
+  
+  // Everything else is a variant option (Color, Size, Material, Style, etc.)
+  // These come from optionPairs in FacetAggregations and are fully dynamic
   // We cannot predict or hardcode them, so any unknown type is treated as "Option"
-  return "Option";
+  return optionType;
 }
 
 /**
