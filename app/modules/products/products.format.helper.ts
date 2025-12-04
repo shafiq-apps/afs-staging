@@ -151,7 +151,7 @@ function processOptions(
 
   // Sort filterConfig options by position
   const sortedConfigOptions = [...filterConfig.options]
-    .filter(opt => opt.status === 'published')
+    .filter(opt => opt.status === 'PUBLISHED')
     .sort((a, b) => {
       const posA = a.position !== undefined ? Number(a.position) : 999;
       const posB = b.position !== undefined ? Number(b.position) : 999;
