@@ -17,6 +17,7 @@ import { validateShopDomain } from '@core/http/validation.middleware';
 import { rateLimit } from '@core/security/rate-limit.middleware';
 import { buildFilterInput } from '@modules/products/products.helper';
 import { createModuleLogger } from '@shared/utils/logger.util';
+import { formatFilters } from '@modules/products/products.format.helper';
 import {
   getActiveFilterConfig,
   applyFilterConfigToInput,
@@ -61,13 +62,20 @@ export const GET = handler(async (req: HttpRequest) => {
   // Pass filterConfig to only calculate aggregations for enabled options
   const filters = await productsService.getFilters(shopParam, filterInput, filterConfig);
 
+  // Format filters with filterConfig settings applied (position sorting, targetScope filtering, etc.)
+  // This pre-compiles filters on server-side for optimal performance
+  const formattedFilters = formatFilters(filters, filterConfig);
+
   // Return response with filter configuration (for storefront script)
+  // Remove empty values from appliedFilters as well
+  const cleanedAppliedFilters = Object.keys(filterInput || {}).length > 0 ? filterInput : undefined;
+
   return {
     success: true,
     data: {
       filterConfig: filterConfig ? formatFilterConfigForStorefront(filterConfig) : null,
-      filters: filters, // Filter aggregations (facets)
-      appliedFilters: filterInput ?? {},
+      filters: formattedFilters, // Pre-compiled filter aggregations (facets) with settings applied
+      appliedFilters: cleanedAppliedFilters,
     }
   };
 });

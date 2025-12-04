@@ -5,6 +5,7 @@
 
 import { FacetAggregations, FacetValue } from './products.type';
 import { PRODUCT_OPTION_PAIR_SEPARATOR } from '@shared/constants/products.constants';
+import { Filter } from '@modules/filters/filters.type';
 
 /**
  * Normalize Elasticsearch aggregation buckets to FacetValue array
@@ -50,29 +51,310 @@ export function formatOptionPairs(optionPairsBuckets?: Array<{ key: string; doc_
 }
 
 /**
- * Format filter aggregations to ProductFilters format
+ * Remove empty arrays and objects from response
+ * Optimizes response size by removing unnecessary data
  */
-export function formatFilters(aggregations?: FacetAggregations) {
-  if (!aggregations) {
-    return {
-      vendors: [],
-      productTypes: [],
-      tags: [],
-      collections: [],
-      options: {},
-      priceRange: undefined,
-      variantPriceRange: undefined,
-    };
+function removeEmptyValues(obj: any): any {
+  if (obj === null || obj === undefined) {
+    return undefined;
   }
 
-  return {
-    vendors: normalizeBuckets(aggregations.vendors),
-    productTypes: normalizeBuckets(aggregations.productTypes),
-    tags: normalizeBuckets(aggregations.tags),
-    collections: normalizeBuckets(aggregations.collections),
-    options: formatOptionPairs(aggregations.optionPairs?.buckets),
-    priceRange: aggregations.priceRange,
-    variantPriceRange: aggregations.variantPriceRange,
-  };
+  if (Array.isArray(obj)) {
+    if (obj.length === 0) {
+      return undefined;
+    }
+    return obj;
+  }
+
+  if (typeof obj === 'object') {
+    const cleaned: any = {};
+    let hasValues = false;
+
+    for (const [key, value] of Object.entries(obj)) {
+      const cleanedValue = removeEmptyValues(value);
+      if (cleanedValue !== undefined) {
+        cleaned[key] = cleanedValue;
+        hasValues = true;
+      }
+    }
+
+    return hasValues ? cleaned : undefined;
+  }
+
+  return obj;
+}
+
+/**
+ * Apply text transformation to a value
+ */
+function applyTextTransform(value: string, transform: string | undefined): string {
+  if (!value || !transform || transform === 'none') {
+    return value;
+  }
+
+  switch (transform.toLowerCase()) {
+    case 'capitalize':
+      return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+    case 'uppercase':
+      return value.toUpperCase();
+    case 'lowercase':
+      return value.toLowerCase();
+    case 'title':
+      return value.split(' ').map(word => 
+        word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+      ).join(' ');
+    default:
+      return value;
+  }
+}
+
+/**
+ * Group similar values (case-insensitive) and sum their counts
+ */
+function groupSimilarValues(items: FacetValue[]): FacetValue[] {
+  const grouped = new Map<string, { value: string; count: number }>();
+
+  for (const item of items) {
+    const normalizedKey = String(item.value || '').toLowerCase().trim();
+    const existing = grouped.get(normalizedKey);
+
+    if (existing) {
+      // Sum counts
+      existing.count = (existing.count || 0) + (item.count || 0);
+    } else {
+      // Use the first occurrence's value (preserves original casing)
+      grouped.set(normalizedKey, {
+        value: String(item.value || ''),
+        count: item.count || 0,
+      });
+    }
+  }
+
+  return Array.from(grouped.values()).map(g => ({
+    value: g.value,
+    count: g.count,
+  }));
+}
+
+/**
+ * Process options based on filterConfig settings
+ * Applies all filter option settings: targetScope, allowedOptions, groupBySimilarValues,
+ * textTransform, showCount, removeSuffix, replaceText, removePrefix, filterByPrefix
+ */
+function processOptions(
+  options: Record<string, FacetValue[]>,
+  filterConfig: Filter | null
+): Record<string, FacetValue[]> {
+  if (!filterConfig || !filterConfig.options || Object.keys(options).length === 0) {
+    return options;
+  }
+
+  // Sort filterConfig options by position
+  const sortedConfigOptions = [...filterConfig.options]
+    .filter(opt => opt.status === 'published')
+    .sort((a, b) => {
+      const posA = a.position !== undefined ? Number(a.position) : 999;
+      const posB = b.position !== undefined ? Number(b.position) : 999;
+      return posA - posB;
+    });
+
+  const processedOptions: Record<string, FacetValue[]> = {};
+
+  // Process options in position order
+  for (const configOption of sortedConfigOptions) {
+    // Get the option name to look up in options
+    const variantKey = configOption.variantOptionKey?.toLowerCase().trim();
+    const optionType = configOption.optionType?.toLowerCase().trim();
+    const label = configOption.label?.toLowerCase().trim();
+
+    // Find matching option in options object
+    let matchedKey: string | null = null;
+    let optionItems: FacetValue[] | null = null;
+
+    // Try exact match with variantOptionKey (most reliable)
+    if (variantKey) {
+      for (const key of Object.keys(options)) {
+        if (key.toLowerCase().trim() === variantKey) {
+          matchedKey = key;
+          optionItems = options[key];
+          break;
+        }
+      }
+    }
+
+    // Try exact match with optionType
+    if (!matchedKey && optionType) {
+      for (const key of Object.keys(options)) {
+        if (key.toLowerCase().trim() === optionType) {
+          matchedKey = key;
+          optionItems = options[key];
+          break;
+        }
+      }
+    }
+
+    // Try exact match with label
+    if (!matchedKey && label) {
+      for (const key of Object.keys(options)) {
+        if (key.toLowerCase().trim() === label) {
+          matchedKey = key;
+          optionItems = options[key];
+          break;
+        }
+      }
+    }
+
+    if (matchedKey && optionItems && Array.isArray(optionItems) && optionItems.length > 0) {
+      // Step 1: Apply targetScope filtering (only include allowedOptions if entitled)
+      let filteredItems = optionItems;
+      if (configOption.targetScope === 'entitled' && configOption.allowedOptions && Array.isArray(configOption.allowedOptions)) {
+        // Create a set of allowed values (normalized to lowercase for comparison)
+        const allowedSet = new Set(configOption.allowedOptions.map(v => String(v).toLowerCase().trim()));
+        filteredItems = optionItems.filter(item => {
+          const itemValue = String(item.value || '').toLowerCase().trim();
+          return allowedSet.has(itemValue);
+        });
+      }
+
+      // Step 2: Process each item (apply removePrefix, removeSuffix, replaceText, filterByPrefix)
+      // Note: We DON'T apply textTransform here yet - we'll do it after grouping
+      const processedItems: FacetValue[] = [];
+      for (const item of filteredItems) {
+        let value = String(item.value || '').trim();
+        if (!value) continue;
+
+        // Apply removePrefix
+        if (configOption.removePrefix && Array.isArray(configOption.removePrefix)) {
+          for (const prefix of configOption.removePrefix) {
+            if (value.toLowerCase().startsWith(prefix.toLowerCase())) {
+              value = value.substring(prefix.length).trim();
+              break;
+            }
+          }
+        }
+
+        // Apply removeSuffix
+        if (configOption.removeSuffix && Array.isArray(configOption.removeSuffix)) {
+          for (const suffix of configOption.removeSuffix) {
+            if (value.toLowerCase().endsWith(suffix.toLowerCase())) {
+              value = value.substring(0, value.length - suffix.length).trim();
+              break;
+            }
+          }
+        }
+
+        // Apply replaceText
+        if (configOption.replaceText && Array.isArray(configOption.replaceText)) {
+          for (const replacement of configOption.replaceText) {
+            if (typeof replacement === 'object' && replacement.from && replacement.to) {
+              const regex = new RegExp(replacement.from, 'gi');
+              value = value.replace(regex, replacement.to);
+            }
+          }
+        }
+
+        // Apply filterByPrefix
+        if (configOption.filterByPrefix && Array.isArray(configOption.filterByPrefix) && configOption.filterByPrefix.length > 0) {
+          const originalValue = String(item.value || '').trim();
+          const matches = configOption.filterByPrefix.some((prefix: string) =>
+            originalValue.toLowerCase().startsWith(prefix.toLowerCase())
+          );
+          if (!matches) continue; // Skip this value
+        }
+
+        processedItems.push({
+          value,
+          count: item.count,
+        });
+      }
+
+      // Step 3: Group similar values if enabled (case-insensitive grouping)
+      // This groups BEFORE textTransform so "Black", "BLACK", "black" all group together
+      let groupedItems: FacetValue[] = processedItems;
+      if (configOption.groupBySimilarValues === true) {
+        groupedItems = groupSimilarValues(processedItems);
+      }
+
+      // Step 4: Apply textTransform AFTER grouping
+      let finalItems = groupedItems.map(item => ({
+        ...item,
+        value: applyTextTransform(item.value, configOption.textTransform),
+      }));
+
+      // Step 5: Remove count if showCount is false
+      if (configOption.showCount === false) {
+        finalItems = finalItems.map(item => {
+          const { count, ...rest } = item;
+          return rest as FacetValue;
+        });
+      }
+
+      // Only add if there are items after all processing
+      if (finalItems.length > 0) {
+        processedOptions[matchedKey] = finalItems;
+      }
+    }
+  }
+
+  // Also include any options not in filterConfig (for backward compatibility)
+  for (const [optionName, optionItems] of Object.entries(options)) {
+    if (!processedOptions[optionName] && optionItems && optionItems.length > 0) {
+      processedOptions[optionName] = optionItems;
+    }
+  }
+
+  return processedOptions;
+}
+
+/**
+ * Format filter aggregations to ProductFilters format
+ * Optimized: Removes empty arrays/objects and applies filterConfig settings
+ */
+export function formatFilters(aggregations?: FacetAggregations, filterConfig?: Filter | null) {
+  if (!aggregations) {
+    return {};
+  }
+
+  const formatted: any = {};
+
+  // Process standard filters
+  const vendors = normalizeBuckets(aggregations.vendors);
+  if (vendors.length > 0) {
+    formatted.vendors = vendors;
+  }
+
+  const productTypes = normalizeBuckets(aggregations.productTypes);
+  if (productTypes.length > 0) {
+    formatted.productTypes = productTypes;
+  }
+
+  const tags = normalizeBuckets(aggregations.tags);
+  if (tags.length > 0) {
+    formatted.tags = tags;
+  }
+
+  const collections = normalizeBuckets(aggregations.collections);
+  if (collections.length > 0) {
+    formatted.collections = collections;
+  }
+
+  // Process options with filterConfig settings
+  const rawOptions = formatOptionPairs(aggregations.optionPairs?.buckets);
+  const processedOptions = processOptions(rawOptions, filterConfig || null);
+  if (Object.keys(processedOptions).length > 0) {
+    formatted.options = processedOptions;
+  }
+
+  // Price ranges (only include if they have valid values)
+  if (aggregations.priceRange && (aggregations.priceRange.min !== null || aggregations.priceRange.max !== null)) {
+    formatted.priceRange = aggregations.priceRange;
+  }
+
+  if (aggregations.variantPriceRange && (aggregations.variantPriceRange.min !== null || aggregations.variantPriceRange.max !== null)) {
+    formatted.variantPriceRange = aggregations.variantPriceRange;
+  }
+
+  // Remove any remaining empty values
+  return removeEmptyValues(formatted);
 }
 

@@ -44,6 +44,13 @@ export const GET = handler(async (req: HttpRequest) => {
   // Pass filterConfig to only calculate aggregations for enabled options
   const result = await productsService.searchProducts(shop, searchInput, filterConfig);
 
+  // Format filters with filterConfig settings applied (position sorting, targetScope filtering, etc.)
+  // This pre-compiles filters on server-side for optimal performance
+  const formattedFilters = result.filters ? formatFilters(result.filters, filterConfig) : undefined;
+
+  // Remove empty values from appliedFilters
+  const cleanedAppliedFilters = Object.keys(searchInput || {}).length > 0 ? searchInput : undefined;
+
   const responseBody: any = {
     success: true,
     data: {
@@ -54,13 +61,13 @@ export const GET = handler(async (req: HttpRequest) => {
         limit: result.limit,
         totalPages: result.totalPages,
       },
-      appliedFilters: searchInput,
+      appliedFilters: cleanedAppliedFilters,
     },
-    
   };
 
-  if (result.filters) {
-    responseBody.data.filters = formatFilters(result.filters);
+  // Only include filters if they exist and have data
+  if (formattedFilters && Object.keys(formattedFilters).length > 0) {
+    responseBody.data.filters = formattedFilters;
   }
 
   // Include filter configuration for storefront script
