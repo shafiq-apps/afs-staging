@@ -14,35 +14,115 @@ import { NO_FILTER_CONFIG_HASH } from '@core/cache/cache.key';
 
 /**
  * Get active filter configuration for a shop
- * Returns the first active filter with deploymentChannel 'app' or 'theme'
+ * Implements priority system:
+ * 1. Custom published filter (filterType: "custom")
+ * 2. Default published filter (filterType: "default")
+ * 3. Any published filter
+ * 4. If collection is in query params, prioritize filters where collection ID is in allowedCollections
+ * 
+ * @param filtersRepository - The filters repository
+ * @param shop - Shop domain
+ * @param collectionId - Optional collection ID from query params for priority matching
+ * @returns The selected filter configuration or null
  */
 export async function getActiveFilterConfig(
   filtersRepository: FiltersRepository,
-  shop: string
+  shop: string,
+  collectionId?: string
 ): Promise<Filter | null> {
   try {
     const { filters } = await filtersRepository.listFilters(shop);
     
-    // Find UNPUBLISHED and PUBLISHED filter for storefront (app or theme deployment)
-    // Note: status === 'PUBLISHED' is the single source of truth for active filters
-    const activeFilter = filters.find(
+    // Filter to only published filters with app or theme deployment
+    const publishedFilters = filters.filter(
       (f) =>
         f.status === 'PUBLISHED' &&
         (f.deploymentChannel === 'app' || f.deploymentChannel === 'theme')
     );
 
-    if (activeFilter) {
-      logger.log('Active filter configuration found', {
-        shop,
-        filterId: activeFilter.id,
-        title: activeFilter.title,
-        optionsCount: activeFilter.options?.length || 0,
-      });
-      return activeFilter;
+    if (publishedFilters.length === 0) {
+      logger.log('No published filter configuration found', { shop });
+      return null;
     }
 
-    logger.log('No active filter configuration found', { shop });
-    return null;
+    // Priority 1: If collection ID is provided, find filters where collection is in allowedCollections
+    if (collectionId) {
+      const collectionSpecificFilters = publishedFilters.filter((f) => {
+        if (f.targetScope === 'entitled' && f.allowedCollections?.length > 0) {
+          return f.allowedCollections.some((c) => c.id === collectionId);
+        }
+        return false;
+      });
+
+      if (collectionSpecificFilters.length > 0) {
+        // Among collection-specific filters, prioritize by filterType
+        const customFilter = collectionSpecificFilters.find((f) => f.filterType === 'custom');
+        if (customFilter) {
+          logger.log('Collection-specific custom filter found', {
+            shop,
+            collectionId,
+            filterId: customFilter.id,
+            title: customFilter.title,
+          });
+          return customFilter;
+        }
+
+        const defaultFilter = collectionSpecificFilters.find((f) => f.filterType === 'default');
+        if (defaultFilter) {
+          logger.log('Collection-specific default filter found', {
+            shop,
+            collectionId,
+            filterId: defaultFilter.id,
+            title: defaultFilter.title,
+          });
+          return defaultFilter;
+        }
+
+        // Return first collection-specific filter
+        logger.log('Collection-specific filter found', {
+          shop,
+          collectionId,
+          filterId: collectionSpecificFilters[0].id,
+          title: collectionSpecificFilters[0].title,
+        });
+        return collectionSpecificFilters[0];
+      }
+    }
+
+    // Priority 2: Custom published filter
+    const customFilter = publishedFilters.find((f) => f.filterType === 'custom');
+    if (customFilter) {
+      logger.log('Custom published filter found', {
+        shop,
+        filterId: customFilter.id,
+        title: customFilter.title,
+        optionsCount: customFilter.options?.length || 0,
+      });
+      return customFilter;
+    }
+
+    // Priority 3: Default published filter
+    const defaultFilter = publishedFilters.find((f) => f.filterType === 'default');
+    if (defaultFilter) {
+      logger.log('Default published filter found', {
+        shop,
+        filterId: defaultFilter.id,
+        title: defaultFilter.title,
+        optionsCount: defaultFilter.options?.length || 0,
+      });
+      return defaultFilter;
+    }
+
+    // Priority 4: Any published filter (fallback)
+    const anyFilter = publishedFilters[0];
+    logger.log('Using first available published filter', {
+      shop,
+      filterId: anyFilter.id,
+      title: anyFilter.title,
+      filterType: anyFilter.filterType,
+      optionsCount: anyFilter.options?.length || 0,
+    });
+    return anyFilter;
   } catch (error: any) {
     logger.error('Error getting active filter configuration', {
       shop,
@@ -533,7 +613,8 @@ export function formatFilterConfigForStorefront(filterConfig: Filter | null): an
       .sort((a, b) => (a.position || 0) - (b.position || 0)) || [], // Sort by position
     status: filterConfig.status,
     deploymentChannel: filterConfig.deploymentChannel,
-    settings: cleanSettings(filterConfig.settings),
+    // Remove settings from response to reduce payload size
+    // Settings are not needed by storefront for rendering filters
     tags: filterConfig.tags && filterConfig.tags.length > 0 ? filterConfig.tags : [],
     createdAt: filterConfig.createdAt,
     updatedAt: filterConfig.updatedAt || null,

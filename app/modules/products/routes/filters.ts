@@ -55,16 +55,20 @@ export const GET = handler(async (req: HttpRequest) => {
     throw new Error('Products repository not available');
   }
 
-  // Get active filter configuration
+  // Get active filter configuration with collection priority
   let filterConfig = null;
   if (filtersRepository) {
-    filterConfig = await getActiveFilterConfig(filtersRepository, shopParam);
+    // Extract collection ID from query params or filter input for priority matching
+    const collectionId = (req.query.collection as string) || filterInput?.collections?.[0];
+    filterConfig = await getActiveFilterConfig(filtersRepository, shopParam, collectionId);
     
     if (filterConfig) {
       logger.log('Active filter configuration found', {
         shop: shopParam,
         filterId: filterConfig.id,
         title: filterConfig.title,
+        filterType: filterConfig.filterType,
+        collectionId: collectionId || 'none',
         optionsCount: filterConfig.options?.length || 0,
         publishedOptionsCount: filterConfig.options?.filter(o => o.status === 'PUBLISHED').length || 0,
       });
