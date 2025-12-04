@@ -2,13 +2,42 @@ import { useState, useEffect, useCallback, useRef, useImperativeHandle, forwardR
 import { useNavigate, useRevalidator, useLocation } from "react-router";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { useTranslation } from "../utils/translations";
-import { generateFilterHandle, generateOptionId } from "../utils/id-generator";
+import { generateFilterHandle } from "../utils/id-generator";
+import {
+  DisplayType,
+  SelectionType,
+  SortOrder,
+  FilterOptionStatus,
+  FilterStatus,
+  PaginationType,
+  TextTransform,
+  toDisplayType,
+  toSelectionType,
+  toSortOrder,
+  toFilterOptionStatus,
+  toFilterStatus,
+  toPaginationType,
+  toTextTransform,
+} from "../utils/filter.enums";
+import {
+  DEFAULT_FILTER_OPTION,
+  DEFAULT_FILTER,
+  PRICE_FILTER_DEFAULTS,
+  SELECTION_TYPE_MAPPINGS,
+  DISPLAY_TYPE_MAPPINGS,
+  OPTION_TYPES,
+  TARGET_SCOPES,
+  FILTER_ORIENTATIONS,
+  DEFAULT_VIEWS,
+  getBaseOptionType,
+  getAvailableSelectionTypes,
+  getAvailableDisplayTypes,
+} from "../utils/filter.constants";
 
 interface FilterOption {
   // Identification
   handle: string;
   position: number;
-  optionId: string;
   
   // Basic Configuration
   label: string;
@@ -115,15 +144,7 @@ const BASE_FILTER_TYPES = [
   "Metafield",
 ];
 
-const SELECTION_TYPES = {
-  all: ["multiple", "single"],
-  price: ["range"],
-};
-
-const DISPLAY_TYPES = {
-  list: ["list", "dropdown", "grid"],
-  price: ["range"],
-};
+// Constants moved to filter.constants.ts
 
 // Menu Tree Builder Component
 function MenuTreeBuilder({ 
@@ -384,7 +405,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
   const { t } = useTranslation();
 
   const [title, setTitle] = useState("");
-  const [status, setStatus] = useState("published"); // "published" = active, "draft" = inactive
+  const [status, setStatus] = useState<FilterStatus>(FilterStatus.PUBLISHED);
   const [titleError, setTitleError] = useState("");
   const [optionsError, setOptionsError] = useState("");
   const [collectionsError, setCollectionsError] = useState("");
@@ -501,7 +522,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
 
       const initState = {
         title: initialFilter.title || "",
-        status: initialFilter.status || "published",
+        status: toFilterStatus(initialFilter.status),
         targetScope: initialFilter.targetScope || "all",
         selectedCollections: JSON.parse(JSON.stringify(initialFilter.allowedCollections || [])),
         filterOptions: JSON.parse(JSON.stringify(normalizedOptions)),
@@ -531,13 +552,13 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
       setShowSortOptions(initState.showSortOptions);
     } else {
       // Create mode - set defaults and auto-populate filter options
-      setFilterOrientation("vertical");
-      setDefaultView("grid");
-      setShowFilterCount(true);
-      setShowActiveFilters(true);
-      setGridColumns(3);
-      setShowProductCount(true);
-      setShowSortOptions(true);
+      setFilterOrientation(DEFAULT_FILTER.filterOrientation);
+      setDefaultView(DEFAULT_FILTER.defaultView);
+      setShowFilterCount(DEFAULT_FILTER.showFilterCount);
+      setShowActiveFilters(DEFAULT_FILTER.showActiveFilters);
+      setGridColumns(DEFAULT_FILTER.gridColumns);
+      setShowProductCount(DEFAULT_FILTER.showProductCount);
+      setShowSortOptions(DEFAULT_FILTER.showSortOptions);
       
       // Auto-populate filter options from storefrontFilters
       if (storefrontFilters && filterOptions.length === 0) {
@@ -549,33 +570,32 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
           autoOptions.push({
             handle: generateFilterHandle('price'),
             position: position++,
-            optionId: generateOptionId(),
             label: "Price",
             optionType: "Price",
-            displayType: "range",
-            selectionType: "range",
-            targetScope: "all",
-            selectedValues: [],
-            allowedOptions: [],
-            groups: [],
-            collapsed: false,
-            searchable: false,
-            showTooltip: false,
-            tooltipContent: "",
-            showCount: false,
-            removePrefix: [],
-            removeSuffix: [],
-            replaceText: [],
-            filterByPrefix: [],
-            sortBy: "ascending",
-            manualSortedValues: [],
-            valueNormalization: {},
-            menus: [],
-            showMenu: false,
-            textTransform: "none",
-            paginationType: "scroll",
-            groupBySimilarValues: false,
-            status: "published",
+            displayType: PRICE_FILTER_DEFAULTS.displayType,
+            selectionType: PRICE_FILTER_DEFAULTS.selectionType,
+            targetScope: DEFAULT_FILTER_OPTION.targetScope,
+            selectedValues: [...DEFAULT_FILTER_OPTION.selectedValues],
+            allowedOptions: [...DEFAULT_FILTER_OPTION.allowedOptions],
+            groups: [...DEFAULT_FILTER_OPTION.groups],
+            collapsed: DEFAULT_FILTER_OPTION.collapsed,
+            searchable: DEFAULT_FILTER_OPTION.searchable,
+            showTooltip: DEFAULT_FILTER_OPTION.showTooltip,
+            tooltipContent: DEFAULT_FILTER_OPTION.tooltipContent,
+            showCount: DEFAULT_FILTER_OPTION.showCount,
+            removePrefix: DEFAULT_FILTER_OPTION.removePrefix,
+            removeSuffix: DEFAULT_FILTER_OPTION.removeSuffix,
+            replaceText: DEFAULT_FILTER_OPTION.replaceText,
+            filterByPrefix: DEFAULT_FILTER_OPTION.filterByPrefix,
+            sortBy: DEFAULT_FILTER_OPTION.sortBy,
+            manualSortedValues: DEFAULT_FILTER_OPTION.manualSortedValues,
+            valueNormalization: DEFAULT_FILTER_OPTION.valueNormalization,
+            menus: DEFAULT_FILTER_OPTION.menus,
+            showMenu: DEFAULT_FILTER_OPTION.showMenu,
+            textTransform: DEFAULT_FILTER_OPTION.textTransform,
+            paginationType: DEFAULT_FILTER_OPTION.paginationType,
+            groupBySimilarValues: DEFAULT_FILTER_OPTION.groupBySimilarValues,
+            status: DEFAULT_FILTER_OPTION.status,
             minPrice: storefrontFilters.priceRange.min,
             maxPrice: storefrontFilters.priceRange.max,
             baseOptionType: "Price",
@@ -587,11 +607,10 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
           autoOptions.push({
             handle: generateFilterHandle('vendor'),
             position: position++,
-            optionId: generateOptionId(),
             label: "Vendor",
             optionType: "Vendor",
-            displayType: "list",
-            selectionType: "multiple",
+            displayType: "LIST",
+            selectionType: "MULTIPLE",
             targetScope: "all",
             selectedValues: [],
             allowedOptions: [],
@@ -605,15 +624,15 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
             removeSuffix: [],
             replaceText: [],
             filterByPrefix: [],
-            sortBy: "ascending",
+            sortBy: "ASCENDING",
             manualSortedValues: [],
             valueNormalization: {},
             menus: [],
             showMenu: false,
-            textTransform: "none",
-            paginationType: "scroll",
+            textTransform: "NONE",
+            paginationType: "SCROLL",
             groupBySimilarValues: false,
-            status: "published",
+            status: "PUBLISHED",
             baseOptionType: "Vendor",
           });
         }
@@ -623,11 +642,10 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
           autoOptions.push({
             handle: generateFilterHandle('product-type'),
             position: position++,
-            optionId: generateOptionId(),
             label: "Product Type",
             optionType: "Product Type",
-            displayType: "list",
-            selectionType: "multiple",
+            displayType: "LIST",
+            selectionType: "MULTIPLE",
             targetScope: "all",
             selectedValues: [],
             allowedOptions: [],
@@ -641,15 +659,15 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
             removeSuffix: [],
             replaceText: [],
             filterByPrefix: [],
-            sortBy: "ascending",
+            sortBy: "ASCENDING",
             manualSortedValues: [],
             valueNormalization: {},
             menus: [],
             showMenu: false,
-            textTransform: "none",
-            paginationType: "scroll",
+            textTransform: "NONE",
+            paginationType: "SCROLL",
             groupBySimilarValues: false,
-            status: "published",
+            status: "PUBLISHED",
             baseOptionType: "Product Type",
           });
         }
@@ -659,11 +677,10 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
           autoOptions.push({
             handle: generateFilterHandle('tags'),
             position: position++,
-            optionId: generateOptionId(),
             label: "Tags",
             optionType: "Tags",
-            displayType: "list",
-            selectionType: "multiple",
+            displayType: "LIST",
+            selectionType: "MULTIPLE",
             targetScope: "all",
             selectedValues: [],
             allowedOptions: [],
@@ -677,15 +694,15 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
             removeSuffix: [],
             replaceText: [],
             filterByPrefix: [],
-            sortBy: "ascending",
+            sortBy: "ASCENDING",
             manualSortedValues: [],
             valueNormalization: {},
             menus: [],
             showMenu: false,
-            textTransform: "none",
-            paginationType: "scroll",
+            textTransform: "NONE",
+            paginationType: "SCROLL",
             groupBySimilarValues: false,
-            status: "published",
+            status: "PUBLISHED",
             baseOptionType: "Tags",
           });
         }
@@ -695,11 +712,10 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
           autoOptions.push({
             handle: generateFilterHandle('collection'),
             position: position++,
-            optionId: generateOptionId(),
             label: "Collection",
             optionType: "Collection",
-            displayType: "list",
-            selectionType: "multiple",
+            displayType: "LIST",
+            selectionType: "MULTIPLE",
             targetScope: "all",
             selectedValues: [],
             allowedOptions: [],
@@ -713,15 +729,15 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
             removeSuffix: [],
             replaceText: [],
             filterByPrefix: [],
-            sortBy: "ascending",
+            sortBy: "ASCENDING",
             manualSortedValues: [],
             valueNormalization: {},
             menus: [],
             showMenu: false,
-            textTransform: "none",
-            paginationType: "scroll",
+            textTransform: "NONE",
+            paginationType: "SCROLL",
             groupBySimilarValues: false,
-            status: "published",
+            status: "PUBLISHED",
             baseOptionType: "Collection",
           });
         }
@@ -738,33 +754,32 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
               autoOptions.push({
                 handle: generateFilterHandle(optionKey),
                 position: position++,
-                optionId: generateOptionId(),
                 label: optionKey.charAt(0).toUpperCase() + optionKey.slice(1),
                 optionType: optionKey,
-                displayType: "list",
-                selectionType: "multiple",
-                targetScope: "all",
-                selectedValues: [],
-                allowedOptions: [],
-                groups: [],
-                collapsed: false,
-                searchable: true,
-                showTooltip: false,
-                tooltipContent: "",
-                showCount: true,
-                removePrefix: [],
-                removeSuffix: [],
-                replaceText: [],
-                filterByPrefix: [],
-                sortBy: "ascending",
-                manualSortedValues: [],
-                valueNormalization: {},
-                menus: [],
-                showMenu: false,
-                textTransform: "none",
-                paginationType: "scroll",
-                groupBySimilarValues: false,
-                status: "published",
+                displayType: DEFAULT_FILTER_OPTION.displayType,
+                selectionType: DEFAULT_FILTER_OPTION.selectionType,
+                targetScope: DEFAULT_FILTER_OPTION.targetScope,
+                selectedValues: DEFAULT_FILTER_OPTION.selectedValues,
+                allowedOptions: DEFAULT_FILTER_OPTION.allowedOptions,
+                groups: DEFAULT_FILTER_OPTION.groups,
+                collapsed: DEFAULT_FILTER_OPTION.collapsed,
+                searchable: true, // Variant options are searchable by default
+                showTooltip: DEFAULT_FILTER_OPTION.showTooltip,
+                tooltipContent: DEFAULT_FILTER_OPTION.tooltipContent,
+                showCount: DEFAULT_FILTER_OPTION.showCount,
+                removePrefix: DEFAULT_FILTER_OPTION.removePrefix,
+                removeSuffix: DEFAULT_FILTER_OPTION.removeSuffix,
+                replaceText: DEFAULT_FILTER_OPTION.replaceText,
+                filterByPrefix: DEFAULT_FILTER_OPTION.filterByPrefix,
+                sortBy: DEFAULT_FILTER_OPTION.sortBy,
+                manualSortedValues: DEFAULT_FILTER_OPTION.manualSortedValues,
+                valueNormalization: DEFAULT_FILTER_OPTION.valueNormalization,
+                menus: DEFAULT_FILTER_OPTION.menus,
+                showMenu: DEFAULT_FILTER_OPTION.showMenu,
+                textTransform: DEFAULT_FILTER_OPTION.textTransform,
+                paginationType: DEFAULT_FILTER_OPTION.paginationType,
+                groupBySimilarValues: DEFAULT_FILTER_OPTION.groupBySimilarValues,
+                status: DEFAULT_FILTER_OPTION.status,
                 // baseOptionType should be the actual category name, not the variant option key
                 // For variant options (color, size, etc.), use "Option" as the base type
                 baseOptionType: "Option",
@@ -781,8 +796,8 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
         // Set initial state with auto-populated options for create mode
         const createInitState = {
           title: "",
-          status: "published",
-          targetScope: "all",
+          status: DEFAULT_FILTER.status,
+          targetScope: DEFAULT_FILTER.targetScope,
           selectedCollections: [],
           filterOptions: JSON.parse(JSON.stringify(autoOptions)),
           filterOrientation: "vertical",
@@ -798,8 +813,8 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
         // Create mode without auto-population - set empty initial state
         const createInitState = {
           title: "",
-          status: "published",
-          targetScope: "all",
+          status: DEFAULT_FILTER.status,
+          targetScope: DEFAULT_FILTER.targetScope,
           selectedCollections: [],
           filterOptions: [],
           filterOrientation: "vertical",
@@ -902,7 +917,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
     if (!initialState) return;
     
     setTitle(initialState.title);
-    setStatus(initialState.status);
+    setStatus(toFilterStatus(initialState.status));
     setTargetScope(initialState.targetScope);
     setSelectedCollections(JSON.parse(JSON.stringify(initialState.selectedCollections)));
     setFilterOptions(JSON.parse(JSON.stringify(initialState.filterOptions)));
@@ -930,7 +945,6 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
     const newOption: FilterOption = {
       handle: generateFilterHandle('filter'),
       position: filterOptions.length,
-      optionId: generateOptionId(),
       label: "New Filter",
       optionType: "Collection",
       displayType: "list",
@@ -956,48 +970,45 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
       textTransform: "none",
       paginationType: "scroll",
       groupBySimilarValues: false,
-      status: "published",
+      status: "PUBLISHED",
       baseOptionType: "Collection",
     };
     setFilterOptions([...filterOptions, newOption]);
-    setExpandedOptions(new Set([...expandedOptions, newOption.optionId]));
+    setExpandedOptions(new Set([...expandedOptions, newOption.handle]));
   };
 
-  const handleDeleteOption = (optionId: string) => {
-    setFilterOptions(filterOptions.filter((opt) => opt.optionId !== optionId));
+  const handleDeleteOption = (handle: string) => {
+    setFilterOptions(filterOptions.filter((opt) => opt.handle !== handle));
     const newExpanded = new Set(expandedOptions);
-    newExpanded.delete(optionId);
+    newExpanded.delete(handle);
     setExpandedOptions(newExpanded);
   };
 
   const handleUpdateOption = (
-    optionId: string,
+    handle: string,
     field: keyof FilterOption,
     value: string | boolean | number | string[]
   ) => {
     setFilterOptions(
       filterOptions.map((opt) => {
-        if (opt.optionId === optionId) {
+        if (opt.handle === handle) {
           const updated = { ...opt, [field]: value };
           
-          // When optionType changes, update handle, optionId, baseOptionType and related fields
+          // When optionType changes, update handle and baseOptionType
           if (field === "optionType") {
-            // Check if option was expanded before regenerating ID
-            const wasExpanded = expandedOptions.has(optionId);
+            // Check if option was expanded before regenerating handle
+            const wasExpanded = expandedOptions.has(handle);
             
             // Regenerate handle based on new optionType
-            updated.handle = generateFilterHandle(value as string);
+            const newHandle = generateFilterHandle(value as string);
+            updated.handle = newHandle;
             
-            // Regenerate optionId to ensure uniqueness
-            const newOptionId = generateOptionId();
-            updated.optionId = newOptionId;
-            
-            // Update expandedOptions set with new optionId if it was expanded
+            // Update expandedOptions set with new handle if it was expanded
             if (wasExpanded) {
               setExpandedOptions((prev) => {
                 const newSet = new Set(prev);
-                newSet.delete(optionId); // Remove old ID
-                newSet.add(newOptionId); // Add new ID
+                newSet.delete(handle); // Remove old handle
+                newSet.add(newHandle); // Add new handle
                 return newSet;
               });
             }
@@ -1007,15 +1018,15 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
             
             // Price-specific updates
             if (value === "Price") {
-              updated.selectionType = "range";
-              updated.displayType = "range";
+              updated.selectionType = SelectionType.RANGE;
+              updated.displayType = DisplayType.RANGE;
             } else if (opt.optionType === "Price" && value !== "Price") {
               // Changing from Price to something else
-              if (updated.selectionType === "range") {
-                updated.selectionType = "multiple";
+              if (toSelectionType(updated.selectionType) === SelectionType.RANGE) {
+                updated.selectionType = SelectionType.MULTIPLE;
               }
-              if (updated.displayType === "range") {
-                updated.displayType = "list";
+              if (toDisplayType(updated.displayType) === DisplayType.RANGE) {
+                updated.displayType = DisplayType.LIST;
               }
             }
             
@@ -1041,20 +1052,24 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
     );
   };
 
-  const handleToggleExpand = (optionId: string) => {
+  const handleToggleExpand = (handle: string) => {
     const newExpanded = new Set(expandedOptions);
-    if (newExpanded.has(optionId)) {
-      newExpanded.delete(optionId);
+    if (newExpanded.has(handle)) {
+      newExpanded.delete(handle);
     } else {
-      newExpanded.add(optionId);
+      newExpanded.add(handle);
     }
     setExpandedOptions(newExpanded);
   };
 
-  const handleToggleVisibility = (optionId: string) => {
-    const option = filterOptions.find((opt) => opt.optionId === optionId);
+  const handleToggleVisibility = (handle: string) => {
+    const option = filterOptions.find((opt) => opt.handle === handle);
     if (option) {
-      handleUpdateOption(optionId, "status", option.status === "published" ? "draft" : "published");
+      const currentStatus = toFilterOptionStatus(option.status);
+      const newStatus = currentStatus === FilterOptionStatus.PUBLISHED 
+        ? FilterOptionStatus.UNPUBLISHED 
+        : FilterOptionStatus.PUBLISHED;
+      handleUpdateOption(handle, "status", newStatus);
     }
   };
 
@@ -1145,30 +1160,59 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
       const {
         minPrice,
         maxPrice,
+        baseOptionType,
+        selectedValues,
+        removeSuffix,
+        replaceText,
+        variantOptionKey,
+        valueNormalization,
+        groupBySimilarValues,
+        removePrefix,
+        filterByPrefix,
+        sortBy,
+        manualSortedValues,
+        groups,
+        menus,
+        textTransform,
+        paginationType,
         ...cleanOption
       } = option;
       
       // Ensure baseOptionType is set correctly based on optionType
-      const baseOptionType = option.baseOptionType || getBaseOptionType(option.optionType);
+      const finalBaseOptionType = baseOptionType || getBaseOptionType(option.optionType);
+      
+      // Build optionSettings object according to new schema structure
+      const optionSettings: any = {};
+      
+      if (finalBaseOptionType) optionSettings.baseOptionType = finalBaseOptionType;
+      if (selectedValues && selectedValues.length > 0) optionSettings.selectedValues = selectedValues;
+      if (removeSuffix && removeSuffix.length > 0) optionSettings.removeSuffix = removeSuffix;
+      if (replaceText && replaceText.length > 0) optionSettings.replaceText = replaceText;
+      if (variantOptionKey) optionSettings.variantOptionKey = variantOptionKey;
+      if (valueNormalization && Object.keys(valueNormalization).length > 0) optionSettings.valueNormalization = valueNormalization;
+      if (groupBySimilarValues !== undefined) optionSettings.groupBySimilarValues = groupBySimilarValues;
+      if (removePrefix && removePrefix.length > 0) optionSettings.removePrefix = removePrefix;
+      if (filterByPrefix && filterByPrefix.length > 0) optionSettings.filterByPrefix = filterByPrefix;
+      // Convert enum values using helper functions
+      if (sortBy) optionSettings.sortBy = toSortOrder(sortBy);
+      if (manualSortedValues && manualSortedValues.length > 0) optionSettings.manualSortedValues = manualSortedValues;
+      if (groups && groups.length > 0) optionSettings.groups = groups;
+      if (menus && menus.length > 0) optionSettings.menus = menus;
+      if (textTransform) optionSettings.textTransform = toTextTransform(textTransform);
+      if (paginationType) optionSettings.paginationType = toPaginationType(paginationType);
       
       return {
         ...cleanOption,
         tooltipContent: option.tooltipContent ?? "",
-        selectedValues: option.selectedValues ?? [],
         allowedOptions: option.allowedOptions ?? [],
-        groups: option.groups ?? [],
-        removePrefix: option.removePrefix ?? [],
-        removeSuffix: option.removeSuffix ?? [],
-        replaceText: option.replaceText ?? [],
-        filterByPrefix: option.filterByPrefix ?? [],
-        manualSortedValues: option.manualSortedValues ?? [],
-        valueNormalization: option.valueNormalization ?? {},
-        menus: option.menus ?? [],
         showTooltip: option.showTooltip ?? false,
         showCount: option.showCount ?? true,
-        baseOptionType: baseOptionType,
-        // Performance Optimization: Preserve variant option key for faster aggregations
-        variantOptionKey: option.variantOptionKey,
+        // Convert enum values using helper functions
+        status: toFilterOptionStatus(option.status),
+        displayType: toDisplayType(option.displayType),
+        selectionType: toSelectionType(option.selectionType),
+        // Include optionSettings if it has any properties
+        optionSettings: Object.keys(optionSettings).length > 0 ? optionSettings : undefined,
       };
     });
   };
@@ -1204,7 +1248,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
       hasError = true;
     }
 
-    const activeOptions = filterOptions.filter(opt => opt.status === "published");
+    const activeOptions = filterOptions.filter(opt => toFilterOptionStatus(opt.status) === FilterOptionStatus.PUBLISHED);
     if (activeOptions.length === 0) {
       setOptionsError("At least one filter option must be active");
       hasError = true;
@@ -1256,7 +1300,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
           }
         `
         : `
-          mutation UpdateFilter($shop: String!, $id: String!, $input: UpdateFilterInput!) {
+          mutation UpdateFilter($shop: String!, $id: String!, $input: CreateFilterInput!) {
             updateFilter(shop: $shop, id: $id, input: $input) {
               id
               title
@@ -1279,7 +1323,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
 
       const input: any = {
         title: title.trim(),
-        status,
+        status: toFilterStatus(status),
         targetScope,
         allowedCollections: selectedCollections,
         options: normalizedOptions,
@@ -1395,14 +1439,10 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
 
   const isPriceFilter = (optionType: string) => optionType === "Price";
   const getSelectionTypes = (optionType: string) => {
-    return isPriceFilter(optionType) 
-      ? SELECTION_TYPES.price 
-      : SELECTION_TYPES.all;
+    return getAvailableSelectionTypes(optionType);
   };
   const getDisplayTypes = (optionType: string) => {
-    return isPriceFilter(optionType)
-      ? DISPLAY_TYPES.price
-      : DISPLAY_TYPES.list;
+    return getAvailableDisplayTypes(optionType);
   };
 
   const pageId = mode === "create" ? "filter-create" : `filter-edit-${initialFilter?.id || "new"}`;
@@ -1444,8 +1484,8 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
               <s-stack direction="inline" gap="base" alignItems="center">
                 <s-switch
                   label="Filter Status"
-                  checked={status === "published"}
-                  onChange={(e: any) => setStatus(e.target.checked ? "published" : "draft")}
+                  checked={toFilterStatus(status) === FilterStatus.PUBLISHED}
+                  onChange={(e: any) => setStatus(e.target.checked ? FilterStatus.PUBLISHED : FilterStatus.UNPUBLISHED)}
                 />
               </s-stack>
             </s-stack>
@@ -1547,7 +1587,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
           ) : (
             <s-stack direction="block" gap="base">
               {filterOptions.map((option, index) => {
-                const isExpanded = expandedOptions.has(option.optionId);
+                const isExpanded = expandedOptions.has(option.handle);
                 const availableValues = getAvailableValues(option.optionType);
                 const selectionTypes = getSelectionTypes(option.optionType);
                 const displayTypes = getDisplayTypes(option.optionType);
@@ -1558,7 +1598,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                 const showDropBelow = isDragOver && dropPosition === 'below';
 
                 return (
-                  <div key={option.optionId} style={{ position: 'relative' }}>
+                  <div key={option.handle} style={{ position: 'relative' }}>
                     {/* Drop Indicator Above */}
                     {showDropAbove && (
                       <div
@@ -1617,14 +1657,14 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                             <div style={{ flex: 1 }}>
                               <s-text-field
                                 value={option.label}
-                                onChange={(e: any) => handleUpdateOption(option.optionId, "label", e.target.value)}
+                                onChange={(e: any) => handleUpdateOption(option.handle, "label", e.target.value)}
                                 placeholder="Filter label"
                               />
                             </div>
                             <div style={{ flex: 1, minWidth: "200px" }}>
                               <s-select
                                 value={option.optionType}
-                                onChange={(e: any) => handleUpdateOption(option.optionId, "optionType", e.target.value)}
+                                onChange={(e: any) => handleUpdateOption(option.handle, "optionType", e.target.value)}
                               >
                                 {getFilterTypes().map((type) => (
                                   <s-option key={type} value={type}>
@@ -1633,12 +1673,12 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                                 ))}
                               </s-select>
                             </div>
-                            <s-badge tone={option.status === "published" ? "success" : "warning"}>
-                              {option.status === "published" ? "Active" : "Draft"}
+                            <s-badge tone={toFilterOptionStatus(option.status) === FilterOptionStatus.PUBLISHED ? "success" : "warning"}>
+                              {toFilterOptionStatus(option.status) === FilterOptionStatus.PUBLISHED ? "Active" : "Draft"}
                             </s-badge>
                             <s-button
                               variant="tertiary"
-                              onClick={() => handleToggleExpand(option.optionId)}
+                              onClick={() => handleToggleExpand(option.handle)}
                               icon={isExpanded ? "chevron-up" : "chevron-down"}
                             >
                               {isExpanded ? "Hide settings" : "Show settings"}
@@ -1646,7 +1686,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                             <s-button
                               variant="tertiary"
                               tone="critical"
-                              onClick={() => handleDeleteOption(option.optionId)}
+                              onClick={() => handleDeleteOption(option.handle)}
                               icon="delete"
                             />
                           </div>
@@ -1655,7 +1695,6 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                           {isExpanded && (
                             <s-box padding="base" borderWidth="base" borderRadius="base" background="base">
                               <s-stack direction="block" gap="base">
-                                
                                 {/* Section 1: Basic Settings */}
                                 <s-box padding="base" borderWidth="base" borderRadius="base" background="subdued">
                                   <s-stack direction="block" gap="base">
@@ -1669,10 +1708,10 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                                               values={[option.selectionType]}
                                               onChange={(e: any) => {
                                                 const value = e.currentTarget?.values?.[0];
-                                                if (value) handleUpdateOption(option.optionId, "selectionType", value);
+                                                if (value) handleUpdateOption(option.handle, "selectionType", value);
                                               }}
                                             >
-                                              {selectionTypes.map((type) => (
+                                              {selectionTypes.map((type: string) => (
                                                 <s-choice 
                                                   key={type} 
                                                   value={type} 
@@ -1686,9 +1725,9 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                                             <s-select
                                               label="Selection Type"
                                               value={option.selectionType}
-                                              onChange={(e: any) => handleUpdateOption(option.optionId, "selectionType", e.target.value)}
+                                              onChange={(e: any) => handleUpdateOption(option.handle, "selectionType", e.target.value)}
                                             >
-                                              {selectionTypes.map((type) => (
+                                              {selectionTypes.map((type: string) => (
                                                 <s-option key={type} value={type}>
                                                   {type.charAt(0).toUpperCase() + type.slice(1)}
                                                 </s-option>
@@ -1699,9 +1738,9 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                                           <s-select
                                             label="Display Style"
                                             value={option.displayType}
-                                            onChange={(e: any) => handleUpdateOption(option.optionId, "displayType", e.target.value)}
+                                            onChange={(e: any) => handleUpdateOption(option.handle, "displayType", e.target.value)}
                                           >
-                                            {displayTypes.map((type) => (
+                                            {displayTypes.map((type: string) => (
                                               <s-option key={type} value={type}>
                                                 {type.charAt(0).toUpperCase() + type.slice(1)}
                                               </s-option>
@@ -1727,8 +1766,8 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
 
                                       <s-switch
                                         label="Enable this filter"
-                                        checked={option.status === "published"}
-                                        onChange={() => handleToggleVisibility(option.optionId)}
+                                        checked={toFilterOptionStatus(option.status) === FilterOptionStatus.PUBLISHED}
+                                        onChange={() => handleToggleVisibility(option.handle)}
                                       />
                                     </s-stack>
                                   </s-stack>
@@ -1742,24 +1781,24 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                                       <s-switch
                                         label="Start collapsed"
                                         checked={option.collapsed}
-                                        onChange={(e: any) => handleUpdateOption(option.optionId, "collapsed", e.target.checked)}
+                                        onChange={(e: any) => handleUpdateOption(option.handle, "collapsed", e.target.checked)}
                                       />
                                       {!isPriceFilter(option.optionType) && (
                                         <>
                                           <s-switch
                                             label="Enable search bar"
                                             checked={option.searchable}
-                                            onChange={(e: any) => handleUpdateOption(option.optionId, "searchable", e.target.checked)}
+                                            onChange={(e: any) => handleUpdateOption(option.handle, "searchable", e.target.checked)}
                                           />
                                           <s-switch
                                             label="Group similar values together"
                                             checked={option.groupBySimilarValues}
-                                            onChange={(e: any) => handleUpdateOption(option.optionId, "groupBySimilarValues", e.target.checked)}
+                                            onChange={(e: any) => handleUpdateOption(option.handle, "groupBySimilarValues", e.target.checked)}
                                           />
                                           <s-switch
                                             label="Show as hierarchical menu"
                                             checked={option.showMenu}
-                                            onChange={(e: any) => handleUpdateOption(option.optionId, "showMenu", e.target.checked)}
+                                            onChange={(e: any) => handleUpdateOption(option.handle, "showMenu", e.target.checked)}
                                           />
                                         </>
                                       )}
@@ -1780,7 +1819,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                                       <s-stack direction="block" gap="base">
                                         <AllowedOptionsSelector
                                           value={option.allowedOptions}
-                                          onChange={(values) => handleUpdateOption(option.optionId, "allowedOptions", values)}
+                                          onChange={(values) => handleUpdateOption(option.handle, "allowedOptions", values)}
                                           availableValues={availableValues}
                                         />
                                         <span style={{ fontSize: '12px', color: 'var(--p-color-text-subdued)' }}>
@@ -1802,7 +1841,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                                         <s-select
                                           label="Sort Order"
                                           value={option.sortBy}
-                                          onChange={(e: any) => handleUpdateOption(option.optionId, "sortBy", e.target.value)}
+                                          onChange={(e: any) => handleUpdateOption(option.handle, "sortBy", e.target.value)}
                                         >
                                           <s-option value="ascending">A to Z (Ascending)</s-option>
                                           <s-option value="descending">Z to A (Descending)</s-option>
@@ -1815,7 +1854,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                                             value={option.manualSortedValues.join(', ')}
                                             onChange={(e: any) => {
                                               const values = e.target.value.split(',').map((v: string) => v.trim()).filter((v: string) => v);
-                                              handleUpdateOption(option.optionId, "manualSortedValues", values);
+                                              handleUpdateOption(option.handle, "manualSortedValues", values);
                                             }}
                                             placeholder="Enter values in desired order, separated by commas"
                                           />
@@ -1834,7 +1873,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                                         <s-select
                                           label="Text Case"
                                           value={option.textTransform}
-                                          onChange={(e: any) => handleUpdateOption(option.optionId, "textTransform", e.target.value)}
+                                          onChange={(e: any) => handleUpdateOption(option.handle, "textTransform", e.target.value)}
                                         >
                                           <s-option value="none">Normal (No change)</s-option>
                                           <s-option value="uppercase">UPPERCASE</s-option>
@@ -1844,13 +1883,13 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                                         <s-switch
                                           label="Show tooltip"
                                           checked={option.showTooltip ?? false}
-                                          onChange={(e: any) => handleUpdateOption(option.optionId, "showTooltip", e.target.checked)}
+                                          onChange={(e: any) => handleUpdateOption(option.handle, "showTooltip", e.target.checked)}
                                         />
                                         {option.showTooltip && (
                                           <s-text-field
                                             label="Tooltip Content"
                                             value={option.tooltipContent}
-                                            onChange={(e: any) => handleUpdateOption(option.optionId, "tooltipContent", e.target.value)}
+                                            onChange={(e: any) => handleUpdateOption(option.handle, "tooltipContent", e.target.value)}
                                             placeholder="Help text shown when users hover over this filter"
                                           />
                                         )}
@@ -1868,7 +1907,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                                         {option.showMenu && (
                                           <MenuTreeBuilder
                                             value={option.menus}
-                                            onChange={(values) => handleUpdateOption(option.optionId, "menus", values)}
+                                            onChange={(values) => handleUpdateOption(option.handle, "menus", values)}
                                             availableValues={availableValues}
                                           />
                                         )}
@@ -1878,7 +1917,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                                           value={option.filterByPrefix.join(', ')}
                                           onChange={(e: any) => {
                                             const values = e.target.value.split(',').map((v: string) => v.trim()).filter((v: string) => v);
-                                            handleUpdateOption(option.optionId, "filterByPrefix", values);
+                                            handleUpdateOption(option.handle, "filterByPrefix", values);
                                           }}
                                           placeholder="e.g., Size-, Color- (comma-separated)"
                                         />
@@ -1887,7 +1926,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                                           value={option.removePrefix.join(', ')}
                                           onChange={(e: any) => {
                                             const values = e.target.value.split(',').map((v: string) => v.trim()).filter((v: string) => v);
-                                            handleUpdateOption(option.optionId, "removePrefix", values);
+                                            handleUpdateOption(option.handle, "removePrefix", values);
                                           }}
                                           placeholder="e.g., Size-, Color- (comma-separated)"
                                         />
@@ -1962,13 +2001,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                                 {/* Section 8: System Information */}
                                 <s-box padding="base" borderWidth="base" borderRadius="base" background="subdued">
                                   <s-stack direction="block" gap="base">
-                                    <s-heading>System Information</s-heading>
                                     <s-stack direction="block" gap="base">
-                                      <s-text-field
-                                        label="Filter ID"
-                                        value={option.optionId}
-                                        disabled
-                                      />
                                       <s-text-field
                                         label="Handle (URL identifier)"
                                         value={option.handle}
@@ -1980,9 +2013,8 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                                     </s-stack>
                                   </s-stack>
                                 </s-box>
-
                               </s-stack>
-                            </s-box>
+                              </s-box>
                           )}
                         </s-stack>
                       </s-box>

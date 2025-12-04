@@ -4,7 +4,6 @@
  * Note: Sensitive fields (accessToken, refreshToken) are excluded
  * 
  * Index Configuration (optional - uses defaults if not specified):
- * @index shops idField=shop sensitiveFields=accessToken,refreshToken
  */
 
 export const shopsSchema = `
@@ -24,7 +23,6 @@ export const shopsSchema = `
   # Shop type (public fields only, no sensitive data)
   # Includes session fields from Prisma Session model
   type Shop {
-    # @index shops idField=shop sensitiveFields=
     shop: String!
     installedAt: String
     isActive: Boolean

@@ -14,7 +14,7 @@ import { NO_FILTER_CONFIG_HASH } from '@core/cache/cache.key';
 
 /**
  * Get active filter configuration for a shop
- * Returns the first active, published filter with deploymentChannel 'app' or 'theme'
+ * Returns the first active filter with deploymentChannel 'app' or 'theme'
  */
 export async function getActiveFilterConfig(
   filtersRepository: FiltersRepository,
@@ -23,11 +23,11 @@ export async function getActiveFilterConfig(
   try {
     const { filters } = await filtersRepository.listFilters(shop);
     
-    // Find active, published filter for storefront (app or theme deployment)
-    // Note: status === 'published' is the single source of truth for active filters
+    // Find UNPUBLISHED and PUBLISHED filter for storefront (app or theme deployment)
+    // Note: status === 'PUBLISHED' is the single source of truth for active filters
     const activeFilter = filters.find(
       (f) =>
-        f.status === 'published' &&
+        f.status === 'PUBLISHED' &&
         (f.deploymentChannel === 'app' || f.deploymentChannel === 'theme')
     );
 
@@ -58,19 +58,18 @@ export async function getActiveFilterConfig(
  * 
  * @param filterConfig - The filter configuration containing option definitions
  * @param key - The query parameter key to check
- * @returns True if the key matches any option's handle, optionId, or optionType
+ * @returns True if the key matches any option's handle, or optionType
  */
 export function isOptionKey(filterConfig: Filter | null, key: string): boolean {
   if (!filterConfig || !filterConfig.options || !key) {
     return false;
   }
 
-  // Check if key matches any published option's handle, optionId, or optionType
+  // Check if key matches any published option's handle, or optionType
   return filterConfig.options.some(
     (opt) =>
-      opt.status === 'published' &&
+      opt.status === 'PUBLISHED' &&
       (opt.handle === key ||
-       opt.optionId === key ||
        opt.optionType?.toLowerCase() === key.toLowerCase())
   );
 }
@@ -88,12 +87,11 @@ export function mapOptionKeyToName(filterConfig: Filter | null, optionKey: strin
     return optionKey; // Return as-is if no filter config
   }
 
-  // Find option by handle, optionId, or optionType
+  // Find option by handle, or optionType
   const option = filterConfig.options.find(
     (opt) =>
-      opt.status === 'published' &&
+      opt.status === 'PUBLISHED' &&
       (opt.handle === optionKey ||
-       opt.optionId === optionKey ||
        opt.optionType?.toLowerCase() === optionKey.toLowerCase())
   );
 
@@ -237,7 +235,7 @@ export function applyFilterConfigToInput(
     
     for (const option of filterConfig.options) {
       // Skip if option is not published
-      if (option.status !== 'published') continue;
+      if (option.status !== 'PUBLISHED') continue;
 
       // Get the actual option name (variantOptionKey or optionType)
       const optionSettings = option.optionSettings || {};
@@ -349,7 +347,7 @@ export function getFilterConfigHash(filterConfig: Filter | null): string {
     hash,
     version: filterConfig.version,
     optionsCount: filterConfig.options?.length || 0,
-    publishedOptionsCount: filterConfig.options?.filter(opt => opt.status === 'published').length || 0,
+    publishedOptionsCount: filterConfig.options?.filter(opt => opt.status === 'PUBLISHED').length || 0,
   });
   
   return hash;
@@ -373,13 +371,12 @@ export function formatFilterConfigForStorefront(filterConfig: Filter | null): an
     targetScope: filterConfig.targetScope,
     allowedCollections: filterConfig.allowedCollections || [],
     options: filterConfig.options
-      ?.filter((opt) => opt.status === 'published') // Only include published options
+      ?.filter((opt) => opt.status === 'PUBLISHED') // Only include published options
       .map((opt) => {
         const optionSettings = opt.optionSettings || {};
         return {
           handle: opt.handle,
           position: opt.position,
-          optionId: opt.optionId,
           label: opt.label,
           optionType: opt.optionType,
           status: opt.status,

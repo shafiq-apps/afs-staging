@@ -55,7 +55,7 @@ function getEnabledAggregations(filterConfig: Filter | null): Set<string> {
   
   for (const option of filterConfig.options) {
     // Only include published options
-    if (option.status !== 'published') continue;
+    if (option.status !== 'PUBLISHED') continue;
     
     const optionType = option.optionType?.toLowerCase().trim() || '';
     
@@ -122,7 +122,7 @@ function getVariantOptionKeys(filterConfig: Filter | null): Set<string> {
   
   for (const option of filterConfig.options) {
     // Only include published options
-    if (option.status !== 'published') continue;
+    if (option.status !== 'PUBLISHED') continue;
     
     const optionSettings = option.optionSettings || {};
     
@@ -457,7 +457,7 @@ export class productsRepository {
       // If we have filterConfig but no variant option keys, log for debugging
       logger.debug('No variant option keys found in filterConfig', {
         totalOptions: filterConfig.options.length,
-        publishedOptions: filterConfig.options.filter(o => o.status === 'published').length,
+        publishedOptions: filterConfig.options.filter(o => o.status === 'PUBLISHED').length,
         optionTypes: filterConfig.options.map(o => {
           const optionSettings = o.optionSettings || {};
           return {
@@ -887,7 +887,7 @@ export class productsRepository {
         // If we have filterConfig but no variant option keys, log for debugging
         logger.debug('No variant option keys found in filterConfig (searchProducts)', {
           totalOptions: filterConfig.options.length,
-          publishedOptions: filterConfig.options.filter(o => o.status === 'published').length,
+          publishedOptions: filterConfig.options.filter(o => o.status === 'PUBLISHED').length,
           optionTypes: filterConfig.options.map(o => {
             const optionSettings = o.optionSettings || {};
             return {

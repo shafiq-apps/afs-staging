@@ -48,7 +48,6 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
           options {
             handle
             position
-            optionId
             label
             optionType
             displayType

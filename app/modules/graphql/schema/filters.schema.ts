@@ -93,7 +93,6 @@ export const filtersSchema = `
   type FilterOption {
     handle: String!
     position: Int!
-    optionId: String!
     label: String!
     optionType: String!
     displayType: DisplayType!
@@ -199,7 +198,6 @@ export const filtersSchema = `
   input FilterOptionInput {
     handle: String!
     position: Int!
-    optionId: String!
     label: String!
     optionType: String!
     displayType: DisplayType
@@ -264,20 +262,6 @@ export const filtersSchema = `
     isActive: Boolean
   }
 
-  input UpdateFilterInput {
-    title: String
-    description: String
-    filterType: String
-    targetScope: String
-    allowedCollections: [CollectionReferenceInput!]
-    options: [FilterOptionInput!]
-    status: FilterStatus
-    deploymentChannel: DeploymentChannel
-    settings: FilterSettingsInput
-    tags: [String!]
-    isActive: Boolean
-  }
-
   type Query {
     filter(shop: String!, id: String!): Filter
     filters(shop: String!): FilterListResult!
@@ -285,7 +269,7 @@ export const filtersSchema = `
 
   type Mutation {
     createFilter(shop: String!, input: CreateFilterInput!): Filter!
-    updateFilter(shop: String!, id: String!, input: UpdateFilterInput!): Filter!
+    updateFilter(shop: String!, id: String!, input: CreateFilterInput!): Filter!
     deleteFilter(shop: String!, id: String!): Boolean!
   }
 `;

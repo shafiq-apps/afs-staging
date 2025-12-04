@@ -19,7 +19,6 @@ export interface Filter {
   options: Array<{
     handle: string;
     position: number;
-    optionId: string;
     label: string;
     optionType: string; // e.g., "Collection", "Size", "Color"
     displayType?: string;
@@ -122,7 +121,6 @@ export interface CreateFilterInput {
   options: Array<{
     handle: string;
     position: number;
-    optionId: string;
     label: string;
     optionType: string;
     displayType?: string;
@@ -208,7 +206,6 @@ export interface UpdateFilterInput {
   options?: Array<{
     handle: string;
     position: number;
-    optionId: string;
     label: string;
     optionType: string;
     displayType?: string;

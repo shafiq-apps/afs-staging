@@ -229,13 +229,31 @@ function attachResolversToSchema(schema: GraphQLSchema, resolvers: any): GraphQL
   if (mutationType && resolvers.Mutation) {
     const mutationFields = mutationType.getFields();
     
+    logger.info('Mutation type fields in schema', {
+      availableFields: Object.keys(mutationFields),
+      availableResolvers: Object.keys(resolvers.Mutation || {}),
+    });
+    
     // Attach resolvers to each field
     Object.keys(resolvers.Mutation).forEach(fieldName => {
       if (mutationFields[fieldName] && resolvers.Mutation[fieldName]) {
         // Replace the resolve function
         (mutationFields[fieldName] as any).resolve = resolvers.Mutation[fieldName];
-        logger.debug('Attached resolver to Mutation field', { fieldName });
+        logger.info('Attached resolver to Mutation field', { fieldName });
+      } else {
+        logger.warn('Mutation field not found in schema or resolver missing', {
+          fieldName,
+          fieldExists: !!mutationFields[fieldName],
+          resolverExists: !!resolvers.Mutation[fieldName],
+          availableFields: Object.keys(mutationFields),
+          availableResolvers: Object.keys(resolvers.Mutation || {}),
+        });
       }
+    });
+  } else {
+    logger.warn('Mutation type or Mutation resolvers not available', {
+      hasMutationType: !!mutationType,
+      hasMutationResolvers: !!resolvers.Mutation,
     });
   }
 
@@ -335,7 +353,7 @@ function combineSchemas(schemas: string[]): GraphQLSchema {
         inType = false;
         inInput = false;
         inScalar = false;
-        currentBlock = [];
+        currentBlock = [line]; // Include the opening line so slice(1, -1) works correctly
         return;
       }
       
@@ -346,7 +364,7 @@ function combineSchemas(schemas: string[]): GraphQLSchema {
         inType = false;
         inInput = false;
         inScalar = false;
-        currentBlock = [];
+        currentBlock = [line]; // Include the opening line
         return;
       }
       
@@ -400,6 +418,11 @@ function combineSchemas(schemas: string[]): GraphQLSchema {
             queryFields.push(...fields);
           } else if (inMutation) {
             const fields = currentBlock.slice(1, -1).filter(l => l.trim() && !l.trim().startsWith('#'));
+            logger.debug('Extracting mutation fields', {
+              blockLength: currentBlock.length,
+              fieldsFound: fields.length,
+              fields: fields,
+            });
             mutationFields.push(...fields);
           } else if (inType) {
             typeDefinitions.push(...currentBlock);
@@ -439,13 +462,24 @@ function combineSchemas(schemas: string[]): GraphQLSchema {
     '}',
   ].join('\n');
 
+  // Log the combined schema for debugging
+  logger.info('Combined GraphQL schema', {
+    schemaCount: schemas.length,
+    queryFieldCount: queryFields.length,
+    mutationFieldCount: mutationFields.length,
+    mutationFields: mutationFields,
+    combinedSchemaPreview: combinedSchema.substring(0, 1000),
+  });
+
   try {
     return buildSchema(combinedSchema);
   } catch (error: any) {
     logger.error('Failed to combine GraphQL schemas', {
       error: error?.message || error,
       schemaCount: schemas.length,
-      combinedSchemaPreview: combinedSchema.substring(0, 500),
+      queryFields,
+      mutationFields,
+      combinedSchemaPreview: combinedSchema.substring(0, 1000),
     });
     throw new Error('Failed to combine GraphQL schemas');
   }

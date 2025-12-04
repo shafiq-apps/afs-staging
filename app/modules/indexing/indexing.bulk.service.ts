@@ -446,7 +446,7 @@ export class ProductBulkIndexer {
                   title: 'Default Filter',
                   description: 'Default filter created automatically after product indexing',
                   targetScope: 'all',
-                  status: 'published',
+                  status: 'PUBLISHED',
                   options: [],
                   settings: {
                     defaultView: 'grid',

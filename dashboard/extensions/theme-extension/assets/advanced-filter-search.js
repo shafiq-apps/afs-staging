@@ -157,17 +157,12 @@
 
       const handleStr = String(handle).trim();
       
-      // Find matching option in filterConfig by handle or optionId
+      // Find matching option in filterConfig by handle
       const option = filterConfig.options.find(opt => {
         if (!opt.status || opt.status !== 'published') return false;
         
         // Match by handle
         if (opt.handle && opt.handle === handleStr) {
-          return true;
-        }
-        
-        // Match by optionId (alternative ID)
-        if (opt.optionId && opt.optionId === handleStr) {
           return true;
         }
         

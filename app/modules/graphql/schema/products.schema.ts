@@ -2,9 +2,6 @@
  * Products GraphQL Schema
  * Defines GraphQL types and operations for product data
  * 
- * Index Configuration:
- * @index {shop}_products
- * 
  * This schema is based on products.type.ts and provides:
  * - Product queries with filters
  * - Aggregations for filters (vendors, productTypes, tags, collections, options, price ranges, SKUs)

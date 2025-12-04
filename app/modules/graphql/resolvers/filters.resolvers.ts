@@ -109,7 +109,8 @@ export const filtersResolvers = {
 
         logger.log('Creating filter', { shop, title: input.title });
         const repo = getFiltersRepository(context);
-        const filter = await repo.createFilter(shop, { ...input, shop });
+        // Don't spread shop into input - the repository method handles it
+        const filter = await repo.createFilter(shop, input);
         logger.log('Filter created', { shop, id: filter.id, title: filter.title });
         return filter;
       } catch (error: any) {

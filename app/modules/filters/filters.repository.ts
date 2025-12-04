@@ -40,7 +40,6 @@ export class FiltersRepository {
         return {
           handle: opt.handle,
           position: opt.position,
-          optionId: opt.optionId ?? opt.option_id ?? opt.uid ?? '',
           label: opt.label,
           optionType: opt.optionType ?? opt.option_type ?? opt.type ?? '',
           displayType: opt.displayType ?? opt.display_type ?? 'LIST',
@@ -239,7 +238,6 @@ export class FiltersRepository {
           return {
             handle: opt.handle,
             position: opt.position,
-            optionId: opt.optionId || '',
             label: opt.label,
             optionType: opt.optionType,
             displayType: opt.displayType || 'LIST',
@@ -307,7 +305,7 @@ export class FiltersRepository {
       // Invalidate cache only if the filter is published (active)
       // This avoids unnecessary cache invalidation for draft/inactive filters
       // Note: status === 'published' is the single source of truth for active filters
-      if (filter.status === 'published') {
+      if (filter.status === 'PUBLISHED') {
         try {
           const cacheService = getCacheService();
           cacheService.invalidateShop(shop);
@@ -380,7 +378,7 @@ export class FiltersRepository {
       // Invalidate cache only if the filter is published (active)
       // This avoids unnecessary cache invalidation for draft/inactive filters
       // Note: status === 'published' is the single source of truth for active filters
-      if (updated.status === 'published') {
+      if (updated.status === 'PUBLISHED') {
         try {
           const cacheService = getCacheService();
           cacheService.invalidateShop(shop);
