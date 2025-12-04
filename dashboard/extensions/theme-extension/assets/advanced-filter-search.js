@@ -1015,14 +1015,12 @@
             
             // Render options based on sorted filterConfig order
             sortedOptions.forEach(configOption => {
-              // Get optionSettings (nested per new schema)
-              const optionSettings = configOption.optionSettings || {};
-              
               // Get the option name to look up in filters
               // Priority: variantOptionKey > optionType > label
               // variantOptionKey is the actual key used in optionPairs (e.g., "size", "color")
               // optionType is the display name (e.g., "Size", "Color")
-              const variantKey = optionSettings.variantOptionKey;
+              // Note: variantOptionKey is now at top level (optionSettings removed to reduce payload)
+              const variantKey = configOption.variantOptionKey;
               const optionType = configOption.optionType;
               const label = configOption.label;
               
@@ -1132,8 +1130,8 @@
             // This handles cases where new options exist but aren't in config yet
             const renderedOptionKeys = new Set();
             filterConfig.options.forEach(opt => {
-              const optionSettings = opt.optionSettings || {};
-              const key = optionSettings.variantOptionKey || opt.optionType;
+              // variantOptionKey is now at top level (optionSettings removed to reduce payload)
+              const key = opt.variantOptionKey || opt.optionType;
               if (key) renderedOptionKeys.add(key.toLowerCase());
             });
             

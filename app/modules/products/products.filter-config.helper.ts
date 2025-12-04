@@ -373,7 +373,10 @@ export function formatFilterConfigForStorefront(filterConfig: Filter | null): an
     options: filterConfig.options
       ?.filter((opt) => opt.status === 'PUBLISHED') // Only include published options
       .map((opt) => {
+        // Extract variantOptionKey if needed for frontend (if used, otherwise can be removed)
         const optionSettings = opt.optionSettings || {};
+        const variantOptionKey = optionSettings.variantOptionKey;
+        
         return {
           handle: opt.handle,
           position: opt.position,
@@ -393,35 +396,9 @@ export function formatFilterConfigForStorefront(filterConfig: Filter | null): an
           showCount: opt.showCount || false,
           showMenu: opt.showMenu || false,
           
-          // Option Settings (nested per new schema)
-          optionSettings: {
-            // Value Selection & Filtering
-            baseOptionType: optionSettings.baseOptionType,
-            selectedValues: optionSettings.selectedValues || [],
-            removeSuffix: optionSettings.removeSuffix || [],
-            replaceText: optionSettings.replaceText || [],
-            
-            // Value Grouping & Normalization
-            valueNormalization: optionSettings.valueNormalization,
-            groupBySimilarValues: optionSettings.groupBySimilarValues || false,
-            
-            // Filtering & Prefixes
-            removePrefix: optionSettings.removePrefix || [],
-            filterByPrefix: optionSettings.filterByPrefix || [],
-            
-            // Sorting
-            sortBy: optionSettings.sortBy || 'ascending',
-            manualSortedValues: optionSettings.manualSortedValues || [],
-            
-            // Advanced
-            groups: optionSettings.groups || [],
-            menus: optionSettings.menus || [],
-            textTransform: optionSettings.textTransform || 'none',
-            paginationType: optionSettings.paginationType || 'scroll',
-            
-            // Performance Optimization: Include variant option key for frontend use
-            variantOptionKey: optionSettings.variantOptionKey,
-          },
+          // Only include variantOptionKey if it exists (for frontend filtering)
+          // Removed optionSettings to reduce payload size
+          ...(variantOptionKey ? { variantOptionKey } : {}),
         };
       })
       .sort((a, b) => a.position - b.position) || [], // Sort by position
