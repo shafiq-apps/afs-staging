@@ -53,7 +53,7 @@ export enum TextTransform {
 
 export enum DeploymentChannel {
   APP = "APP",
-  THEME = "THEME",
+  API = "API",
   ADMIN = "ADMIN",
 }
 
@@ -117,10 +117,21 @@ export function toFilterStatus(value: string | undefined | null): FilterStatus {
 
 export function toPaginationType(value: string | undefined | null): PaginationType {
   if (!value) return PaginationType.SCROLL;
-  const upper = value.toUpperCase();
-  return Object.values(PaginationType).includes(upper as PaginationType)
-    ? (upper as PaginationType)
-    : PaginationType.SCROLL;
+  
+  // Normalize the value: convert kebab-case to SCREAMING_SNAKE_CASE
+  // e.g., "load-more" -> "LOAD_MORE", "infinite-scroll" -> "INFINITE_SCROLL"
+  const normalized = value
+    .trim()
+    .toUpperCase()
+    .replace(/-/g, '_');
+  
+  // Check if it matches an enum value
+  if (Object.values(PaginationType).includes(normalized as PaginationType)) {
+    return normalized as PaginationType;
+  }
+  
+  // Fallback to SCROLL if no match
+  return PaginationType.SCROLL;
 }
 
 export function toTextTransform(value: string | undefined | null): TextTransform {

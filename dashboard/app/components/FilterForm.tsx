@@ -8,6 +8,7 @@ import {
   SelectionType,
   FilterOptionStatus,
   FilterStatus,
+  PaginationType,
   TargetScope,
   FilterOrientation,
   DefaultView,
@@ -464,7 +465,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
   const [defaultSort, setDefaultSort] = useState<string>("relevance");
   
   // Pagination Settings
-  const [paginationType, setPaginationType] = useState<string>("pages");
+  const [paginationType, setPaginationType] = useState<PaginationType>(PaginationType.PAGES);
   const [itemsPerPage, setItemsPerPage] = useState<number>(24);
   const [showPageInfo, setShowPageInfo] = useState<boolean>(true);
   const [pageInfoFormat, setPageInfoFormat] = useState<string>("");
@@ -496,7 +497,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
     onTablet: string;
     onMobile: string;
     defaultSort: string;
-    paginationType: string;
+    paginationType: PaginationType;
     itemsPerPage: number;
     showPageInfo: boolean;
     pageInfoFormat: string;
@@ -504,24 +505,8 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
     showClearAllButton: boolean;
   } | null>(null);
 
-  /**
-   * Map optionType to the correct baseOptionType category name
-   * baseOptionType should be one of: "Price", "Vendor", "Product Type", "Tags", "Collection", "Option"
-   */
-  const getBaseOptionType = useCallback((optionType: string): string => {
-    const normalizedType = optionType?.toLowerCase().trim();
-    
-    // Standard filter types
-    if (normalizedType === "price") return "Price";
-    if (normalizedType === "vendor") return "Vendor";
-    if (normalizedType === "product type" || normalizedType === "producttype") return "Product Type";
-    if (normalizedType === "tags" || normalizedType === "tag") return "Tags";
-    if (normalizedType === "collection" || normalizedType === "collections") return "Collection";
-    
-    // Variant options (color, size, material, etc.) use "Option"
-    // These are dynamic variant options that come from product data
-    return "Option";
-  }, []);
+  // Note: getBaseOptionType is imported from filter.constants.ts
+  // This local function is kept for backward compatibility but should use the imported one
 
   const handleOpenCollectionPicker = useCallback(async () => {
     if (!shopify) return;
@@ -604,7 +589,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
         onTablet: settings.onTablet || "",
         onMobile: settings.onMobile || "",
         defaultSort: productDisplay.defaultSort || "relevance",
-        paginationType: pagination.type || "pages",
+        paginationType: toPaginationType(pagination.type) || PaginationType.PAGES,
         itemsPerPage: pagination.itemsPerPage || 24,
         showPageInfo: pagination.showPageInfo ?? true,
         pageInfoFormat: pagination.pageInfoFormat || "",
@@ -660,7 +645,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
       setOnTablet("");
       setOnMobile("");
       setDefaultSort("relevance");
-      setPaginationType("pages");
+      setPaginationType(PaginationType.PAGES);
       setItemsPerPage(24);
       setShowPageInfo(true);
       setPageInfoFormat("");
@@ -737,7 +722,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
             menus: [],
             showMenu: false,
             textTransform: "NONE",
-            paginationType: "SCROLL",
+            paginationType: PaginationType.SCROLL,
             groupBySimilarValues: false,
             status: "PUBLISHED",
             baseOptionType: "Vendor",
@@ -772,7 +757,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
             menus: [],
             showMenu: false,
             textTransform: "NONE",
-            paginationType: "SCROLL",
+            paginationType: PaginationType.SCROLL,
             groupBySimilarValues: false,
             status: "PUBLISHED",
             baseOptionType: "Product Type",
@@ -807,7 +792,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
             menus: [],
             showMenu: false,
             textTransform: "NONE",
-            paginationType: "SCROLL",
+            paginationType: PaginationType.SCROLL,
             groupBySimilarValues: false,
             status: "PUBLISHED",
             baseOptionType: "Tags",
@@ -842,7 +827,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
             menus: [],
             showMenu: false,
             textTransform: "NONE",
-            paginationType: "SCROLL",
+            paginationType: PaginationType.SCROLL,
             groupBySimilarValues: false,
             status: "PUBLISHED",
             baseOptionType: "Collection",
@@ -854,9 +839,10 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
           Object.keys(storefrontFilters.options).forEach((optionKey) => {
             const optionValues = storefrontFilters.options[optionKey];
             if (optionValues && optionValues.length > 0) {
-              // Normalize variant option key to lowercase for consistent comparison
-              // This ensures variantOptionKey matches the format used in aggregation filtering
-              const normalizedOptionKey = optionKey.toLowerCase().trim();
+              // Keep original case for variantOptionKey
+              // Backend does case-insensitive matching but expects original case for consistency
+              // ES stores optionPairs in original case, so we preserve it here
+              const variantOptionKey = optionKey.trim();
               
               autoOptions.push({
                 handle: generateFilterHandle(optionKey),
@@ -890,9 +876,9 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                 // baseOptionType should be the actual category name, not the variant option key
                 // For variant options (color, size, etc.), use "Option" as the base type
                 baseOptionType: "Option",
-                // Performance Optimization: Store normalized variant option key for faster aggregations
-                // Key is normalized to lowercase to match the format used in aggregation filtering
-                variantOptionKey: normalizedOptionKey,
+                // Performance Optimization: Store variant option key for faster aggregations
+                // Keep original case - backend does case-insensitive matching but ES stores in original case
+                variantOptionKey: variantOptionKey,
               });
             }
           });
@@ -923,7 +909,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
           onTablet: "",
           onMobile: "",
           defaultSort: "relevance",
-          paginationType: "pages",
+          paginationType: PaginationType.PAGES,
           itemsPerPage: 24,
           showPageInfo: true,
           pageInfoFormat: "",
@@ -955,7 +941,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
           onTablet: "",
           onMobile: "",
           defaultSort: "relevance",
-          paginationType: "pages",
+          paginationType: PaginationType.PAGES,
           itemsPerPage: 24,
           showPageInfo: true,
           pageInfoFormat: "",
@@ -1135,7 +1121,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
       menus: [],
       showMenu: false,
       textTransform: "none",
-      paginationType: "scroll",
+      paginationType: PaginationType.SCROLL,
       groupBySimilarValues: false,
       status: "PUBLISHED",
       baseOptionType: "Collection",
@@ -1199,7 +1185,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
             
             // Update variantOptionKey for variant options
             // For standard types (Price, Vendor, etc.), variantOptionKey should be undefined
-            // For variant options (Color, Size, etc.), variantOptionKey should be the normalized optionType
+            // For variant options (Color, Size, etc.), variantOptionKey should be the optionType in original case
             const normalizedType = (value as string).toLowerCase().trim();
             const isStandardType = ['price', 'vendor', 'product type', 'producttype', 'tags', 'tag', 'collection', 'collections'].includes(normalizedType);
             
@@ -1207,8 +1193,9 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
               // Standard types don't need variantOptionKey
               updated.variantOptionKey = undefined;
             } else {
-              // Variant options: store normalized optionType as variantOptionKey
-              updated.variantOptionKey = normalizedType;
+              // Variant options: store optionType as variantOptionKey (keep original case)
+              // Backend does case-insensitive matching but ES stores in original case
+              updated.variantOptionKey = (value as string).trim();
             }
           }
           

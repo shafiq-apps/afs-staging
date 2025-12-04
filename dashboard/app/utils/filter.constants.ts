@@ -119,14 +119,39 @@ export const DEFAULT_VIEWS = Object.values(DefaultView) as readonly string[];
 
 /**
  * Get base option type from option type
+ * 
+ * Standard option types (Price, Vendor, Product Type, Tags, Collection, Metafield) 
+ * use their own name as the base type.
+ * 
+ * All other option types are variant options (Color, Size, Material, Style, etc.) 
+ * and use "Option" as the base type. Variant options are fully dynamic and come 
+ * from product data, so we cannot predict or hardcode them.
+ * 
+ * @param optionType - The option type to get the base type for
+ * @returns The base option type ("Price", "Vendor", "Product Type", "Tags", "Collection", "Metafield", or "Option")
  */
 export function getBaseOptionType(optionType: string): string {
-  // For variant options (Color, Size, etc.), use "Option" as base type
-  const variantOptionTypes = ["Color", "Size", "Material", "Style"];
-  if (variantOptionTypes.includes(optionType)) {
+  if (!optionType) {
     return "Option";
   }
-  return optionType;
+  
+  // Normalize the option type for comparison (case-insensitive, trim whitespace)
+  const normalizedType = optionType.trim().toLowerCase();
+  
+  // Standard/base option types that use their own name as base type
+  // These are the known standard types - everything else is a variant option
+  if (normalizedType === "price") return "Price";
+  if (normalizedType === "category") return "Category";
+  if (normalizedType === "vendor") return "Vendor";
+  if (normalizedType === "product type" || normalizedType === "producttype") return "ProductType";
+  if (normalizedType === "tags" || normalizedType === "tag") return "Tags";
+  if (normalizedType === "collection" || normalizedType === "collections") return "Collection";
+  if (normalizedType === "metafield" || normalizedType === "metafields") return "Metafield";
+  
+  // Everything else is a variant option (Color, Size, Material, Style, etc.)
+  // These are fully dynamic and come from product variant options
+  // We cannot predict or hardcode them, so any unknown type is treated as "Option"
+  return "Option";
 }
 
 /**
