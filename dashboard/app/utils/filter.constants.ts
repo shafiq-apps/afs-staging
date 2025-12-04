@@ -93,7 +93,7 @@ export const DISPLAY_TYPE_MAPPINGS: Record<string, DisplayType[]> = {
 export const OPTION_TYPES = [
   "Price",
   "Vendor",
-  "Product Type",
+  "ProductType",
   "Tags",
   "Collection",
   "Metafield",
@@ -120,7 +120,7 @@ export const DEFAULT_VIEWS = Object.values(DefaultView) as readonly string[];
 /**
  * Get base option type from option type
  * 
- * Standard option types (Price, Vendor, Product Type, Tags, Collection, Metafield) 
+ * Standard option types (Price, Vendor, ProductType, Tags, Collection, Metafield) 
  * use their own name as the base type.
  * 
  * All other option types are variant options (Color, Size, Material, Style, etc.) 
@@ -128,7 +128,7 @@ export const DEFAULT_VIEWS = Object.values(DefaultView) as readonly string[];
  * from product data, so we cannot predict or hardcode them.
  * 
  * @param optionType - The option type to get the base type for
- * @returns The base option type ("Price", "Vendor", "Product Type", "Tags", "Collection", "Metafield", or "Option")
+ * @returns The base option type ("Price", "Vendor", "ProductType", "Tags", "Collection", "Metafield", or "Option")
  */
 export function getBaseOptionType(optionType: string): string {
   if (!optionType) {

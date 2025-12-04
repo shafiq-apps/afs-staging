@@ -94,7 +94,6 @@ export const productsSchema = `
     precision: String
   }
 
-  # Main Product Type
   type Product {
     id: String!
     productId: String

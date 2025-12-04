@@ -1328,7 +1328,7 @@
     formatFilterLabel(filterType) {
       const labels = {
         vendors: 'Vendor',
-        productTypes: 'Product Type',
+        productTypes: 'ProductType',
         tags: 'Tags',
         collections: 'Collections',
         options: 'Options'
@@ -1836,8 +1836,8 @@
       const filterLabels = {
         vendor: 'Vendor',
         vendors: 'Vendor',
-        productType: 'Product Type',
-        productTypes: 'Product Type',
+        productType: 'ProductType',
+        productTypes: 'ProductType',
         tags: 'Tag',
         tag: 'Tag',
         collections: 'Collection',

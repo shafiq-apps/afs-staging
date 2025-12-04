@@ -74,7 +74,7 @@
             "handle": "ptqhkq",
             "position": 2,
             "label": "Product Type",
-            "optionType": "Product Type",
+            "optionType": "ProductType",
             "displayType": "LIST",
             "selectionType": "MULTIPLE",
             "targetScope": "all",
@@ -87,7 +87,7 @@
             "showMenu": false,
             "status": "PUBLISHED",
             "optionSettings": {
-                "baseOptionType": "Product Type",
+                "baseOptionType": "ProductType",
                 "selectedValues": [],
                 "removeSuffix": [],
                 "replaceText": [],

@@ -190,7 +190,7 @@ interface FilterFormProps {
 
 const BASE_FILTER_TYPES = [
   "Collection",
-  "Product Type",
+  "ProductType",
   "Vendor",
   "Tags",
   "Price",
@@ -731,12 +731,12 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
           });
         }
 
-        // Add Product Type filter
+        // Add ProductType filter
         if (storefrontFilters.productTypes && storefrontFilters.productTypes.length > 0) {
           autoOptions.push({
             handle: generateFilterHandle('product-type'),
             position: position++,
-            label: "Product Type",
+            label: "ProductType",
             optionType: "productType",
             displayType: "LIST",
             selectionType: "MULTIPLE",
@@ -1170,7 +1170,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
     switch (optionType) {
       case "Vendor":
         return storefrontFilters.vendors || [];
-      case "Product Type":
+      case "ProductType":
         return storefrontFilters.productTypes || [];
       case "Tags":
         return storefrontFilters.tags || [];
