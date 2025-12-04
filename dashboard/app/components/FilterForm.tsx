@@ -1,16 +1,16 @@
 import { useState, useEffect, useCallback, useRef, useImperativeHandle, forwardRef } from "react";
-import { useNavigate, useRevalidator, useLocation } from "react-router";
+import { useNavigate, useLocation } from "react-router";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { useTranslation } from "../utils/translations";
 import { generateFilterHandle } from "../utils/id-generator";
 import {
   DisplayType,
   SelectionType,
-  SortOrder,
   FilterOptionStatus,
   FilterStatus,
-  PaginationType,
-  TextTransform,
+  TargetScope,
+  FilterOrientation,
+  DefaultView,
   toDisplayType,
   toSelectionType,
   toSortOrder,
@@ -18,17 +18,14 @@ import {
   toFilterStatus,
   toPaginationType,
   toTextTransform,
+  toTargetScope,
+  toFilterOrientation,
+  toDefaultView,
 } from "../utils/filter.enums";
 import {
   DEFAULT_FILTER_OPTION,
   DEFAULT_FILTER,
   PRICE_FILTER_DEFAULTS,
-  SELECTION_TYPE_MAPPINGS,
-  DISPLAY_TYPE_MAPPINGS,
-  OPTION_TYPES,
-  TARGET_SCOPES,
-  FILTER_ORIENTATIONS,
-  DEFAULT_VIEWS,
   getBaseOptionType,
   getAvailableSelectionTypes,
   getAvailableDisplayTypes,
@@ -119,12 +116,36 @@ interface FilterFormProps {
     title: string;
     description?: string;
     status: string;
-    targetScope: string;
+    targetScope: string | TargetScope;
     allowedCollections: CollectionReference[];
     options: FilterOption[];
     settings?: {
+      displayQuickView?: boolean;
+      displayItemsCount?: boolean;
+      displayVariantInsteadOfProduct?: boolean;
       defaultView?: string;
       filterOrientation?: string;
+      displayCollectionImage?: boolean;
+      hideOutOfStockItems?: boolean;
+      onLaptop?: string;
+      onTablet?: string;
+      onMobile?: string;
+      productDisplay?: {
+        gridColumns?: number;
+        showProductCount?: boolean;
+        showSortOptions?: boolean;
+        defaultSort?: string;
+      };
+      pagination?: {
+        type?: string;
+        itemsPerPage?: number;
+        showPageInfo?: boolean;
+        pageInfoFormat?: string;
+      };
+      showFilterCount?: boolean;
+      showActiveFilters?: boolean;
+      showResetButton?: boolean;
+      showClearAllButton?: boolean;
     };
   } | null;
   shop: string;
@@ -399,7 +420,6 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
   onSavingChange
 }, ref) {
   const navigate = useNavigate();
-  const revalidator = useRevalidator();
   const shopify = useAppBridge();
   const location = useLocation();
   const { t } = useTranslation();
@@ -410,7 +430,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
   const [optionsError, setOptionsError] = useState("");
   const [collectionsError, setCollectionsError] = useState("");
   const titleInputId = `title-input-${mode}`;
-  const [targetScope, setTargetScope] = useState("all");
+  const [targetScope, setTargetScope] = useState<TargetScope>(TargetScope.ALL);
   const [selectedCollections, setSelectedCollections] = useState<CollectionReference[]>([]);
   const [filterOptions, setFilterOptions] = useState<FilterOption[]>([]);
   const [expandedOptions, setExpandedOptions] = useState<Set<string>>(new Set());
@@ -422,28 +442,66 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
   const [generalSettingsExpanded, setGeneralSettingsExpanded] = useState<boolean>(false);
   
   // General/Global Settings
-  const [filterOrientation, setFilterOrientation] = useState<string>("vertical");
-  const [defaultView, setDefaultView] = useState<string>("grid");
+  const [filterOrientation, setFilterOrientation] = useState<FilterOrientation>(FilterOrientation.VERTICAL);
+  const [defaultView, setDefaultView] = useState<DefaultView>(DefaultView.GRID);
   const [showFilterCount, setShowFilterCount] = useState<boolean>(true);
   const [showActiveFilters, setShowActiveFilters] = useState<boolean>(true);
   const [gridColumns, setGridColumns] = useState<number>(3);
   const [showProductCount, setShowProductCount] = useState<boolean>(true);
   const [showSortOptions, setShowSortOptions] = useState<boolean>(true);
+  
+  // Additional Filter Settings
+  const [displayQuickView, setDisplayQuickView] = useState<boolean>(false);
+  const [displayItemsCount, setDisplayItemsCount] = useState<boolean>(true);
+  const [displayVariantInsteadOfProduct, setDisplayVariantInsteadOfProduct] = useState<boolean>(false);
+  const [displayCollectionImage, setDisplayCollectionImage] = useState<boolean>(false);
+  const [hideOutOfStockItems, setHideOutOfStockItems] = useState<boolean>(false);
+  const [onLaptop, setOnLaptop] = useState<string>("");
+  const [onTablet, setOnTablet] = useState<string>("");
+  const [onMobile, setOnMobile] = useState<string>("");
+  
+  // Product Display Settings
+  const [defaultSort, setDefaultSort] = useState<string>("relevance");
+  
+  // Pagination Settings
+  const [paginationType, setPaginationType] = useState<string>("pages");
+  const [itemsPerPage, setItemsPerPage] = useState<number>(24);
+  const [showPageInfo, setShowPageInfo] = useState<boolean>(true);
+  const [pageInfoFormat, setPageInfoFormat] = useState<string>("");
+  
+  // Filter UI Options
+  const [showResetButton, setShowResetButton] = useState<boolean>(true);
+  const [showClearAllButton, setShowClearAllButton] = useState<boolean>(true);
 
   // Store initial state for revert functionality
   const [initialState, setInitialState] = useState<{
     title: string;
     status: string;
-    targetScope: string;
+    targetScope: TargetScope;
     selectedCollections: CollectionReference[];
     filterOptions: FilterOption[];
-    filterOrientation: string;
-    defaultView: string;
+    filterOrientation: FilterOrientation;
+    defaultView: DefaultView;
     showFilterCount: boolean;
     showActiveFilters: boolean;
     gridColumns: number;
     showProductCount: boolean;
     showSortOptions: boolean;
+    displayQuickView: boolean;
+    displayItemsCount: boolean;
+    displayVariantInsteadOfProduct: boolean;
+    displayCollectionImage: boolean;
+    hideOutOfStockItems: boolean;
+    onLaptop: string;
+    onTablet: string;
+    onMobile: string;
+    defaultSort: string;
+    paginationType: string;
+    itemsPerPage: number;
+    showPageInfo: boolean;
+    pageInfoFormat: string;
+    showResetButton: boolean;
+    showClearAllButton: boolean;
   } | null>(null);
 
   /**
@@ -520,19 +578,38 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
         baseOptionType: option.baseOptionType || getBaseOptionType(option.optionType),
       }));
 
+      const settings: any = initialFilter.settings || {};
+      const productDisplay: any = settings.productDisplay || {};
+      const pagination: any = settings.pagination || {};
+      
       const initState = {
         title: initialFilter.title || "",
         status: toFilterStatus(initialFilter.status),
-        targetScope: initialFilter.targetScope || "all",
+        targetScope: toTargetScope(initialFilter.targetScope) || TargetScope.ALL,
         selectedCollections: JSON.parse(JSON.stringify(initialFilter.allowedCollections || [])),
         filterOptions: JSON.parse(JSON.stringify(normalizedOptions)),
-        filterOrientation: initialFilter.settings?.filterOrientation || "vertical",
-        defaultView: initialFilter.settings?.defaultView || "grid",
-        showFilterCount: true,
-        showActiveFilters: true,
-        gridColumns: 3,
-        showProductCount: true,
-        showSortOptions: true,
+        filterOrientation: toFilterOrientation(settings.filterOrientation) || FilterOrientation.VERTICAL,
+        defaultView: toDefaultView(settings.defaultView) || DefaultView.GRID,
+        showFilterCount: settings.showFilterCount ?? true,
+        showActiveFilters: settings.showActiveFilters ?? true,
+        gridColumns: productDisplay.gridColumns || 3,
+        showProductCount: productDisplay.showProductCount ?? true,
+        showSortOptions: productDisplay.showSortOptions ?? true,
+        displayQuickView: settings.displayQuickView ?? false,
+        displayItemsCount: settings.displayItemsCount ?? true,
+        displayVariantInsteadOfProduct: settings.displayVariantInsteadOfProduct ?? false,
+        displayCollectionImage: settings.displayCollectionImage ?? false,
+        hideOutOfStockItems: settings.hideOutOfStockItems ?? false,
+        onLaptop: settings.onLaptop || "",
+        onTablet: settings.onTablet || "",
+        onMobile: settings.onMobile || "",
+        defaultSort: productDisplay.defaultSort || "relevance",
+        paginationType: pagination.type || "pages",
+        itemsPerPage: pagination.itemsPerPage || 24,
+        showPageInfo: pagination.showPageInfo ?? true,
+        pageInfoFormat: pagination.pageInfoFormat || "",
+        showResetButton: settings.showResetButton ?? true,
+        showClearAllButton: settings.showClearAllButton ?? true,
       };
       setInitialState(initState);
       
@@ -542,7 +619,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
       setSelectedCollections(initState.selectedCollections);
       setFilterOptions(initState.filterOptions);
       
-      // Load general settings
+      // Load all settings
       setFilterOrientation(initState.filterOrientation);
       setDefaultView(initState.defaultView);
       setShowFilterCount(initState.showFilterCount);
@@ -550,6 +627,21 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
       setGridColumns(initState.gridColumns);
       setShowProductCount(initState.showProductCount);
       setShowSortOptions(initState.showSortOptions);
+      setDisplayQuickView(initState.displayQuickView);
+      setDisplayItemsCount(initState.displayItemsCount);
+      setDisplayVariantInsteadOfProduct(initState.displayVariantInsteadOfProduct);
+      setDisplayCollectionImage(initState.displayCollectionImage);
+      setHideOutOfStockItems(initState.hideOutOfStockItems);
+      setOnLaptop(initState.onLaptop);
+      setOnTablet(initState.onTablet);
+      setOnMobile(initState.onMobile);
+      setDefaultSort(initState.defaultSort);
+      setPaginationType(initState.paginationType);
+      setItemsPerPage(initState.itemsPerPage);
+      setShowPageInfo(initState.showPageInfo);
+      setPageInfoFormat(initState.pageInfoFormat);
+      setShowResetButton(initState.showResetButton);
+      setShowClearAllButton(initState.showClearAllButton);
     } else {
       // Create mode - set defaults and auto-populate filter options
       setFilterOrientation(DEFAULT_FILTER.filterOrientation);
@@ -559,6 +651,21 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
       setGridColumns(DEFAULT_FILTER.gridColumns);
       setShowProductCount(DEFAULT_FILTER.showProductCount);
       setShowSortOptions(DEFAULT_FILTER.showSortOptions);
+      setDisplayQuickView(false);
+      setDisplayItemsCount(true);
+      setDisplayVariantInsteadOfProduct(false);
+      setDisplayCollectionImage(false);
+      setHideOutOfStockItems(false);
+      setOnLaptop("");
+      setOnTablet("");
+      setOnMobile("");
+      setDefaultSort("relevance");
+      setPaginationType("pages");
+      setItemsPerPage(24);
+      setShowPageInfo(true);
+      setPageInfoFormat("");
+      setShowResetButton(true);
+      setShowClearAllButton(true);
       
       // Auto-populate filter options from storefrontFilters
       if (storefrontFilters && filterOptions.length === 0) {
@@ -611,7 +718,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
             optionType: "Vendor",
             displayType: "LIST",
             selectionType: "MULTIPLE",
-            targetScope: "all",
+            targetScope: TargetScope.ALL,
             selectedValues: [],
             allowedOptions: [],
             groups: [],
@@ -646,7 +753,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
             optionType: "Product Type",
             displayType: "LIST",
             selectionType: "MULTIPLE",
-            targetScope: "all",
+            targetScope: TargetScope.ALL,
             selectedValues: [],
             allowedOptions: [],
             groups: [],
@@ -681,7 +788,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
             optionType: "Tags",
             displayType: "LIST",
             selectionType: "MULTIPLE",
-            targetScope: "all",
+            targetScope: TargetScope.ALL,
             selectedValues: [],
             allowedOptions: [],
             groups: [],
@@ -716,7 +823,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
             optionType: "Collection",
             displayType: "LIST",
             selectionType: "MULTIPLE",
-            targetScope: "all",
+            targetScope: TargetScope.ALL,
             selectedValues: [],
             allowedOptions: [],
             groups: [],
@@ -800,13 +907,28 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
           targetScope: DEFAULT_FILTER.targetScope,
           selectedCollections: [],
           filterOptions: JSON.parse(JSON.stringify(autoOptions)),
-          filterOrientation: "vertical",
-          defaultView: "grid",
+          filterOrientation: FilterOrientation.VERTICAL,
+          defaultView: DefaultView.GRID,
           showFilterCount: true,
           showActiveFilters: true,
           gridColumns: 3,
           showProductCount: true,
           showSortOptions: true,
+          displayQuickView: false,
+          displayItemsCount: true,
+          displayVariantInsteadOfProduct: false,
+          displayCollectionImage: false,
+          hideOutOfStockItems: false,
+          onLaptop: "",
+          onTablet: "",
+          onMobile: "",
+          defaultSort: "relevance",
+          paginationType: "pages",
+          itemsPerPage: 24,
+          showPageInfo: true,
+          pageInfoFormat: "",
+          showResetButton: true,
+          showClearAllButton: true,
         };
         setInitialState(createInitState);
       } else if (mode === "create") {
@@ -817,13 +939,28 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
           targetScope: DEFAULT_FILTER.targetScope,
           selectedCollections: [],
           filterOptions: [],
-          filterOrientation: "vertical",
-          defaultView: "grid",
+          filterOrientation: FilterOrientation.VERTICAL,
+          defaultView: DefaultView.GRID,
           showFilterCount: true,
           showActiveFilters: true,
           gridColumns: 3,
           showProductCount: true,
           showSortOptions: true,
+          displayQuickView: false,
+          displayItemsCount: true,
+          displayVariantInsteadOfProduct: false,
+          displayCollectionImage: false,
+          hideOutOfStockItems: false,
+          onLaptop: "",
+          onTablet: "",
+          onMobile: "",
+          defaultSort: "relevance",
+          paginationType: "pages",
+          itemsPerPage: 24,
+          showPageInfo: true,
+          pageInfoFormat: "",
+          showResetButton: true,
+          showClearAllButton: true,
         };
         setInitialState(createInitState);
       }
@@ -847,7 +984,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
       const newScope = event.currentTarget?.values?.[0];
       setTargetScope(newScope);
       // Clear collections error when switching away from "entitled" or when collections are already selected
-      if (newScope !== "entitled" || selectedCollections.length > 0) {
+      if (newScope !== TargetScope.ENTITLED || selectedCollections.length > 0) {
         setCollectionsError("");
       }
     }
@@ -868,7 +1005,22 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
       showActiveFilters !== initialState.showActiveFilters ||
       gridColumns !== initialState.gridColumns ||
       showProductCount !== initialState.showProductCount ||
-      showSortOptions !== initialState.showSortOptions;
+      showSortOptions !== initialState.showSortOptions ||
+      displayQuickView !== initialState.displayQuickView ||
+      displayItemsCount !== initialState.displayItemsCount ||
+      displayVariantInsteadOfProduct !== initialState.displayVariantInsteadOfProduct ||
+      displayCollectionImage !== initialState.displayCollectionImage ||
+      hideOutOfStockItems !== initialState.hideOutOfStockItems ||
+      onLaptop !== initialState.onLaptop ||
+      onTablet !== initialState.onTablet ||
+      onMobile !== initialState.onMobile ||
+      defaultSort !== initialState.defaultSort ||
+      paginationType !== initialState.paginationType ||
+      itemsPerPage !== initialState.itemsPerPage ||
+      showPageInfo !== initialState.showPageInfo ||
+      pageInfoFormat !== initialState.pageInfoFormat ||
+      showResetButton !== initialState.showResetButton ||
+      showClearAllButton !== initialState.showClearAllButton;
     
     setHasChanges(changed);
     
@@ -892,7 +1044,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
     }, 50);
 
     return () => clearTimeout(timeoutId);
-  }, [title, status, targetScope, selectedCollections, filterOptions, filterOrientation, defaultView, showFilterCount, showActiveFilters, gridColumns, showProductCount, showSortOptions, initialState]);
+  }, [title, status, targetScope, selectedCollections, filterOptions, filterOrientation, defaultView, showFilterCount, showActiveFilters, gridColumns, showProductCount, showSortOptions, displayQuickView, displayItemsCount, displayVariantInsteadOfProduct, displayCollectionImage, hideOutOfStockItems, onLaptop, onTablet, onMobile, defaultSort, paginationType, itemsPerPage, showPageInfo, pageInfoFormat, showResetButton, showClearAllButton, initialState]);
 
   // Dismiss save bar on unmount to prevent it from persisting on other pages
   useEffect(() => {
@@ -928,6 +1080,21 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
     setGridColumns(initialState.gridColumns);
     setShowProductCount(initialState.showProductCount);
     setShowSortOptions(initialState.showSortOptions);
+    setDisplayQuickView(initialState.displayQuickView);
+    setDisplayItemsCount(initialState.displayItemsCount);
+    setDisplayVariantInsteadOfProduct(initialState.displayVariantInsteadOfProduct);
+    setDisplayCollectionImage(initialState.displayCollectionImage);
+    setHideOutOfStockItems(initialState.hideOutOfStockItems);
+    setOnLaptop(initialState.onLaptop);
+    setOnTablet(initialState.onTablet);
+    setOnMobile(initialState.onMobile);
+    setDefaultSort(initialState.defaultSort);
+    setPaginationType(initialState.paginationType);
+    setItemsPerPage(initialState.itemsPerPage);
+    setShowPageInfo(initialState.showPageInfo);
+    setPageInfoFormat(initialState.pageInfoFormat);
+    setShowResetButton(initialState.showResetButton);
+    setShowClearAllButton(initialState.showClearAllButton);
     setHasChanges(false);
     
     // Remove data-save-bar to hide the save bar
@@ -1243,7 +1410,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
     }
 
     // Validate collections when targetScope is "entitled" (specific collections)
-    if (targetScope === "entitled" && selectedCollections.length === 0) {
+    if (targetScope === TargetScope.ENTITLED && selectedCollections.length === 0) {
       setCollectionsError("At least one collection must be selected when using specific collections");
       hasError = true;
     }
@@ -1324,12 +1491,36 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
       const input: any = {
         title: title.trim(),
         status: toFilterStatus(status),
-        targetScope,
+        targetScope: typeof targetScope === 'string' ? targetScope : targetScope,
         allowedCollections: selectedCollections,
         options: normalizedOptions,
         settings: {
-          defaultView,
-          filterOrientation,
+          displayQuickView,
+          displayItemsCount,
+          displayVariantInsteadOfProduct,
+          defaultView: typeof defaultView === 'string' ? defaultView : defaultView,
+          filterOrientation: typeof filterOrientation === 'string' ? filterOrientation : filterOrientation,
+          displayCollectionImage,
+          hideOutOfStockItems,
+          onLaptop: onLaptop || undefined,
+          onTablet: onTablet || undefined,
+          onMobile: onMobile || undefined,
+          productDisplay: {
+            gridColumns,
+            showProductCount,
+            showSortOptions,
+            defaultSort,
+          },
+          pagination: {
+            type: paginationType,
+            itemsPerPage,
+            showPageInfo,
+            pageInfoFormat: pageInfoFormat || undefined,
+          },
+          showFilterCount,
+          showActiveFilters,
+          showResetButton,
+          showClearAllButton,
         },
       };
 
@@ -1502,14 +1693,14 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
               name="Collection Display Options"
               values={[targetScope]}
             >
-              <s-choice selected={targetScope === "all"} value="all">
+              <s-choice selected={targetScope === TargetScope.ALL} value={TargetScope.ALL}>
                 {t("filterForm.collectionDisplay.all")}
               </s-choice>
-              <s-choice selected={targetScope === "entitled"} value="entitled">
+              <s-choice selected={targetScope === TargetScope.ENTITLED} value={TargetScope.ENTITLED}>
                 {t("filterForm.collectionDisplay.specific")}
               </s-choice>
             </s-choice-list>
-            {targetScope === "entitled" && (
+            {targetScope === TargetScope.ENTITLED && (
               <s-box padding="base" borderWidth="base" borderRadius="base" background="subdued">
                 <s-stack direction="block" gap="small">
                   <s-button
@@ -2080,13 +2271,13 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                           values={[filterOrientation]}
                           onChange={(e: any) => {
                             const value = e.currentTarget?.values?.[0];
-                            if (value) setFilterOrientation(value);
+                            if (value) setFilterOrientation(toFilterOrientation(value));
                           }}
                         >
-                          <s-choice value="vertical" selected={filterOrientation === "vertical"}>
+                          <s-choice value={FilterOrientation.VERTICAL} selected={filterOrientation === FilterOrientation.VERTICAL}>
                             Vertical (Sidebar)
                           </s-choice>
-                          <s-choice value="horizontal" selected={filterOrientation === "horizontal"}>
+                          <s-choice value={FilterOrientation.HORIZONTAL} selected={filterOrientation === FilterOrientation.HORIZONTAL}>
                             Horizontal (Top Bar)
                           </s-choice>
                         </s-choice-list>
@@ -2096,18 +2287,18 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                           values={[defaultView]}
                           onChange={(e: any) => {
                             const value = e.currentTarget?.values?.[0];
-                            if (value) setDefaultView(value);
+                            if (value) setDefaultView(toDefaultView(value));
                           }}
                         >
-                          <s-choice value="grid" selected={defaultView === "grid"}>
+                          <s-choice value={DefaultView.GRID} selected={defaultView === DefaultView.GRID}>
                             Grid View
                           </s-choice>
-                          <s-choice value="list" selected={defaultView === "list"}>
+                          <s-choice value={DefaultView.LIST} selected={defaultView === DefaultView.LIST}>
                             List View
                           </s-choice>
                         </s-choice-list>
 
-                        {defaultView === "grid" && (
+                        {defaultView === DefaultView.GRID && (
                           <s-choice-list
                             label="Products per Row"
                             values={[gridColumns.toString()]}
@@ -2133,10 +2324,8 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                       <s-stack direction="block" gap="base">
                         <s-select
                           label="Default Sort Order"
-                          value="relevance"
-                          onChange={(e: any) => {
-                            // This will be stored in settings.productDisplay.defaultSort
-                          }}
+                          value={defaultSort}
+                          onChange={(e: any) => setDefaultSort(e.target.value)}
                         >
                           <s-option value="relevance">Relevance</s-option>
                           <s-option value="price-asc">Price: Low to High</s-option>
@@ -2166,29 +2355,34 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                       <s-stack direction="block" gap="base">
                         <s-choice-list
                           label="Pagination Type"
-                          values={["pages"]}
+                          values={[paginationType]}
                           onChange={(e: any) => {
-                            // This will be stored in settings.pagination.type
+                            const value = e.currentTarget?.values?.[0];
+                            if (value) setPaginationType(value);
                           }}
                         >
-                          <s-choice value="pages" selected={true}>Pages (1, 2, 3...)</s-choice>
-                          <s-choice value="load-more" selected={false}>Load More Button</s-choice>
-                          <s-choice value="infinite-scroll" selected={false}>Infinite Scroll</s-choice>
+                          <s-choice value="pages" selected={paginationType === "pages"}>Pages (1, 2, 3...)</s-choice>
+                          <s-choice value="load-more" selected={paginationType === "load-more"}>Load More Button</s-choice>
+                          <s-choice value="infinite-scroll" selected={paginationType === "infinite-scroll"}>Infinite Scroll</s-choice>
                         </s-choice-list>
                         <s-text-field
                           label="Items per Page"
-                          value="24"
-                          onChange={(e: any) => {
-                            // This will be stored in settings.pagination.itemsPerPage
-                          }}
+                          value={itemsPerPage.toString()}
+                          onChange={(e: any) => setItemsPerPage(parseInt(e.target.value) || 24)}
                         />
                         <s-switch
                           label="Show page info (e.g., 'Showing 1-24 of 120 products')"
-                          checked={true}
-                          onChange={(e: any) => {
-                            // This will be stored in settings.pagination.showPageInfo
-                          }}
+                          checked={showPageInfo}
+                          onChange={(e: any) => setShowPageInfo(e.target.checked)}
                         />
+                        {showPageInfo && (
+                          <s-text-field
+                            label="Page Info Format (optional)"
+                            value={pageInfoFormat}
+                            onChange={(e: any) => setPageInfoFormat(e.target.value)}
+                            placeholder="e.g., 'Showing {start}-{end} of {total}'"
+                          />
+                        )}
                       </s-stack>
                     </s-stack>
                   </s-box>
@@ -2210,17 +2404,74 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                         />
                         <s-switch
                           label="Show 'Reset Filters' button"
-                          checked={true}
-                          onChange={(e: any) => {
-                            // This will be stored in settings.showResetButton
-                          }}
+                          checked={showResetButton}
+                          onChange={(e: any) => setShowResetButton(e.target.checked)}
                         />
                         <s-switch
                           label="Show 'Clear All' button"
-                          checked={true}
-                          onChange={(e: any) => {
-                            // This will be stored in settings.showClearAllButton
-                          }}
+                          checked={showClearAllButton}
+                          onChange={(e: any) => setShowClearAllButton(e.target.checked)}
+                        />
+                      </s-stack>
+                    </s-stack>
+                  </s-box>
+
+                  {/* Section 5: Product Display Options */}
+                  <s-box padding="base" borderWidth="base" borderRadius="base" background="subdued">
+                    <s-stack direction="block" gap="base">
+                      <s-heading>Product Display Options</s-heading>
+                      <s-stack direction="block" gap="base">
+                        <s-switch
+                          label="Display quick view"
+                          checked={displayQuickView}
+                          onChange={(e: any) => setDisplayQuickView(e.target.checked)}
+                        />
+                        <s-switch
+                          label="Display items count"
+                          checked={displayItemsCount}
+                          onChange={(e: any) => setDisplayItemsCount(e.target.checked)}
+                        />
+                        <s-switch
+                          label="Display variant instead of product"
+                          checked={displayVariantInsteadOfProduct}
+                          onChange={(e: any) => setDisplayVariantInsteadOfProduct(e.target.checked)}
+                        />
+                        <s-switch
+                          label="Display collection image"
+                          checked={displayCollectionImage}
+                          onChange={(e: any) => setDisplayCollectionImage(e.target.checked)}
+                        />
+                        <s-switch
+                          label="Hide out of stock items"
+                          checked={hideOutOfStockItems}
+                          onChange={(e: any) => setHideOutOfStockItems(e.target.checked)}
+                        />
+                      </s-stack>
+                    </s-stack>
+                  </s-box>
+
+                  {/* Section 6: Responsive Display Settings */}
+                  <s-box padding="base" borderWidth="base" borderRadius="base" background="subdued">
+                    <s-stack direction="block" gap="base">
+                      <s-heading>Responsive Display Settings</s-heading>
+                      <s-stack direction="block" gap="base">
+                        <s-text-field
+                          label="On Laptop"
+                          value={onLaptop}
+                          onChange={(e: any) => setOnLaptop(e.target.value)}
+                          placeholder="e.g., sidebar, top-bar"
+                        />
+                        <s-text-field
+                          label="On Tablet"
+                          value={onTablet}
+                          onChange={(e: any) => setOnTablet(e.target.value)}
+                          placeholder="e.g., sidebar, top-bar"
+                        />
+                        <s-text-field
+                          label="On Mobile"
+                          value={onMobile}
+                          onChange={(e: any) => setOnMobile(e.target.value)}
+                          placeholder="e.g., sidebar, top-bar"
                         />
                       </s-stack>
                     </s-stack>

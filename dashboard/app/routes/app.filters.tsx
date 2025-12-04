@@ -32,7 +32,6 @@ interface FiltersData {
   total?: number;
   error?: string;
   shop?: string;
-  graphqlEndpoint?: string;
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -95,7 +94,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       total: result.data?.filters?.total || 0,
       error: undefined,
       shop,
-      graphqlEndpoint: GRAPHQL_ENDPOINT,
     } as FiltersData;
   } catch (error: any) {
     return {
@@ -106,7 +104,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export default function FiltersPage() {
-  const { filters: initialFilters, error, shop, graphqlEndpoint } = useLoaderData<typeof loader>();
+  const { filters: initialFilters, error, shop } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
   const shopify = useAppBridge();
   const location = useLocation();
@@ -355,9 +353,9 @@ export default function FiltersPage() {
                   <s-table-cell>
                     {filter.status && (
                       <s-badge 
-                        tone={filter.status === "PUBLISHED" ? "success" : "neutral"}
+                        tone={filter.status === "PUBLISHED" ? "success" : "warning"}
                       >
-                        {filter.status.charAt(0).toUpperCase() + filter.status.slice(1)}
+                        {filter.status === "PUBLISHED" ? "Published" : "Unpublished"}
                       </s-badge>
                     )}
                   </s-table-cell>

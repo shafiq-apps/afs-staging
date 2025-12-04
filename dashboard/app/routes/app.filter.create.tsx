@@ -80,7 +80,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
 export default function CreateFilterPage() {
   const {
-    filter: initialFilter, 
     error: loadError, 
     shop, 
     graphqlEndpoint,

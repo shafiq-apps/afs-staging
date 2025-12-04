@@ -57,6 +57,21 @@ export enum DeploymentChannel {
   ADMIN = "ADMIN",
 }
 
+export enum TargetScope {
+  ALL = "all",
+  ENTITLED = "entitled",
+}
+
+export enum FilterOrientation {
+  VERTICAL = "vertical",
+  HORIZONTAL = "horizontal",
+}
+
+export enum DefaultView {
+  GRID = "grid",
+  LIST = "list",
+}
+
 /**
  * Helper function to safely convert string to enum value
  */
@@ -122,5 +137,29 @@ export function toDeploymentChannel(value: string | undefined | null): Deploymen
   return Object.values(DeploymentChannel).includes(upper as DeploymentChannel)
     ? (upper as DeploymentChannel)
     : DeploymentChannel.APP;
+}
+
+export function toTargetScope(value: string | undefined | null): TargetScope {
+  if (!value) return TargetScope.ALL;
+  const lower = value.toLowerCase();
+  return Object.values(TargetScope).includes(lower as TargetScope)
+    ? (lower as TargetScope)
+    : TargetScope.ALL;
+}
+
+export function toFilterOrientation(value: string | undefined | null): FilterOrientation {
+  if (!value) return FilterOrientation.VERTICAL;
+  const lower = value.toLowerCase();
+  return Object.values(FilterOrientation).includes(lower as FilterOrientation)
+    ? (lower as FilterOrientation)
+    : FilterOrientation.VERTICAL;
+}
+
+export function toDefaultView(value: string | undefined | null): DefaultView {
+  if (!value) return DefaultView.GRID;
+  const lower = value.toLowerCase();
+  return Object.values(DefaultView).includes(lower as DefaultView)
+    ? (lower as DefaultView)
+    : DefaultView.GRID;
 }
 

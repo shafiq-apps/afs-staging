@@ -236,7 +236,6 @@ export default function EditFilterPage() {
   }
 
   const pageId = `filter-edit-${initialFilter?.id || "new"}`;
-  const pageKey = `${pageId}-${location.pathname}`;
 
   // Cleanup slots from other pages when navigating away
   useEffect(() => {

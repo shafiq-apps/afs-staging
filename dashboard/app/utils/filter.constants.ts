@@ -11,6 +11,9 @@ import {
   FilterStatus,
   PaginationType,
   TextTransform,
+  TargetScope,
+  FilterOrientation,
+  DefaultView,
 } from "./filter.enums";
 
 /**
@@ -29,7 +32,7 @@ export const DEFAULT_FILTER_OPTION = {
   showTooltip: false,
   showCount: true,
   showMenu: false,
-  targetScope: "all",
+  targetScope: TargetScope.ALL,
   tooltipContent: "",
   selectedValues: [] as string[],
   allowedOptions: [] as string[],
@@ -48,9 +51,9 @@ export const DEFAULT_FILTER_OPTION = {
  */
 export const DEFAULT_FILTER = {
   status: FilterStatus.PUBLISHED,
-  targetScope: "all",
-  filterOrientation: "vertical",
-  defaultView: "grid",
+  targetScope: TargetScope.ALL,
+  filterOrientation: FilterOrientation.VERTICAL,
+  defaultView: DefaultView.GRID,
   showFilterCount: true,
   showActiveFilters: true,
   gridColumns: 3,
@@ -98,18 +101,21 @@ export const OPTION_TYPES = [
 
 /**
  * Available target scopes
+ * @deprecated Use TargetScope enum instead
  */
-export const TARGET_SCOPES = ["all", "entitled"] as const;
+export const TARGET_SCOPES = Object.values(TargetScope) as readonly string[];
 
 /**
  * Available filter orientations
+ * @deprecated Use FilterOrientation enum instead
  */
-export const FILTER_ORIENTATIONS = ["vertical", "horizontal"] as const;
+export const FILTER_ORIENTATIONS = Object.values(FilterOrientation) as readonly string[];
 
 /**
  * Available default views
+ * @deprecated Use DefaultView enum instead
  */
-export const DEFAULT_VIEWS = ["grid", "list"] as const;
+export const DEFAULT_VIEWS = Object.values(DefaultView) as readonly string[];
 
 /**
  * Get base option type from option type
