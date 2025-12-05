@@ -248,11 +248,3 @@ export function rateLimit(options: RateLimitOptions = {}) {
   };
 }
 
-export function apiRateLimit() {
-  return rateLimit({
-    windowMs: 60000,
-    max: 100,
-    message: 'API rate limit exceeded, please try again later',
-  });
-}
-
