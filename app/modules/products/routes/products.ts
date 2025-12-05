@@ -46,7 +46,7 @@ export const GET = handler(async (req: HttpRequest) => {
 
   // Format filters with filterConfig settings applied (position sorting, targetScope filtering, etc.)
   // This pre-compiles filters on server-side for optimal performance
-  const formattedFilters = result.filters ? formatFilters(result.filters, filterConfig) : undefined;
+  const formattedFilters = result.filters ? formatFilters(result.filters, filterConfig) : [];
 
   // Remove empty values from appliedFilters
   const cleanedAppliedFilters = Object.keys(searchInput || {}).length > 0 ? searchInput : undefined;
@@ -66,7 +66,7 @@ export const GET = handler(async (req: HttpRequest) => {
   };
 
   // Only include filters if they exist and have data
-  if (formattedFilters && Object.keys(formattedFilters).length > 0) {
+  if (formattedFilters.length > 0) {
     responseBody.data.filters = formattedFilters;
   }
 

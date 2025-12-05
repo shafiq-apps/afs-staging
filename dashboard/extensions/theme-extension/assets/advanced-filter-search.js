@@ -178,8 +178,16 @@
     },
 
     /**
+     * Determine if a key matches the short handle format (e.g., pr_a3k9x)
+     */
+    looksLikeHandle(key) {
+      if (!key || typeof key !== 'string') return false;
+      return /^[a-z]{2,3}_[a-z0-9]{3,10}$/.test(key.trim());
+    },
+
+    /**
      * Build query string from object
-     * For options, converts option names to handles using filterConfig
+     * For options, converts option names to direct handles using filterConfig
      */
     buildQueryString(params, filterConfig = null) {
       const searchParams = new URLSearchParams();
@@ -192,20 +200,22 @@
               const optValues = value[optKey];
               if (optValues !== null && optValues !== undefined && optValues !== '') {
                 // Convert option name to handle using filterConfig
-                const handle = filterConfig 
+                const handleOrName = filterConfig 
                   ? Utils.getHandleForOptionName(optKey, filterConfig)
                   : optKey;
+                const useDirectHandle = Utils.looksLikeHandle(handleOrName);
+                const paramKey = useDirectHandle ? handleOrName : `options[${handleOrName}]`;
                 
                 if (Array.isArray(optValues) && optValues.length > 0) {
                   // Ensure all values are strings
                   optValues.forEach(v => {
                     const stringValue = String(v).trim();
                     if (stringValue && stringValue !== '[object Object]') {
-                      searchParams.append(`options[${handle}]`, stringValue);
+                      searchParams.append(paramKey, stringValue);
                     }
                   });
                 } else if (typeof optValues === 'string' && optValues.trim() !== '') {
-                  searchParams.set(`options[${handle}]`, optValues.trim());
+                  searchParams.set(paramKey, optValues.trim());
                 }
               }
             });
@@ -362,7 +372,7 @@
       },
       loading: false,
       error: null,
-      availableFilters: {},
+      availableFilters: [],
       filterConfig: null
     },
 
@@ -571,6 +581,7 @@
   
   const APIClient = {
     baseURL: 'http://localhost:3554',
+    preserveOptionAggregations: true,
     cache: new Map(),
     cacheTimestamps: new Map(),
     pendingRequests: new Map(),
@@ -580,6 +591,13 @@
      */
     setBaseURL(url) {
       this.baseURL = url;
+    },
+
+    /**
+     * Set preserveOptionAggregations flag
+     */
+    setPreserveOptionAggregations(value) {
+      this.preserveOptionAggregations = value !== false;
     },
 
     /**
@@ -678,6 +696,13 @@
         page: pagination.page,
         limit: pagination.limit
       };
+
+      const preserveOptionAggregations =
+        (filters && Object.prototype.hasOwnProperty.call(filters, 'preserveOptionAggregations'))
+          ? Boolean(filters.preserveOptionAggregations)
+          : this.preserveOptionAggregations;
+
+      params.preserveOptionAggregations = preserveOptionAggregations;
       
       if (sort && sort.field) {
         params.sort = `${sort.field}:${sort.order || 'desc'}`;
@@ -758,6 +783,13 @@
         shop: StateManager.state.shop,
         ...filters
       };
+
+      const preserveOptionAggregations =
+        (filters && Object.prototype.hasOwnProperty.call(filters, 'preserveOptionAggregations'))
+          ? Boolean(filters.preserveOptionAggregations)
+          : this.preserveOptionAggregations;
+
+      params.preserveOptionAggregations = preserveOptionAggregations;
       
       // Get filterConfig from state for handle conversion
       const filterConfig = StateManager.getState().filterConfig;
@@ -933,25 +965,21 @@
       
       const startTime = performance.now();
       
-      // Validate filters input
-      if (!filters || typeof filters !== 'object') {
+      if (!Array.isArray(filters)) {
         Logger.warn('Invalid filters data provided to renderFilters', { filters });
+        this.filtersContainer.innerHTML = '';
         return;
       }
       
-      // Get filterConfig from state if not provided
-      if (!filterConfig) {
-        const state = StateManager.getState();
-        filterConfig = state.filterConfig;
-      }
-      
-      // Store collapse and search states before clearing
       const savedStates = {};
       const existingGroups = this.filtersContainer.querySelectorAll('.afs-filter-group');
       existingGroups.forEach(group => {
-        const filterType = group.getAttribute('data-afs-filter-type');
-        const optionName = group.getAttribute('data-afs-option-name');
-        const key = optionName ? `${filterType}_${optionName}` : filterType;
+        const key =
+          group.getAttribute('data-afs-filter-key') ||
+          group.getAttribute('data-afs-option-name') ||
+          group.getAttribute('data-afs-filter-type');
+        
+        if (!key) return;
         
         savedStates[key] = {
           collapsed: group.getAttribute('data-afs-collapsed') === 'true',
@@ -959,278 +987,73 @@
         };
       });
       
-      // Clear existing filters
       this.filtersContainer.innerHTML = '';
       
-      Logger.debug('Rendering filters', { 
-        filterKeys: Object.keys(filters),
-        hasVendors: !!filters.vendors,
-        hasProductTypes: !!filters.productTypes,
-        hasTags: !!filters.tags,
-        hasCollections: !!filters.collections,
-        hasOptions: !!filters.options,
-        optionsCount: filters.options ? Object.keys(filters.options).length : 0,
-        optionsKeys: filters.options ? Object.keys(filters.options) : [],
-        filterConfigOptions: filterConfig?.options?.length || 0,
-        filterConfigOptionTypes: filterConfig?.options?.map(opt => ({
-          variantOptionKey: opt.variantOptionKey,
-          optionType: opt.optionType,
-          label: opt.label
-        })) || []
-      });
+      Logger.debug('Rendering filters', { filterCount: filters.length });
       
-      // Render each filter group
-      // Skip non-filter keys like priceRange, variantPriceRange (these are objects, not filter arrays)
-      const filterKeysToSkip = ['priceRange', 'variantPriceRange'];
-      
-      Object.keys(filters).forEach(filterType => {
-        // Skip non-filter keys
-        if (filterKeysToSkip.includes(filterType)) return;
+      filters.forEach((filter) => {
+        if (!filter) return;
         
-        const filterData = filters[filterType];
-
-        console.log("filterData", filterData);
-        
-        // Skip if no data
-        if (!filterData) return;
-        
-        // Handle options filter (object with option names as keys)
-        if (filterType === 'options' && typeof filterData === 'object' && !Array.isArray(filterData)) {
-          // Use filterConfig to determine which options to show and in what order
-          if (filterConfig && filterConfig.options && Array.isArray(filterConfig.options)) {
-            // Get all available keys from filters.options for debugging
-            const availableFilterKeys = Object.keys(filterData);
-            Logger.debug('Rendering options from filterConfig', {
-              configOptionsCount: filterConfig.options.length,
-              availableFilterKeys,
-              availableFilterKeysCount: availableFilterKeys.length
-            });
-            
-            // Sort options by position (ascending), then render
-            const sortedOptions = [...filterConfig.options].sort((a, b) => {
-              const posA = a.position !== undefined ? Number(a.position) : 999;
-              const posB = b.position !== undefined ? Number(b.position) : 999;
-              return posA - posB;
-            });
-            
-            // Render options based on sorted filterConfig order
-            sortedOptions.forEach(configOption => {
-              // Get the option name to look up in filters
-              // Priority: variantOptionKey > optionType > label
-              // variantOptionKey is the actual key used in optionPairs (e.g., "size", "color")
-              // optionType is the display name (e.g., "Size", "Color")
-              // Note: variantOptionKey is now at top level (optionSettings removed to reduce payload)
-              const variantKey = configOption.variantOptionKey;
-              const optionType = configOption.optionType;
-              const label = configOption.label;
-              
-              // Try to find matching option in filters.options
-              let optionItems = null;
-              let matchedKey = null;
-              
-              // Strategy 1: Try exact match with variantOptionKey (most reliable)
-              if (variantKey && filterData[variantKey]) {
-                optionItems = filterData[variantKey];
-                matchedKey = variantKey;
-              }
-              // Strategy 2: Try exact match with optionType
-              else if (optionType && filterData[optionType]) {
-                optionItems = filterData[optionType];
-                matchedKey = optionType;
-              }
-              // Strategy 3: Try exact match with label
-              else if (label && filterData[label]) {
-                optionItems = filterData[label];
-                matchedKey = label;
-              }
-              // Strategy 4: Case-insensitive match with variantOptionKey
-              else if (variantKey) {
-                const lowerVariantKey = variantKey.toLowerCase();
-                for (const filterKey of availableFilterKeys) {
-                  if (filterKey.toLowerCase() === lowerVariantKey) {
-                    optionItems = filterData[filterKey];
-                    matchedKey = filterKey;
-                    break;
-                  }
-                }
-              }
-              // Strategy 5: Case-insensitive match with optionType
-              else if (optionType) {
-                const lowerOptionType = optionType.toLowerCase();
-                for (const filterKey of availableFilterKeys) {
-                  if (filterKey.toLowerCase() === lowerOptionType) {
-                    optionItems = filterData[filterKey];
-                    matchedKey = filterKey;
-                    break;
-                  }
-                }
-              }
-              
-              Logger.debug('Option matching', {
-                variantOptionKey: variantKey,
-                optionType: optionType,
-                label: label,
-                matchedKey,
-                hasItems: !!optionItems,
-                itemsCount: optionItems ? optionItems.length : 0,
-                availableFilterKeys
-              });
-              
-              if (optionItems && Array.isArray(optionItems) && optionItems.length > 0) {
-                // Filter by targetScope if needed
-                let filteredItems = optionItems;
-                if (configOption.targetScope === 'entitled' && configOption.allowedOptions && Array.isArray(configOption.allowedOptions)) {
-                  const allowedSet = new Set(configOption.allowedOptions.map(v => String(v).toLowerCase().trim()));
-                  filteredItems = optionItems.filter(item => {
-                    const itemValue = typeof item === 'string' ? item : (item.value || item.key || item.name || '');
-                    return allowedSet.has(String(itemValue).toLowerCase().trim());
-                  });
-                }
-                
-                // Skip if no items after filtering
-                if (filteredItems.length === 0) return;
-                
-                // Use label from config for display (always show label)
-                const displayName = configOption.label || optionType || matchedKey;
-                // Use the matched key (from filters.options) for filtering
-                // This is the actual key that will be used in queries
-                const filterKey = matchedKey || variantKey || optionType;
-                const filterGroup = this.createFilterGroup(`options_${filterKey}`, filteredItems, filterKey, displayName, configOption);
-                const key = `options_${filterKey}`;
-                
-                // Restore saved state
-                if (savedStates[key]) {
-                  if (savedStates[key].collapsed) {
-                    filterGroup.setAttribute('data-afs-collapsed', 'true');
-                    filterGroup.querySelector('.afs-filter-group__toggle')?.setAttribute('aria-expanded', 'false');
-                  }
-                  const searchInput = filterGroup.querySelector('.afs-filter-group__search-input');
-                  if (searchInput && savedStates[key].searchValue) {
-                    searchInput.value = savedStates[key].searchValue;
-                    // Trigger search to filter items
-                    setTimeout(() => {
-                      const event = new Event('input', { bubbles: true });
-                      searchInput.dispatchEvent(event);
-                    }, 0);
-                  }
-                }
-                
-                this.filtersContainer.appendChild(filterGroup);
-              } else {
-                Logger.warn('Option from filterConfig not found in filters.options', {
-                  variantOptionKey: variantKey,
-                  optionType: optionType,
-                  label: label,
-                  availableKeys: availableFilterKeys
-                });
-              }
-            });
-            
-            // Also render any options in filters.options that weren't in filterConfig
-            // This handles cases where new options exist but aren't in config yet
-            const renderedOptionKeys = new Set();
-            filterConfig.options.forEach(opt => {
-              // variantOptionKey is now at top level (optionSettings removed to reduce payload)
-              const key = opt.variantOptionKey || opt.optionType;
-              if (key) renderedOptionKeys.add(key.toLowerCase());
-            });
-            
-            Object.keys(filterData).forEach(optionName => {
-              // Skip if already rendered via filterConfig
-              if (renderedOptionKeys.has(optionName.toLowerCase())) return;
-              
-              const optionItems = filterData[optionName];
-              if (Array.isArray(optionItems) && optionItems.length > 0) {
-                Logger.debug('Rendering option not in filterConfig', {
-                  optionName,
-                  itemsCount: optionItems.length
-                });
-                const filterGroup = this.createFilterGroup(`options_${optionName}`, optionItems, optionName, null, null);
-                const key = `options_${optionName}`;
-                
-                // Restore saved state
-                if (savedStates[key]) {
-                  if (savedStates[key].collapsed) {
-                    filterGroup.setAttribute('data-afs-collapsed', 'true');
-                    filterGroup.querySelector('.afs-filter-group__toggle')?.setAttribute('aria-expanded', 'false');
-                  }
-                  const searchInput = filterGroup.querySelector('.afs-filter-group__search-input');
-                  if (searchInput && savedStates[key].searchValue) {
-                    searchInput.value = savedStates[key].searchValue;
-                    setTimeout(() => {
-                      const event = new Event('input', { bubbles: true });
-                      searchInput.dispatchEvent(event);
-                    }, 0);
-                  }
-                }
-                
-                this.filtersContainer.appendChild(filterGroup);
-              }
-            });
-          } else {
-            // Fallback: render all options if no filterConfig
-            Logger.debug('No filterConfig, rendering all options from filters', {
-              optionsKeys: Object.keys(filterData)
-            });
-            Object.keys(filterData).forEach(optionName => {
-              const optionItems = filterData[optionName];
-              if (Array.isArray(optionItems) && optionItems.length > 0) {
-                const filterGroup = this.createFilterGroup(`options_${optionName}`, optionItems, optionName, null, null);
-                const key = `options_${optionName}`;
-                
-                // Restore saved state
-                if (savedStates[key]) {
-                  if (savedStates[key].collapsed) {
-                    filterGroup.setAttribute('data-afs-collapsed', 'true');
-                    filterGroup.querySelector('.afs-filter-group__toggle')?.setAttribute('aria-expanded', 'false');
-                  }
-                  const searchInput = filterGroup.querySelector('.afs-filter-group__search-input');
-                  if (searchInput && savedStates[key].searchValue) {
-                    searchInput.value = savedStates[key].searchValue;
-                    // Trigger search to filter items
-                    setTimeout(() => {
-                      const event = new Event('input', { bubbles: true });
-                      searchInput.dispatchEvent(event);
-                    }, 0);
-                  }
-                }
-                
-                this.filtersContainer.appendChild(filterGroup);
-              }
-            });
-          }
+        if (filter.type === 'priceRange' || filter.type === 'variantPriceRange') {
+          // TODO: implement UI for range filters
           return;
         }
         
-        // Handle regular array filters
-        if (!Array.isArray(filterData) || filterData.length === 0) {
+        const values = Array.isArray(filter.values) ? filter.values : [];
+        if (values.length === 0) {
           return;
         }
         
-        const filterGroup = this.createFilterGroup(filterType, filterData);
+        const isOptionFilter = filter.type === 'option';
+        const optionName = isOptionFilter ? filter.queryKey : null;
+        const baseFilterType = isOptionFilter ? `options_${optionName}` : filter.queryKey || filter.key;
+        if (!baseFilterType) return;
         
-        // Restore saved state
-        if (savedStates[filterType]) {
-          if (savedStates[filterType].collapsed) {
-            filterGroup.setAttribute('data-afs-collapsed', 'true');
-            filterGroup.querySelector('.afs-filter-group__toggle')?.setAttribute('aria-expanded', 'false');
-          }
-          const searchInput = filterGroup.querySelector('.afs-filter-group__search-input');
-          if (searchInput && savedStates[filterType].searchValue) {
-            searchInput.value = savedStates[filterType].searchValue;
-            // Trigger search to filter items
-            setTimeout(() => {
-              const event = new Event('input', { bubbles: true });
-              searchInput.dispatchEvent(event);
-            }, 0);
-          }
-        }
+        const displayLabel = filter.label || optionName || baseFilterType;
+        const filterGroup = this.createFilterGroup(
+          baseFilterType,
+          values,
+          optionName,
+          displayLabel,
+          filter
+        );
+        
+        const stateKey = filter.key || (optionName ? `options:${optionName}` : baseFilterType);
+        filterGroup.setAttribute('data-afs-filter-key', stateKey);
+        
+        const savedState = savedStates[stateKey];
+        this.applySavedStateToGroup(filterGroup, savedState, filter);
         
         this.filtersContainer.appendChild(filterGroup);
       });
       
       const duration = performance.now() - startTime;
       Logger.performance('renderFilters', duration);
+    },
+
+    /**
+     * Apply saved UI state (collapsed/search) to filter group
+     */
+    applySavedStateToGroup(group, savedState, filterMeta) {
+      const shouldCollapse = savedState?.collapsed ?? (filterMeta?.collapsed === true);
+      const toggleButton = group.querySelector('.afs-filter-group__toggle');
+      
+      group.setAttribute('data-afs-collapsed', shouldCollapse ? 'true' : 'false');
+      if (toggleButton) {
+        toggleButton.setAttribute('aria-expanded', shouldCollapse ? 'false' : 'true');
+      }
+      
+      const searchInput = group.querySelector('.afs-filter-group__search-input');
+      const searchValue = savedState?.searchValue || '';
+      if (searchInput) {
+        searchInput.value = searchValue;
+        if (searchValue) {
+          setTimeout(() => {
+            const event = new Event('input', { bubbles: true });
+            searchInput.dispatchEvent(event);
+          }, 0);
+        }
+      }
     },
 
     /**
@@ -2488,6 +2311,10 @@
         // Set API base URL
         if (config.apiBaseUrl) {
           APIClient.setBaseURL(config.apiBaseUrl);
+        }
+
+        if (typeof config.preserveOptionAggregations === 'boolean') {
+          APIClient.setPreserveOptionAggregations(config.preserveOptionAggregations);
         }
         
         // Initialize state - shop comes from config only, not URL

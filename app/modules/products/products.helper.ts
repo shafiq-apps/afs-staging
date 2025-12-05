@@ -81,7 +81,16 @@ export function buildFilterInput(query: Record<string, unknown>): ProductFilterI
   const variantSkuValues = parseCommaSeparated(query.variantSku || query.variantSkus || query.sku || query.skus);
   if (variantSkuValues.length) filters.variantSkus = variantSkuValues;
 
-  return hasAnyFilters(filters) ? filters : undefined;
+  if (query.preserveOptionAggregations === 'true' || query.preserveOptionAggregations === '1') {
+    filters.preserveOptionAggregations = true;
+  }
+
+  const hasFilters = hasAnyFilters(filters);
+  if (hasFilters || filters.preserveOptionAggregations) {
+    return filters;
+  }
+
+  return undefined;
 }
 
 /**
@@ -159,6 +168,10 @@ export function buildSearchInput(query: Record<string, unknown>): ProductSearchI
     if (typeof fields === 'string' || Array.isArray(fields)) {
       filters.fields = fields;
     }
+  }
+
+  if (query.preserveOptionAggregations === 'true' || query.preserveOptionAggregations === '1') {
+    filters.preserveOptionAggregations = true;
   }
 
   return filters;

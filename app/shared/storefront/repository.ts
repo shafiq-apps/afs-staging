@@ -208,6 +208,8 @@ export class StorefrontSearchRepository {
     const sanitizedFilters = filters ? sanitizeFilterInput(filters) : undefined;
 
     const mustQueries: any[] = [];
+    const optionFilterQueries: any[] = [];
+    const useOptionPostFilter = sanitizedFilters?.preserveOptionAggregations === true;
 
     // Search query filter
     if (sanitizedFilters?.search) {
@@ -257,11 +259,15 @@ export class StorefrontSearchRepository {
 
         if (!encodedValues.length) continue;
 
-        // Each option name creates a separate must query (AND between different options)
-        // Multiple values in the same option use terms query (OR within the same option)
-        mustQueries.push({
+        const termsQuery = {
           terms: { 'optionPairs.keyword': encodedValues },
-        });
+        };
+
+        if (useOptionPostFilter) {
+          optionFilterQueries.push(termsQuery);
+        } else {
+          mustQueries.push(termsQuery);
+        }
       }
     }
 
@@ -337,7 +343,7 @@ export class StorefrontSearchRepository {
       });
     }
 
-    // Build query - use bool.must for AND operation between filters
+    // Build query - option filters are applied via post_filter to keep aggregations intact
     const query = mustQueries.length ? { bool: { must: mustQueries } } : { match_all: {} };
 
     // Determine which aggregations to calculate based on filter configuration
@@ -452,12 +458,17 @@ export class StorefrontSearchRepository {
     }
 
     // Execute search with aggregations only (no documents returned)
+    const optionPostFilter = useOptionPostFilter && optionFilterQueries.length
+      ? { bool: { must: optionFilterQueries } }
+      : undefined;
+
     const response = await this.esClient.search<unknown, FacetAggregations>({
       index,
       size: 0, // No documents needed, only aggregations
       track_total_hits: false,
       request_cache: true, // Cache aggregation results for better performance
       query,
+      post_filter: optionPostFilter,
       aggs: Object.keys(aggs).length > 0 ? aggs : undefined, // Only include if we have aggregations
     });
 
@@ -555,6 +566,8 @@ export class StorefrontSearchRepository {
     });
 
     const mustQueries: any[] = [];
+    const optionFilterQueries: any[] = [];
+    const useOptionPostFilter = sanitizedFilters?.preserveOptionAggregations === true;
 
     if (sanitizedFilters?.search) {
       mustQueries.push({
@@ -599,9 +612,15 @@ export class StorefrontSearchRepository {
 
         if (!encodedValues.length) continue;
 
-        mustQueries.push({
+        const termsQuery = {
           terms: { 'optionPairs.keyword': encodedValues },
-        });
+        };
+
+        if (useOptionPostFilter) {
+          optionFilterQueries.push(termsQuery);
+        } else {
+          mustQueries.push(termsQuery);
+        }
       }
     }
 
@@ -854,6 +873,10 @@ export class StorefrontSearchRepository {
       });
     }
 
+    const optionPostFilter = useOptionPostFilter && optionFilterQueries.length
+      ? { bool: { must: optionFilterQueries } }
+      : undefined;
+
     let response;
     try {
       response = await this.esClient.search<shopifyProduct, FacetAggregations>({
@@ -864,6 +887,7 @@ export class StorefrontSearchRepository {
         sort,
         track_total_hits: true,
         aggs,
+        post_filter: optionPostFilter,
       });
     } catch (error: any) {
       logger.error('[searchProducts] ES query failed', {

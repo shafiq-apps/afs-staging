@@ -52,11 +52,40 @@ export interface ProductFilterInput {
   variantPriceMax?: number;
   // Variant SKU filter
   variantSkus?: string[];
+  // Preserve option aggregations even when the option itself is filtered
+  preserveOptionAggregations?: boolean;
 }
 
 export interface FacetValue {
   value: string;
   count: number;
+}
+
+export interface StorefrontFilterDescriptor {
+  key: string;
+  type: 'option' | 'vendor' | 'productType' | 'tag' | 'collection' | 'priceRange' | 'variantPriceRange';
+  queryKey: string;
+  label: string;
+  handle?: string;
+  position?: number;
+  optionType?: string | null;
+  optionKey?: string;
+  displayType?: string;
+  selectionType?: string;
+  targetScope?: string;
+  allowedOptions?: string[];
+  collapsed?: boolean;
+  searchable?: boolean;
+  showTooltip?: boolean;
+  tooltipContent?: string;
+  showCount?: boolean;
+  showMenu?: boolean;
+  status?: string;
+  values?: FacetValue[];
+  range?: {
+    min: number;
+    max: number;
+  };
 }
 
 export interface ProductFilters {
@@ -99,6 +128,8 @@ export interface ProductSearchInput {
   fields?: string | string[];
   // Filter settings from filter configuration
   hideOutOfStockItems?: boolean;
+  // Preserve option aggregations even when the option itself is filtered
+  preserveOptionAggregations?: boolean;
 }
 
 export interface productOption {
