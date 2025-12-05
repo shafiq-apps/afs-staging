@@ -212,8 +212,6 @@ export class StorefrontSearchRepository {
     const useOptionPostFilter = sanitizedFilters?.preserveOptionAggregations === true;
     const optionFilterQueries: any[] = [];
     const useOptionPostFilter = sanitizedFilters?.preserveOptionAggregations === true;
-    const optionFilterQueries: any[] = [];
-    const useOptionPostFilter = sanitizedFilters?.preserveOptionAggregations === true;
 
     // Search query filter
     if (sanitizedFilters?.search) {
