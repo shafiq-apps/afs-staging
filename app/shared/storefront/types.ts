@@ -61,6 +61,33 @@ export interface FacetValue {
   count: number;
 }
 
+export interface StorefrontFilterDescriptor {
+  key: string;
+  type: 'option' | 'vendor' | 'productType' | 'tag' | 'collection' | 'priceRange' | 'variantPriceRange';
+  queryKey: string;
+  label: string;
+  handle?: string;
+  position?: number;
+  optionType?: string | null;
+  optionKey?: string;
+  displayType?: string;
+  selectionType?: string;
+  targetScope?: string;
+  allowedOptions?: string[];
+  collapsed?: boolean;
+  searchable?: boolean;
+  showTooltip?: boolean;
+  tooltipContent?: string;
+  showCount?: boolean;
+  showMenu?: boolean;
+  status?: string;
+  values?: FacetValue[];
+  range?: {
+    min: number;
+    max: number;
+  };
+}
+
 export interface ProductFilters {
   vendors: FacetValue[];
   productTypes: FacetValue[];
