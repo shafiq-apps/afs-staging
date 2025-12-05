@@ -7,15 +7,9 @@ import { Client } from '@elastic/elasticsearch';
 import { createModuleLogger } from '@shared/utils/logger.util';
 import { ShopifyShopName } from '@shared/utils/shopify-shop.util';
 import { PRODUCT_MAPPING } from './products.mapping';
+import { PRODUCT_INDEX_NAME } from '@shared/constants/products.constants';
 
 const logger = createModuleLogger('ProductIndexUtil');
-
-/**
- * Get product index name for a shop
- */
-export function getProductIndexName(shop: string): string {
-  return `${ShopifyShopName(shop)}_products`;
-}
 
 /**
  * Ensure product index exists with proper mapping and settings
@@ -25,7 +19,7 @@ export function getProductIndexName(shop: string): string {
  * 3. Ensuring all fields are properly mapped
  */
 export async function ensureProductIndex(esClient: Client, shop: string): Promise<void> {
-  const indexName = getProductIndexName(shop);
+  const indexName = PRODUCT_INDEX_NAME(shop);
 
   try {
     const exists = await esClient.indices.exists({ index: indexName });

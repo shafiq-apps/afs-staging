@@ -5,7 +5,6 @@
  * This schema is based on products.type.ts and provides:
  * - Product queries with filters
  * - Aggregations for filters (vendors, productTypes, tags, collections, options, price ranges, SKUs)
- * - Dynamic index support: {shop}_products
  */
 
 export const productsSchema = `
