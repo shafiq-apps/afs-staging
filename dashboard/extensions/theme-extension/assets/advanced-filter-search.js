@@ -178,8 +178,16 @@
     },
 
     /**
+     * Determine if a key matches the short handle format (e.g., pr_a3k9x)
+     */
+    looksLikeHandle(key) {
+      if (!key || typeof key !== 'string') return false;
+      return /^[a-z]{2,3}_[a-z0-9]{3,10}$/.test(key.trim());
+    },
+
+    /**
      * Build query string from object
-     * For options, converts option names to handles using filterConfig
+     * For options, converts option names to direct handles using filterConfig
      */
     buildQueryString(params, filterConfig = null) {
       const searchParams = new URLSearchParams();
@@ -192,20 +200,22 @@
               const optValues = value[optKey];
               if (optValues !== null && optValues !== undefined && optValues !== '') {
                 // Convert option name to handle using filterConfig
-                const handle = filterConfig 
+                const handleOrName = filterConfig 
                   ? Utils.getHandleForOptionName(optKey, filterConfig)
                   : optKey;
+                const useDirectHandle = Utils.looksLikeHandle(handleOrName);
+                const paramKey = useDirectHandle ? handleOrName : `options[${handleOrName}]`;
                 
                 if (Array.isArray(optValues) && optValues.length > 0) {
                   // Ensure all values are strings
                   optValues.forEach(v => {
                     const stringValue = String(v).trim();
                     if (stringValue && stringValue !== '[object Object]') {
-                      searchParams.append(`options[${handle}]`, stringValue);
+                      searchParams.append(paramKey, stringValue);
                     }
                   });
                 } else if (typeof optValues === 'string' && optValues.trim() !== '') {
-                  searchParams.set(`options[${handle}]`, optValues.trim());
+                  searchParams.set(paramKey, optValues.trim());
                 }
               }
             });
