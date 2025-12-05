@@ -192,6 +192,7 @@ export function sanitizeFilterInput(input: {
   variantPriceMin?: number;
   variantPriceMax?: number;
   variantSkus?: string[];
+  preserveOptionAggregations?: boolean;
 }): {
   search?: string;
   vendors?: string[];
@@ -205,6 +206,7 @@ export function sanitizeFilterInput(input: {
   variantPriceMin?: number;
   variantPriceMax?: number;
   variantSkus?: string[];
+  preserveOptionAggregations?: boolean;
 } {
   const sanitized: typeof input = {};
 
@@ -267,6 +269,10 @@ export function sanitizeFilterInput(input: {
 
   if (input.variantSkus) {
     sanitized.variantSkus = sanitizeTermsArray(input.variantSkus);
+  }
+
+  if (typeof input.preserveOptionAggregations === 'boolean') {
+    sanitized.preserveOptionAggregations = input.preserveOptionAggregations;
   }
 
   return sanitized;

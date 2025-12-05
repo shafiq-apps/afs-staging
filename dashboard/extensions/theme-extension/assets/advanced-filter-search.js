@@ -581,6 +581,7 @@
   
   const APIClient = {
     baseURL: 'http://localhost:3554',
+    preserveOptionAggregations: true,
     cache: new Map(),
     cacheTimestamps: new Map(),
     pendingRequests: new Map(),
@@ -590,6 +591,13 @@
      */
     setBaseURL(url) {
       this.baseURL = url;
+    },
+
+    /**
+     * Set preserveOptionAggregations flag
+     */
+    setPreserveOptionAggregations(value) {
+      this.preserveOptionAggregations = value !== false;
     },
 
     /**
@@ -688,6 +696,13 @@
         page: pagination.page,
         limit: pagination.limit
       };
+
+      const preserveOptionAggregations =
+        (filters && Object.prototype.hasOwnProperty.call(filters, 'preserveOptionAggregations'))
+          ? Boolean(filters.preserveOptionAggregations)
+          : this.preserveOptionAggregations;
+
+      params.preserveOptionAggregations = preserveOptionAggregations;
       
       if (sort && sort.field) {
         params.sort = `${sort.field}:${sort.order || 'desc'}`;
@@ -768,6 +783,13 @@
         shop: StateManager.state.shop,
         ...filters
       };
+
+      const preserveOptionAggregations =
+        (filters && Object.prototype.hasOwnProperty.call(filters, 'preserveOptionAggregations'))
+          ? Boolean(filters.preserveOptionAggregations)
+          : this.preserveOptionAggregations;
+
+      params.preserveOptionAggregations = preserveOptionAggregations;
       
       // Get filterConfig from state for handle conversion
       const filterConfig = StateManager.getState().filterConfig;
@@ -2498,6 +2520,10 @@
         // Set API base URL
         if (config.apiBaseUrl) {
           APIClient.setBaseURL(config.apiBaseUrl);
+        }
+
+        if (typeof config.preserveOptionAggregations === 'boolean') {
+          APIClient.setPreserveOptionAggregations(config.preserveOptionAggregations);
         }
         
         // Initialize state - shop comes from config only, not URL

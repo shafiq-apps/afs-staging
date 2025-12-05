@@ -212,6 +212,11 @@ export function applyFilterConfigToInput(
     (result as ProductSearchInput).hideOutOfStockItems = true;
   }
 
+  // Default to preserving option aggregations unless explicitly disabled
+  if (!('preserveOptionAggregations' in result)) {
+    (result as ProductSearchInput).preserveOptionAggregations = true;
+  }
+
   // Apply targetScope restrictions
   if (filterConfig.targetScope === 'entitled' && filterConfig.allowedCollections?.length > 0) {
     // If filter is scoped to specific collections, ensure we're filtering by those collections
