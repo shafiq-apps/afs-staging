@@ -10,7 +10,7 @@ import { createModuleLogger } from '@shared/utils/logger.util';
 import { ProductBulkIndexer, BulkIndexerDependencies } from '@modules/indexing/indexing.bulk.service';
 import { IndexerOptions } from '@modules/indexing/indexing.type';
 import { getESClient as getGlobalESClient } from '@core/elasticsearch/es.client';
-import { getProductMapping } from '@modules/products/products.mapping';
+import { getProductMapping } from '@shared/storefront/mapping';
 import { IndexingStatusService } from '@modules/indexing/indexing.status.service';
 import { IndexingLockService } from '@modules/indexing/indexing.lock.service';
 import { IndexerCheckpointService } from '@modules/indexing/indexing.checkpoint.service';

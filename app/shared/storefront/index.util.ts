@@ -6,7 +6,7 @@
 import { Client } from '@elastic/elasticsearch';
 import { createModuleLogger } from '@shared/utils/logger.util';
 import { ShopifyShopName } from '@shared/utils/shopify-shop.util';
-import { PRODUCT_MAPPING } from './products.mapping';
+import { PRODUCT_MAPPING } from './mapping';
 import { PRODUCT_INDEX_NAME } from '@shared/constants/products.constants';
 
 const logger = createModuleLogger('ProductIndexUtil');

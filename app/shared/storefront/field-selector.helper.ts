@@ -4,7 +4,7 @@
  * Supports query parameters for flexible field selection
  */
 
-import { shopifyProduct, StorefrontProduct } from './products.type';
+import { shopifyProduct, StorefrontProduct } from './types';
 
 /**
  * Default fields to include in storefront responses

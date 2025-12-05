@@ -3,13 +3,13 @@
  * Creates and wires up products module dependencies
  */
 
-import { productsRepository } from './products.repository';
-import { productsService } from './products.service';
+import { StorefrontSearchRepository } from '@shared/storefront/repository';
+import { StorefrontSearchService } from '@shared/storefront/service';
 import { Client } from '@elastic/elasticsearch';
 
 export function createProductsModule(esClient: Client) {
-  const repo = new productsRepository(esClient);
-  const service = new productsService(repo);
+  const repo = new StorefrontSearchRepository(esClient);
+  const service = new StorefrontSearchService(repo);
 
   return { service, repository: repo };
 }

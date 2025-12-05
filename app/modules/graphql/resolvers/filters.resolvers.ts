@@ -6,7 +6,7 @@
 
 import { GraphQLContext } from '../graphql.type';
 import { FiltersRepository } from '@modules/filters/filters.repository';
-import { Filter, CreateFilterInput, UpdateFilterInput } from '@modules/filters/filters.type';
+import { Filter, CreateFilterInput, UpdateFilterInput } from '@shared/filters/types';
 import { createModuleLogger } from '@shared/utils/logger.util';
 
 const logger = createModuleLogger('filters-resolvers');

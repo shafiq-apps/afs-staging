@@ -13,7 +13,7 @@ import { ProductBulkIndexer, BulkIndexerDependencies } from '../indexing.bulk.se
 import { IndexerOptions } from '../indexing.type';
 import { getESClient } from '@core/elasticsearch/es.client';
 import { ShopsRepository } from '@modules/shops/shops.repository';
-import { getProductMapping } from '@modules/products/products.mapping';
+import { getProductMapping } from '@shared/storefront/mapping';
 import { IndexingLockService } from '../indexing.lock.service';
 import { IndexerCheckpointService } from '../indexing.checkpoint.service';
 

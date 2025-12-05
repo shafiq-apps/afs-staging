@@ -3,9 +3,8 @@
  * Gets active filter configuration for a shop and applies it to product search
  */
 
-import { Filter } from '@modules/filters/filters.type';
-import { FiltersRepository } from '@modules/filters/filters.repository';
-import { ProductFilterInput, ProductSearchInput } from './products.type';
+import { Filter } from '@shared/filters/types';
+import { ProductFilterInput, ProductSearchInput } from './types';
 import { createModuleLogger } from '@shared/utils/logger.util';
 
 const logger = createModuleLogger('products-filter-config-helper');
@@ -25,8 +24,12 @@ import { NO_FILTER_CONFIG_HASH } from '@core/cache/cache.key';
  * @param collectionId - Optional collection ID from query params for priority matching
  * @returns The selected filter configuration or null
  */
+export interface FilterConfigRepository {
+  listFilters(shop: string): Promise<{ filters: Filter[] }>;
+}
+
 export async function getActiveFilterConfig(
-  filtersRepository: FiltersRepository,
+  filtersRepository: FilterConfigRepository,
   shop: string,
   collectionId?: string
 ): Promise<Filter | null> {

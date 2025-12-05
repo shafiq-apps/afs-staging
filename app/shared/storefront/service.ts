@@ -4,7 +4,7 @@
  */
 
 import { Injectable } from '@shared/types/global.type';
-import { productsRepository } from './products.repository';
+import { StorefrontSearchRepository } from './repository';
 import {
   ProductFilterInput,
   ProductSearchInput,
@@ -12,19 +12,19 @@ import {
   ProductSearchResult,
   FacetAggregations,
   TermsAggregation,
-} from './products.type';
+} from './types';
 import { createModuleLogger } from '@shared/utils/logger.util';
 import { getCacheService } from '@core/cache';
-import { Filter } from '@modules/filters/filters.type';
-import { getFilterConfigHash } from './products.filter-config.helper';
+import { Filter } from '@shared/filters/types';
+import { getFilterConfigHash } from './filter-config.helper';
 
-const logger = createModuleLogger('products-service');
+const logger = createModuleLogger('storefront-service');
 
-export class productsService implements Injectable {
+export class StorefrontSearchService implements Injectable {
   private readonly log = logger;
   private readonly cache = getCacheService();
 
-  constructor(private repo: productsRepository) {}
+  constructor(private repo: StorefrontSearchRepository) {}
 
   /**
    * Get product filters (facets/aggregations)
@@ -53,6 +53,19 @@ export class productsService implements Injectable {
     this.cache.setFilterResults(shop, filters, aggregations, undefined, filterConfigHash);
 
     return this.formatAggregations(aggregations);
+  }
+
+  /**
+   * Fetch raw facet aggregations without formatting
+   * Used by modules that need full control over formatting logic
+   */
+  async getRawAggregations(
+    shop: string,
+    filters?: ProductFilterInput,
+    filterConfig?: Filter | null
+  ): Promise<FacetAggregations> {
+    const { aggregations } = await this.repo.getFacets(shop, filters, filterConfig);
+    return aggregations;
   }
 
   /**

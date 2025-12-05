@@ -9,7 +9,7 @@ import { createModuleLogger } from '@shared/utils/logger.util';
 import { normalizeShopifyId, extractShopifyResourceType } from '@shared/utils/shopify-id.util';
 import { normalizeGraphQLNode } from '@shared/utils/graphql.util';
 import { PRODUCT_OPTION_PAIR_SEPARATOR } from '@shared/constants/products.constants';
-import type { shopifyProduct, productOption, productVariant, productVariantOption, productMetafield, productMedia } from '@modules/products/products.type';
+import type { shopifyProduct, productOption, productVariant, productVariantOption, productMetafield, productMedia } from '@shared/storefront/types';
 
 const logger = createModuleLogger('IndexerHelper');
 

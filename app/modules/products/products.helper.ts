@@ -3,7 +3,7 @@
  * Business logic utilities for building product filter inputs from HTTP requests
  */
 
-import { ProductFilterInput, ProductSearchInput } from './products.type';
+import { ProductFilterInput, ProductSearchInput } from '@shared/storefront/types';
 import { parseCommaSeparated, parseOptionFilters } from '@shared/helpers/query.helper';
 
 /**

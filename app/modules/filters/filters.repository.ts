@@ -7,7 +7,7 @@
 import { Client } from '@elastic/elasticsearch';
 import { createModuleLogger } from '@shared/utils/logger.util';
 import { v4 as uuidv4 } from 'uuid';
-import { Filter, CreateFilterInput, UpdateFilterInput } from './filters.type';
+import { Filter, CreateFilterInput, UpdateFilterInput } from '@shared/filters/types';
 import { getCacheService } from '@core/cache';
 import { FILTERS_INDEX_NAME } from '@shared/constants/es.constant';
 
