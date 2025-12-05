@@ -122,22 +122,39 @@ export class FiltersRepository {
    * Get filter by ID for a specific shop
    * Uses shop field to filter in single index for all shops
    * Verifies that the filter belongs to the specified shop
+   * Uses must with term queries for exact matching
    */
   async getFilter(shop: string, id: string): Promise<Filter | null> {
     try {
       const index = FILTERS_INDEX_NAME;
       
-      // Use search query with shop and id filters to ensure shop ownership
-      // Try both term (for keyword fields) and match (for text fields) to handle different mappings
+      // Use must with term queries for exact shop and id matching
+      // Try both shop.keyword (if keyword subfield exists) and shop (direct keyword field)
+      // This ensures exact matching regardless of field mapping
       const response = await this.esClient.search({
         index,
         query: {
           bool: {
-            should: [
-              { match: { shop: shop } },
-              { match: { id: id } }
-            ],
-            minimum_should_match: 2
+            must: [
+              {
+                bool: {
+                  should: [
+                    { term: { 'shop.keyword': shop } },  // Try keyword subfield first
+                    { term: { shop: shop } }  // Fallback to direct keyword field
+                  ],
+                  minimum_should_match: 1
+                }
+              },
+              {
+                bool: {
+                  should: [
+                    { term: { 'id.keyword': id } },  // Try keyword subfield first
+                    { term: { id: id } }  // Fallback to direct keyword field
+                  ],
+                  minimum_should_match: 1
+                }
+              }
+            ]
           }
         },
         size: 1,
@@ -171,6 +188,7 @@ export class FiltersRepository {
   /**
    * List all filters for a shop
    * Filters by shop field in single index for all shops
+   * Uses must with term query for exact shop matching
    */
   async listFilters(shop: string): Promise<{ filters: Filter[]; total: number }> {
     try {
@@ -178,16 +196,24 @@ export class FiltersRepository {
       
       logger.log('Listing filters for shop', { shop, index });
       
-      // Try both term (for keyword fields) and match (for text fields) to handle different mappings
-      // This ensures we find filters regardless of how the shop field is mapped in ES
+      // Use must with term query for exact shop matching
+      // Try both shop.keyword (if keyword subfield exists) and shop (direct keyword field)
+      // This ensures exact matching regardless of field mapping
       const response = await this.esClient.search({
         index,
         query: {
           bool: {
-            should: [
-              { match: { shop: shop } }  // Match for text field
-            ],
-            minimum_should_match: 1
+            must: [
+              {
+                bool: {
+                  should: [
+                    { term: { 'shop.keyword': shop } },  // Try keyword subfield first
+                    { term: { shop: shop } }  // Fallback to direct keyword field
+                  ],
+                  minimum_should_match: 1
+                }
+              }
+            ]
           }
         },
         size: 10000, // Get all filters for this shop
