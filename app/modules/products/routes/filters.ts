@@ -17,12 +17,12 @@ import { validateShopDomain } from '@core/http/validation.middleware';
 import { rateLimit } from '@core/security/rate-limit.middleware';
 import { buildFilterInput } from '@modules/products/products.helper';
 import { createModuleLogger } from '@shared/utils/logger.util';
-import { formatFilters } from '@modules/products/products.format.helper';
+import { formatFilters } from '@shared/storefront/filter-format.helper';
 import {
   getActiveFilterConfig,
   applyFilterConfigToInput,
   formatFilterConfigForStorefront,
-} from '@modules/products/products.filter-config.helper';
+} from '@shared/storefront/filter-config.helper';
 
 const logger = createModuleLogger('ProductFiltersRoute');
 
@@ -44,15 +44,6 @@ export const GET = handler(async (req: HttpRequest) => {
   if (!productsService) {
     logger.error('Products service not available');
     throw new Error('Products service not available');
-  }
-
-  // Access repository through service instance (repository is private, but we can access it via type casting)
-  // The service has a private 'repo' property that contains the productsRepository instance
-  const productsRepository = (productsService as any).repo;
-  
-  if (!productsRepository) {
-    logger.error('Products repository not available - cannot get raw aggregations');
-    throw new Error('Products repository not available');
   }
 
   // Get active filter configuration with collection priority
@@ -88,7 +79,11 @@ export const GET = handler(async (req: HttpRequest) => {
   // Get raw aggregations from repository (not formatted yet)
   // We need FacetAggregations (raw ES format) to pass to formatFilters
   // This allows formatFilters to apply filterConfig settings (position sorting, targetScope filtering, etc.)
-  const { aggregations } = await productsRepository.getFacets(shopParam, filterInput, filterConfig);
+  const aggregations = await productsService.getRawAggregations(
+    shopParam,
+    filterInput,
+    filterConfig
+  );
   
   logger.debug('Raw aggregations from repository', {
     shop: shopParam,

@@ -5,16 +5,16 @@
  */
 
 import { GraphQLContext } from '../graphql.type';
-import { productsRepository } from '@modules/products/products.repository';
-import { productsService } from '@modules/products/products.service';
+import { StorefrontSearchRepository } from '@shared/storefront/repository';
+import { StorefrontSearchService } from '@shared/storefront/service';
 import { PRODUCT_INDEX_NAME } from '@shared/constants/products.constants';
 import { createModuleLogger } from '@shared/utils/logger.util';
 
 const logger = createModuleLogger('products-resolvers');
 
 // Initialize repository and service
-let productsRepo: productsRepository | null = null;
-let productsSvc: productsService | null = null;
+let productsRepo: StorefrontSearchRepository | null = null;
+let productsSvc: StorefrontSearchService | null = null;
 
 function getESClient(context: GraphQLContext): any {
   // Get ES client from request (injected by bootstrap)
@@ -29,17 +29,17 @@ function getESClient(context: GraphQLContext): any {
   return esClient;
 }
 
-function getProductsService(context: GraphQLContext): productsService {
+function getProductsService(context: GraphQLContext): StorefrontSearchService {
   const esClient = getESClient(context);
   if (!esClient) {
     throw new Error('ES client not available in context');
   }
   
   if (!productsRepo) {
-    productsRepo = new productsRepository(esClient);
+    productsRepo = new StorefrontSearchRepository(esClient);
   }
   if (!productsSvc) {
-    productsSvc = new productsService(productsRepo);
+    productsSvc = new StorefrontSearchService(productsRepo);
   }
   return productsSvc;
 }

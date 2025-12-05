@@ -5,8 +5,7 @@
 
 import { CacheManager, CacheOptions } from './cache.manager';
 import { generateSearchCacheKey, generateFilterCacheKey, generateCacheKeyPattern, matchesPattern } from './cache.key';
-import { ProductSearchInput, ProductSearchResult, FacetAggregations } from '@modules/products/products.type';
-import { ProductFilterInput } from '@modules/products/products.type';
+import { ProductSearchInput, ProductSearchResult, FacetAggregations, ProductFilterInput } from '@shared/storefront/types';
 import { createModuleLogger } from '@shared/utils/logger.util';
 
 const logger = createModuleLogger('cache-service');

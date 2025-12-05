@@ -4,14 +4,14 @@
  * Supports dynamic field selection via query parameters
  */
 
-import { shopifyProduct, StorefrontProduct } from './products.type';
+import { shopifyProduct, StorefrontProduct } from './types';
 import {
   parseFieldSelection,
   selectProductFields,
   selectProductsFields,
   DEFAULT_STOREFRONT_FIELDS,
   DEFAULT_VARIANT_FIELDS,
-} from './products.field-selector.helper';
+} from './field-selector.helper';
 
 /**
  * Fields that are used only for indexing/filtering and should not be exposed to storefront

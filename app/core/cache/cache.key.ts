@@ -3,7 +3,7 @@
  * Generates consistent cache keys for search and filter queries
  */
 
-import { ProductSearchInput, ProductFilterInput } from '@modules/products/products.type';
+import { ProductSearchInput, ProductFilterInput } from '@shared/storefront/types';
 import crypto from 'crypto';
 
 /**

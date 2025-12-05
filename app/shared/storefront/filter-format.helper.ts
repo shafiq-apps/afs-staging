@@ -3,9 +3,9 @@
  * Utility functions for formatting filter aggregations
  */
 
-import { FacetAggregations, FacetValue } from './products.type';
+import { FacetAggregations, FacetValue } from './types';
 import { PRODUCT_OPTION_PAIR_SEPARATOR } from '@shared/constants/products.constants';
-import { Filter } from '@modules/filters/filters.type';
+import { Filter } from '@shared/filters/types';
 
 /**
  * Normalize Elasticsearch aggregation buckets to FacetValue array

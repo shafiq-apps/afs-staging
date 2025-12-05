@@ -5,7 +5,7 @@
  */
 
 import { createModuleLogger } from '@shared/utils/logger.util';
-import type { shopifyProduct } from './products.type';
+import type { shopifyProduct } from './types';
 
 const logger = createModuleLogger('ProductFieldFilter');
 

@@ -6,7 +6,7 @@
 import { Client } from '@elastic/elasticsearch';
 import { createModuleLogger } from '@shared/utils/logger.util';
 
-const logger = createModuleLogger('products-repository');
+const logger = createModuleLogger('storefront-repository');
 import { sanitizeFilterInput } from '@shared/utils/sanitizer.util';
 import {
   ProductFilterInput,
@@ -16,10 +16,10 @@ import {
   shopifyProduct,
   AggregationBucket,
   TermsAggregation,
-} from './products.type';
+} from './types';
 import { PRODUCT_INDEX_NAME, PRODUCT_OPTION_PAIR_SEPARATOR } from '@shared/constants/products.constants';
-import { filterProductsForStorefront } from './products.storefront.helper';
-import { Filter } from '@modules/filters/filters.type';
+import { filterProductsForStorefront } from './storefront.helper';
+import { Filter } from '@shared/filters/types';
 
 const DEFAULT_BUCKET_SIZE = 500;
 
@@ -193,7 +193,7 @@ function getVariantOptionKeys(filterConfig: Filter | null): Set<string> {
   return variantOptionKeys;
 }
 
-export class productsRepository {
+export class StorefrontSearchRepository {
   constructor(private esClient: Client) {}
 
   /**
