@@ -210,8 +210,6 @@ export class StorefrontSearchRepository {
     const mustQueries: any[] = [];
     const optionFilterQueries: any[] = [];
     const useOptionPostFilter = sanitizedFilters?.preserveOptionAggregations === true;
-    const optionFilterQueries: any[] = [];
-    const useOptionPostFilter = sanitizedFilters?.preserveOptionAggregations === true;
 
     // Search query filter
     if (sanitizedFilters?.search) {
@@ -568,6 +566,8 @@ export class StorefrontSearchRepository {
     });
 
     const mustQueries: any[] = [];
+    const optionFilterQueries: any[] = [];
+    const useOptionPostFilter = sanitizedFilters?.preserveOptionAggregations === true;
 
     if (sanitizedFilters?.search) {
       mustQueries.push({
