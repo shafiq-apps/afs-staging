@@ -11,6 +11,19 @@ const logger = createModuleLogger('products-filter-config-helper');
 import crypto from 'crypto';
 import { NO_FILTER_CONFIG_HASH } from '@core/cache/cache.key';
 
+const STANDARD_FILTER_MAPPING: Record<string, keyof ProductFilterInput> = {
+  vendor: 'vendors',
+  vendors: 'vendors',
+  producttype: 'productTypes',
+  'product-type': 'productTypes',
+  'product type': 'productTypes',
+  product_types: 'productTypes',
+  tags: 'tags',
+  tag: 'tags',
+  collection: 'collections',
+  collections: 'collections',
+};
+
 const normalizeStatus = (status?: string | null) => (status || '').toUpperCase();
 const normalizeChannel = (channel?: string | null) => (channel || '').toLowerCase();
 const normalizeString = (value?: string | null) => (value || '').toLowerCase();
@@ -221,10 +234,6 @@ export function applyFilterConfigToInput(
   }
 
   // Default to preserving option aggregations unless explicitly disabled
-  if (!('preserveOptionAggregations' in result)) {
-    (result as ProductSearchInput).preserveOptionAggregations = true;
-  }
-
   // Apply targetScope restrictions
   if (filterConfig.targetScope === 'entitled' && filterConfig.allowedCollections?.length > 0) {
     // If filter is scoped to specific collections, ensure we're filtering by those collections
@@ -278,19 +287,6 @@ export function applyFilterConfigToInput(
   // Standard filters should query their dedicated ES fields (vendor.keyword, productType.keyword, etc.)
   // instead of being treated as variant options (optionPairs.keyword)
   if (result.options) {
-    const STANDARD_FILTER_MAPPING: Record<string, keyof ProductFilterInput> = {
-      'vendor': 'vendors',
-      'vendors': 'vendors',
-      'producttype': 'productTypes',
-      'product-type': 'productTypes',
-      'product type': 'productTypes',
-      'product_type': 'productTypes',
-      'tags': 'tags',
-      'tag': 'tags',
-      'collection': 'collections',
-      'collections': 'collections',
-    };
-
     const remainingOptions: Record<string, string[]> = {};
     
     for (const [optionName, values] of Object.entries(result.options)) {
@@ -378,6 +374,34 @@ export function applyFilterConfigToInput(
         }
       }
     }
+  }
+
+  // Map preserveFilters to actual query keys/option names
+  if (result.preserveFilters && result.preserveFilters.length > 0) {
+    const mappedPreserve = new Set<string>();
+    for (const rawKey of result.preserveFilters) {
+      const key = rawKey?.trim();
+      if (!key) continue;
+
+      const lowerKey = key.toLowerCase();
+      if (lowerKey === '__all__') {
+        mappedPreserve.add('__all__');
+        break;
+      }
+
+      const standardField = STANDARD_FILTER_MAPPING[lowerKey];
+      if (standardField) {
+        mappedPreserve.add(standardField.toLowerCase());
+        continue;
+      }
+
+      const optionName = mapOptionKeyToName(filterConfig, key);
+      if (optionName) {
+        mappedPreserve.add(optionName.toLowerCase());
+      }
+    }
+
+    result.preserveFilters = Array.from(mappedPreserve);
   }
 
   return result;

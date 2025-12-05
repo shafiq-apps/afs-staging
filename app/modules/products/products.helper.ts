@@ -63,6 +63,18 @@ export function buildFilterInput(query: Record<string, unknown>): ProductFilterI
   const searchQuery = typeof query.search === 'string' ? query.search.trim() : undefined;
   if (searchQuery) filters.search = searchQuery;
 
+  const preserveFilterValues = parseCommaSeparated(
+    query.preserveFilter ||
+      query.preserveFilters ||
+      query.preserve_filter ||
+      query.preserve_filters
+  );
+  if (preserveFilterValues.length) {
+    filters.preserveFilters = preserveFilterValues;
+  } else if (query.preserveOptionAggregations === 'true' || query.preserveOptionAggregations === '1') {
+    filters.preserveFilters = ['__all__'];
+  }
+
   // Price range filters (product-level: minPrice/maxPrice)
   const priceMin = typeof query.priceMin === 'string' ? parseFloat(query.priceMin) : typeof query.priceMin === 'number' ? query.priceMin : undefined;
   if (priceMin !== undefined && !isNaN(priceMin) && priceMin >= 0) filters.priceMin = priceMin;
@@ -81,12 +93,8 @@ export function buildFilterInput(query: Record<string, unknown>): ProductFilterI
   const variantSkuValues = parseCommaSeparated(query.variantSku || query.variantSkus || query.sku || query.skus);
   if (variantSkuValues.length) filters.variantSkus = variantSkuValues;
 
-  if (query.preserveOptionAggregations === 'true' || query.preserveOptionAggregations === '1') {
-    filters.preserveOptionAggregations = true;
-  }
-
   const hasFilters = hasAnyFilters(filters);
-  if (hasFilters || filters.preserveOptionAggregations) {
+  if (hasFilters || (filters.preserveFilters && filters.preserveFilters.length > 0)) {
     return filters;
   }
 
@@ -129,6 +137,18 @@ export function buildSearchInput(query: Record<string, unknown>): ProductSearchI
   const searchQuery = typeof query.search === 'string' ? query.search.trim() : undefined;
   if (searchQuery) filters.search = searchQuery;
 
+  const preserveFilterValues = parseCommaSeparated(
+    query.preserveFilter ||
+      query.preserveFilters ||
+      query.preserve_filter ||
+      query.preserve_filters
+  );
+  if (preserveFilterValues.length) {
+    filters.preserveFilters = preserveFilterValues;
+  } else if (query.preserveOptionAggregations === 'true' || query.preserveOptionAggregations === '1') {
+    filters.preserveFilters = ['__all__'];
+  }
+
   // Price range filters (product-level: minPrice/maxPrice)
   const priceMin = typeof query.priceMin === 'string' ? parseFloat(query.priceMin) : typeof query.priceMin === 'number' ? query.priceMin : undefined;
   if (priceMin !== undefined && !isNaN(priceMin) && priceMin >= 0) filters.priceMin = priceMin;
@@ -168,10 +188,6 @@ export function buildSearchInput(query: Record<string, unknown>): ProductSearchI
     if (typeof fields === 'string' || Array.isArray(fields)) {
       filters.fields = fields;
     }
-  }
-
-  if (query.preserveOptionAggregations === 'true' || query.preserveOptionAggregations === '1') {
-    filters.preserveOptionAggregations = true;
   }
 
   return filters;

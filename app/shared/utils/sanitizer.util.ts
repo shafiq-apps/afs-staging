@@ -192,7 +192,7 @@ export function sanitizeFilterInput(input: {
   variantPriceMin?: number;
   variantPriceMax?: number;
   variantSkus?: string[];
-  preserveOptionAggregations?: boolean;
+  preserveFilters?: string[];
 }): {
   search?: string;
   vendors?: string[];
@@ -206,7 +206,7 @@ export function sanitizeFilterInput(input: {
   variantPriceMin?: number;
   variantPriceMax?: number;
   variantSkus?: string[];
-  preserveOptionAggregations?: boolean;
+  preserveFilters?: string[];
 } {
   const sanitized: typeof input = {};
 
@@ -271,8 +271,8 @@ export function sanitizeFilterInput(input: {
     sanitized.variantSkus = sanitizeTermsArray(input.variantSkus);
   }
 
-  if (typeof input.preserveOptionAggregations === 'boolean') {
-    sanitized.preserveOptionAggregations = input.preserveOptionAggregations;
+  if (input.preserveFilters) {
+    sanitized.preserveFilters = sanitizeTermsArray(input.preserveFilters);
   }
 
   return sanitized;

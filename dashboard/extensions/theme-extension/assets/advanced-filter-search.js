@@ -189,7 +189,7 @@
      * Build query string from object
      * For options, converts option names to direct handles using filterConfig
      */
-    buildQueryString(params, filterConfig = null) {
+    buildQueryString(params, filterConfig = null, optionHandleMap = {}) {
       const searchParams = new URLSearchParams();
       Object.keys(params).forEach(key => {
         const value = params[key];
@@ -199,12 +199,14 @@
             Object.keys(value).forEach(optKey => {
               const optValues = value[optKey];
               if (optValues !== null && optValues !== undefined && optValues !== '') {
-                // Convert option name to handle using filterConfig
-                const handleOrName = filterConfig 
-                  ? Utils.getHandleForOptionName(optKey, filterConfig)
-                  : optKey;
-                const useDirectHandle = Utils.looksLikeHandle(handleOrName);
-                const paramKey = useDirectHandle ? handleOrName : `options[${handleOrName}]`;
+                const normalizedKey = typeof optKey === 'string' ? optKey.toLowerCase() : '';
+                const handleOrName =
+                  (optionHandleMap && optionHandleMap[normalizedKey]) ||
+                  (filterConfig ? Utils.getHandleForOptionName(optKey, filterConfig) : optKey);
+                const paramKey = String(handleOrName || optKey).trim();
+                if (!paramKey) {
+                  return;
+                }
                 
                 if (Array.isArray(optValues) && optValues.length > 0) {
                   // Ensure all values are strings
@@ -273,6 +275,27 @@
       return result;
     }
   };
+
+function buildOptionHandleMap(filters) {
+  const map = {};
+  if (!Array.isArray(filters)) {
+    return map;
+  }
+
+  filters.forEach((filter) => {
+    if (!filter || filter.type !== 'option') return;
+    const key =
+      String(filter.queryKey || filter.optionKey || filter.label || filter.handle || '')
+        .toLowerCase()
+        .trim();
+    const handle = String(filter.handle || filter.queryKey || filter.optionKey || filter.label || '').trim();
+    if (key && handle) {
+      map[key] = handle;
+    }
+  });
+
+  return map;
+}
 
   // ============================================================================
   // LOGGER
@@ -373,7 +396,9 @@
       loading: false,
       error: null,
       availableFilters: [],
-      filterConfig: null
+      filterConfig: null,
+      optionHandleMap: {},
+      preserveFilters: []
     },
 
     /**
@@ -387,11 +412,26 @@
      * Update state (immutable)
      */
     updateState(updates) {
-      this.state = {
+      const nextState = {
         ...this.state,
         ...updates,
         filters: updates.filters ? { ...this.state.filters, ...updates.filters } : this.state.filters
       };
+
+      if ('availableFilters' in updates && Array.isArray(updates.availableFilters)) {
+        nextState.availableFilters = updates.availableFilters;
+        nextState.optionHandleMap = buildOptionHandleMap(updates.availableFilters);
+      }
+
+      if ('optionHandleMap' in updates) {
+        nextState.optionHandleMap = updates.optionHandleMap || {};
+      }
+
+      if ('preserveFilters' in updates) {
+        nextState.preserveFilters = updates.preserveFilters || [];
+      }
+
+      this.state = nextState;
       Logger.debug('State updated', this.state);
     },
 
@@ -413,6 +453,16 @@
         pagination: pagination || this.state.pagination,
         loading: false
       });
+    },
+
+    getOptionHandle(optionKey) {
+      if (!optionKey) return null;
+      const map = this.state.optionHandleMap || {};
+      return map[String(optionKey).toLowerCase()] || null;
+    },
+
+    getPreserveFilters() {
+      return this.state.preserveFilters || [];
     },
 
     /**
@@ -441,6 +491,8 @@
      */
     parseURL(filterConfig = null) {
       const url = new URL(window.location);
+      const hasPreserveParam =
+        url.searchParams.has('preserveFilters') || url.searchParams.has('preserveFilter');
       const params = {};
       
       url.searchParams.forEach((value, key) => {
@@ -465,6 +517,8 @@
         } else if (key === 'sort') {
           const [field, order] = value.split(':');
           params.sort = { field, order: order || 'desc' };
+        } else if (key === 'preserveFilters' || key === 'preserveFilter') {
+          params.preserveFilters = Utils.parseCommaSeparated(value);
         } else if (key.startsWith('options[') || key.startsWith('option.')) {
           // Extract handle from query param
           const handle = key.replace(/^options?\[|\]|^option\./g, '');
@@ -476,6 +530,13 @@
           params.options[optionName] = Utils.parseCommaSeparated(value);
         }
       });
+      
+      if (params.preserveFilters) {
+        StateManager.updateState({ preserveFilters: params.preserveFilters });
+        delete params.preserveFilters;
+      } else if (!hasPreserveParam) {
+        StateManager.updateState({ preserveFilters: [] });
+      }
       
       return params;
     },
@@ -517,9 +578,11 @@
      */
     updateURL(filters, pagination, sort, options = {}) {
       const url = new URL(window.location);
+      const state = StateManager.getState();
       
       // Get filterConfig from state if available
-      const filterConfig = options.filterConfig || StateManager.getState().filterConfig;
+      const filterConfig = options.filterConfig || state.filterConfig;
+      const optionHandleMap = state.optionHandleMap || {};
       
       // Clear existing params
       url.search = '';
@@ -543,11 +606,13 @@
             Object.keys(value).forEach(optKey => {
               const optValues = value[optKey];
               if (!this.isEmpty(optValues) && Array.isArray(optValues) && optValues.length > 0) {
-                // Convert option name to handle using filterConfig
-                const handle = filterConfig 
-                  ? Utils.getHandleForOptionName(optKey, filterConfig)
-                  : optKey;
-                url.searchParams.set(`options[${handle}]`, optValues.join(','));
+                const normalizedKey = optKey.toLowerCase();
+                const handle =
+                  optionHandleMap[normalizedKey] ||
+                  (filterConfig ? Utils.getHandleForOptionName(optKey, filterConfig) : optKey);
+                const paramKey = String(handle || optKey).trim();
+                if (!paramKey) return;
+                url.searchParams.set(paramKey, optValues.join(','));
               }
             });
           }
@@ -565,9 +630,10 @@
       }
       // Don't add limit - it's a default, not user action
       
-      // Only add sort if user explicitly sorted (not default)
-      // For now, we'll skip sort unless explicitly set by user action
-      // This can be enabled later if sort UI is added
+      const preserveFilters = state.preserveFilters || [];
+      if (preserveFilters.length > 0) {
+        url.searchParams.set('preserveFilters', preserveFilters.join(','));
+      }
       
       // Update URL (no page refresh)
       history.pushState({ filters, pagination, sort }, '', url);
@@ -581,7 +647,6 @@
   
   const APIClient = {
     baseURL: 'http://localhost:3554',
-    preserveOptionAggregations: true,
     cache: new Map(),
     cacheTimestamps: new Map(),
     pendingRequests: new Map(),
@@ -591,13 +656,6 @@
      */
     setBaseURL(url) {
       this.baseURL = url;
-    },
-
-    /**
-     * Set preserveOptionAggregations flag
-     */
-    setPreserveOptionAggregations(value) {
-      this.preserveOptionAggregations = value !== false;
     },
 
     /**
@@ -690,27 +748,27 @@
       }
       
       // Build URL
+      const state = StateManager.getState();
       const params = {
-        shop: StateManager.state.shop,
+        shop: state.shop,
         ...filters,
         page: pagination.page,
         limit: pagination.limit
       };
 
-      const preserveOptionAggregations =
-        (filters && Object.prototype.hasOwnProperty.call(filters, 'preserveOptionAggregations'))
-          ? Boolean(filters.preserveOptionAggregations)
-          : this.preserveOptionAggregations;
-
-      params.preserveOptionAggregations = preserveOptionAggregations;
+      const preserveFilters = state.preserveFilters || [];
+      if (preserveFilters.length > 0) {
+        params.preserveFilters = preserveFilters;
+      }
       
       if (sort && sort.field) {
         params.sort = `${sort.field}:${sort.order || 'desc'}`;
       }
       
       // Get filterConfig from state for handle conversion
-      const filterConfig = StateManager.getState().filterConfig;
-      const queryString = Utils.buildQueryString(params, filterConfig);
+      const filterConfig = state.filterConfig;
+      const optionHandleMap = state.optionHandleMap || {};
+      const queryString = Utils.buildQueryString(params, filterConfig, optionHandleMap);
       const url = `${this.baseURL}/storefront/products?${queryString}`;
       
       Logger.debug('Fetching products', { url, filters, pagination });
@@ -779,21 +837,21 @@
      * Fetch filters
      */
     async fetchFilters(filters) {
+      const state = StateManager.getState();
       const params = {
-        shop: StateManager.state.shop,
+        shop: state.shop,
         ...filters
       };
 
-      const preserveOptionAggregations =
-        (filters && Object.prototype.hasOwnProperty.call(filters, 'preserveOptionAggregations'))
-          ? Boolean(filters.preserveOptionAggregations)
-          : this.preserveOptionAggregations;
-
-      params.preserveOptionAggregations = preserveOptionAggregations;
+      const preserveFilters = state.preserveFilters || [];
+      if (preserveFilters.length > 0) {
+        params.preserveFilters = preserveFilters;
+      }
       
       // Get filterConfig from state for handle conversion
-      const filterConfig = StateManager.getState().filterConfig;
-      const queryString = Utils.buildQueryString(params, filterConfig);
+      const filterConfig = state.filterConfig;
+      const optionHandleMap = state.optionHandleMap || {};
+      const queryString = Utils.buildQueryString(params, filterConfig, optionHandleMap);
       const url = `${this.baseURL}/storefront/filters?${queryString}`;
       
       Logger.debug('Fetching filters', { url, filters });
@@ -833,10 +891,8 @@
         }
         
         // Return filters object (contains filters, filterConfig, appliedFilters)
-        const filtersData = responseData.data.filters || {};
-        const filterCount = typeof filtersData === 'object' && !Array.isArray(filtersData) 
-          ? Object.keys(filtersData).length 
-          : (Array.isArray(filtersData) ? filtersData.length : 0);
+        const filtersData = Array.isArray(responseData.data.filters) ? responseData.data.filters : [];
+        const filterCount = filtersData.length;
         
         Logger.info('Filters fetched successfully', { filterCount });
         
@@ -1785,6 +1841,22 @@
   
   const FilterManager = {
     /**
+     * Update preserveFilters set
+     */
+    updatePreserveFlag(key, shouldPreserve) {
+      if (!key) return;
+      const normalizedKey = String(key).trim();
+      if (!normalizedKey) return;
+      const current = new Set(StateManager.getState().preserveFilters || []);
+      if (shouldPreserve) {
+        current.add(normalizedKey);
+      } else {
+        current.delete(normalizedKey);
+      }
+      StateManager.updateState({ preserveFilters: Array.from(current) });
+    },
+
+    /**
      * Toggle filter value
      */
     toggleFilter(filterType, value) {
@@ -1809,6 +1881,8 @@
       StateManager.updateState({ pagination: updatedPagination });
       
       // Update URL (page 1 won't be added to URL, only filters)
+      this.updatePreserveFlag(filterType, newValues.length > 0);
+
       URLManager.updateURL(
         { ...state.filters, [filterType]: newValues },
         updatedPagination,
@@ -1866,6 +1940,11 @@
       StateManager.updateState({ pagination: updatedPagination });
       
       // Update URL (page 1 won't be added to URL, only filters)
+      const optionHandle = StateManager.getOptionHandle(optionName) || optionName;
+      const currentValues = currentOptions[optionName]?.map(v => String(v).trim()) || [];
+      const isActive = currentValues.includes(normalizedValue);
+      this.updatePreserveFlag(optionHandle, currentValues.length > 0);
+
       URLManager.updateURL(
         { ...state.filters, options: currentOptions },
         updatedPagination,
@@ -1874,8 +1953,6 @@
       );
       
       // Update active state in DOM
-      const isActive = currentOptions[optionName] && 
-        currentOptions[optionName].map(v => String(v).trim()).includes(normalizedValue);
       DOMRenderer.updateFilterActiveState('options', normalizedValue, isActive, optionName);
       
       // Trigger filter change
@@ -2141,6 +2218,8 @@
         }
         
         StateManager.updateFilters({ options: currentOptions });
+        const optionHandle = StateManager.getOptionHandle(optionName) || optionName;
+        FilterManager.updatePreserveFlag(optionHandle, currentOptions[optionName]?.length > 0);
         
         // Reset pagination to page 1 when filters change
         const updatedPagination = { ...state.pagination, page: 1 };
@@ -2179,6 +2258,8 @@
       StateManager.updateState({
         pagination: { ...state.pagination, page: 1 }
       });
+
+      StateManager.updateState({ preserveFilters: [] });
       
       // Update URL (empty filters and page 1 won't be added to URL)
       URLManager.updateURL(
@@ -2313,10 +2394,6 @@
           APIClient.setBaseURL(config.apiBaseUrl);
         }
 
-        if (typeof config.preserveOptionAggregations === 'boolean') {
-          APIClient.setPreserveOptionAggregations(config.preserveOptionAggregations);
-        }
-        
         // Initialize state - shop comes from config only, not URL
         if (config.shop) {
           StateManager.updateState({ shop: config.shop });
@@ -2451,14 +2528,23 @@
       // Clear state
       StateManager.state = {
         shop: null,
-        filters: {},
+        filters: {
+          vendor: [],
+          productType: [],
+          tags: [],
+          collections: [],
+          options: {},
+          search: ''
+        },
         products: [],
         pagination: { page: 1, limit: CONSTANTS.DEFAULT_PAGE_SIZE, total: 0, totalPages: 0 },
         sort: { field: 'createdAt', order: 'desc' },
         loading: false,
         error: null,
-        availableFilters: {},
-        filterConfig: null
+        availableFilters: [],
+        filterConfig: null,
+        optionHandleMap: {},
+        preserveFilters: []
       };
       
       // Clear cache

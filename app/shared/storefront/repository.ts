@@ -208,8 +208,18 @@ export class StorefrontSearchRepository {
     const sanitizedFilters = filters ? sanitizeFilterInput(filters) : undefined;
 
     const mustQueries: any[] = [];
-    const optionFilterQueries: any[] = [];
-    const useOptionPostFilter = sanitizedFilters?.preserveOptionAggregations === true;
+    const postFilterQueries: any[] = [];
+    const preserveFilters = new Set(
+      (sanitizedFilters?.preserveFilters || []).map((key) => key.toLowerCase())
+    );
+    const preserveAll = preserveFilters.has('__all__');
+    const shouldPreserve = (key: string) => preserveAll || preserveFilters.has(key.toLowerCase());
+    const postFilterQueries: any[] = [];
+    const preserveFilters = new Set(
+      (sanitizedFilters?.preserveFilters || []).map((key) => key.toLowerCase())
+    );
+    const preserveAll = preserveFilters.has('__all__');
+    const shouldPreserve = (key: string) => preserveAll || preserveFilters.has(key.toLowerCase());
 
     // Search query filter
     if (sanitizedFilters?.search) {
@@ -225,22 +235,42 @@ export class StorefrontSearchRepository {
 
     // Vendor filter
     if (hasValues(sanitizedFilters?.vendors)) {
-      mustQueries.push({ terms: { 'vendor.keyword': sanitizedFilters!.vendors } });
+      const clause = { terms: { 'vendor.keyword': sanitizedFilters!.vendors } };
+      if (shouldPreserve('vendors')) {
+        postFilterQueries.push(clause);
+      } else {
+        mustQueries.push(clause);
+      }
     }
 
     // Product type filter
     if (hasValues(sanitizedFilters?.productTypes)) {
-      mustQueries.push({ terms: { 'productType.keyword': sanitizedFilters!.productTypes } });
+      const clause = { terms: { 'productType.keyword': sanitizedFilters!.productTypes } };
+      if (shouldPreserve('productTypes')) {
+        postFilterQueries.push(clause);
+      } else {
+        mustQueries.push(clause);
+      }
     }
 
     // Tags filter - use keyword field for exact matching
     if (hasValues(sanitizedFilters?.tags)) {
-      mustQueries.push({ terms: { 'tags.keyword': sanitizedFilters!.tags } });
+      const clause = { terms: { 'tags.keyword': sanitizedFilters!.tags } };
+      if (shouldPreserve('tags')) {
+        postFilterQueries.push(clause);
+      } else {
+        mustQueries.push(clause);
+      }
     }
 
     // Collections filter - use keyword field for exact matching
     if (hasValues(sanitizedFilters?.collections)) {
-      mustQueries.push({ terms: { 'collections.keyword': sanitizedFilters!.collections } });
+      const clause = { terms: { 'collections.keyword': sanitizedFilters!.collections } };
+      if (shouldPreserve('collections')) {
+        postFilterQueries.push(clause);
+      } else {
+        mustQueries.push(clause);
+      }
     }
 
     // Options filter - encode option pairs
@@ -263,8 +293,8 @@ export class StorefrontSearchRepository {
           terms: { 'optionPairs.keyword': encodedValues },
         };
 
-        if (useOptionPostFilter) {
-          optionFilterQueries.push(termsQuery);
+        if (shouldPreserve(optionName)) {
+          postFilterQueries.push(termsQuery);
         } else {
           mustQueries.push(termsQuery);
         }
@@ -458,17 +488,19 @@ export class StorefrontSearchRepository {
     }
 
     // Execute search with aggregations only (no documents returned)
-    const optionPostFilter = useOptionPostFilter && optionFilterQueries.length
-      ? { bool: { must: optionFilterQueries } }
-      : undefined;
-
     const response = await this.esClient.search<unknown, FacetAggregations>({
       index,
       size: 0, // No documents needed, only aggregations
       track_total_hits: false,
       request_cache: true, // Cache aggregation results for better performance
       query,
-      post_filter: optionPostFilter,
+      post_filter: postFilterQueries.length
+        ? {
+            bool: {
+              must: postFilterQueries,
+            },
+          }
+        : undefined,
       aggs: Object.keys(aggs).length > 0 ? aggs : undefined, // Only include if we have aggregations
     });
 
@@ -566,8 +598,12 @@ export class StorefrontSearchRepository {
     });
 
     const mustQueries: any[] = [];
-    const optionFilterQueries: any[] = [];
-    const useOptionPostFilter = sanitizedFilters?.preserveOptionAggregations === true;
+    const postFilterQueries: any[] = [];
+    const preserveFilters = new Set(
+      (sanitizedFilters?.preserveFilters || []).map((key) => key.toLowerCase())
+    );
+    const preserveAll = preserveFilters.has('__all__');
+    const shouldPreserve = (key: string) => preserveAll || preserveFilters.has(key.toLowerCase());
 
     if (sanitizedFilters?.search) {
       mustQueries.push({
@@ -581,19 +617,39 @@ export class StorefrontSearchRepository {
     }
 
     if (hasValues(sanitizedFilters?.vendors)) {
-      mustQueries.push({ terms: { 'vendor.keyword': sanitizedFilters!.vendors } });
+      const clause = { terms: { 'vendor.keyword': sanitizedFilters!.vendors } };
+      if (shouldPreserve('vendors')) {
+        postFilterQueries.push(clause);
+      } else {
+        mustQueries.push(clause);
+      }
     }
 
     if (hasValues(sanitizedFilters?.productTypes)) {
-      mustQueries.push({ terms: { 'productType.keyword': sanitizedFilters!.productTypes } });
+      const clause = { terms: { 'productType.keyword': sanitizedFilters!.productTypes } };
+      if (shouldPreserve('productTypes')) {
+        postFilterQueries.push(clause);
+      } else {
+        mustQueries.push(clause);
+      }
     }
 
     if (hasValues(sanitizedFilters?.tags)) {
-      mustQueries.push({ terms: { 'tags.keyword': sanitizedFilters!.tags } });
+      const clause = { terms: { 'tags.keyword': sanitizedFilters!.tags } };
+      if (shouldPreserve('tags')) {
+        postFilterQueries.push(clause);
+      } else {
+        mustQueries.push(clause);
+      }
     }
 
     if (hasValues(sanitizedFilters?.collections)) {
-      mustQueries.push({ terms: { 'collections.keyword': sanitizedFilters!.collections } });
+      const clause = { terms: { 'collections.keyword': sanitizedFilters!.collections } };
+      if (shouldPreserve('collections')) {
+        postFilterQueries.push(clause);
+      } else {
+        mustQueries.push(clause);
+      }
     }
 
     // Options filter - encode option pairs
@@ -616,8 +672,8 @@ export class StorefrontSearchRepository {
           terms: { 'optionPairs.keyword': encodedValues },
         };
 
-        if (useOptionPostFilter) {
-          optionFilterQueries.push(termsQuery);
+        if (shouldPreserve(optionName)) {
+          postFilterQueries.push(termsQuery);
         } else {
           mustQueries.push(termsQuery);
         }
@@ -873,10 +929,6 @@ export class StorefrontSearchRepository {
       });
     }
 
-    const optionPostFilter = useOptionPostFilter && optionFilterQueries.length
-      ? { bool: { must: optionFilterQueries } }
-      : undefined;
-
     let response;
     try {
       response = await this.esClient.search<shopifyProduct, FacetAggregations>({
@@ -887,7 +939,13 @@ export class StorefrontSearchRepository {
         sort,
         track_total_hits: true,
         aggs,
-        post_filter: optionPostFilter,
+        post_filter: postFilterQueries.length
+          ? {
+              bool: {
+                must: postFilterQueries,
+              },
+            }
+          : undefined,
       });
     } catch (error: any) {
       logger.error('[searchProducts] ES query failed', {

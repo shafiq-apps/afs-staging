@@ -52,8 +52,8 @@ export interface ProductFilterInput {
   variantPriceMax?: number;
   // Variant SKU filter
   variantSkus?: string[];
-  // Preserve option aggregations even when the option itself is filtered
-  preserveOptionAggregations?: boolean;
+  // Preserve specific filter aggregations (by query key/handle)
+  preserveFilters?: string[];
 }
 
 export interface FacetValue {
@@ -128,8 +128,8 @@ export interface ProductSearchInput {
   fields?: string | string[];
   // Filter settings from filter configuration
   hideOutOfStockItems?: boolean;
-  // Preserve option aggregations even when the option itself is filtered
-  preserveOptionAggregations?: boolean;
+  // Preserve specific filter aggregations (by query key/handle)
+  preserveFilters?: string[];
 }
 
 export interface productOption {
