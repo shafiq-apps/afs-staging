@@ -208,6 +208,7 @@ export class StorefrontSearchRepository {
     const sanitizedFilters = filters ? sanitizeFilterInput(filters) : undefined;
 
     const mustQueries: any[] = [];
+    const optionFilterQueries: any[] = [];
 
     // Search query filter
     if (sanitizedFilters?.search) {
@@ -257,9 +258,8 @@ export class StorefrontSearchRepository {
 
         if (!encodedValues.length) continue;
 
-        // Each option name creates a separate must query (AND between different options)
-        // Multiple values in the same option use terms query (OR within the same option)
-        mustQueries.push({
+        // Store option queries separately so aggregations remain unaffected
+        optionFilterQueries.push({
           terms: { 'optionPairs.keyword': encodedValues },
         });
       }
@@ -337,7 +337,7 @@ export class StorefrontSearchRepository {
       });
     }
 
-    // Build query - use bool.must for AND operation between filters
+    // Build query - option filters are applied via post_filter to keep aggregations intact
     const query = mustQueries.length ? { bool: { must: mustQueries } } : { match_all: {} };
 
     // Determine which aggregations to calculate based on filter configuration
@@ -458,6 +458,9 @@ export class StorefrontSearchRepository {
       track_total_hits: false,
       request_cache: true, // Cache aggregation results for better performance
       query,
+      post_filter: optionFilterQueries.length
+        ? { bool: { must: optionFilterQueries } }
+        : undefined,
       aggs: Object.keys(aggs).length > 0 ? aggs : undefined, // Only include if we have aggregations
     });
 
