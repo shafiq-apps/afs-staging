@@ -202,391 +202,335 @@ export class StorefrontSearchRepository {
    * Only calculates aggregations for enabled filter options in filterConfig
    */
   async getFacets(
-    shopDomain: string,
-    filters?: ProductFilterInput,
-    filterConfig?: Filter | null
+  shopDomain: string,
+  filters?: ProductFilterInput,
+  filterConfig?: Filter | null
+) {
+  const index = PRODUCT_INDEX_NAME(shopDomain);
+
+  // Sanitize filter input to prevent ES query injection
+  const sanitizedFilters = filters ? sanitizeFilterInput(filters) : undefined;
+
+  const mustQueries: any[] = [];
+  const postFilterQueries: any[] = [];
+
+  /** Preserve Filters Logic */
+  const preserveFilters = new Set(
+    (sanitizedFilters?.preserveFilters || []).map((k) => k.toLowerCase())
+  );
+  const preserveAll = preserveFilters.has('__all__');
+  const shouldPreserve = (key: string) =>
+    preserveAll || preserveFilters.has(key.toLowerCase());
+
+  //
+  // -----------------------
+  //   FILTER QUERIES
+  // -----------------------
+  //
+
+  /** Search */
+  if (sanitizedFilters?.search) {
+    mustQueries.push({
+      multi_match: {
+        query: sanitizedFilters.search,
+        fields: ['title^3', 'vendor^2', 'productType', 'tags'],
+        type: 'best_fields',
+        operator: 'and',
+      },
+    });
+  }
+
+  /** Simple terms filters with optional "preserve" routing */
+  const simpleFilters: Record<string, { field: string; values?: any[] }> = {
+    vendors: { field: 'vendor.keyword', values: sanitizedFilters?.vendors },
+    productTypes: {
+      field: 'productType.keyword',
+      values: sanitizedFilters?.productTypes,
+    },
+    tags: { field: 'tags.keyword', values: sanitizedFilters?.tags },
+    collections: {
+      field: 'collections.keyword',
+      values: sanitizedFilters?.collections,
+    },
+  };
+
+  for (const key in simpleFilters) {
+    const { field, values } = simpleFilters[key];
+    if (hasValues(values)) {
+      const clause = { terms: { [field]: values! } };
+      (shouldPreserve(key) ? postFilterQueries : mustQueries).push(clause);
+    }
+  }
+
+  //
+  // Variant Options (optionPairs)
+  //
+  if (sanitizedFilters?.options) {
+    for (const [optionName, values] of Object.entries(
+      sanitizedFilters.options
+    )) {
+      if (!hasValues(values)) continue;
+
+      const encodedValues = (values as string[])
+        .filter((v) => v && typeof v === 'string')
+        .map(
+          (v) => `${optionName}${PRODUCT_OPTION_PAIR_SEPARATOR}${v}`
+        );
+
+      if (!encodedValues.length) continue;
+
+      const clause = {
+        terms: { 'optionPairs.keyword': encodedValues },
+      };
+
+      (shouldPreserve(optionName) ? postFilterQueries : mustQueries).push(clause);
+    }
+  }
+
+  //
+  // Variant Option Keys
+  //
+  if (hasValues(sanitizedFilters?.variantOptionKeys)) {
+    mustQueries.push({
+      terms: {
+        'variantOptionKeys.keyword': sanitizedFilters.variantOptionKeys!,
+      },
+    });
+  }
+
+  //
+  // Product-level Price Range
+  //
+  if (
+    sanitizedFilters?.priceMin !== undefined ||
+    sanitizedFilters?.priceMax !== undefined
   ) {
-    const index = PRODUCT_INDEX_NAME(shopDomain);
+    const rangeMust: any[] = [];
 
-    // Sanitize filter input to prevent ES query injection
-    const sanitizedFilters = filters ? sanitizeFilterInput(filters) : undefined;
-
-    const mustQueries: any[] = [];
-    const postFilterQueries: any[] = [];
-
-    const preserveFilters = new Set(
-      (sanitizedFilters?.preserveFilters || []).map((key) => key.toLowerCase())
-    );
-    const preserveAll = preserveFilters.has('__all__');
-    const shouldPreserve = (key: string) =>
-      preserveAll || preserveFilters.has(key.toLowerCase());
-
-    // Search query filter
-    if (sanitizedFilters?.search) {
-      mustQueries.push({
-        multi_match: {
-          query: sanitizedFilters.search,
-          fields: ['title^3', 'vendor^2', 'productType', 'tags'],
-          type: 'best_fields',
-          operator: 'and',
-        },
+    if (sanitizedFilters.priceMin !== undefined) {
+      rangeMust.push({
+        range: { maxPrice: { gte: sanitizedFilters.priceMin } },
       });
     }
 
-    // Vendor filter
-    if (hasValues(sanitizedFilters?.vendors)) {
-      const clause = { terms: { 'vendor.keyword': sanitizedFilters.vendors } };
-      if (shouldPreserve('vendors')) {
-        postFilterQueries.push(clause);
-      } else {
-        mustQueries.push(clause);
-      }
-    }
-
-    // Product type filter
-    if (hasValues(sanitizedFilters?.productTypes)) {
-      const clause = {
-        terms: { 'productType.keyword': sanitizedFilters.productTypes },
-      };
-      if (shouldPreserve('productTypes')) {
-        postFilterQueries.push(clause);
-      } else {
-        mustQueries.push(clause);
-      }
-    }
-
-    // Tags filter - use keyword field for exact matching
-    if (hasValues(sanitizedFilters?.tags)) {
-      const clause = { terms: { 'tags.keyword': sanitizedFilters.tags } };
-      if (shouldPreserve('tags')) {
-        postFilterQueries.push(clause);
-      } else {
-        mustQueries.push(clause);
-      }
-    }
-
-    // Collections filter - use keyword field for exact matching
-    if (hasValues(sanitizedFilters?.collections)) {
-      const clause = {
-        terms: { 'collections.keyword': sanitizedFilters.collections },
-      };
-      if (shouldPreserve('collections')) {
-        postFilterQueries.push(clause);
-      } else {
-        mustQueries.push(clause);
-      }
-    }
-
-    // Options filter - encode option pairs
-    if (sanitizedFilters?.options) {
-      for (const [optionName, values] of Object.entries(
-        sanitizedFilters.options
-      )) {
-        if (!hasValues(values)) continue;
-        const encodedValues = (values as any[])
-          .filter((value) => typeof value === 'string' && value.length > 0)
-          .map((value) => `${optionName}${PRODUCT_OPTION_PAIR_SEPARATOR}${value}`);
-
-        if (!encodedValues.length) continue;
-
-        const termsQuery = {
-          terms: { 'optionPairs.keyword': encodedValues },
-        };
-
-        if (shouldPreserve(optionName)) {
-          postFilterQueries.push(termsQuery);
-        } else {
-          mustQueries.push(termsQuery);
-        }
-      }
-    }
-
-    // Variant option keys filter
-    if (hasValues(sanitizedFilters?.variantOptionKeys)) {
-      mustQueries.push({
-        terms: { 'variantOptionKeys.keyword': sanitizedFilters.variantOptionKeys },
+    if (sanitizedFilters.priceMax !== undefined) {
+      rangeMust.push({
+        range: { minPrice: { lte: sanitizedFilters.priceMax } },
       });
     }
 
-    // Product price range filter (product-level: minPrice/maxPrice)
-    if (
-      sanitizedFilters?.priceMin !== undefined ||
-      sanitizedFilters?.priceMax !== undefined
-    ) {
-      const priceQueries: any[] = [];
+    mustQueries.push({ bool: { must: rangeMust } });
+  }
 
-      if (sanitizedFilters.priceMin !== undefined) {
-        // Product's maxPrice must be >= filterMin (product has prices in range)
-        priceQueries.push({
-          range: { maxPrice: { gte: sanitizedFilters.priceMin } },
-        });
-      }
+  //
+  // Variant Price Range (nested)
+  //
+  if (
+    sanitizedFilters?.variantPriceMin !== undefined ||
+    sanitizedFilters?.variantPriceMax !== undefined
+  ) {
+    const range: any = {};
+    if (sanitizedFilters.variantPriceMin !== undefined)
+      range.gte = sanitizedFilters.variantPriceMin;
+    if (sanitizedFilters.variantPriceMax !== undefined)
+      range.lte = sanitizedFilters.variantPriceMax;
 
-      if (sanitizedFilters.priceMax !== undefined) {
-        // Product's minPrice must be <= filterMax (product has prices in range)
-        priceQueries.push({
-          range: { minPrice: { lte: sanitizedFilters.priceMax } },
-        });
-      }
+    mustQueries.push({
+      nested: {
+        path: 'variants',
+        query: {
+          range: { 'variants.price.numeric': range },
+        },
+      },
+    });
+  }
 
-      if (priceQueries.length > 0) {
-        mustQueries.push({
-          bool: {
-            must: priceQueries,
+  //
+  // Variant SKU Match (nested)
+  //
+  if (hasValues(sanitizedFilters?.variantSkus)) {
+    mustQueries.push({
+      nested: {
+        path: 'variants',
+        query: {
+          terms: { 'variants.sku': sanitizedFilters.variantSkus! },
+        },
+      },
+    });
+  }
+
+  //
+  // Final Search Query
+  //
+  const query =
+    mustQueries.length > 0 ? { bool: { must: mustQueries } } : { match_all: {} };
+
+  //
+  // -----------------------
+  //   AGGREGATIONS
+  // -----------------------
+  //
+
+  const enabledAggregations = getEnabledAggregations(filterConfig);
+  const aggs: Record<string, any> = {};
+
+  const addTermsAgg = (name: string, field: string, sizeMult = 1) => {
+    aggs[name] = {
+      terms: {
+        field,
+        size: DEFAULT_BUCKET_SIZE * sizeMult,
+        order: { _count: 'desc' as const },
+      },
+    };
+  };
+
+  if (enabledAggregations.standard.has('vendors'))
+    addTermsAgg('vendors', 'vendor.keyword');
+
+  if (enabledAggregations.standard.has('productTypes'))
+    addTermsAgg('productTypes', 'productType.keyword');
+
+  if (enabledAggregations.standard.has('tags'))
+    addTermsAgg('tags', 'tags.keyword', 2);
+
+  if (enabledAggregations.standard.has('collections'))
+    addTermsAgg('collections', 'collections.keyword', 2);
+
+  //
+  // Variant Option Aggregations
+  //
+  if (enabledAggregations.variantOptions.size > 0) {
+    for (const [aggName, optionType] of enabledAggregations.variantOptions) {
+      aggs[aggName] = {
+        filter: {
+          prefix: {
+            'optionPairs.keyword': `${optionType}${PRODUCT_OPTION_PAIR_SEPARATOR}`,
           },
-        });
-      }
-    }
-
-    // Variant price range filter (variant.price)
-    if (
-      sanitizedFilters?.variantPriceMin !== undefined ||
-      sanitizedFilters?.variantPriceMax !== undefined
-    ) {
-      const rangeQuery: any = {};
-      if (sanitizedFilters.variantPriceMin !== undefined) {
-        rangeQuery.gte = sanitizedFilters.variantPriceMin;
-      }
-      if (sanitizedFilters.variantPriceMax !== undefined) {
-        rangeQuery.lte = sanitizedFilters.variantPriceMax;
-      }
-      if (Object.keys(rangeQuery).length > 0) {
-        // Use nested query to filter variants by price
-        mustQueries.push({
-          nested: {
-            path: 'variants',
-            query: {
-              range: {
-                'variants.price.numeric': rangeQuery,
-              },
-            },
-          },
-        });
-      }
-    }
-
-    // Variant SKU filter
-    if (hasValues(sanitizedFilters?.variantSkus)) {
-      mustQueries.push({
-        nested: {
-          path: 'variants',
-          query: {
-            terms: { 'variants.sku': sanitizedFilters.variantSkus },
-          },
-        },
-      });
-    }
-
-    // Build query - option filters are applied via post_filter to keep aggregations intact
-    const query =
-      mustQueries.length > 0 ? { bool: { must: mustQueries } } : { match_all: {} };
-
-    // Determine which aggregations to calculate based on filter configuration
-    const enabledAggregations = getEnabledAggregations(filterConfig);
-
-    // Build aggregations object - only include enabled ones
-    const aggs: any = {};
-
-    // Standard aggregations
-    if (enabledAggregations.standard.has('vendors')) {
-      aggs.vendors = {
-        terms: {
-          field: 'vendor.keyword',
-          size: DEFAULT_BUCKET_SIZE,
-          order: { _count: 'desc' as const },
-        },
-      };
-    }
-
-    if (enabledAggregations.standard.has('productTypes')) {
-      aggs.productTypes = {
-        terms: {
-          field: 'productType.keyword',
-          size: DEFAULT_BUCKET_SIZE,
-          order: { _count: 'desc' as const },
-        },
-      };
-    }
-
-    if (enabledAggregations.standard.has('tags')) {
-      aggs.tags = {
-        terms: {
-          field: 'tags.keyword',
-          size: DEFAULT_BUCKET_SIZE * 2,
-          order: { _count: 'desc' as const },
-        },
-      };
-    }
-
-    if (enabledAggregations.standard.has('collections')) {
-      aggs.collections = {
-        terms: {
-          field: 'collections.keyword',
-          size: DEFAULT_BUCKET_SIZE * 2,
-          order: { _count: 'desc' as const },
-        },
-      };
-    }
-
-    // Variant option-specific aggregations (optimized: only fetch what's needed)
-    if (
-      enabledAggregations.variantOptions &&
-      enabledAggregations.variantOptions.size > 0
-    ) {
-      for (const [aggName, optionType] of enabledAggregations.variantOptions.entries()) {
-        aggs[aggName] = {
-          filter: {
-            prefix: {
-              'optionPairs.keyword': `${optionType}${PRODUCT_OPTION_PAIR_SEPARATOR}`,
-            },
-          },
-          aggs: {
-            values: {
-              terms: {
-                field: 'optionPairs.keyword',
-                size: DEFAULT_BUCKET_SIZE * 2,
-                order: { _count: 'desc' as const },
-              },
-            },
-          },
-        };
-      }
-    } else {
-      // No specific variant options requested - fetch all optionPairs
-      aggs.optionPairs = {
-        terms: {
-          field: 'optionPairs.keyword',
-          size: DEFAULT_BUCKET_SIZE * 5,
-          order: { _count: 'desc' as const },
-        },
-      };
-    }
-
-    // Price range stats aggregation (product-level: minPrice/maxPrice)
-    if (enabledAggregations.standard.has('priceRange')) {
-      aggs.priceRange = {
-        stats: {
-          field: 'minPrice',
-        },
-      };
-    }
-
-    // Variant price range stats aggregation (variant.price)
-    if (enabledAggregations.standard.has('variantPriceRange')) {
-      aggs.variantPriceRange = {
-        nested: {
-          path: 'variants',
         },
         aggs: {
-          priceStats: {
-            stats: {
-              field: 'variants.price.numeric',
+          values: {
+            terms: {
+              field: 'optionPairs.keyword',
+              size: DEFAULT_BUCKET_SIZE * 2,
+              order: { _count: 'desc' as const },
             },
           },
         },
       };
     }
-
-    // Execute search with aggregations only (no documents returned)
-    const response = await this.esClient.search<unknown, FacetAggregations>({
-      index,
-      size: 0,
-      track_total_hits: false,
-      request_cache: true,
-      query,
-      post_filter:
-        postFilterQueries.length > 0
-          ? {
-            bool: {
-              must: postFilterQueries,
-            },
-          }
-          : undefined,
-      aggs: Object.keys(aggs).length > 0 ? aggs : undefined,
-    });
-
-    // Extract price range stats from aggregations
-    const aggregations = (response.aggregations || {}) as any;
-    const priceRangeStats = aggregations.priceRange;
-    const variantPriceRangeStats = aggregations.variantPriceRange?.priceStats;
-
-    // Process variant option-specific aggregations (option.Color, option.Size, etc.)
-    // Convert them to optionPairs format for compatibility
-    let combinedOptionPairs: TermsAggregation;
-
-    if (
-      enabledAggregations.variantOptions &&
-      enabledAggregations.variantOptions.size > 0
-    ) {
-      const optionPairsBuckets: AggregationBucket[] = [];
-
-      for (const [aggName] of enabledAggregations.variantOptions.entries()) {
-        const variantAgg = aggregations[aggName];
-        if (variantAgg?.values?.buckets) {
-          optionPairsBuckets.push(...variantAgg.values.buckets);
-
-          logger.debug('Processed variant option aggregation', {
-            aggName,
-            bucketCount: variantAgg.values.buckets.length,
-            sampleBuckets: variantAgg.values.buckets
-              .slice(0, 3)
-              .map((b: AggregationBucket) => b.key),
-          });
-        }
-      }
-
-      combinedOptionPairs = {
-        buckets: optionPairsBuckets,
-      };
-    } else {
-      combinedOptionPairs = aggregations.optionPairs || { buckets: [] };
-    }
-
-    // Build result with only enabled aggregations
-    const result: FacetAggregations = {
-      vendors:
-        enabledAggregations.standard.has('vendors') && aggregations.vendors
-          ? aggregations.vendors
-          : { buckets: [] },
-      productTypes:
-        enabledAggregations.standard.has('productTypes') && aggregations.productTypes
-          ? aggregations.productTypes
-          : { buckets: [] },
-      tags:
-        enabledAggregations.standard.has('tags') && aggregations.tags
-          ? aggregations.tags
-          : { buckets: [] },
-      collections:
-        enabledAggregations.standard.has('collections') && aggregations.collections
-          ? aggregations.collections
-          : { buckets: [] },
-      optionPairs: combinedOptionPairs,
-      priceRange:
-        enabledAggregations.standard.has('priceRange') &&
-          priceRangeStats &&
-          (priceRangeStats.min !== null || priceRangeStats.max !== null)
-          ? {
-            min: priceRangeStats.min ?? 0,
-            max: priceRangeStats.max ?? 0,
-          }
-          : undefined,
-      variantPriceRange:
-        enabledAggregations.standard.has('variantPriceRange') &&
-          variantPriceRangeStats &&
-          (variantPriceRangeStats.min !== null ||
-            variantPriceRangeStats.max !== null)
-          ? {
-            min: variantPriceRangeStats.min ?? 0,
-            max: variantPriceRangeStats.max ?? 0,
-          }
-          : undefined,
-    };
-
-    return {
-      index,
-      aggregations: result,
+  } else {
+    aggs.optionPairs = {
+      terms: {
+        field: 'optionPairs.keyword',
+        size: DEFAULT_BUCKET_SIZE * 5,
+        order: { _count: 'desc' as const },
+      },
     };
   }
+
+  //
+  // Price Range Stats Aggregations
+  //
+  if (enabledAggregations.standard.has('priceRange')) {
+    aggs.priceRange = { stats: { field: 'minPrice' } };
+  }
+
+  if (enabledAggregations.standard.has('variantPriceRange')) {
+    aggs.variantPriceRange = {
+      nested: { path: 'variants' },
+      aggs: {
+        priceStats: {
+          stats: { field: 'variants.price.numeric' },
+        },
+      },
+    };
+  }
+
+  //
+  // Execute Query
+  //
+  const response = await this.esClient.search<unknown, FacetAggregations>({
+    index,
+    size: 0,
+    track_total_hits: false,
+    request_cache: true,
+    query,
+    post_filter:
+      postFilterQueries.length > 0
+        ? { bool: { must: postFilterQueries } }
+        : undefined,
+    aggs,
+  });
+
+  //
+  // Process Aggregations
+  //
+  const aggregations = (response.aggregations || {}) as any;
+
+  const combinedOptionPairs =
+    enabledAggregations.variantOptions.size > 0
+      ? {
+          buckets: Array.from(enabledAggregations.variantOptions.keys()).flatMap(
+            (aggName) => aggregations[aggName]?.values?.buckets || []
+          ),
+        }
+      : aggregations.optionPairs || { buckets: [] };
+
+  //
+  // Return Facets
+  //
+  return {
+    index,
+    aggregations: {
+      vendors:
+        aggregations.vendors && enabledAggregations.standard.has('vendors')
+          ? aggregations.vendors
+          : { buckets: [] },
+
+      productTypes:
+        aggregations.productTypes &&
+        enabledAggregations.standard.has('productTypes')
+          ? aggregations.productTypes
+          : { buckets: [] },
+
+      tags:
+        aggregations.tags && enabledAggregations.standard.has('tags')
+          ? aggregations.tags
+          : { buckets: [] },
+
+      collections:
+        aggregations.collections &&
+        enabledAggregations.standard.has('collections')
+          ? aggregations.collections
+          : { buckets: [] },
+
+      optionPairs: combinedOptionPairs,
+
+      priceRange:
+        enabledAggregations.standard.has('priceRange') &&
+        aggregations.priceRange &&
+        (aggregations.priceRange.min != null ||
+          aggregations.priceRange.max != null)
+          ? {
+              min: aggregations.priceRange.min ?? 0,
+              max: aggregations.priceRange.max ?? 0,
+            }
+          : undefined,
+
+      variantPriceRange:
+        enabledAggregations.standard.has('variantPriceRange') &&
+        aggregations.variantPriceRange?.priceStats &&
+        (aggregations.variantPriceRange.priceStats.min != null ||
+          aggregations.variantPriceRange.priceStats.max != null)
+          ? {
+              min: aggregations.variantPriceRange.priceStats.min ?? 0,
+              max: aggregations.variantPriceRange.priceStats.max ?? 0,
+            }
+          : undefined,
+    },
+  };
+}
+
 
 
   /**
