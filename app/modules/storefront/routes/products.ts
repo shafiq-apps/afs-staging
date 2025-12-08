@@ -70,6 +70,7 @@ export const GET = handler(async (req: HttpRequest) => {
     responseBody.data.filters = formattedFilters;
   }
 
+  // Do not send filterConfig in the response, use filters instead to save payload size.
   // Include filter configuration for storefront script
   // if (filterConfig) {
   //   responseBody.data.filterConfig = formatFilterConfigForStorefront(filterConfig);
