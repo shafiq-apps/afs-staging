@@ -8,7 +8,7 @@ import { generateSearchCacheKey, generateFilterCacheKey, generateCacheKeyPattern
 import { ProductSearchInput, ProductSearchResult, FacetAggregations, ProductFilterInput } from '@shared/storefront/types';
 import { createModuleLogger } from '@shared/utils/logger.util';
 
-const logger = createModuleLogger('cache-service');
+const logger = createModuleLogger('cache-service', {disabled: true});
 
 export interface CacheServiceOptions extends CacheOptions {
   searchTTL?: number; // TTL for search results (default: 5 minutes)

@@ -10,7 +10,7 @@ import express, { Express } from 'express';
 import { RouteModule } from '@core/http/http.types';
 import { createModuleLogger } from '@shared/utils/logger.util';
 
-const logger = createModuleLogger('router');
+const logger = createModuleLogger('router', {disabled: true});
 
 const VALID_METHODS = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']);
 
@@ -110,8 +110,6 @@ export async function loadRoutes(app: Express, options?: { routesDir?: string })
     : process.cwd();
 
   const routesPath = options?.routesDir || path.join(baseDir, 'modules');
-
-  logger.info(`Loading routes from ${routesPath} (from dist: ${isRunningFromDist})`);
 
   if (!fs.existsSync(routesPath)) {
     logger.warn(`Routes directory not found: ${routesPath}`);

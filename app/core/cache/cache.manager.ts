@@ -5,7 +5,7 @@
 
 import { createModuleLogger } from '@shared/utils/logger.util';
 
-const logger = createModuleLogger('cache');
+const logger = createModuleLogger('cache', {disabled: true});
 
 export interface CacheOptions {
   ttl?: number; // Time to live in milliseconds (default: 5 minutes)

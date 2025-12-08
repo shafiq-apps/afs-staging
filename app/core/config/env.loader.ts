@@ -9,7 +9,7 @@ import { resolve } from 'path';
 import { existsSync } from 'fs';
 import { createModuleLogger } from '@shared/utils/logger.util';
 
-const logger = createModuleLogger('env-loader');
+const logger = createModuleLogger('env-loader', {disabled: true});
 
 export interface EnvLoaderOptions {
   /**

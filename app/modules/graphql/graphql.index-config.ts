@@ -5,7 +5,7 @@
 
 import { createModuleLogger } from '@shared/utils/logger.util';
 
-const logger = createModuleLogger('index-config');
+const logger = createModuleLogger('index-config',{disabled: true});
 
 /**
  * Index configuration map

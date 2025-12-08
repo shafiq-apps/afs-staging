@@ -27,7 +27,7 @@ import { resolvers as resolverObjects, defaultResolvers } from './resolvers/inde
 import { initializeIndexConfig } from './graphql.index-config';
 import { initializeHandlers } from './handlers';
 
-const logger = createModuleLogger('graphql-factory');
+const logger = createModuleLogger('graphql-factory', {disabled: true});
 
 /**
  * Create default empty schema (to be extended by modules)
