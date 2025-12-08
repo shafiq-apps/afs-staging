@@ -119,7 +119,7 @@ export const GET = handler(async (req: HttpRequest) => {
   return {
     success: true,
     data: {
-      filterConfig: filterConfig ? formatFilterConfigForStorefront(filterConfig) : null,
+      // filterConfig: filterConfig ? formatFilterConfigForStorefront(filterConfig) : null,
       filters: formattedFilters, // Pre-compiled filter aggregations (facets) with settings applied
       appliedFilters: cleanedAppliedFilters,
     }
