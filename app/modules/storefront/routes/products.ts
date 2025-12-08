@@ -71,9 +71,9 @@ export const GET = handler(async (req: HttpRequest) => {
   }
 
   // Include filter configuration for storefront script
-  if (filterConfig) {
-    responseBody.data.filterConfig = formatFilterConfigForStorefront(filterConfig);
-  }
+  // if (filterConfig) {
+  //   responseBody.data.filterConfig = formatFilterConfigForStorefront(filterConfig);
+  // }
 
   return responseBody;
 });
