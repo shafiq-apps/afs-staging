@@ -59,6 +59,7 @@ export interface ProductFilterInput {
 export interface FacetValue {
   value: string;
   count: number;
+  label: string;
 }
 
 export interface StorefrontFilterDescriptor {

@@ -11,6 +11,7 @@ import {
   ProductFilters,
   ProductSearchResult,
   FacetAggregations,
+  FacetValue,
   TermsAggregation,
 } from './types';
 import { createModuleLogger } from '@shared/utils/logger.util';
@@ -104,15 +105,16 @@ export class StorefrontSearchService implements Injectable {
    * Converts Elasticsearch aggregation buckets to the format expected by the frontend
    */
   private formatAggregations(aggregations: FacetAggregations): ProductFilters {
-    const normalizeBuckets = (agg?: TermsAggregation): Array<{ value: string; count: number }> =>
+    const normalizeBuckets = (agg?: TermsAggregation): FacetValue[] =>
       (agg?.buckets ?? [])
         .filter((bucket) => bucket.key)
         .map((bucket) => ({
-          value: bucket.key,
+          value: bucket.key, // Original value for filtering
           count: bucket.doc_count,
+          label: bucket.key, // Label for display (initially same as value)
         }));
 
-    const optionEntries: Record<string, Array<{ value: string; count: number }>> = {};
+    const optionEntries: Record<string, FacetValue[]> = {};
     const optionBuckets = aggregations?.optionPairs?.buckets ?? [];
 
     for (const bucket of optionBuckets) {
@@ -126,8 +128,9 @@ export class StorefrontSearchService implements Injectable {
       }
 
       optionEntries[optionName].push({
-        value: optionValue,
+        value: optionValue, // Original value for filtering
         count: bucket.doc_count,
+        label: optionValue, // Label for display (initially same as value)
       });
     }
 

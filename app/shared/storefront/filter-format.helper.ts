@@ -18,8 +18,9 @@ export function normalizeBuckets(agg?: { buckets?: Array<{ key: string; doc_coun
   return (agg?.buckets ?? [])
     .filter((bucket) => bucket.key)
     .map((bucket) => ({
-      value: bucket.key,
+      value: bucket.key, // Original value for filtering
       count: bucket.doc_count,
+      label: bucket.key, // Label for display (initially same as value, can be transformed later)
     }));
 }
 
@@ -41,8 +42,9 @@ export function formatOptionPairs(optionPairsBuckets?: Array<{ key: string; doc_
     }
 
     optionEntries[optionName].push({
-      value: optionValue,
+      value: optionValue, // Original value for filtering
       count: bucket.doc_count,
+      label: optionValue, // Label for display (initially same as value, will be transformed in applyOptionSettings)
     });
   }
 
@@ -81,9 +83,10 @@ function applyTextTransform(value: string, transform: string | undefined): strin
 
 /**
  * Group similar values (case-insensitive) and sum their counts
+ * Preserves original value for filtering, uses first label for display
  */
 function groupSimilarValues(items: FacetValue[]): FacetValue[] {
-  const grouped = new Map<string, { value: string; count: number }>();
+  const grouped = new Map<string, { value: string; count: number; label: string }>();
 
   for (const item of items) {
     const normalizedKey = String(item.value || '').toLowerCase().trim();
@@ -93,8 +96,9 @@ function groupSimilarValues(items: FacetValue[]): FacetValue[] {
       existing.count = (existing.count || 0) + (item.count || 0);
     } else {
       grouped.set(normalizedKey, {
-        value: String(item.value || ''),
+        value: String(item.value || ''), // Original value for filtering
         count: item.count || 0,
+        label: String(item.label || item.value || ''), // Use label if available, fallback to value
       });
     }
   }
@@ -102,6 +106,7 @@ function groupSimilarValues(items: FacetValue[]): FacetValue[] {
   return Array.from(grouped.values()).map((g) => ({
     value: g.value,
     count: g.count,
+    label: g.label,
   }));
 }
 
@@ -127,31 +132,36 @@ function applyOptionSettings(
   const processedItems: FacetValue[] = [];
 
   for (const item of filteredItems) {
-    let value = String(item.value ?? '').trim();
-    if (!value) continue;
+    // Keep original value unchanged for filtering
+    const originalValue = String(item.value ?? '').trim();
+    if (!originalValue) continue;
 
-    const originalValue = value;
+    // Apply transformations to label (for display), not value (for filtering)
+    let label = String(item.label ?? item.value ?? '').trim();
 
+    // Remove prefix from label
     if (Array.isArray(optionSettings.removePrefix)) {
       for (const prefix of optionSettings.removePrefix) {
         const normalizedPrefix = String(prefix).toLowerCase();
-        if (value.toLowerCase().startsWith(normalizedPrefix)) {
-          value = value.substring(String(prefix).length).trim();
+        if (label.toLowerCase().startsWith(normalizedPrefix)) {
+          label = label.substring(String(prefix).length).trim();
           break;
         }
       }
     }
 
+    // Remove suffix from label
     if (Array.isArray(optionSettings.removeSuffix)) {
       for (const suffix of optionSettings.removeSuffix) {
         const normalizedSuffix = String(suffix).toLowerCase();
-        if (value.toLowerCase().endsWith(normalizedSuffix)) {
-          value = value.substring(0, value.length - String(suffix).length).trim();
+        if (label.toLowerCase().endsWith(normalizedSuffix)) {
+          label = label.substring(0, label.length - String(suffix).length).trim();
           break;
         }
       }
     }
 
+    // Replace text in label
     if (Array.isArray(optionSettings.replaceText)) {
       for (const replacement of optionSettings.replaceText) {
         if (
@@ -161,11 +171,12 @@ function applyOptionSettings(
           replacement.to
         ) {
           const regex = new RegExp(replacement.from, 'gi');
-          value = value.replace(regex, replacement.to);
+          label = label.replace(regex, replacement.to);
         }
       }
     }
 
+    // Filter by prefix - check original value (for filtering accuracy)
     if (Array.isArray(optionSettings.filterByPrefix) && optionSettings.filterByPrefix.length > 0) {
       const matches = optionSettings.filterByPrefix.some((prefix: string) =>
         originalValue.toLowerCase().startsWith(String(prefix).toLowerCase())
@@ -174,8 +185,9 @@ function applyOptionSettings(
     }
 
     processedItems.push({
-      value,
+      value: originalValue, // Original value for filtering (unchanged)
       count: item.count,
+      label: label, // Transformed label for display
     });
   }
 
@@ -184,15 +196,18 @@ function applyOptionSettings(
     groupedItems = groupSimilarValues(processedItems);
   }
 
+  // Apply text transformation to label (for display), keep value unchanged (for filtering)
   let finalItems = groupedItems.map((item) => ({
-    ...item,
-    value: applyTextTransform(item.value, optionSettings.textTransform),
+    value: item.value, // Original value for filtering (unchanged)
+    count: item.count,
+    label: applyTextTransform(item.label || item.value, optionSettings.textTransform), // Transform label for display
   }));
 
   if (
     Array.isArray(optionSettings.manualSortedValues) &&
     optionSettings.manualSortedValues.length > 0
   ) {
+    // Sort by original value (for filtering accuracy)
     const sortOrder = optionSettings.manualSortedValues.map((value) => value.toLowerCase().trim());
     finalItems.sort((a, b) => {
       const aIndex = sortOrder.indexOf(String(a.value || '').toLowerCase().trim());
@@ -206,9 +221,18 @@ function applyOptionSettings(
   } else if (optionSettings.sortBy) {
     const sortBy = optionSettings.sortBy.toUpperCase();
     if (sortBy === 'ASCENDING' || sortBy === 'ASC') {
-      finalItems.sort((a, b) => String(a.value).toLowerCase().localeCompare(String(b.value).toLowerCase()));
+      // Sort by label for display, but use value for comparison if label is missing
+      finalItems.sort((a, b) => {
+        const aLabel = String(a.label || a.value || '').toLowerCase();
+        const bLabel = String(b.label || b.value || '').toLowerCase();
+        return aLabel.localeCompare(bLabel);
+      });
     } else if (sortBy === 'DESCENDING' || sortBy === 'DESC') {
-      finalItems.sort((a, b) => String(b.value).toLowerCase().localeCompare(String(a.value).toLowerCase()));
+      finalItems.sort((a, b) => {
+        const aLabel = String(a.label || a.value || '').toLowerCase();
+        const bLabel = String(b.label || b.value || '').toLowerCase();
+        return bLabel.localeCompare(aLabel);
+      });
     } else if (sortBy === 'COUNT_ASC') {
       finalItems.sort((a, b) => (a.count || 0) - (b.count || 0));
     } else if (sortBy === 'COUNT' || sortBy === 'COUNT_DESC') {

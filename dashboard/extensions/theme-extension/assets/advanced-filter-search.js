@@ -519,23 +519,30 @@
     },
     
     // Minimal filter item creation
+    // Displays label for UI, uses value for filtering
     createFilterItem(type, item, optionName, config) {
+      // Get value (for filtering) - always use original value
       const value = $.str(typeof item === 'string' ? item : (item.value || item.key || item.name || ''));
       if (!value || value === '[object Object]') return null;
       
+      // Get label (for display) - use label if available, fallback to value
+      const displayLabel = typeof item === 'string' 
+        ? item 
+        : (item.label || item.value || value);
+      
       const label = $.el('label', 'afs-filter-item', {
         'data-afs-filter-type': type,
-        'data-afs-filter-value': value
+        'data-afs-filter-value': value // Store original value for filtering
       });
       if (optionName) label.setAttribute('data-afs-option-name', optionName);
       
       const cb = $.el('input', 'afs-filter-item__checkbox', { type: 'checkbox' });
       cb.setAttribute('data-afs-filter-type', type);
-      cb.setAttribute('data-afs-filter-value', value);
+      cb.setAttribute('data-afs-filter-value', value); // Store original value for filtering
       if (optionName) cb.setAttribute('data-afs-option-name', optionName);
       
       label.appendChild(cb);
-      label.appendChild($.txt($.el('span', 'afs-filter-item__label'), typeof item === 'string' ? item : (item.label || item.value || value)));
+      label.appendChild($.txt($.el('span', 'afs-filter-item__label'), displayLabel)); // Display label
       if (config?.showCount && item.count) {
         label.appendChild($.txt($.el('span', 'afs-filter-item__count'), `(${item.count})`));
       }
@@ -819,8 +826,9 @@
             items.querySelectorAll('.afs-filter-item').forEach((el, i) => {
               const item = items._items[i];
               if (item) {
-                const label = $.str(typeof item === 'string' ? item : (item.label || item.value || '')).toLowerCase();
-                el.style.display = !term || label.includes(term) ? '' : 'none';
+                // Search by label (for display), but filtering still uses value
+                const searchText = $.str(typeof item === 'string' ? item : (item.label || item.value || '')).toLowerCase();
+                el.style.display = !term || searchText.includes(term) ? '' : 'none';
               }
             });
           }
