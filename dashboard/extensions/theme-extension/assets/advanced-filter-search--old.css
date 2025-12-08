@@ -1,12 +1,22 @@
 /**
- * Advanced Filter Search - Styles
- * Scoped styles with afs- prefix to prevent conflicts
+ * Advanced Filter Search - OPTIMIZED CSS
+ * Fastest rendering with minimal selectors and GPU acceleration
  */
 
 /* ============================================================================
-   Container & Layout
+   CSS Variables (Single source of truth)
    ============================================================================ */
+:root {
+  --afs-transition: 0.2s ease;
+  --afs-color-bg: #f9f9f9;
+  --afs-color-border: #e5e5e5;
+  --afs-color-text: #333;
+  --afs-color-black: #000;
+}
 
+/* ============================================================================
+   Container (Optimized selectors)
+   ============================================================================ */
 [data-afs-container] {
   display: flex;
   flex-direction: column;
@@ -16,170 +26,73 @@
   margin: 0 auto;
   padding: 20px;
   box-sizing: border-box;
+  contain: layout style;
 }
 
-/* Main content wrapper - filters and products side by side */
 [data-afs-container] .afs-main-content {
   display: flex;
   gap: 24px;
   width: 100%;
 }
 
-/* Applied Filters Container (Above filters) */
-[data-afs-container] .afs-applied-filters {
-  width: 100%;
-  margin-bottom: 16px;
-  padding: 12px 16px;
-  background: #f9f9f9;
-  border: 1px solid #e5e5e5;
-  border-radius: 4px;
-}
-
-[data-afs-container] .afs-applied-filters__header {
-  margin-bottom: 8px;
-}
-
-[data-afs-container] .afs-applied-filters__label {
-  font-size: 14px;
-  font-weight: 600;
-  color: #333;
-}
-
-[data-afs-container] .afs-applied-filters__list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-}
-
-[data-afs-container] .afs-applied-filter-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  background: #fff;
-  border: 1px solid #ddd;
-  border-radius: 20px;
-  font-size: 13px;
-  color: #333;
-}
-
-[data-afs-container] .afs-applied-filter-chip__label {
-  font-weight: 400;
-}
-
-[data-afs-container] .afs-applied-filter-chip__remove {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  padding: 0;
-  background: transparent;
-  border: none;
-  border-radius: 50%;
-  font-size: 18px;
-  line-height: 1;
-  color: #666;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-[data-afs-container] .afs-applied-filter-chip__remove:hover {
-  background: #f0f0f0;
-  color: #000;
-}
-
-[data-afs-container] .afs-applied-filters__clear-all {
-  padding: 6px 12px;
-  background: transparent;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 13px;
-  color: #666;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-[data-afs-container] .afs-applied-filters__clear-all:hover {
-  background: #fff;
-  border-color: #000;
-  color: #000;
-}
-
-/* Filters Container (Left Side) */
+/* ============================================================================
+   Filters Container (GPU accelerated scrolling)
+   ============================================================================ */
 [data-afs-container] .afs-filters-container {
   flex: 0 0 280px;
   min-width: 280px;
   overflow-y: auto;
   overflow-x: hidden;
   padding-right: 8px;
+  contain: layout style paint;
+  will-change: scroll-position;
+  transform: translateZ(0); /* GPU acceleration */
 }
 
-/* Custom scrollbar for filters container */
 [data-afs-container] .afs-filters-container::-webkit-scrollbar {
   width: 6px;
-}
-
-[data-afs-container] .afs-filters-container::-webkit-scrollbar-track {
-  background: #f5f5f5;
-  border-radius: 3px;
 }
 
 [data-afs-container] .afs-filters-container::-webkit-scrollbar-thumb {
   background: #ccc;
   border-radius: 3px;
-  transition: background 0.2s ease;
 }
 
-[data-afs-container] .afs-filters-container::-webkit-scrollbar-thumb:hover {
-  background: #999;
-}
-
-/* Firefox scrollbar */
 [data-afs-container] .afs-filters-container {
   scrollbar-width: thin;
   scrollbar-color: #ccc #f5f5f5;
 }
 
-/* Products Container (Right Side) */
+/* ============================================================================
+   Products Container
+   ============================================================================ */
 [data-afs-container] .afs-products-container {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
+  contain: layout;
 }
 
-/* Products Info Container (Above products grid) */
 [data-afs-container] .afs-products-info {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 16px;
   padding-bottom: 12px;
-  border-bottom: 1px solid #e5e5e5;
-}
-
-[data-afs-container] .afs-products-info__results {
+  border-bottom: 1px solid var(--afs-color-border);
   font-size: 14px;
   color: #666;
-  font-weight: 400;
-}
-
-[data-afs-container] .afs-products-info__page {
-  font-size: 14px;
-  color: #666;
-  font-weight: 400;
 }
 
 /* ============================================================================
-   Filter Groups
+   Filter Groups (Optimized collapse animation)
    ============================================================================ */
-
 [data-afs-container] .afs-filter-group {
   margin-bottom: 24px;
   padding-bottom: 20px;
-  border-bottom: 1px solid #e5e5e5;
+  border-bottom: 1px solid var(--afs-color-border);
+  contain: layout style paint;
 }
 
 [data-afs-container] .afs-filter-group:last-child {
@@ -201,55 +114,47 @@
   background: transparent;
   border: none;
   cursor: pointer;
-  text-align: left;
   font-size: 16px;
   font-weight: 600;
-  color: #000;
-  transition: color 0.2s ease;
-}
-
-[data-afs-container] .afs-filter-group__toggle:hover {
-  color: #333;
+  color: var(--afs-color-black);
+  transition: color var(--afs-transition);
 }
 
 [data-afs-container] .afs-filter-group__icon {
   display: inline-flex;
-  align-items: center;
-  justify-content: center;
   width: 16px;
   height: 16px;
   font-size: 10px;
   color: #666;
-  transition: transform 0.2s ease;
-  flex-shrink: 0;
+  transition: transform var(--afs-transition);
+  will-change: transform;
+  transform: translateZ(0);
 }
 
 [data-afs-container] .afs-filter-group[data-afs-collapsed="true"] .afs-filter-group__icon {
-  transform: rotate(-90deg);
+  transform: translateZ(0) rotate(-90deg);
 }
 
 [data-afs-container] .afs-filter-group__label {
-  flex: 1;
   font-size: 16px;
   font-weight: 600;
-  color: #000;
   text-transform: capitalize;
-  cursor: pointer;
   user-select: none;
 }
 
+/* Optimized collapse using grid (no max-height) */
 [data-afs-container] .afs-filter-group__content {
-  overflow: hidden;
-  transition: max-height 0.3s ease, opacity 0.2s ease;
-  max-height: 1000px;
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows var(--afs-transition), opacity var(--afs-transition);
   opacity: 1;
+  overflow: hidden;
 }
 
 [data-afs-container] .afs-filter-group[data-afs-collapsed="true"] .afs-filter-group__content {
-  max-height: 0;
-  opacity: 0;
-  margin: 0;
-  padding: 0;
+  grid-template-rows: 0fr;
+  opacity: 0 !important;
+  height: 0 !important;
 }
 
 [data-afs-container] .afs-filter-group__search {
@@ -260,21 +165,16 @@
   width: 100%;
   padding: 8px 12px;
   font-size: 13px;
-  border: 1px solid #e5e5e5;
+  border: 1px solid var(--afs-color-border);
   border-radius: 4px;
   background: #fff;
-  color: #333;
   box-sizing: border-box;
-  transition: border-color 0.2s ease;
+  transition: border-color var(--afs-transition);
 }
 
 [data-afs-container] .afs-filter-group__search-input:focus {
   outline: none;
-  border-color: #000;
-}
-
-[data-afs-container] .afs-filter-group__search-input::placeholder {
-  color: #999;
+  border-color: var(--afs-color-black);
 }
 
 [data-afs-container] .afs-filter-group__items {
@@ -284,16 +184,11 @@
   max-height: 250px;
   overflow-y: auto;
   overflow-x: hidden;
-  padding-right: 4px;
+  contain: layout;
 }
 
-/* Custom scrollbar for filter group items */
 [data-afs-container] .afs-filter-group__items::-webkit-scrollbar {
   width: 4px;
-}
-
-[data-afs-container] .afs-filter-group__items::-webkit-scrollbar-track {
-  background: transparent;
 }
 
 [data-afs-container] .afs-filter-group__items::-webkit-scrollbar-thumb {
@@ -301,35 +196,28 @@
   border-radius: 2px;
 }
 
-[data-afs-container] .afs-filter-group__items::-webkit-scrollbar-thumb:hover {
-  background: #bbb;
-}
-
-/* Firefox scrollbar for filter items */
 [data-afs-container] .afs-filter-group__items {
   scrollbar-width: thin;
   scrollbar-color: #ddd transparent;
 }
 
 /* ============================================================================
-   Filter Items (Checkbox Style)
+   Filter Items (Minimal styles)
    ============================================================================ */
-
 [data-afs-container] .afs-filter-item {
   display: flex;
   align-items: center;
   gap: 10px;
-  width: 100%;
   padding: 8px 0;
   cursor: pointer;
   font-size: 14px;
-  color: #333;
-  transition: color 0.2s ease;
-  box-sizing: border-box;
+  color: var(--afs-color-text);
+  transition: color var(--afs-transition);
+  contain: layout style;
 }
 
 [data-afs-container] .afs-filter-item:hover {
-  color: #000;
+  color: var(--afs-color-black);
 }
 
 [data-afs-container] .afs-filter-item__checkbox {
@@ -338,25 +226,11 @@
   height: 18px;
   margin: 0;
   cursor: pointer;
-  accent-color: #000;
-  border: 2px solid #ddd;
-  border-radius: 3px;
-  transition: all 0.2s ease;
-}
-
-[data-afs-container] .afs-filter-item__checkbox:hover {
-  border-color: #000;
-}
-
-[data-afs-container] .afs-filter-item__checkbox:checked {
-  background-color: #000;
-  border-color: #000;
+  accent-color: var(--afs-color-black);
 }
 
 [data-afs-container] .afs-filter-item__label {
   flex: 1;
-  font-weight: 400;
-  cursor: pointer;
   user-select: none;
 }
 
@@ -364,31 +238,24 @@
   font-size: 12px;
   color: #999;
   margin-left: auto;
-  flex-shrink: 0;
 }
 
 [data-afs-container] .afs-filter-item--active .afs-filter-item__label {
   font-weight: 500;
-  color: #000;
-}
-
-[data-afs-container] .afs-filter-item--active .afs-filter-item__count {
-  color: #666;
+  color: var(--afs-color-black);
 }
 
 /* ============================================================================
-   Product Grid
+   Product Grid (Optimized with CSS Grid)
    ============================================================================ */
-
-/* Product grid wrapper - actual grid for products */
 [data-afs-container] .afs-products-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 20px;
-  align-content: start;
+  contain: layout;
+  will-change: contents;
 }
 
-/* Responsive grid */
 @media (min-width: 768px) {
   [data-afs-container] .afs-products-grid {
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -402,27 +269,29 @@
 }
 
 /* ============================================================================
-   Product Card
+   Product Card (GPU accelerated hover)
    ============================================================================ */
-
 [data-afs-container] .afs-product-card {
   display: flex;
   flex-direction: column;
   background: #fff;
   border-radius: 4px;
   overflow: hidden;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
   cursor: pointer;
+  contain: layout style paint;
+  will-change: transform;
+  transform: translateZ(0);
+  transition: transform var(--afs-transition), box-shadow var(--afs-transition);
 }
 
 [data-afs-container] .afs-product-card:hover {
-  transform: translateY(-2px);
+  transform: translateZ(0) translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 [data-afs-container] .afs-product-card__image {
   width: 100%;
-  padding-top: 100%; /* 1:1 aspect ratio */
+  aspect-ratio: 1 / 1;
   position: relative;
   background: #f5f5f5;
   overflow: hidden;
@@ -435,11 +304,14 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+  will-change: transform;
+  transform: translateZ(0);
   transition: transform 0.3s ease;
+  content-visibility: auto;
 }
 
 [data-afs-container] .afs-product-card:hover .afs-product-card__image img {
-  transform: scale(1.05);
+  transform: translateZ(0) scale(1.05);
 }
 
 [data-afs-container] .afs-product-card__info {
@@ -452,7 +324,6 @@
 [data-afs-container] .afs-product-card__title {
   font-size: 14px;
   font-weight: 400;
-  color: #000;
   margin: 0;
   line-height: 1.4;
   display: -webkit-box;
@@ -472,14 +343,12 @@
 [data-afs-container] .afs-product-card__price {
   font-size: 14px;
   font-weight: 600;
-  color: #000;
   margin-top: 4px;
 }
 
 /* ============================================================================
-   Loading Indicator
+   Loading & Error (Minimal)
    ============================================================================ */
-
 [data-afs-container] .afs-loading-indicator {
   display: flex;
   flex-direction: column;
@@ -493,26 +362,17 @@
   width: 40px;
   height: 40px;
   border: 3px solid #f3f3f3;
-  border-top: 3px solid #000;
+  border-top: 3px solid var(--afs-color-black);
   border-radius: 50%;
   animation: afs-spin 1s linear infinite;
   margin-bottom: 16px;
+  will-change: transform;
+  transform: translateZ(0);
 }
 
 @keyframes afs-spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  to { transform: translateZ(0) rotate(360deg); }
 }
-
-[data-afs-container] .afs-loading-indicator p {
-  margin: 0;
-  font-size: 14px;
-  color: #666;
-}
-
-/* ============================================================================
-   Error Message
-   ============================================================================ */
 
 [data-afs-container] .afs-error-message {
   grid-column: 1 / -1;
@@ -526,9 +386,77 @@
 }
 
 /* ============================================================================
-   Pagination
+   Applied Filters (Minimal)
    ============================================================================ */
+[data-afs-container] .afs-applied-filters {
+  width: 100%;
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  background: var(--afs-color-bg);
+  border: 1px solid var(--afs-color-border);
+  border-radius: 4px;
+}
 
+[data-afs-container] .afs-applied-filters__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+[data-afs-container] .afs-applied-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 20px;
+  font-size: 13px;
+}
+
+[data-afs-container] .afs-applied-filter-chip__remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  font-size: 18px;
+  line-height: 1;
+  color: #666;
+  cursor: pointer;
+  transition: all var(--afs-transition);
+}
+
+[data-afs-container] .afs-applied-filter-chip__remove:hover {
+  background: #f0f0f0;
+  color: var(--afs-color-black);
+}
+
+[data-afs-container] .afs-applied-filters__clear-all {
+  padding: 6px 12px;
+  background: transparent;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #666;
+  cursor: pointer;
+  transition: all var(--afs-transition);
+}
+
+[data-afs-container] .afs-applied-filters__clear-all:hover {
+  background: #fff;
+  border-color: var(--afs-color-black);
+  color: var(--afs-color-black);
+}
+
+/* ============================================================================
+   Pagination (Minimal)
+   ============================================================================ */
 [data-afs-container] .afs-pagination {
   grid-column: 1 / -1;
   display: flex;
@@ -537,23 +465,23 @@
   gap: 16px;
   margin-top: 32px;
   padding-top: 24px;
-  border-top: 1px solid #e5e5e5;
+  border-top: 1px solid var(--afs-color-border);
 }
 
 [data-afs-container] .afs-pagination__button {
   padding: 8px 16px;
   background: #fff;
-  border: 1px solid #e5e5e5;
+  border: 1px solid var(--afs-color-border);
   border-radius: 4px;
   font-size: 14px;
-  color: #333;
+  color: var(--afs-color-text);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--afs-transition);
 }
 
 [data-afs-container] .afs-pagination__button:hover:not(:disabled) {
-  background: #000;
-  border-color: #000;
+  background: var(--afs-color-black);
+  border-color: var(--afs-color-black);
   color: #fff;
 }
 
@@ -562,31 +490,22 @@
   cursor: not-allowed;
 }
 
-[data-afs-container] .afs-pagination__info {
-  font-size: 14px;
-  color: #666;
-}
-
 /* ============================================================================
-   Responsive Design
+   Responsive (Minimal breakpoints)
    ============================================================================ */
-
 @media (max-width: 768px) {
   [data-afs-container] {
-    flex-direction: column;
     padding: 16px;
     gap: 20px;
   }
   
   [data-afs-container] .afs-main-content {
     flex-direction: column;
-    gap: 20px;
   }
   
   [data-afs-container] .afs-filters-container {
     flex: none;
     width: 100%;
-    min-width: auto;
     max-height: 500px;
   }
   
@@ -594,52 +513,28 @@
     max-height: 180px;
   }
   
-  [data-afs-container] .afs-filter-group__search-input {
-    font-size: 14px;
-    padding: 10px 12px;
-  }
-  
   [data-afs-container] .afs-products-grid {
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     gap: 16px;
   }
-  
-  [data-afs-container] .afs-filter-group {
-    margin-bottom: 24px;
-    padding-bottom: 20px;
-  }
 }
 
 /* ============================================================================
-   Accessibility
+   Accessibility (Minimal focus styles)
    ============================================================================ */
-
-[data-afs-container] .afs-filter-item:focus {
-  outline: 2px solid #000;
-  outline-offset: 2px;
-}
-
-[data-afs-container] .afs-pagination__button:focus {
-  outline: 2px solid #000;
-  outline-offset: 2px;
-}
-
+[data-afs-container] .afs-filter-item:focus,
+[data-afs-container] .afs-pagination__button:focus,
 [data-afs-container] .afs-product-card:focus {
-  outline: 2px solid #000;
+  outline: 2px solid var(--afs-color-black);
   outline-offset: 2px;
 }
 
 /* ============================================================================
-   Print Styles
+   Print (Hide filters)
    ============================================================================ */
-
 @media print {
   [data-afs-container] .afs-filters-container {
     display: none;
-  }
-  
-  [data-afs-container] .afs-products-container {
-    grid-template-columns: repeat(3, 1fr);
   }
 }
 

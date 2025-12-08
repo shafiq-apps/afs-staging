@@ -8,7 +8,7 @@ import { handler } from '@core/http/http.handler';
 import { HttpRequest } from '@core/http/http.types';
 import { validateShopDomain } from '@core/http/validation.middleware';
 import { rateLimit } from '@core/security/rate-limit.middleware';
-import { buildSearchInput } from '@modules/products/products.helper';
+import { buildSearchInput } from '@modules/storefront/products.helper';
 import { formatFilters } from '@shared/storefront/filter-format.helper';
 import {
   getActiveFilterConfig,

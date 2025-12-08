@@ -7,7 +7,7 @@ import express, { Express } from 'express';
 import { createModuleLogger } from '@shared/utils/logger.util';
 import { getEnv, isProduction } from '@core/config';
 import { initializeES, getESClient } from '@core/elasticsearch/es.client';
-import { createProductsModule } from '@modules/products/products.factory';
+import { createProductsModule } from '@modules/storefront/products.factory.js';
 import { createShopsModule } from '@modules/shops/shops.factory';
 import { createFiltersModule } from '@modules/filters/filters.factory';
 import { createGraphQLModule } from '@modules/graphql/graphql.factory';

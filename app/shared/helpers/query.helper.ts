@@ -89,14 +89,32 @@ export function extractOptionName(key: string): string | null {
 
 /**
  * Check if a key looks like a handle/ID pattern
- * Handles/IDs typically follow pattern: {prefix}_{random} (e.g., "pr_a3k9x", "op_rok5d")
+ * Handles/IDs can follow multiple patterns:
+ * - {prefix}_{random} (e.g., "pr_a3k9x", "op_rok5d") 
+ * - {random} (e.g., "ti7u71", "coiecf", "rodnx2", "ef4gd")
+ * Handles are typically 5-10 alphanumeric characters, often starting with letters
  */
 function looksLikeHandle(key: string): boolean {
   if (!key || typeof key !== 'string') return false;
-  // Pattern: 2-3 lowercase letters, underscore, 3-10 alphanumeric chars
-  // Examples: pr_a3k9x, op_rok5d, vn_x7m2p
-  const handlePattern = /^[a-z]{2,3}_[a-z0-9]{3,10}$/;
-  return handlePattern.test(key);
+  const trimmed = key.trim();
+  
+  // Pattern 1: {prefix}_{random} (e.g., "pr_a3k9x", "op_rok5d")
+  const handlePatternWithUnderscore = /^[a-z]{2,3}_[a-z0-9]{3,10}$/i;
+  if (handlePatternWithUnderscore.test(trimmed)) return true;
+  
+  // Pattern 2: {random} alphanumeric, 5-10 chars, typically starts with letter
+  // Examples: ti7u71, coiecf, rodnx2, ef4gd
+  const handlePatternSimple = /^[a-z0-9]{5,10}$/i;
+  if (handlePatternSimple.test(trimmed)) {
+    // Exclude common filter names that might match the pattern
+    const lowerKey = trimmed.toLowerCase();
+    const commonFilterNames = ['vendor', 'vendors', 'producttype', 'producttypes', 'tags', 'tag', 
+                               'collection', 'collections', 'search', 'page', 'limit', 'sort'];
+    if (commonFilterNames.includes(lowerKey)) return false;
+    return true;
+  }
+  
+  return false;
 }
 
 /**

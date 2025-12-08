@@ -158,27 +158,8 @@
       const handleMap = Maps.buildHandleMap(filterConfig);
       const filterMap = Maps.buildFilterMap(State.availableFilters);
       
-      // Build reverse map: handle -> optionName from availableFilters for O(1) lookup
-      const handleToOptionMap = new Map();
-      if (Array.isArray(State.availableFilters)) {
-        State.availableFilters.forEach(f => {
-          if (f.type === 'option' && f.handle) {
-            const optionName = f.queryKey || f.optionKey || f.handle;
-            handleToOptionMap.set(f.handle, optionName);
-            Log.debug('Handle mapping', { handle: f.handle, optionName, queryKey: f.queryKey, optionKey: f.optionKey });
-          }
-        });
-      }
-      
-      Log.debug('Handle maps built', { 
-        handleToOptionMapSize: handleToOptionMap.size,
-        handleMapSize: handleMap.size,
-        filterMapSize: filterMap.size,
-        availableFiltersCount: State.availableFilters?.length || 0
-      });
-      
       url.searchParams.forEach((value, key) => {
-        if (key === 'shop' || key === 'shop_domain' || key === 'preserveFilters') return;
+        if (key === 'shop' || key === 'shop_domain') return;
         
         if (key === 'vendor' || key === 'vendors') params.vendor = $.split(value);
         else if (key === 'productType' || key === 'productTypes') params.productType = $.split(value);
@@ -191,18 +172,18 @@
           const [field, order] = value.split(':');
           params.sort = { field, order: order || 'desc' };
         }
+        else if (key.startsWith('options[') || key.startsWith('option.')) {
+          const handle = key.replace(/^options?\[|\]|^option\./g, '');
+          const optionName = handleMap.get(handle) || handle;
+          if (!params.options) params.options = {};
+          params.options[optionName] = $.split(value);
+        }
         else {
-          // Check if key is a handle - try to find matching filter by handle
-          // Handles are used directly as URL param keys (e.g., ef4gd=red, not options[color]=red)
-          const optionName = handleToOptionMap.get(key) || handleMap.get(key) || filterMap.get(key);
+          // O(1) lookup instead of O(n) find
+          const optionName = handleMap.get(key) || filterMap.get(key);
           if (optionName) {
-            // This is an option filter with a handle - map handle to option name for internal state
             if (!params.options) params.options = {};
             params.options[optionName] = $.split(value);
-            Log.debug('Mapped handle to option', { handle: key, optionName, value });
-          } else {
-            Log.debug('Unknown URL param (not a handle or standard filter)', { key, value });
-            // If not found, it might be a standard filter or unknown - skip it
           }
         }
       });
@@ -320,13 +301,9 @@
         if ($.empty(v)) return;
         if (Array.isArray(v)) params.set(k, v.join(','));
         else if (k === 'options' && typeof v === 'object') {
-          // API expects option names in options[Color]=red format
           Object.keys(v).forEach(optKey => {
-            const optValues = v[optKey];
-            if (!$.empty(optValues) && Array.isArray(optValues) && optValues.length > 0) {
-              // Send as options[Color]=red format with option name
-              params.set(`options[${optKey}]`, optValues.join(','));
-            }
+            const handle = State.optionMap.get(optKey.toLowerCase()) || optKey;
+            params.set(handle, v[optKey].join(','));
           });
         }
         else if (typeof v === 'string') params.set(k, v);
@@ -885,25 +862,8 @@
     async load() {
       DOM.showLoading();
       try {
-        Log.info('Loading filters...', { shop: State.shop, filters: State.filters });
-        const filtersData = await API.filters(State.filters);
-        Log.info('Filters loaded', { filtersCount: filtersData.filters?.length || 0, hasConfig: !!filtersData.filterConfig });
-        
-        // Validate filters is an array
-        if (!Array.isArray(filtersData.filters)) {
-          Log.error('Invalid filters response: filters is not an array', { filters: filtersData.filters });
-          filtersData.filters = [];
-        }
-        
-        State.availableFilters = filtersData.filters || [];
-        State.filterConfig = filtersData.filterConfig || null;
-        State.optionMap = Maps.buildOptionMap(State.availableFilters);
-        State.handleMap = Maps.buildHandleMap(State.filterConfig);
-        
-        // Parse URL params AFTER filters are loaded (so we can map handles to option names)
+        // Parse URL params first (using existing filterConfig if available)
         const urlParams = UrlManager.parse(State.filterConfig);
-        Log.debug('Parsed URL params', { urlParams, availableFiltersCount: State.availableFilters.length });
-        
         if (urlParams.vendor || urlParams.productType || urlParams.tags || urlParams.collections || urlParams.search || urlParams.options) {
           State.filters = {
             vendor: urlParams.vendor || [],
@@ -913,40 +873,43 @@
             search: urlParams.search || '',
             options: urlParams.options || {}
           };
-          Log.info('Filters set from URL', { filters: State.filters });
         }
         if (urlParams.page) State.pagination.page = urlParams.page;
         
-        DOM.renderFilters(State.availableFilters);
-        Log.info('Filters rendered', { count: State.availableFilters.length });
+        // Fetch filters and products in parallel
+        Log.info('Loading filters and products in parallel...', { shop: State.shop, filters: State.filters, pagination: State.pagination });
         
-        Log.info('Loading products...', { filters: State.filters, pagination: State.pagination });
-        const productsData = await API.products(State.filters, State.pagination, State.sort);
+        const [filtersData, productsData] = await Promise.all([
+          API.filters(State.filters).catch(e => {
+            Log.error('Failed to fetch filters', { error: e.message });
+            return { filters: [], filterConfig: null };
+          }),
+          API.products(State.filters, State.pagination, State.sort).catch(e => {
+            Log.error('Failed to fetch products', { error: e.message });
+            throw e; // Re-throw products error as it's critical
+          })
+        ]);
+        
+        Log.info('Filters loaded', { filtersCount: filtersData.filters?.length || 0, hasConfig: !!filtersData.filterConfig });
         Log.info('Products loaded', { count: productsData.products?.length || 0, total: productsData.pagination?.total || 0 });
+        
+        // Validate filters is an array
+        if (!Array.isArray(filtersData.filters)) {
+          Log.error('Invalid filters response: filters is not an array', { filters: filtersData.filters });
+          filtersData.filters = [];
+        }
+        
+        // Update state with parallel results
+        State.availableFilters = filtersData.filters || [];
+        State.filterConfig = filtersData.filterConfig || productsData.filterConfig || null;
+        State.optionMap = Maps.buildOptionMap(State.availableFilters);
         
         State.products = productsData.products || [];
         State.pagination = productsData.pagination || State.pagination;
         
-        // Update filterConfig if provided (products endpoint may have updated it)
-        if (productsData.filterConfig !== undefined) {
-          State.filterConfig = productsData.filterConfig;
-        }
-        
-        // Fetch updated filters after products (will hit cache created by products request)
-        try {
-          const updatedFiltersData = await API.filters(State.filters);
-          if (Array.isArray(updatedFiltersData.filters)) {
-            State.availableFilters = updatedFiltersData.filters;
-            if (updatedFiltersData.filterConfig !== undefined) {
-              State.filterConfig = updatedFiltersData.filterConfig;
-            }
-            State.optionMap = Maps.buildOptionMap(State.availableFilters);
-            DOM.renderFilters(State.availableFilters);
-          }
-        } catch (e) {
-          Log.warn('Failed to fetch updated filters', { error: e.message });
-          // Continue with existing filters if update fails
-        }
+        // Render filters and products
+        DOM.renderFilters(State.availableFilters);
+        Log.info('Filters rendered', { count: State.availableFilters.length });
         
         DOM.renderProducts(State.products);
         DOM.renderInfo(State.pagination, State.pagination.total || 0);

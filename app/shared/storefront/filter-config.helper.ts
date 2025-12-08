@@ -161,20 +161,33 @@ export async function getActiveFilterConfig(
  * This is the authoritative way to determine if a query parameter is an option filter
  * 
  * @param filterConfig - The filter configuration containing option definitions
- * @param key - The query parameter key to check
- * @returns True if the key matches any option's handle, or optionType
+ * @param key - The query parameter key to check (can be handle, optionType, or variantOptionKey)
+ * @returns True if the key matches any option's handle, optionType, or variantOptionKey
  */
 export function isOptionKey(filterConfig: Filter | null, key: string): boolean {
   if (!filterConfig || !filterConfig.options || !key) {
     return false;
   }
 
-  // Check if key matches any published option's handle, or optionType
+  const lowerKey = key.toLowerCase();
+  
+  // Check if key matches any published option's handle, optionType, or variantOptionKey
   return filterConfig.options.some(
-    (opt) =>
-      isPublishedStatus(opt.status) &&
-      (opt.handle === key ||
-       opt.optionType?.toLowerCase() === key.toLowerCase())
+    (opt) => {
+      if (!isPublishedStatus(opt.status)) return false;
+      
+      // Check handle (exact match, case-sensitive)
+      if (opt.handle === key) return true;
+      
+      // Check optionType (case-insensitive)
+      if (opt.optionType?.toLowerCase() === lowerKey) return true;
+      
+      // Check variantOptionKey (case-insensitive)
+      const optionSettings = opt.optionSettings || {};
+      if (optionSettings.variantOptionKey?.toLowerCase() === lowerKey) return true;
+      
+      return false;
+    }
   );
 }
 
@@ -191,12 +204,25 @@ export function mapOptionKeyToName(filterConfig: Filter | null, optionKey: strin
     return optionKey; // Return as-is if no filter config
   }
 
-  // Find option by handle, or optionType
+  const lowerKey = optionKey.toLowerCase();
+  
+  // Find option by handle (exact match, case-sensitive), optionType, or variantOptionKey (both case-insensitive)
   const option = filterConfig.options.find(
-    (opt) =>
-      isPublishedStatus(opt.status) &&
-      (opt.handle === optionKey ||
-       opt.optionType?.toLowerCase() === optionKey.toLowerCase())
+    (opt) => {
+      if (!isPublishedStatus(opt.status)) return false;
+      
+      // Check handle (exact match, case-sensitive - handles are unique identifiers)
+      if (opt.handle === optionKey) return true;
+      
+      // Check optionType (case-insensitive)
+      if (opt.optionType?.toLowerCase() === lowerKey) return true;
+      
+      // Check variantOptionKey (case-insensitive)
+      const optionSettings = opt.optionSettings || {};
+      if (optionSettings.variantOptionKey?.toLowerCase() === lowerKey) return true;
+      
+      return false;
+    }
   );
 
   if (option) {
@@ -255,27 +281,34 @@ export function applyFilterConfigToInput(
   }
 
   // Map option handles/IDs to actual option names
-  // Query parameters may use handles/IDs (e.g., "pr_a3k9x") instead of option names (e.g., "Size")
+  // Query parameters may use handles/IDs (e.g., "pr_a3k9x", "ti7u71") instead of option names (e.g., "Size")
   // Also filter out any keys that don't match actual options in the filter config
   if (result.options) {
     const mappedOptions: Record<string, string[]> = {};
     
     for (const [queryKey, values] of Object.entries(result.options)) {
-      // Check if this key matches an actual option in the filter config
+      // Check if this key (handle or option name) matches an actual option in the filter config
       // This ensures we only process valid option filters
-      // Note: 'price' is a special case that might not have a filter option but is still valid
+      if (!isOptionKey(filterConfig, queryKey)) {
+        // Key doesn't match any option - skip it (might be invalid handle or unrelated param)
+        continue;
+      }
       
       // Map handle/ID to actual option name
       const optionName = mapOptionKeyToName(filterConfig, queryKey);
       
-      // Only include if we got a valid mapping or it's a known option name
-      if (optionName) {
+      // Only include if we got a valid mapping (should always be true if isOptionKey passed)
+      if (optionName && optionName !== queryKey) {
+        // This was a handle that got mapped to an option name
         // Merge values if the option name already exists (can happen with different handles mapping to same name)
         if (mappedOptions[optionName]) {
           mappedOptions[optionName] = [...new Set([...mappedOptions[optionName], ...values])];
         } else {
           mappedOptions[optionName] = values;
         }
+      } else if (optionName === queryKey) {
+        // This is already an option name (not a handle) - use it directly
+        mappedOptions[optionName] = values;
       }
     }
     
