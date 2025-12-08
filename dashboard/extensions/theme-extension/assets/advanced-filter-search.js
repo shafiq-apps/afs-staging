@@ -213,8 +213,9 @@
     update(filters, pagination, sort) {
       const url = new URL(window.location);
       url.search = '';
-      const handleMap = State.handleMap;
       const optionMap = State.optionMap;
+      
+      Log.debug('Updating URL', { filters, pagination, optionMapSize: optionMap.size });
       
       if (filters && !$.empty(filters)) {
         Object.keys(filters).forEach(key => {
@@ -223,6 +224,7 @@
           
           if (Array.isArray(value) && value.length > 0) {
             url.searchParams.set(key, value.join(','));
+            Log.debug('URL param set', { key, value: value.join(',') });
           }
           else if (key === 'options' && typeof value === 'object') {
             Object.keys(value).forEach(optKey => {
@@ -230,17 +232,24 @@
               if (!$.empty(optValues) && Array.isArray(optValues) && optValues.length > 0) {
                 const handle = optionMap.get(optKey.toLowerCase()) || optKey;
                 url.searchParams.set(handle, optValues.join(','));
+                Log.debug('Option URL param set', { optKey, handle, values: optValues.join(','), optionMapSize: optionMap.size });
               }
             });
           }
           else if (key === 'search' && typeof value === 'string' && value.trim()) {
             url.searchParams.set(key, value.trim());
+            Log.debug('Search URL param set', { key, value: value.trim() });
           }
         });
       }
       
-      if (pagination && pagination.page > 1) url.searchParams.set('page', pagination.page);
+      if (pagination && pagination.page > 1) {
+        url.searchParams.set('page', pagination.page);
+        Log.debug('Page URL param set', { page: pagination.page });
+      }
       
+      const newUrl = url.toString();
+      Log.info('URL updated', { newUrl, oldUrl: window.location.href });
       history.pushState({ filters, pagination, sort }, '', url);
     }
   };
@@ -530,13 +539,25 @@
         ? item 
         : (item.label || item.value || value);
       
+      // Check if this filter is currently active
+      let isChecked = false;
+      if (type === 'options' && optionName) {
+        const currentValues = State.filters.options[optionName] || [];
+        isChecked = currentValues.includes(value);
+      } else if (type && State.filters[type]) {
+        const currentValues = Array.isArray(State.filters[type]) ? State.filters[type] : [];
+        isChecked = currentValues.includes(value);
+      }
+      
       const label = $.el('label', 'afs-filter-item', {
         'data-afs-filter-type': type,
         'data-afs-filter-value': value // Store original value for filtering
       });
       if (optionName) label.setAttribute('data-afs-option-name', optionName);
+      if (isChecked) label.classList.add('afs-filter-item--active');
       
       const cb = $.el('input', 'afs-filter-item__checkbox', { type: 'checkbox' });
+      cb.checked = isChecked; // Set checked state based on current filters
       cb.setAttribute('data-afs-filter-type', type);
       cb.setAttribute('data-afs-filter-value', value); // Store original value for filtering
       if (optionName) cb.setAttribute('data-afs-option-name', optionName);
@@ -620,15 +641,31 @@
     
     // Update filter active state (optimized)
     updateFilterState(type, value, active, optionName) {
-      const selector = optionName 
-        ? `.afs-filter-item[data-afs-filter-type="${type}"][data-afs-option-name="${optionName}"][data-afs-filter-value="${value}"]`
-        : `.afs-filter-item[data-afs-filter-type="${type}"][data-afs-filter-value="${value}"]`;
+      if (!this.filtersContainer) {
+        Log.warn('Cannot update filter state: filtersContainer not found');
+        return;
+      }
       
-      const item = this.filtersContainer?.querySelector(selector);
+      // Escape special characters in value for CSS selector
+      const escapeValue = (val) => String(val).replace(/[!"#$%&'()*+,.\/:;<=>?@[\\\]^`{|}~]/g, '\\$&');
+      const escapedValue = escapeValue(value);
+      
+      const selector = optionName 
+        ? `.afs-filter-item[data-afs-filter-type="${type}"][data-afs-option-name="${optionName}"][data-afs-filter-value="${escapedValue}"]`
+        : `.afs-filter-item[data-afs-filter-type="${type}"][data-afs-filter-value="${escapedValue}"]`;
+      
+      const item = this.filtersContainer.querySelector(selector);
       if (item) {
         const cb = item.querySelector('.afs-filter-item__checkbox');
-        if (cb) cb.checked = active;
+        if (cb) {
+          cb.checked = active;
+          Log.debug('Checkbox state updated', { type, value, active, optionName, wasChecked: !active, nowChecked: active });
+        } else {
+          Log.warn('Checkbox not found in filter item', { type, value, optionName });
+        }
         item.classList.toggle('afs-filter-item--active', active);
+      } else {
+        Log.warn('Filter item not found for state update', { type, value, active, optionName, selector });
       }
     },
     
@@ -703,25 +740,38 @@
   
   const Filters = {
     toggle(type, value) {
+      const normalized = $.str(value);
+      if (!normalized) {
+        Log.warn('Invalid filter value', { type, value });
+        return;
+      }
+      
       const current = State.filters[type] || [];
-      const newValues = current.includes(value) 
-        ? current.filter(v => v !== value)
-        : [...current, value];
+      const isActive = current.includes(normalized);
+      const newValues = isActive
+        ? current.filter(v => v !== normalized)
+        : [...current, normalized];
       
       State.filters[type] = newValues;
       State.pagination.page = 1;
       
+      Log.debug('Filter toggled', { type, value: normalized, wasActive: isActive, isActive: !isActive, newValues });
+      
       UrlManager.update(State.filters, State.pagination, State.sort);
-      DOM.updateFilterState(type, value, newValues.includes(value));
+      DOM.updateFilterState(type, normalized, !isActive);
       this.apply();
     },
     
     toggleOption(name, value) {
       const normalized = $.str(value);
-      if (!normalized) return;
+      if (!normalized) {
+        Log.warn('Invalid option value', { name, value });
+        return;
+      }
       
       const current = State.filters.options[name] || [];
-      const newValues = current.includes(normalized)
+      const isActive = current.includes(normalized);
+      const newValues = isActive
         ? current.filter(v => v !== normalized)
         : [...current, normalized];
       
@@ -729,8 +779,11 @@
       else State.filters.options[name] = newValues;
       
       State.pagination.page = 1;
+      
+      Log.debug('Option toggled', { name, value: normalized, wasActive: isActive, isActive: !isActive, newValues });
+      
       UrlManager.update(State.filters, State.pagination, State.sort);
-      DOM.updateFilterState('options', normalized, newValues.includes(normalized), name);
+      DOM.updateFilterState('options', normalized, !isActive, name);
       this.apply();
     },
     
@@ -794,12 +847,25 @@
           Filters.apply();
         }
         else if (checkbox && item) {
+          e.preventDefault(); // Prevent default checkbox toggle behavior
+          e.stopPropagation(); // Stop event bubbling
+          
           const type = item.getAttribute('data-afs-filter-type');
           const value = item.getAttribute('data-afs-filter-value');
           const optionName = item.getAttribute('data-afs-option-name');
           
-          if (type === 'options' && optionName) Filters.toggleOption(optionName, value);
-          else if (type) Filters.toggle(type, value);
+          if (!type || !value) {
+            Log.warn('Invalid filter item clicked', { type, value, optionName });
+            return;
+          }
+          
+          Log.debug('Filter toggle', { type, value, optionName, currentChecked: checkbox.checked });
+          
+          if (type === 'options' && optionName) {
+            Filters.toggleOption(optionName, value);
+          } else if (type) {
+            Filters.toggle(type, value);
+          }
         }
         else if (pagination && !pagination.disabled) {
           const page = parseInt(pagination.getAttribute('data-afs-page'), 10);
