@@ -107,17 +107,9 @@ export const GET = handler(async (req: HttpRequest) => {
   
   logger.debug('Formatted filters', {
     shop: shopParam,
-    formattedKeys: Object.keys(formattedFilters),
-    hasVendors: !!formattedFilters.vendors,
-    hasProductTypes: !!formattedFilters.productTypes,
-    hasTags: !!formattedFilters.tags,
-    hasCollections: !!formattedFilters.collections,
-    hasOptions: !!formattedFilters.options,
-    hasPriceRange: !!formattedFilters.priceRange,
-    vendorsCount: Array.isArray(formattedFilters.vendors) ? formattedFilters.vendors.length : 0,
-    productTypesCount: Array.isArray(formattedFilters.productTypes) ? formattedFilters.productTypes.length : 0,
-    tagsCount: Array.isArray(formattedFilters.tags) ? formattedFilters.tags.length : 0,
-    collectionsCount: Array.isArray(formattedFilters.collections) ? formattedFilters.collections.length : 0,
+    filterCount: formattedFilters.length,
+    optionFilters: formattedFilters.filter((filter) => filter.type === 'option').length,
+    standardFilters: formattedFilters.filter((filter) => filter.type !== 'option').length,
   });
 
   // Return response with filter configuration (for storefront script)

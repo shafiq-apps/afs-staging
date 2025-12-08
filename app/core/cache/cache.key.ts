@@ -64,6 +64,10 @@ export function generateSearchCacheKey(
       normalized.variantOptionKeys = [...filters.variantOptionKeys].sort();
     }
 
+    if (filters.preserveFilters && filters.preserveFilters.length > 0) {
+      normalized.preserveFilters = [...filters.preserveFilters].sort();
+    }
+
     // Pagination
     if (filters.page) {
       normalized.page = filters.page;
@@ -139,6 +143,10 @@ export function generateFilterCacheKey(
 
     if (filters.variantOptionKeys && filters.variantOptionKeys.length > 0) {
       normalized.variantOptionKeys = [...filters.variantOptionKeys].sort();
+    }
+
+    if (filters.preserveFilters && filters.preserveFilters.length > 0) {
+      normalized.preserveFilters = [...filters.preserveFilters].sort();
     }
 
     // Create hash of normalized filters

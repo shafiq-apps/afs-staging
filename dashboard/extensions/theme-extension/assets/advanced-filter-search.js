@@ -178,10 +178,18 @@
     },
 
     /**
-     * Build query string from object
-     * For options, converts option names to handles using filterConfig
+     * Determine if a key matches the short handle format (e.g., pr_a3k9x)
      */
-    buildQueryString(params, filterConfig = null) {
+    looksLikeHandle(key) {
+      if (!key || typeof key !== 'string') return false;
+      return /^[a-z]{2,3}_[a-z0-9]{3,10}$/.test(key.trim());
+    },
+
+    /**
+     * Build query string from object
+     * For options, converts option names to direct handles using filterConfig
+     */
+    buildQueryString(params, filterConfig = null, optionHandleMap = {}) {
       const searchParams = new URLSearchParams();
       Object.keys(params).forEach(key => {
         const value = params[key];
@@ -191,21 +199,25 @@
             Object.keys(value).forEach(optKey => {
               const optValues = value[optKey];
               if (optValues !== null && optValues !== undefined && optValues !== '') {
-                // Convert option name to handle using filterConfig
-                const handle = filterConfig 
-                  ? Utils.getHandleForOptionName(optKey, filterConfig)
-                  : optKey;
+                const normalizedKey = typeof optKey === 'string' ? optKey.toLowerCase() : '';
+                const handleOrName =
+                  (optionHandleMap && optionHandleMap[normalizedKey]) ||
+                  (filterConfig ? Utils.getHandleForOptionName(optKey, filterConfig) : optKey);
+                const paramKey = String(handleOrName || optKey).trim();
+                if (!paramKey) {
+                  return;
+                }
                 
                 if (Array.isArray(optValues) && optValues.length > 0) {
                   // Ensure all values are strings
                   optValues.forEach(v => {
                     const stringValue = String(v).trim();
                     if (stringValue && stringValue !== '[object Object]') {
-                      searchParams.append(`options[${handle}]`, stringValue);
+                      searchParams.append(paramKey, stringValue);
                     }
                   });
                 } else if (typeof optValues === 'string' && optValues.trim() !== '') {
-                  searchParams.set(`options[${handle}]`, optValues.trim());
+                  searchParams.set(paramKey, optValues.trim());
                 }
               }
             });
@@ -263,6 +275,27 @@
       return result;
     }
   };
+
+function buildOptionHandleMap(filters) {
+  const map = {};
+  if (!Array.isArray(filters)) {
+    return map;
+  }
+
+  filters.forEach((filter) => {
+    if (!filter || filter.type !== 'option') return;
+    const key =
+      String(filter.queryKey || filter.optionKey || filter.label || filter.handle || '')
+        .toLowerCase()
+        .trim();
+    const handle = String(filter.handle || filter.queryKey || filter.optionKey || filter.label || '').trim();
+    if (key && handle) {
+      map[key] = handle;
+    }
+  });
+
+  return map;
+}
 
   // ============================================================================
   // LOGGER
@@ -362,8 +395,10 @@
       },
       loading: false,
       error: null,
-      availableFilters: {},
-      filterConfig: null
+      availableFilters: [],
+      filterConfig: null,
+      optionHandleMap: {},
+      preserveFilters: []
     },
 
     /**
@@ -377,11 +412,26 @@
      * Update state (immutable)
      */
     updateState(updates) {
-      this.state = {
+      const nextState = {
         ...this.state,
         ...updates,
         filters: updates.filters ? { ...this.state.filters, ...updates.filters } : this.state.filters
       };
+
+      if ('availableFilters' in updates && Array.isArray(updates.availableFilters)) {
+        nextState.availableFilters = updates.availableFilters;
+        nextState.optionHandleMap = buildOptionHandleMap(updates.availableFilters);
+      }
+
+      if ('optionHandleMap' in updates) {
+        nextState.optionHandleMap = updates.optionHandleMap || {};
+      }
+
+      if ('preserveFilters' in updates) {
+        nextState.preserveFilters = updates.preserveFilters || [];
+      }
+
+      this.state = nextState;
       Logger.debug('State updated', this.state);
     },
 
@@ -403,6 +453,16 @@
         pagination: pagination || this.state.pagination,
         loading: false
       });
+    },
+
+    getOptionHandle(optionKey) {
+      if (!optionKey) return null;
+      const map = this.state.optionHandleMap || {};
+      return map[String(optionKey).toLowerCase()] || null;
+    },
+
+    getPreserveFilters() {
+      return this.state.preserveFilters || [];
     },
 
     /**
@@ -431,6 +491,8 @@
      */
     parseURL(filterConfig = null) {
       const url = new URL(window.location);
+      const hasPreserveParam =
+        url.searchParams.has('preserveFilters') || url.searchParams.has('preserveFilter');
       const params = {};
       
       url.searchParams.forEach((value, key) => {
@@ -455,6 +517,8 @@
         } else if (key === 'sort') {
           const [field, order] = value.split(':');
           params.sort = { field, order: order || 'desc' };
+        } else if (key === 'preserveFilters' || key === 'preserveFilter') {
+          params.preserveFilters = Utils.parseCommaSeparated(value);
         } else if (key.startsWith('options[') || key.startsWith('option.')) {
           // Extract handle from query param
           const handle = key.replace(/^options?\[|\]|^option\./g, '');
@@ -466,6 +530,13 @@
           params.options[optionName] = Utils.parseCommaSeparated(value);
         }
       });
+      
+      if (params.preserveFilters) {
+        StateManager.updateState({ preserveFilters: params.preserveFilters });
+        delete params.preserveFilters;
+      } else if (!hasPreserveParam) {
+        StateManager.updateState({ preserveFilters: [] });
+      }
       
       return params;
     },
@@ -507,9 +578,11 @@
      */
     updateURL(filters, pagination, sort, options = {}) {
       const url = new URL(window.location);
+      const state = StateManager.getState();
       
       // Get filterConfig from state if available
-      const filterConfig = options.filterConfig || StateManager.getState().filterConfig;
+      const filterConfig = options.filterConfig || state.filterConfig;
+      const optionHandleMap = state.optionHandleMap || {};
       
       // Clear existing params
       url.search = '';
@@ -533,11 +606,13 @@
             Object.keys(value).forEach(optKey => {
               const optValues = value[optKey];
               if (!this.isEmpty(optValues) && Array.isArray(optValues) && optValues.length > 0) {
-                // Convert option name to handle using filterConfig
-                const handle = filterConfig 
-                  ? Utils.getHandleForOptionName(optKey, filterConfig)
-                  : optKey;
-                url.searchParams.set(`options[${handle}]`, optValues.join(','));
+                const normalizedKey = optKey.toLowerCase();
+                const handle =
+                  optionHandleMap[normalizedKey] ||
+                  (filterConfig ? Utils.getHandleForOptionName(optKey, filterConfig) : optKey);
+                const paramKey = String(handle || optKey).trim();
+                if (!paramKey) return;
+                url.searchParams.set(paramKey, optValues.join(','));
               }
             });
           }
@@ -555,9 +630,10 @@
       }
       // Don't add limit - it's a default, not user action
       
-      // Only add sort if user explicitly sorted (not default)
-      // For now, we'll skip sort unless explicitly set by user action
-      // This can be enabled later if sort UI is added
+      const preserveFilters = state.preserveFilters || [];
+      if (preserveFilters.length > 0) {
+        url.searchParams.set('preserveFilters', preserveFilters.join(','));
+      }
       
       // Update URL (no page refresh)
       history.pushState({ filters, pagination, sort }, '', url);
@@ -672,20 +748,27 @@
       }
       
       // Build URL
+      const state = StateManager.getState();
       const params = {
-        shop: StateManager.state.shop,
+        shop: state.shop,
         ...filters,
         page: pagination.page,
         limit: pagination.limit
       };
+
+      const preserveFilters = state.preserveFilters || [];
+      if (preserveFilters.length > 0) {
+        params.preserveFilters = preserveFilters;
+      }
       
       if (sort && sort.field) {
         params.sort = `${sort.field}:${sort.order || 'desc'}`;
       }
       
       // Get filterConfig from state for handle conversion
-      const filterConfig = StateManager.getState().filterConfig;
-      const queryString = Utils.buildQueryString(params, filterConfig);
+      const filterConfig = state.filterConfig;
+      const optionHandleMap = state.optionHandleMap || {};
+      const queryString = Utils.buildQueryString(params, filterConfig, optionHandleMap);
       const url = `${this.baseURL}/storefront/products?${queryString}`;
       
       Logger.debug('Fetching products', { url, filters, pagination });
@@ -754,14 +837,21 @@
      * Fetch filters
      */
     async fetchFilters(filters) {
+      const state = StateManager.getState();
       const params = {
-        shop: StateManager.state.shop,
+        shop: state.shop,
         ...filters
       };
+
+      const preserveFilters = state.preserveFilters || [];
+      if (preserveFilters.length > 0) {
+        params.preserveFilters = preserveFilters;
+      }
       
       // Get filterConfig from state for handle conversion
-      const filterConfig = StateManager.getState().filterConfig;
-      const queryString = Utils.buildQueryString(params, filterConfig);
+      const filterConfig = state.filterConfig;
+      const optionHandleMap = state.optionHandleMap || {};
+      const queryString = Utils.buildQueryString(params, filterConfig, optionHandleMap);
       const url = `${this.baseURL}/storefront/filters?${queryString}`;
       
       Logger.debug('Fetching filters', { url, filters });
@@ -801,10 +891,8 @@
         }
         
         // Return filters object (contains filters, filterConfig, appliedFilters)
-        const filtersData = responseData.data.filters || {};
-        const filterCount = typeof filtersData === 'object' && !Array.isArray(filtersData) 
-          ? Object.keys(filtersData).length 
-          : (Array.isArray(filtersData) ? filtersData.length : 0);
+        const filtersData = Array.isArray(responseData.data.filters) ? responseData.data.filters : [];
+        const filterCount = filtersData.length;
         
         Logger.info('Filters fetched successfully', { filterCount });
         
@@ -933,25 +1021,21 @@
       
       const startTime = performance.now();
       
-      // Validate filters input
-      if (!filters || typeof filters !== 'object') {
+      if (!Array.isArray(filters)) {
         Logger.warn('Invalid filters data provided to renderFilters', { filters });
+        this.filtersContainer.innerHTML = '';
         return;
       }
       
-      // Get filterConfig from state if not provided
-      if (!filterConfig) {
-        const state = StateManager.getState();
-        filterConfig = state.filterConfig;
-      }
-      
-      // Store collapse and search states before clearing
       const savedStates = {};
       const existingGroups = this.filtersContainer.querySelectorAll('.afs-filter-group');
       existingGroups.forEach(group => {
-        const filterType = group.getAttribute('data-afs-filter-type');
-        const optionName = group.getAttribute('data-afs-option-name');
-        const key = optionName ? `${filterType}_${optionName}` : filterType;
+        const key =
+          group.getAttribute('data-afs-filter-key') ||
+          group.getAttribute('data-afs-option-name') ||
+          group.getAttribute('data-afs-filter-type');
+        
+        if (!key) return;
         
         savedStates[key] = {
           collapsed: group.getAttribute('data-afs-collapsed') === 'true',
@@ -959,278 +1043,73 @@
         };
       });
       
-      // Clear existing filters
       this.filtersContainer.innerHTML = '';
       
-      Logger.debug('Rendering filters', { 
-        filterKeys: Object.keys(filters),
-        hasVendors: !!filters.vendors,
-        hasProductTypes: !!filters.productTypes,
-        hasTags: !!filters.tags,
-        hasCollections: !!filters.collections,
-        hasOptions: !!filters.options,
-        optionsCount: filters.options ? Object.keys(filters.options).length : 0,
-        optionsKeys: filters.options ? Object.keys(filters.options) : [],
-        filterConfigOptions: filterConfig?.options?.length || 0,
-        filterConfigOptionTypes: filterConfig?.options?.map(opt => ({
-          variantOptionKey: opt.variantOptionKey,
-          optionType: opt.optionType,
-          label: opt.label
-        })) || []
-      });
+      Logger.debug('Rendering filters', { filterCount: filters.length });
       
-      // Render each filter group
-      // Skip non-filter keys like priceRange, variantPriceRange (these are objects, not filter arrays)
-      const filterKeysToSkip = ['priceRange', 'variantPriceRange'];
-      
-      Object.keys(filters).forEach(filterType => {
-        // Skip non-filter keys
-        if (filterKeysToSkip.includes(filterType)) return;
+      filters.forEach((filter) => {
+        if (!filter) return;
         
-        const filterData = filters[filterType];
-
-        console.log("filterData", filterData);
-        
-        // Skip if no data
-        if (!filterData) return;
-        
-        // Handle options filter (object with option names as keys)
-        if (filterType === 'options' && typeof filterData === 'object' && !Array.isArray(filterData)) {
-          // Use filterConfig to determine which options to show and in what order
-          if (filterConfig && filterConfig.options && Array.isArray(filterConfig.options)) {
-            // Get all available keys from filters.options for debugging
-            const availableFilterKeys = Object.keys(filterData);
-            Logger.debug('Rendering options from filterConfig', {
-              configOptionsCount: filterConfig.options.length,
-              availableFilterKeys,
-              availableFilterKeysCount: availableFilterKeys.length
-            });
-            
-            // Sort options by position (ascending), then render
-            const sortedOptions = [...filterConfig.options].sort((a, b) => {
-              const posA = a.position !== undefined ? Number(a.position) : 999;
-              const posB = b.position !== undefined ? Number(b.position) : 999;
-              return posA - posB;
-            });
-            
-            // Render options based on sorted filterConfig order
-            sortedOptions.forEach(configOption => {
-              // Get the option name to look up in filters
-              // Priority: variantOptionKey > optionType > label
-              // variantOptionKey is the actual key used in optionPairs (e.g., "size", "color")
-              // optionType is the display name (e.g., "Size", "Color")
-              // Note: variantOptionKey is now at top level (optionSettings removed to reduce payload)
-              const variantKey = configOption.variantOptionKey;
-              const optionType = configOption.optionType;
-              const label = configOption.label;
-              
-              // Try to find matching option in filters.options
-              let optionItems = null;
-              let matchedKey = null;
-              
-              // Strategy 1: Try exact match with variantOptionKey (most reliable)
-              if (variantKey && filterData[variantKey]) {
-                optionItems = filterData[variantKey];
-                matchedKey = variantKey;
-              }
-              // Strategy 2: Try exact match with optionType
-              else if (optionType && filterData[optionType]) {
-                optionItems = filterData[optionType];
-                matchedKey = optionType;
-              }
-              // Strategy 3: Try exact match with label
-              else if (label && filterData[label]) {
-                optionItems = filterData[label];
-                matchedKey = label;
-              }
-              // Strategy 4: Case-insensitive match with variantOptionKey
-              else if (variantKey) {
-                const lowerVariantKey = variantKey.toLowerCase();
-                for (const filterKey of availableFilterKeys) {
-                  if (filterKey.toLowerCase() === lowerVariantKey) {
-                    optionItems = filterData[filterKey];
-                    matchedKey = filterKey;
-                    break;
-                  }
-                }
-              }
-              // Strategy 5: Case-insensitive match with optionType
-              else if (optionType) {
-                const lowerOptionType = optionType.toLowerCase();
-                for (const filterKey of availableFilterKeys) {
-                  if (filterKey.toLowerCase() === lowerOptionType) {
-                    optionItems = filterData[filterKey];
-                    matchedKey = filterKey;
-                    break;
-                  }
-                }
-              }
-              
-              Logger.debug('Option matching', {
-                variantOptionKey: variantKey,
-                optionType: optionType,
-                label: label,
-                matchedKey,
-                hasItems: !!optionItems,
-                itemsCount: optionItems ? optionItems.length : 0,
-                availableFilterKeys
-              });
-              
-              if (optionItems && Array.isArray(optionItems) && optionItems.length > 0) {
-                // Filter by targetScope if needed
-                let filteredItems = optionItems;
-                if (configOption.targetScope === 'entitled' && configOption.allowedOptions && Array.isArray(configOption.allowedOptions)) {
-                  const allowedSet = new Set(configOption.allowedOptions.map(v => String(v).toLowerCase().trim()));
-                  filteredItems = optionItems.filter(item => {
-                    const itemValue = typeof item === 'string' ? item : (item.value || item.key || item.name || '');
-                    return allowedSet.has(String(itemValue).toLowerCase().trim());
-                  });
-                }
-                
-                // Skip if no items after filtering
-                if (filteredItems.length === 0) return;
-                
-                // Use label from config for display (always show label)
-                const displayName = configOption.label || optionType || matchedKey;
-                // Use the matched key (from filters.options) for filtering
-                // This is the actual key that will be used in queries
-                const filterKey = matchedKey || variantKey || optionType;
-                const filterGroup = this.createFilterGroup(`options_${filterKey}`, filteredItems, filterKey, displayName, configOption);
-                const key = `options_${filterKey}`;
-                
-                // Restore saved state
-                if (savedStates[key]) {
-                  if (savedStates[key].collapsed) {
-                    filterGroup.setAttribute('data-afs-collapsed', 'true');
-                    filterGroup.querySelector('.afs-filter-group__toggle')?.setAttribute('aria-expanded', 'false');
-                  }
-                  const searchInput = filterGroup.querySelector('.afs-filter-group__search-input');
-                  if (searchInput && savedStates[key].searchValue) {
-                    searchInput.value = savedStates[key].searchValue;
-                    // Trigger search to filter items
-                    setTimeout(() => {
-                      const event = new Event('input', { bubbles: true });
-                      searchInput.dispatchEvent(event);
-                    }, 0);
-                  }
-                }
-                
-                this.filtersContainer.appendChild(filterGroup);
-              } else {
-                Logger.warn('Option from filterConfig not found in filters.options', {
-                  variantOptionKey: variantKey,
-                  optionType: optionType,
-                  label: label,
-                  availableKeys: availableFilterKeys
-                });
-              }
-            });
-            
-            // Also render any options in filters.options that weren't in filterConfig
-            // This handles cases where new options exist but aren't in config yet
-            const renderedOptionKeys = new Set();
-            filterConfig.options.forEach(opt => {
-              // variantOptionKey is now at top level (optionSettings removed to reduce payload)
-              const key = opt.variantOptionKey || opt.optionType;
-              if (key) renderedOptionKeys.add(key.toLowerCase());
-            });
-            
-            Object.keys(filterData).forEach(optionName => {
-              // Skip if already rendered via filterConfig
-              if (renderedOptionKeys.has(optionName.toLowerCase())) return;
-              
-              const optionItems = filterData[optionName];
-              if (Array.isArray(optionItems) && optionItems.length > 0) {
-                Logger.debug('Rendering option not in filterConfig', {
-                  optionName,
-                  itemsCount: optionItems.length
-                });
-                const filterGroup = this.createFilterGroup(`options_${optionName}`, optionItems, optionName, null, null);
-                const key = `options_${optionName}`;
-                
-                // Restore saved state
-                if (savedStates[key]) {
-                  if (savedStates[key].collapsed) {
-                    filterGroup.setAttribute('data-afs-collapsed', 'true');
-                    filterGroup.querySelector('.afs-filter-group__toggle')?.setAttribute('aria-expanded', 'false');
-                  }
-                  const searchInput = filterGroup.querySelector('.afs-filter-group__search-input');
-                  if (searchInput && savedStates[key].searchValue) {
-                    searchInput.value = savedStates[key].searchValue;
-                    setTimeout(() => {
-                      const event = new Event('input', { bubbles: true });
-                      searchInput.dispatchEvent(event);
-                    }, 0);
-                  }
-                }
-                
-                this.filtersContainer.appendChild(filterGroup);
-              }
-            });
-          } else {
-            // Fallback: render all options if no filterConfig
-            Logger.debug('No filterConfig, rendering all options from filters', {
-              optionsKeys: Object.keys(filterData)
-            });
-            Object.keys(filterData).forEach(optionName => {
-              const optionItems = filterData[optionName];
-              if (Array.isArray(optionItems) && optionItems.length > 0) {
-                const filterGroup = this.createFilterGroup(`options_${optionName}`, optionItems, optionName, null, null);
-                const key = `options_${optionName}`;
-                
-                // Restore saved state
-                if (savedStates[key]) {
-                  if (savedStates[key].collapsed) {
-                    filterGroup.setAttribute('data-afs-collapsed', 'true');
-                    filterGroup.querySelector('.afs-filter-group__toggle')?.setAttribute('aria-expanded', 'false');
-                  }
-                  const searchInput = filterGroup.querySelector('.afs-filter-group__search-input');
-                  if (searchInput && savedStates[key].searchValue) {
-                    searchInput.value = savedStates[key].searchValue;
-                    // Trigger search to filter items
-                    setTimeout(() => {
-                      const event = new Event('input', { bubbles: true });
-                      searchInput.dispatchEvent(event);
-                    }, 0);
-                  }
-                }
-                
-                this.filtersContainer.appendChild(filterGroup);
-              }
-            });
-          }
+        if (filter.type === 'priceRange' || filter.type === 'variantPriceRange') {
+          // TODO: implement UI for range filters
           return;
         }
         
-        // Handle regular array filters
-        if (!Array.isArray(filterData) || filterData.length === 0) {
+        const values = Array.isArray(filter.values) ? filter.values : [];
+        if (values.length === 0) {
           return;
         }
         
-        const filterGroup = this.createFilterGroup(filterType, filterData);
+        const isOptionFilter = filter.type === 'option';
+        const optionName = isOptionFilter ? filter.queryKey : null;
+        const baseFilterType = isOptionFilter ? `options_${optionName}` : filter.queryKey || filter.key;
+        if (!baseFilterType) return;
         
-        // Restore saved state
-        if (savedStates[filterType]) {
-          if (savedStates[filterType].collapsed) {
-            filterGroup.setAttribute('data-afs-collapsed', 'true');
-            filterGroup.querySelector('.afs-filter-group__toggle')?.setAttribute('aria-expanded', 'false');
-          }
-          const searchInput = filterGroup.querySelector('.afs-filter-group__search-input');
-          if (searchInput && savedStates[filterType].searchValue) {
-            searchInput.value = savedStates[filterType].searchValue;
-            // Trigger search to filter items
-            setTimeout(() => {
-              const event = new Event('input', { bubbles: true });
-              searchInput.dispatchEvent(event);
-            }, 0);
-          }
-        }
+        const displayLabel = filter.label || optionName || baseFilterType;
+        const filterGroup = this.createFilterGroup(
+          baseFilterType,
+          values,
+          optionName,
+          displayLabel,
+          filter
+        );
+        
+        const stateKey = filter.key || (optionName ? `options:${optionName}` : baseFilterType);
+        filterGroup.setAttribute('data-afs-filter-key', stateKey);
+        
+        const savedState = savedStates[stateKey];
+        this.applySavedStateToGroup(filterGroup, savedState, filter);
         
         this.filtersContainer.appendChild(filterGroup);
       });
       
       const duration = performance.now() - startTime;
       Logger.performance('renderFilters', duration);
+    },
+
+    /**
+     * Apply saved UI state (collapsed/search) to filter group
+     */
+    applySavedStateToGroup(group, savedState, filterMeta) {
+      const shouldCollapse = savedState?.collapsed ?? (filterMeta?.collapsed === true);
+      const toggleButton = group.querySelector('.afs-filter-group__toggle');
+      
+      group.setAttribute('data-afs-collapsed', shouldCollapse ? 'true' : 'false');
+      if (toggleButton) {
+        toggleButton.setAttribute('aria-expanded', shouldCollapse ? 'false' : 'true');
+      }
+      
+      const searchInput = group.querySelector('.afs-filter-group__search-input');
+      const searchValue = savedState?.searchValue || '';
+      if (searchInput) {
+        searchInput.value = searchValue;
+        if (searchValue) {
+          setTimeout(() => {
+            const event = new Event('input', { bubbles: true });
+            searchInput.dispatchEvent(event);
+          }, 0);
+        }
+      }
     },
 
     /**
@@ -1962,6 +1841,22 @@
   
   const FilterManager = {
     /**
+     * Update preserveFilters set
+     */
+    updatePreserveFlag(key, shouldPreserve) {
+      if (!key) return;
+      const normalizedKey = String(key).trim();
+      if (!normalizedKey) return;
+      const current = new Set(StateManager.getState().preserveFilters || []);
+      if (shouldPreserve) {
+        current.add(normalizedKey);
+      } else {
+        current.delete(normalizedKey);
+      }
+      StateManager.updateState({ preserveFilters: Array.from(current) });
+    },
+
+    /**
      * Toggle filter value
      */
     toggleFilter(filterType, value) {
@@ -1986,6 +1881,8 @@
       StateManager.updateState({ pagination: updatedPagination });
       
       // Update URL (page 1 won't be added to URL, only filters)
+      this.updatePreserveFlag(filterType, newValues.length > 0);
+
       URLManager.updateURL(
         { ...state.filters, [filterType]: newValues },
         updatedPagination,
@@ -2043,6 +1940,11 @@
       StateManager.updateState({ pagination: updatedPagination });
       
       // Update URL (page 1 won't be added to URL, only filters)
+      const optionHandle = StateManager.getOptionHandle(optionName) || optionName;
+      const currentValues = currentOptions[optionName]?.map(v => String(v).trim()) || [];
+      const isActive = currentValues.includes(normalizedValue);
+      this.updatePreserveFlag(optionHandle, currentValues.length > 0);
+
       URLManager.updateURL(
         { ...state.filters, options: currentOptions },
         updatedPagination,
@@ -2051,8 +1953,6 @@
       );
       
       // Update active state in DOM
-      const isActive = currentOptions[optionName] && 
-        currentOptions[optionName].map(v => String(v).trim()).includes(normalizedValue);
       DOMRenderer.updateFilterActiveState('options', normalizedValue, isActive, optionName);
       
       // Trigger filter change
@@ -2318,6 +2218,8 @@
         }
         
         StateManager.updateFilters({ options: currentOptions });
+        const optionHandle = StateManager.getOptionHandle(optionName) || optionName;
+        FilterManager.updatePreserveFlag(optionHandle, currentOptions[optionName]?.length > 0);
         
         // Reset pagination to page 1 when filters change
         const updatedPagination = { ...state.pagination, page: 1 };
@@ -2356,6 +2258,8 @@
       StateManager.updateState({
         pagination: { ...state.pagination, page: 1 }
       });
+
+      StateManager.updateState({ preserveFilters: [] });
       
       // Update URL (empty filters and page 1 won't be added to URL)
       URLManager.updateURL(
@@ -2489,7 +2393,7 @@
         if (config.apiBaseUrl) {
           APIClient.setBaseURL(config.apiBaseUrl);
         }
-        
+
         // Initialize state - shop comes from config only, not URL
         if (config.shop) {
           StateManager.updateState({ shop: config.shop });
@@ -2624,14 +2528,23 @@
       // Clear state
       StateManager.state = {
         shop: null,
-        filters: {},
+        filters: {
+          vendor: [],
+          productType: [],
+          tags: [],
+          collections: [],
+          options: {},
+          search: ''
+        },
         products: [],
         pagination: { page: 1, limit: CONSTANTS.DEFAULT_PAGE_SIZE, total: 0, totalPages: 0 },
         sort: { field: 'createdAt', order: 'desc' },
         loading: false,
         error: null,
-        availableFilters: {},
-        filterConfig: null
+        availableFilters: [],
+        filterConfig: null,
+        optionHandleMap: {},
+        preserveFilters: []
       };
       
       // Clear cache

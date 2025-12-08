@@ -11,6 +11,28 @@ const logger = createModuleLogger('products-filter-config-helper');
 import crypto from 'crypto';
 import { NO_FILTER_CONFIG_HASH } from '@core/cache/cache.key';
 
+const STANDARD_FILTER_MAPPING: Record<string, keyof ProductFilterInput> = {
+  vendor: 'vendors',
+  vendors: 'vendors',
+  producttype: 'productTypes',
+  'product-type': 'productTypes',
+  'product type': 'productTypes',
+  product_types: 'productTypes',
+  tags: 'tags',
+  tag: 'tags',
+  collection: 'collections',
+  collections: 'collections',
+};
+
+const normalizeStatus = (status?: string | null) => (status || '').toUpperCase();
+const normalizeChannel = (channel?: string | null) => (channel || '').toLowerCase();
+const normalizeString = (value?: string | null) => (value || '').toLowerCase();
+const isPublishedStatus = (status?: string | null) => normalizeStatus(status) === 'PUBLISHED';
+const isSupportedDeployment = (channel?: string | null) => {
+  const normalizedChannel = normalizeChannel(channel);
+  return normalizedChannel === 'app' || normalizedChannel === 'theme';
+};
+
 /**
  * Get active filter configuration for a shop
  * Implements priority system:
@@ -36,11 +58,9 @@ export async function getActiveFilterConfig(
   try {
     const { filters } = await filtersRepository.listFilters(shop);
     
-    // Filter to only published filters with app or theme deployment
-    const publishedFilters = filters.filter(
-      (f) =>
-        f.status === 'PUBLISHED' &&
-        (f.deploymentChannel === 'app' || f.deploymentChannel === 'theme')
+    // Filter to only published filters with supported deployment channels
+    const publishedFilters = (filters || []).filter(
+      (f) => isPublishedStatus(f.status) && isSupportedDeployment(f.deploymentChannel)
     );
 
     if (publishedFilters.length === 0) {
@@ -51,7 +71,8 @@ export async function getActiveFilterConfig(
     // Priority 1: If collection ID is provided, find filters where collection is in allowedCollections
     if (collectionId) {
       const collectionSpecificFilters = publishedFilters.filter((f) => {
-        if (f.targetScope === 'entitled' && f.allowedCollections?.length > 0) {
+        const isEntitled = normalizeString(f.targetScope) === 'entitled';
+        if (isEntitled && f.allowedCollections?.length > 0) {
           return f.allowedCollections.some((c) => c.id === collectionId);
         }
         return false;
@@ -59,7 +80,7 @@ export async function getActiveFilterConfig(
 
       if (collectionSpecificFilters.length > 0) {
         // Among collection-specific filters, prioritize by filterType
-        const customFilter = collectionSpecificFilters.find((f) => f.filterType === 'custom');
+        const customFilter = collectionSpecificFilters.find((f) => normalizeString(f.filterType) === 'custom');
         if (customFilter) {
           logger.log('Collection-specific custom filter found', {
             shop,
@@ -70,7 +91,7 @@ export async function getActiveFilterConfig(
           return customFilter;
         }
 
-        const defaultFilter = collectionSpecificFilters.find((f) => f.filterType === 'default');
+        const defaultFilter = collectionSpecificFilters.find((f) => normalizeString(f.filterType) === 'default');
         if (defaultFilter) {
           logger.log('Collection-specific default filter found', {
             shop,
@@ -93,7 +114,7 @@ export async function getActiveFilterConfig(
     }
 
     // Priority 2: Custom published filter
-    const customFilter = publishedFilters.find((f) => f.filterType === 'custom');
+    const customFilter = publishedFilters.find((f) => normalizeString(f.filterType) === 'custom');
     if (customFilter) {
       logger.log('Custom published filter found', {
         shop,
@@ -105,7 +126,7 @@ export async function getActiveFilterConfig(
     }
 
     // Priority 3: Default published filter
-    const defaultFilter = publishedFilters.find((f) => f.filterType === 'default');
+    const defaultFilter = publishedFilters.find((f) => normalizeString(f.filterType) === 'default');
     if (defaultFilter) {
       logger.log('Default published filter found', {
         shop,
@@ -151,7 +172,7 @@ export function isOptionKey(filterConfig: Filter | null, key: string): boolean {
   // Check if key matches any published option's handle, or optionType
   return filterConfig.options.some(
     (opt) =>
-      opt.status === 'PUBLISHED' &&
+      isPublishedStatus(opt.status) &&
       (opt.handle === key ||
        opt.optionType?.toLowerCase() === key.toLowerCase())
   );
@@ -173,7 +194,7 @@ export function mapOptionKeyToName(filterConfig: Filter | null, optionKey: strin
   // Find option by handle, or optionType
   const option = filterConfig.options.find(
     (opt) =>
-      opt.status === 'PUBLISHED' &&
+      isPublishedStatus(opt.status) &&
       (opt.handle === optionKey ||
        opt.optionType?.toLowerCase() === optionKey.toLowerCase())
   );
@@ -212,6 +233,7 @@ export function applyFilterConfigToInput(
     (result as ProductSearchInput).hideOutOfStockItems = true;
   }
 
+  // Default to preserving option aggregations unless explicitly disabled
   // Apply targetScope restrictions
   if (filterConfig.targetScope === 'entitled' && filterConfig.allowedCollections?.length > 0) {
     // If filter is scoped to specific collections, ensure we're filtering by those collections
@@ -265,19 +287,6 @@ export function applyFilterConfigToInput(
   // Standard filters should query their dedicated ES fields (vendor.keyword, productType.keyword, etc.)
   // instead of being treated as variant options (optionPairs.keyword)
   if (result.options) {
-    const STANDARD_FILTER_MAPPING: Record<string, keyof ProductFilterInput> = {
-      'vendor': 'vendors',
-      'vendors': 'vendors',
-      'producttype': 'productTypes',
-      'product-type': 'productTypes',
-      'product type': 'productTypes',
-      'product_type': 'productTypes',
-      'tags': 'tags',
-      'tag': 'tags',
-      'collection': 'collections',
-      'collections': 'collections',
-    };
-
     const remainingOptions: Record<string, string[]> = {};
     
     for (const [optionName, values] of Object.entries(result.options)) {
@@ -318,7 +327,7 @@ export function applyFilterConfigToInput(
     
     for (const option of filterConfig.options) {
       // Skip if option is not published
-      if (option.status !== 'PUBLISHED') continue;
+      if (!isPublishedStatus(option.status)) continue;
 
       // Get the actual option name (variantOptionKey or optionType)
       const optionSettings = option.optionSettings || {};
@@ -365,6 +374,34 @@ export function applyFilterConfigToInput(
         }
       }
     }
+  }
+
+  // Map preserveFilters to actual query keys/option names
+  if (result.preserveFilters && result.preserveFilters.length > 0) {
+    const mappedPreserve = new Set<string>();
+    for (const rawKey of result.preserveFilters) {
+      const key = rawKey?.trim();
+      if (!key) continue;
+
+      const lowerKey = key.toLowerCase();
+      if (lowerKey === '__all__') {
+        mappedPreserve.add('__all__');
+        break;
+      }
+
+      const standardField = STANDARD_FILTER_MAPPING[lowerKey];
+      if (standardField) {
+        mappedPreserve.add(standardField.toLowerCase());
+        continue;
+      }
+
+      const optionName = mapOptionKeyToName(filterConfig, key);
+      if (optionName) {
+        mappedPreserve.add(optionName.toLowerCase());
+      }
+    }
+
+    result.preserveFilters = Array.from(mappedPreserve);
   }
 
   return result;
@@ -430,7 +467,7 @@ export function getFilterConfigHash(filterConfig: Filter | null): string {
     hash,
     version: filterConfig.version,
     optionsCount: filterConfig.options?.length || 0,
-    publishedOptionsCount: filterConfig.options?.filter(opt => opt.status === 'PUBLISHED').length || 0,
+    publishedOptionsCount: filterConfig.options?.filter(opt => isPublishedStatus(opt.status)).length || 0,
   });
   
   return hash;
@@ -583,7 +620,7 @@ export function formatFilterConfigForStorefront(filterConfig: Filter | null): an
     targetScope: filterConfig.targetScope,
     allowedCollections: filterConfig.allowedCollections || [],
     options: filterConfig.options
-      ?.filter((opt) => opt.status === 'PUBLISHED') // Only include published options
+      ?.filter((opt) => isPublishedStatus(opt.status)) // Only include published options
       .map((opt) => {
         const optionSettings = opt.optionSettings || {};
         const cleanedSettings = cleanOptionSettings(optionSettings);
