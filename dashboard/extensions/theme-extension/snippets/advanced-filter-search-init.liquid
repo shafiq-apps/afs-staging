@@ -18,7 +18,7 @@
       ],
       selectedCollection: {
         id: {{ collection.id | json }},
-        title: {{ collection.title | json }}
+        sortBy : {{ collection.default_sort_by  | json }}
       }
     };
 
@@ -27,11 +27,6 @@
       if (typeof window.AFS !== 'undefined') {
         try {
           window.AFS.init(config);
-          {% if block.settings.enable_logging %}
-            if (window.AFS.Logger) {
-              window.AFS.Logger.enable();
-            }
-          {% endif %}
         } catch (error) {
           console.error('Failed to initialize Advanced Filter Search:', error);
         }

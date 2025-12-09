@@ -843,8 +843,11 @@ export class ProductBulkIndexer {
       const data = products[productId];
       if (!data) return;
 
-      if (productCollections[productId]) {
+      // Always set collections array - use productCollections if available, otherwise empty array
+      if (productCollections[productId] && productCollections[productId].size > 0) {
         data.collections = Array.from(productCollections[productId]);
+      } else {
+        data.collections = [];
       }
       
       // Inject best seller rank if available
@@ -1022,10 +1025,19 @@ export class ProductBulkIndexer {
         if (parent) parent.products.push(row.id);
 
         const collectionId = normalizeShopifyId(row.__parentId);
-        const productId = row.id;
+        // Normalize productId to match the key used in products map (could be GID or numeric)
+        const productId = normalizeShopifyId(row.id) || row.id;
         if (collectionId && productId) {
-          if (!productCollections[productId]) productCollections[productId] = new Set();
-          productCollections[productId].add(collectionId);
+          // Try both normalized and original productId to handle different formats
+          const productKey = products[productId] ? productId : (products[row.id] ? row.id : productId);
+          if (!productCollections[productKey]) productCollections[productKey] = new Set();
+          productCollections[productKey].add(collectionId);
+          
+          // Also add to original format if different
+          if (productKey !== row.id && products[row.id]) {
+            if (!productCollections[row.id]) productCollections[row.id] = new Set();
+            productCollections[row.id].add(collectionId);
+          }
         }
 
         continue;

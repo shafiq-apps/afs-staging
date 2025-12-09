@@ -45,6 +45,21 @@ export function buildFilterInput(query: Record<string, unknown>): ProductFilterI
   const collectionValues = parseCommaSeparated(query.collection || query.collections);
   if (collectionValues.length) filters.collections = collectionValues;
 
+  // Collection page ID - filters products to only show those from the collection the user is viewing
+  // If cpid is provided, it takes precedence and filters to only that collection
+  // Collections are stored as numeric strings in ES (e.g., "169207070801"), not GIDs
+  const cpid = typeof query.cpid === 'string' ? query.cpid.trim() : undefined;
+  if (cpid) {
+    filters.cpid = cpid;
+    // Extract numeric ID if cpid is in GID format, otherwise use as-is
+    // cpid can be numeric string (169207070801) or GID format (gid://shopify/Collection/169207070801)
+    const collectionId = cpid.startsWith('gid://') 
+      ? cpid.split('/').pop() || cpid  // Extract numeric ID from GID
+      : cpid;  // Use numeric string directly
+    // cpid takes precedence - filter to only the collection the user is viewing
+    filters.collections = [collectionId];
+  }
+
   const optionFilters = parseOptionFilters(query);
   if (Object.keys(optionFilters).length) {
     filters.options = optionFilters;
@@ -118,6 +133,21 @@ export function buildSearchInput(query: Record<string, unknown>): ProductSearchI
 
   const collectionValues = parseCommaSeparated(query.collection || query.collections);
   if (collectionValues.length) filters.collections = collectionValues;
+
+  // Collection page ID - filters products to only show those from the collection the user is viewing
+  // If cpid is provided, it takes precedence and filters to only that collection
+  // Collections are stored as numeric strings in ES (e.g., "169207070801"), not GIDs
+  const cpid = typeof query.cpid === 'string' ? query.cpid.trim() : undefined;
+  if (cpid) {
+    filters.cpid = cpid;
+    // Extract numeric ID if cpid is in GID format, otherwise use as-is
+    // cpid can be numeric string (169207070801) or GID format (gid://shopify/Collection/169207070801)
+    const collectionId = cpid.startsWith('gid://') 
+      ? cpid.split('/').pop() || cpid  // Extract numeric ID from GID
+      : cpid;  // Use numeric string directly
+    // cpid takes precedence - filter to only the collection the user is viewing
+    filters.collections = [collectionId];
+  }
 
   const optionFilters = parseOptionFilters(query);
   if (Object.keys(optionFilters).length) {

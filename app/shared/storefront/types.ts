@@ -54,6 +54,8 @@ export interface ProductFilterInput {
   variantSkus?: string[];
   // Preserve specific filter aggregations (by query key/handle)
   preserveFilters?: string[];
+  // Collection page ID - filters products to only show those from the collection the user is viewing
+  cpid?: string;
 }
 
 export interface FacetValue {
@@ -131,6 +133,8 @@ export interface ProductSearchInput {
   hideOutOfStockItems?: boolean;
   // Preserve specific filter aggregations (by query key/handle)
   preserveFilters?: string[];
+  // Collection page ID - filters products to only show those from the collection the user is viewing
+  cpid?: string;
 }
 
 export interface productOption {

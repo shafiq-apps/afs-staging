@@ -1,14 +1,8 @@
 /**
- * Advanced Filter Search - OPTIMIZED VERSION
- * Fastest filter system with minimal, reusable functions
+ * Advanced Filter Search
  * 
- * Optimizations:
- * - Lookup maps (O(1) instead of O(n))
- * - Batched DOM operations
- * - Minimal function calls
- * - Reusable micro-functions
- * - No unnecessary object copies
- */
+ * Describe hardcoded values and their means and functionality
+*/
 
 (function(global) {
   'use strict';
@@ -78,43 +72,24 @@
   };
 
   // ============================================================================
-  // LOOKUP MAP BUILDERS (O(1) lookups)
+  // METADATA BUILDERS (For display only, not for state management)
   // ============================================================================
   
-  const Maps = {
-    // Build handle->option map from filters array (replaces filterConfig)
-    buildHandleMap: (filters) => {
+  const Metadata = {
+    // Build metadata map from filters array (for display labels, types, etc.)
+    buildFilterMetadata: (filters) => {
       const m = new Map();
       if (!Array.isArray(filters)) return m;
       filters.forEach(f => {
-        if (f.type === 'option' && f.handle) {
-          // Map handle to option name (queryKey or optionKey)
-          const optionName = f.queryKey || f.optionKey || f.handle;
-          m.set(f.handle, optionName);
-          Log.debug('Handle mapping from filter', { handle: f.handle, optionName, queryKey: f.queryKey, optionKey: f.optionKey });
-        }
-      });
-      return m;
-    },
-    
-    // Build handle->filter map from availableFilters (alias for consistency)
-    buildFilterMap: (filters) => {
-      return Maps.buildHandleMap(filters);
-    },
-    
-    // Build option->handle map (for URL building: option name -> handle)
-    buildOptionMap: (filters) => {
-      const m = new Map();
-      if (!Array.isArray(filters)) return m;
-      filters.forEach(f => {
-        if (f.type === 'option' && f.handle) {
-          const optionName = f.queryKey || f.optionKey || f.label || f.handle;
-          const key = $.str(optionName).toLowerCase();
-          const handle = $.str(f.handle);
-          if (key && handle) {
-            m.set(key, handle);
-            Log.debug('Option mapping', { optionName, key, handle });
-          }
+        if (f.handle) {
+          // Store metadata for rendering (label, type, etc.)
+          m.set(f.handle, {
+            label: f.label || f.queryKey || f.optionKey || f.handle,
+            type: f.type,
+            queryKey: f.queryKey,
+            optionKey: f.optionKey,
+            optionType: f.optionType
+          });
         }
       });
       return m;
@@ -127,16 +102,18 @@
   
   const State = {
     shop: null,
-    filters: { vendor: [], productType: [], tags: [], collections: [], options: {}, search: '', priceRange: null },
+    // Filters: standard filters (fixed keys) + dynamic option filters (handles as keys)
+    // Example: { vendor: [], ef4gd: ["red"], pr_a3k9x: ["M"], search: '', priceRange: null }
+    filters: { vendor: [], productType: [], tags: [], collections: [], search: '', priceRange: null },
     products: [],
     collections: [],
-    selectedCollection: {id: null, title: null},
+    selectedCollection: {id: null, sortBy: null},
     pagination: { page: 1, limit: C.PAGE_SIZE, total: 0, totalPages: 0 },
     sort: { field: 'createdAt', order: 'desc' },
     loading: false,
     availableFilters: [],
-    handleMap: new Map(),
-    optionMap: new Map()
+    // Metadata maps (for display only, not for state management)
+    filterMetadata: new Map() // handle -> { label, type, queryKey, optionKey }
   };
 
   // ============================================================================
@@ -145,10 +122,10 @@
   
   const Log = {
     enabled: true, // Always enabled for debugging
-    error: (msg, data) => console.error('[AFS]', msg, data || ''),
-    warn: (msg, data) => console.warn('[AFS]', msg, data || ''),
-    info: (msg, data) => console.info('[AFS]', msg, data || ''),
-    debug: (msg, data) => console.debug('[AFS]', msg, data || '')
+    error: (msg, data) => Log.enabled? console.error('[AFS]', msg, data || ''): () => {},
+    warn: (msg, data) => Log.enabled? console.warn('[AFS]', msg, data || ''): () => {},
+    info: (msg, data) => Log.enabled? console.info('[AFS]', msg, data || ''): () => {},
+    debug: (msg, data) => Log.enabled? console.debug('[AFS]', msg, data || ''): () => {},
   };
 
   // ============================================================================
@@ -160,17 +137,13 @@
       const url = new URL(window.location);
       const params = {};
       
-      // Build handle->optionName map from availableFilters (replaces filterConfig)
-      const handleToOptionMap = Maps.buildHandleMap(State.availableFilters);
-      
-      Log.debug('Handle maps built', { 
-        handleToOptionMapSize: handleToOptionMap.size,
-        availableFiltersCount: State.availableFilters?.length || 0
-      });
+      // Standard filter keys (fixed)
+      const STANDARD_FILTERS = new Set(['vendor', 'vendors', 'productType', 'productTypes', 'tag', 'tags', 'collection', 'collections', 'search', 'priceRange', 'price', 'page', 'limit', 'sort']);
       
       url.searchParams.forEach((value, key) => {
         if (EXCLUDED_QUERY_PARAMS.has(key)) return;
         
+        // Standard filters
         if (key === 'vendor' || key === 'vendors') params.vendor = $.split(value);
         else if (key === 'productType' || key === 'productTypes') params.productType = $.split(value);
         else if (key === 'tag' || key === 'tags') params.tags = $.split(value);
@@ -193,18 +166,9 @@
           params.sort = { field, order: order || 'desc' };
         }
         else {
-          // Check if key is a handle - try to find matching filter by handle
-          // Handles are used directly as URL param keys (e.g., ef4gd=red, not options[color]=red)
-          const optionName = handleToOptionMap.get(key);
-          if (optionName) {
-            // This is an option filter with a handle - map handle to option name for internal state
-            if (!params.options) params.options = {};
-            params.options[optionName] = $.split(value);
-            Log.debug('Mapped handle to option', { handle: key, optionName, value });
-          } else {
-            Log.debug('Unknown URL param (not a handle or standard filter)', { key, value });
-            // If not found, it might be a standard filter or unknown - skip it
-          }
+          // Everything else is a handle (dynamic filter) - use directly, no conversion
+          params[key] = $.split(value);
+          Log.debug('Handle filter parsed directly', { handle: key, value });
         }
       });
       
@@ -214,28 +178,18 @@
     update(filters, pagination, sort) {
       const url = new URL(window.location);
       url.search = '';
-      const optionMap = State.optionMap;
       
-      Log.debug('Updating URL', { filters, pagination, optionMapSize: optionMap.size });
+      Log.debug('Updating URL', { filters, pagination });
       
       if (filters && !$.empty(filters)) {
         Object.keys(filters).forEach(key => {
           const value = filters[key];
           if ($.empty(value)) return;
           
+          // Standard filters and handles - all use same format
           if (Array.isArray(value) && value.length > 0) {
             url.searchParams.set(key, value.join(','));
             Log.debug('URL param set', { key, value: value.join(',') });
-          }
-          else if (key === 'options' && typeof value === 'object') {
-            Object.keys(value).forEach(optKey => {
-              const optValues = value[optKey];
-              if (!$.empty(optValues) && Array.isArray(optValues) && optValues.length > 0) {
-                const handle = optionMap.get(optKey.toLowerCase()) || optKey;
-                url.searchParams.set(handle, optValues.join(','));
-                Log.debug('Option URL param set', { optKey, handle, values: optValues.join(','), optionMapSize: optionMap.size });
-              }
-            });
           }
           else if (key === 'priceRange' && value && typeof value === 'object' && value.min !== undefined && value.max !== undefined) {
             url.searchParams.set('priceRange', `${value.min}-${value.max}`);
@@ -329,25 +283,28 @@
       
       const params = new URLSearchParams();
       params.set('shop', State.shop);
-      params.set('cpid', State.selectedCollection); // collection page id -> wher user is landed on collection so if jeans colleciton is requested/user lands on this, then must show that collection's product
+      
+      // The ID of the collection page the user is viewing.
+      // Example: if the user navigates to the Jeans collection,
+      // only products from that collection should be shown.
+      if(State.selectedCollection.id) {
+        params.set('cpid', State.selectedCollection.id);
+      }
+      // Send filters directly - handles are sent as-is (server accepts them)
       Object.keys(filters).forEach(k => {
         const v = filters[k];
         if ($.empty(v)) return;
-        if (Array.isArray(v)) params.set(k, v.join(','));
-        else if (k === 'options' && typeof v === 'object') {
-          // API expects option names in options[Color]=red format
-          Object.keys(v).forEach(optKey => {
-            const optValues = v[optKey];
-            if (!$.empty(optValues) && Array.isArray(optValues) && optValues.length > 0) {
-              // Send as options[Color]=red format with option name
-              params.set(`options[${optKey}]`, optValues.join(','));
-            }
-          });
+        
+        if (Array.isArray(v) && v.length > 0) {
+          // Standard filters and handles - send directly
+          params.set(k, v.join(','));
         }
         else if (k === 'priceRange' && v && typeof v === 'object' && v.min !== undefined && v.max !== undefined) {
           params.set('priceRange', `${v.min}-${v.max}`);
         }
-        else if (typeof v === 'string') params.set(k, v);
+        else if (typeof v === 'string' && v.trim()) {
+          params.set(k, v.trim());
+        }
       });
       params.set('page', pagination.page);
       params.set('limit', pagination.limit);
@@ -386,7 +343,9 @@
       
       const params = new URLSearchParams();
       params.set('shop', State.shop);
-      params.set('cpid', State.selectedCollection);
+      if(State.selectedCollection.id) {
+        params.set('cpid', State.selectedCollection.id);
+      }
       Object.keys(filters).forEach(k => {
         const v = filters[k];
         if (!$.empty(v) && Array.isArray(v)) params.set(k, v.join(','));
@@ -494,15 +453,14 @@
           return;
         }
         
-        const isOption = filter.type === 'option';
-        const optionName = isOption ? filter.queryKey : null;
-        const filterType = isOption ? 'options' : (filter.queryKey || filter.key);
-        if (!filterType) return;
+        // Use handle directly (for option filters) or filter key (for standard filters)
+        const handle = filter.handle || filter.queryKey || filter.key;
+        if (!handle) return;
         
-        const group = $.el('div', 'afs-filter-group', { 'data-afs-filter-type': filterType });
-        if (optionName) group.setAttribute('data-afs-option-name', optionName);
+        const group = $.el('div', 'afs-filter-group', { 'data-afs-filter-type': filter.type });
+        group.setAttribute('data-afs-filter-handle', handle);
         
-        const stateKey = filter.key || (optionName ? `options:${optionName}` : filterType);
+        const stateKey = handle;
         group.setAttribute('data-afs-filter-key', stateKey);
         
         const saved = states.get(stateKey);
@@ -513,7 +471,7 @@
         const header = $.el('div', 'afs-filter-group__header');
         const toggle = $.el('button', 'afs-filter-group__toggle', { type: 'button', 'aria-expanded': !collapsed ? 'true' : 'false' });
         toggle.appendChild($.txt($.el('span', 'afs-filter-group__icon'), '▼'));
-        toggle.appendChild($.txt($.el('label', 'afs-filter-group__label'), filter.label || optionName || filterType));
+        toggle.appendChild($.txt($.el('label', 'afs-filter-group__label'), filter.label || handle));
         header.appendChild(toggle);
         group.appendChild(header);
         
@@ -533,7 +491,7 @@
         // Create items fragment
         const itemsFragment = document.createDocumentFragment();
         filter.values.forEach(item => {
-          const itemEl = this.createFilterItem(filterType, item, optionName, filter);
+          const itemEl = this.createFilterItem(handle, item, filter);
           if (itemEl) itemsFragment.appendChild(itemEl);
         });
         items.appendChild(itemsFragment);
@@ -553,7 +511,8 @@
     
     // Minimal filter item creation
     // Displays label for UI, uses value for filtering
-    createFilterItem(type, item, optionName, config) {
+    // handle: the filter handle (e.g., 'ef4gd' for Color, 'vendor' for vendor)
+    createFilterItem(handle, item, config) {
       // Get value (for filtering) - always use original value
       const value = $.str(typeof item === 'string' ? item : (item.value || item.key || item.name || ''));
       if (!value || value === '[object Object]') return null;
@@ -564,46 +523,32 @@
         : (item.label || item.value || value);
       
       // If this is a Collection filter, map collection ID to collection label
-      // Remove filter item if collection ID is not found in State.collections
       if (config?.optionType === 'Collection' && State.collections && Array.isArray(State.collections)) {
         const collection = State.collections.find(c => {
-          // Try different possible ID fields
           const collectionId = c.id || c.gid || c.collectionId || String(c.id || '');
           return String(collectionId) === String(value);
         });
-        if (!collection) {
-          // Collection not found in State.collections, remove this filter item
-          return null;
-        }
-        // Use collection title/label if available
+        if (!collection) return null;
         displayLabel = collection.title || collection.label || collection.name || displayLabel;
       }
       
-      // Check if this filter is currently active
-      let isChecked = false;
-      if (type === 'options' && optionName) {
-        const currentValues = State.filters.options[optionName] || [];
-        isChecked = currentValues.includes(value);
-      } else if (type && State.filters[type]) {
-        const currentValues = Array.isArray(State.filters[type]) ? State.filters[type] : [];
-        isChecked = currentValues.includes(value);
-      }
+      // Check if this filter is currently active (use handle directly)
+      const currentValues = State.filters[handle] || [];
+      const isChecked = currentValues.includes(value);
       
       const label = $.el('label', 'afs-filter-item', {
-        'data-afs-filter-type': type,
-        'data-afs-filter-value': value // Store original value for filtering
+        'data-afs-filter-handle': handle, // Store handle for filtering
+        'data-afs-filter-value': value     // Store original value for filtering
       });
-      if (optionName) label.setAttribute('data-afs-option-name', optionName);
       if (isChecked) label.classList.add('afs-filter-item--active');
       
       const cb = $.el('input', 'afs-filter-item__checkbox', { type: 'checkbox' });
-      cb.checked = isChecked; // Set checked state based on current filters
-      cb.setAttribute('data-afs-filter-type', type);
-      cb.setAttribute('data-afs-filter-value', value); // Store original value for filtering
-      if (optionName) cb.setAttribute('data-afs-option-name', optionName);
+      cb.checked = isChecked;
+      cb.setAttribute('data-afs-filter-handle', handle);
+      cb.setAttribute('data-afs-filter-value', value);
       
       label.appendChild(cb);
-      label.appendChild($.txt($.el('span', 'afs-filter-item__label'), displayLabel)); // Display label
+      label.appendChild($.txt($.el('span', 'afs-filter-item__label'), displayLabel));
       if (config?.showCount && item.count) {
         label.appendChild($.txt($.el('span', 'afs-filter-item__count'), `(${item.count})`));
       }
@@ -800,7 +745,7 @@
     },
     
     // Update filter active state (optimized)
-    updateFilterState(type, value, active, optionName) {
+    updateFilterState(handle, value, active) {
       if (!this.filtersContainer) {
         Log.warn('Cannot update filter state: filtersContainer not found');
         return;
@@ -809,23 +754,21 @@
       // Escape special characters in value for CSS selector
       const escapeValue = (val) => String(val).replace(/[!"#$%&'()*+,.\/:;<=>?@[\\\]^`{|}~]/g, '\\$&');
       const escapedValue = escapeValue(value);
+      const escapedHandle = escapeValue(handle);
       
-      const selector = optionName 
-        ? `.afs-filter-item[data-afs-filter-type="${type}"][data-afs-option-name="${optionName}"][data-afs-filter-value="${escapedValue}"]`
-        : `.afs-filter-item[data-afs-filter-type="${type}"][data-afs-filter-value="${escapedValue}"]`;
-      
+      const selector = `.afs-filter-item[data-afs-filter-handle="${escapedHandle}"][data-afs-filter-value="${escapedValue}"]`;
       const item = this.filtersContainer.querySelector(selector);
       if (item) {
         const cb = item.querySelector('.afs-filter-item__checkbox');
         if (cb) {
           cb.checked = active;
-          Log.debug('Checkbox state updated', { type, value, active, optionName, wasChecked: !active, nowChecked: active });
+          Log.debug('Checkbox state updated', { handle, value, active });
         } else {
-          Log.warn('Checkbox not found in filter item', { type, value, optionName });
+          Log.warn('Checkbox not found in filter item', { handle, value });
         }
         item.classList.toggle('afs-filter-item--active', active);
       } else {
-        Log.warn('Filter item not found for state update', { type, value, active, optionName, selector });
+        Log.warn('Filter item not found for state update', { handle, value, active, selector });
       }
     },
     
@@ -899,51 +842,32 @@
   // ============================================================================
   
   const Filters = {
-    toggle(type, value) {
+    // Toggle standard filter (vendor, productType, tags, collections) or handle-based filter
+    toggle(handle, value) {
       const normalized = $.str(value);
-      if (!normalized) {
-        Log.warn('Invalid filter value', { type, value });
+      if (!normalized || !handle) {
+        Log.warn('Invalid filter toggle', { handle, value });
         return;
       }
       
-      const current = State.filters[type] || [];
+      const current = State.filters[handle] || [];
       const isActive = current.includes(normalized);
       const newValues = isActive
         ? current.filter(v => v !== normalized)
         : [...current, normalized];
       
-      State.filters[type] = newValues;
-      State.pagination.page = 1;
-      
-      Log.debug('Filter toggled', { type, value: normalized, wasActive: isActive, isActive: !isActive, newValues });
-      
-      UrlManager.update(State.filters, State.pagination, State.sort);
-      DOM.updateFilterState(type, normalized, !isActive);
-      this.apply();
-    },
-    
-    toggleOption(name, value) {
-      const normalized = $.str(value);
-      if (!normalized) {
-        Log.warn('Invalid option value', { name, value });
-        return;
+      if (newValues.length === 0) {
+        delete State.filters[handle];
+      } else {
+        State.filters[handle] = newValues;
       }
       
-      const current = State.filters.options[name] || [];
-      const isActive = current.includes(normalized);
-      const newValues = isActive
-        ? current.filter(v => v !== normalized)
-        : [...current, normalized];
-      
-      if (newValues.length === 0) delete State.filters.options[name];
-      else State.filters.options[name] = newValues;
-      
       State.pagination.page = 1;
       
-      Log.debug('Option toggled', { name, value: normalized, wasActive: isActive, isActive: !isActive, newValues });
+      Log.debug('Filter toggled', { handle, value: normalized, wasActive: isActive, isActive: !isActive, newValues });
       
       UrlManager.update(State.filters, State.pagination, State.sort);
-      DOM.updateFilterState('options', normalized, !isActive, name);
+      DOM.updateFilterState(handle, normalized, !isActive);
       this.apply();
     },
     
@@ -985,8 +909,7 @@
           const updatedFiltersData = await API.filters(State.filters);
           if (Array.isArray(updatedFiltersData.filters)) {
             State.availableFilters = updatedFiltersData.filters;
-            State.optionMap = Maps.buildOptionMap(State.availableFilters);
-            State.handleMap = Maps.buildHandleMap(State.availableFilters);
+            State.filterMetadata = Metadata.buildFilterMetadata(State.availableFilters);
             DOM.renderFilters(State.availableFilters);
           }
         } catch (e) {
@@ -1020,7 +943,8 @@
         const pagination = e.target.closest('.afs-pagination__button');
         
         if (action === 'clear-all') {
-          State.filters = { vendor: [], productType: [], tags: [], collections: [], options: {}, search: '', priceRange: null };
+          // Reset to initial state (standard filters only, handles will be removed dynamically)
+          State.filters = { vendor: [], productType: [], tags: [], collections: [], search: '', priceRange: null };
           State.pagination.page = 1;
           UrlManager.update(State.filters, State.pagination, State.sort);
           Filters.apply();
@@ -1029,22 +953,17 @@
           e.preventDefault(); // Prevent default checkbox toggle behavior
           e.stopPropagation(); // Stop event bubbling
           
-          const type = item.getAttribute('data-afs-filter-type');
+          // Get handle from data attribute (handle is stored directly)
+          const handle = item.getAttribute('data-afs-filter-handle') || item.getAttribute('data-afs-filter-type');
           const value = item.getAttribute('data-afs-filter-value');
-          const optionName = item.getAttribute('data-afs-option-name');
           
-          if (!type || !value) {
-            Log.warn('Invalid filter item clicked', { type, value, optionName });
+          if (!handle || !value) {
+            Log.warn('Invalid filter item clicked', { handle, value });
             return;
           }
           
-          Log.debug('Filter toggle', { type, value, optionName, currentChecked: checkbox.checked });
-          
-          if (type === 'options' && optionName) {
-            Filters.toggleOption(optionName, value);
-          } else if (type) {
-            Filters.toggle(type, value);
-          }
+          Log.debug('Filter toggle', { handle, value, currentChecked: checkbox.checked });
+          Filters.toggle(handle, value);
         }
         else if (pagination && !pagination.disabled) {
           const page = parseInt(pagination.getAttribute('data-afs-page'), 10);
@@ -1082,17 +1001,23 @@
       
       window.addEventListener('popstate', () => {
         const params = UrlManager.parse();
-        if (params.vendor || params.productType || params.tags || params.collections || params.search || params.options || params.priceRange) {
-          State.filters = {
-            vendor: params.vendor || [],
-            productType: params.productType || [],
-            tags: params.tags || [],
-            collections: params.collections || [],
-            search: params.search || '',
-            options: params.options || {},
-            priceRange: params.priceRange || null
-          };
-        }
+        // Rebuild filters from params (includes standard filters + handles)
+        State.filters = {
+          vendor: params.vendor || [],
+          productType: params.productType || [],
+          tags: params.tags || [],
+          collections: params.collections || [],
+          search: params.search || '',
+          priceRange: params.priceRange || null
+        };
+        // Add all handle-based filters (everything that's not a standard filter)
+        Object.keys(params).forEach(key => {
+          if (!['vendor', 'productType', 'tags', 'collections', 'search', 'priceRange', 'page', 'limit', 'sort'].includes(key)) {
+            if (Array.isArray(params[key])) {
+              State.filters[key] = params[key];
+            }
+          }
+        });
         if (params.page) State.pagination.page = params.page;
         Filters.apply();
       });
@@ -1106,6 +1031,7 @@
   const AFS = {
     init(config = {}) {
       try {
+        Log.enabled = config.enableLogging;
         Log.info('Initializing AFS', config);
         
         if (config.apiBaseUrl) {
@@ -1120,6 +1046,7 @@
         State.shop = config.shop;
         State.collections = config.collections;
         State.selectedCollection = config.selectedCollection;
+        
 
         Log.info('Shop set', { shop: State.shop });
         Log.info('Collections set', { collections: State.collections });
@@ -1145,8 +1072,10 @@
       try {
         Log.info('Loading filters...', { shop: State.shop, filters: State.filters });
         const filtersData = await API.filters(State.filters);
-        Log.info('Filters loaded', { filtersCount: filtersData.filters?.length || 0 });
+        Log.enabled = true;
+        Log.info('Filters loaded', { filtersCount: filtersData.filters || 0 });
         
+        Log.enabled = false;
         // Validate filters is an array
         if (!Array.isArray(filtersData.filters)) {
           Log.error('Invalid filters response: filters is not an array', { filters: filtersData.filters });
@@ -1154,25 +1083,30 @@
         }
         
         State.availableFilters = filtersData.filters || [];
-        State.optionMap = Maps.buildOptionMap(State.availableFilters);
-        State.handleMap = Maps.buildHandleMap(State.availableFilters);
+        State.filterMetadata = Metadata.buildFilterMetadata(State.availableFilters);
         
-        // Parse URL params AFTER filters are loaded (so we can map handles to option names)
+        // Parse URL params - handles are parsed directly, no conversion needed
         const urlParams = UrlManager.parse();
         Log.debug('Parsed URL params', { urlParams, availableFiltersCount: State.availableFilters.length });
         
-        if (urlParams.vendor || urlParams.productType || urlParams.tags || urlParams.collections || urlParams.search || urlParams.options || urlParams.priceRange) {
-          State.filters = {
-            vendor: urlParams.vendor || [],
-            productType: urlParams.productType || [],
-            tags: urlParams.tags || [],
-            collections: urlParams.collections || [],
-            search: urlParams.search || '',
-            options: urlParams.options || {},
-            priceRange: urlParams.priceRange || null
-          };
-          Log.info('Filters set from URL', { filters: State.filters });
-        }
+        // Rebuild filters from params (includes standard filters + handles)
+        State.filters = {
+          vendor: urlParams.vendor || [],
+          productType: urlParams.productType || [],
+          tags: urlParams.tags || [],
+          collections: urlParams.collections || [],
+          search: urlParams.search || '',
+          priceRange: urlParams.priceRange || null
+        };
+        // Add all handle-based filters (everything that's not a standard filter)
+        Object.keys(urlParams).forEach(key => {
+          if (!['vendor', 'productType', 'tags', 'collections', 'search', 'priceRange', 'page', 'limit', 'sort'].includes(key)) {
+            if (Array.isArray(urlParams[key])) {
+              State.filters[key] = urlParams[key];
+            }
+          }
+        });
+        Log.info('Filters set from URL', { filters: State.filters });
         if (urlParams.page) State.pagination.page = urlParams.page;
         
         DOM.renderFilters(State.availableFilters);
@@ -1184,20 +1118,6 @@
         
         State.products = productsData.products || [];
         State.pagination = productsData.pagination || State.pagination;
-        
-        // Fetch updated filters after products (will hit cache created by products request)
-        try {
-          const updatedFiltersData = await API.filters(State.filters);
-          if (Array.isArray(updatedFiltersData.filters)) {
-            State.availableFilters = updatedFiltersData.filters;
-            State.optionMap = Maps.buildOptionMap(State.availableFilters);
-            State.handleMap = Maps.buildHandleMap(State.availableFilters);
-            DOM.renderFilters(State.availableFilters);
-          }
-        } catch (e) {
-          Log.warn('Failed to fetch updated filters', { error: e.message });
-          // Continue with existing filters if update fails
-        }
         
         DOM.renderProducts(State.products);
         DOM.renderInfo(State.pagination, State.pagination.total || 0);

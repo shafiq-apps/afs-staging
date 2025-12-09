@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FILTERS</title>
+
+    <link rel="stylesheet" href="../dashboard/extensions/theme-extension/assets/advanced-filter-search.css">
+</head>
+
+<body>
+
+    <div data-afs-container id="afs-container"></div>
+
+    <script src="../dashboard/extensions/theme-extension/assets/advanced-filter-search.js"></script>
+    <script>
+        (function () {
+            const config = {
+                apiBaseUrl: "https://fstaging.digitalcoo.com",
+                shop: "digitalcoo-filter-demo-07.myshopify.com",
+                container: '#afs-container',
+                filtersContainer: '.afs-filters-container',
+                productsContainer: '.afs-products-container',
+                pageSize: 10,
+                enableLogging: false,
+                collections: [
+                    {
+                        id: 169206415441,
+                        title: "All products"
+                    },
+
+                    {
+                        id: 151681073233,
+                        title: "Home page"
+                    },
+
+                    {
+                        id: 169207070801,
+                        title: "under 150"
+                    },
+
+                    {
+                        id: 169207529553,
+                        title: "under 300"
+                    },
+
+                    {
+                        id: 169206775889,
+                        title: "under 50"
+                    }
+
+                ],
+                selectedCollection: {
+                    id: 169207070801, //169207529553,
+                    sortBy: "best-selling"
+                }
+            };
+
+            // Function to initialize AFS
+            function initializeAFS() {
+                if (typeof window.AFS !== 'undefined') {
+                    try {
+                        window.AFS.init(config);
+                    } catch (error) {
+                        console.error('Failed to initialize Advanced Filter Search:', error);
+                    }
+                } else {
+                    setTimeout(initializeAFS, 100);
+                }
+            }
+
+            // Wait for both DOM and script to be ready
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', function () {
+                    // Wait a bit for the deferred script to load
+                    setTimeout(initializeAFS, 50);
+                });
+            } else {
+                // DOM is already ready, just wait for script
+                setTimeout(initializeAFS, 50);
+            }
+        })();
+    </script>
+</body>
+
+</html>
