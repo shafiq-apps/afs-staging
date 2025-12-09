@@ -261,37 +261,36 @@ function findMatchingOptionKey(
   return null;
 }
 
-function buildStandardFilter(
+
+/**
+ * Create base filter structure with common fields
+ */
+function createBaseFilter(
   key: string,
   type: StorefrontFilterDescriptor['type'],
-  label: string,
-  values: FacetValue[]
-): StorefrontFilterDescriptor | null {
-  if (!values || values.length === 0) {
-    return null;
-  }
-
+  queryKey: string,
+  label: string
+): Partial<StorefrontFilterDescriptor> {
   return {
     key,
     type,
-    queryKey: key,
+    queryKey,
     label,
     displayType: 'LIST',
     selectionType: 'MULTIPLE',
     collapsed: false,
-    searchable: true,
+    searchable: false,
     showTooltip: false,
     tooltipContent: '',
     showCount: true,
     showMenu: false,
     status: 'PUBLISHED',
-    values,
   };
 }
 
 /**
  * Format filter aggregations into array of descriptors
- */
+*/
 export function formatFilters(
   aggregations?: FacetAggregations,
   filterConfig?: Filter | null
@@ -304,6 +303,7 @@ export function formatFilters(
   const rawOptions = formatOptionPairs(aggregations.optionPairs?.buckets);
   const usedOptionKeys = new Set<string>();
 
+  // Process configured option filters
   if (filterConfig?.options?.length) {
     const sortedOptions = [...filterConfig.options]
       .filter((option) => isPublishedStatus(option.status))
@@ -329,31 +329,36 @@ export function formatFilters(
       if (!processedValues.length) continue;
 
       const label = option.label || option.optionType || matchedKey;
+      const baseFilter = createBaseFilter(
+        `option:${option.handle || matchedKey}`,
+        'option',
+        matchedKey,
+        label
+      );
+
       filters.push({
-        key: `option:${option.handle || matchedKey}`,
-        type: 'option',
-        queryKey: matchedKey,
-        label,
+        ...baseFilter,
         handle: option.handle,
         position: option.position,
         optionType: option.optionType,
         optionKey: matchedKey,
-        displayType: option.displayType || 'LIST',
-        selectionType: option.selectionType || 'MULTIPLE',
+        displayType: option.displayType || baseFilter.displayType || 'LIST',
+        selectionType: option.selectionType || baseFilter.selectionType || 'MULTIPLE',
         targetScope: option.targetScope,
         allowedOptions: option.allowedOptions,
-        collapsed: option.collapsed || false,
-        searchable: option.searchable || false,
-        showTooltip: option.showTooltip || false,
-        tooltipContent: option.tooltipContent || '',
-        showCount: option.showCount !== undefined ? option.showCount : true,
-        showMenu: option.showMenu || false,
-        status: option.status,
+        collapsed: option.collapsed ?? baseFilter.collapsed ?? false,
+        searchable: option.searchable ?? baseFilter.searchable ?? false,
+        showTooltip: option.showTooltip ?? baseFilter.showTooltip ?? false,
+        tooltipContent: option.tooltipContent || baseFilter.tooltipContent || '',
+        showCount: option.showCount !== undefined ? option.showCount : (baseFilter.showCount ?? true),
+        showMenu: option.showMenu ?? baseFilter.showMenu ?? false,
+        status: option.status || baseFilter.status || 'PUBLISHED',
         values: processedValues,
-      });
+      } as StorefrontFilterDescriptor);
     }
   }
 
+  // Process leftover option filters (not in config)
   const leftoverOptionKeys = Object.keys(rawOptions).filter((key) => !usedOptionKeys.has(key));
   leftoverOptionKeys.sort((a, b) => a.localeCompare(b));
 
@@ -361,92 +366,79 @@ export function formatFilters(
     const optionValues = rawOptions[optionName];
     if (!optionValues || optionValues.length === 0) continue;
 
+    const baseFilter = createBaseFilter(
+      `option:${optionName}`,
+      'option',
+      optionName,
+      optionName
+    );
+
     filters.push({
-      key: `option:${optionName}`,
-      type: 'option',
-      queryKey: optionName,
-      label: optionName,
+      ...baseFilter,
       optionType: optionName,
       optionKey: optionName,
-      displayType: 'LIST',
-      selectionType: 'MULTIPLE',
-      collapsed: false,
-      searchable: false,
-      showTooltip: false,
-      tooltipContent: '',
-      showCount: true,
-      showMenu: false,
-      status: 'PUBLISHED',
       values: optionValues,
-    });
+    } as StorefrontFilterDescriptor);
   }
 
+  // Process standard filters (vendor, productType, tags, collections)
   const vendors = normalizeBuckets(aggregations.vendors);
   const productTypes = normalizeBuckets(aggregations.productTypes);
   const tags = normalizeBuckets(aggregations.tags);
   const collections = normalizeBuckets(aggregations.collections);
 
-  const standardFilters: Array<StorefrontFilterDescriptor | null> = [
-    buildStandardFilter('vendors', 'vendor', 'Vendor', vendors),
-    buildStandardFilter('productTypes', 'productType', 'Product Type', productTypes),
-    buildStandardFilter('tags', 'tag', 'Tag', tags),
-    buildStandardFilter('collections', 'collection', 'Collection', collections),
+  const standardFilterConfigs = [
+    { key: 'vendors', type: 'vendor' as const, label: 'Vendor', values: vendors },
+    { key: 'productTypes', type: 'productType' as const, label: 'Product Type', values: productTypes },
+    { key: 'tags', type: 'tag' as const, label: 'Tag', values: tags },
+    { key: 'collections', type: 'collection' as const, label: 'Collection', values: collections },
   ];
 
-  for (const standard of standardFilters) {
-    if (standard) {
-      filters.push(standard);
-    }
+  for (const config of standardFilterConfigs) {
+    if (!config.values || config.values.length === 0) continue;
+
+    const baseFilter = createBaseFilter(config.key, config.type, config.key, config.label);
+    
+    filters.push({
+      ...baseFilter,
+      searchable: true,
+      values: config.values,
+    } as StorefrontFilterDescriptor);
   }
 
+  // Process price range filters
   if (
     aggregations.priceRange &&
     (aggregations.priceRange.min !== null || aggregations.priceRange.max !== null)
   ) {
+    const baseFilter = createBaseFilter('priceRange', 'priceRange', 'priceRange', 'Price');
+    
     filters.push({
-      key: 'priceRange',
-      type: 'priceRange',
-      queryKey: 'priceRange',
-      label: 'Price',
+      ...baseFilter,
       displayType: 'RANGE',
       selectionType: 'RANGE',
-      collapsed: false,
-      searchable: false,
-      showTooltip: false,
-      tooltipContent: '',
-      showCount: true,
-      showMenu: false,
-      status: 'PUBLISHED',
       range: {
         min: aggregations.priceRange.min ?? 0,
         max: aggregations.priceRange.max ?? 0,
       },
-    });
+    } as StorefrontFilterDescriptor);
   }
 
   if (
     aggregations.variantPriceRange &&
     (aggregations.variantPriceRange.min !== null || aggregations.variantPriceRange.max !== null)
   ) {
+    const baseFilter = createBaseFilter('variantPriceRange', 'variantPriceRange', 'variantPriceRange', 'Variant Price');
+    
     filters.push({
-      key: 'variantPriceRange',
-      type: 'variantPriceRange',
-      queryKey: 'variantPriceRange',
-      label: 'Variant Price',
+      ...baseFilter,
       displayType: 'RANGE',
       selectionType: 'RANGE',
-      collapsed: false,
-      searchable: false,
-      showTooltip: false,
-      tooltipContent: '',
-      showCount: true,
-      showMenu: false,
-      status: 'PUBLISHED',
       range: {
         min: aggregations.variantPriceRange.min ?? 0,
         max: aggregations.variantPriceRange.max ?? 0,
       },
-    });
+    } as StorefrontFilterDescriptor);
   }
 
   return filters;
