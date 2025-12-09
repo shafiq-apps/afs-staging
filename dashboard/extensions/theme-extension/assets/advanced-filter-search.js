@@ -126,6 +126,7 @@
     shop: null,
     filters: { vendor: [], productType: [], tags: [], collections: [], options: {}, search: '', priceRange: null },
     products: [],
+    collections: [],
     pagination: { page: 1, limit: C.PAGE_SIZE, total: 0, totalPages: 0 },
     sort: { field: 'createdAt', order: 'desc' },
     loading: false,
@@ -552,9 +553,22 @@
       if (!value || value === '[object Object]') return null;
       
       // Get label (for display) - use label if available, fallback to value
-      const displayLabel = typeof item === 'string' 
+      let displayLabel = typeof item === 'string' 
         ? item 
         : (item.label || item.value || value);
+      
+      // If this is a Collection filter, map collection ID to collection label
+      if (config?.optionType === 'Collection' && State.collections && Array.isArray(State.collections)) {
+        const collection = State.collections.find(c => {
+          // Try different possible ID fields
+          const collectionId = c.id || c.gid || c.collectionId || String(c.id || '');
+          return String(collectionId) === String(value);
+        });
+        if (collection) {
+          // Use collection title/label if available
+          displayLabel = collection.title || collection.label || collection.name || displayLabel;
+        }
+      }
       
       // Check if this filter is currently active
       let isChecked = false;
@@ -1095,7 +1109,9 @@
         }
         
         State.shop = config.shop;
+        State.collections = config.collections;
         Log.info('Shop set', { shop: State.shop });
+        Log.info('Collections set', { collections: State.collections });
         
         DOM.init(config.container || '[data-afs-container]', config.filtersContainer, config.productsContainer);
         Log.info('DOM initialized');
