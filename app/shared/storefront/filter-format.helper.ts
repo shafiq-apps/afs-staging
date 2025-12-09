@@ -261,6 +261,31 @@ function findMatchingOptionKey(
   return null;
 }
 
+/**
+ * Map standard filter optionType to aggregation type and query key
+ */
+function getStandardFilterMapping(
+  optionType?: string | null
+): { type: StorefrontFilterDescriptor['type']; queryKey: string; aggregationKey: keyof FacetAggregations } | null {
+  if (!optionType) return null;
+  
+  const normalized = normalizeKey(optionType);
+  const standardFilterMapping: Record<string, { type: StorefrontFilterDescriptor['type']; queryKey: string; aggregationKey: keyof FacetAggregations }> = {
+    vendor: { type: 'vendor', queryKey: 'vendors', aggregationKey: 'vendors' },
+    vendors: { type: 'vendor', queryKey: 'vendors', aggregationKey: 'vendors' },
+    producttype: { type: 'productType', queryKey: 'productTypes', aggregationKey: 'productTypes' },
+    'product-type': { type: 'productType', queryKey: 'productTypes', aggregationKey: 'productTypes' },
+    'product type': { type: 'productType', queryKey: 'productTypes', aggregationKey: 'productTypes' },
+    product_types: { type: 'productType', queryKey: 'productTypes', aggregationKey: 'productTypes' },
+    tags: { type: 'tag', queryKey: 'tags', aggregationKey: 'tags' },
+    tag: { type: 'tag', queryKey: 'tags', aggregationKey: 'tags' },
+    collection: { type: 'collection', queryKey: 'collections', aggregationKey: 'collections' },
+    collections: { type: 'collection', queryKey: 'collections', aggregationKey: 'collections' },
+  };
+
+  return standardFilterMapping[normalized] || null;
+}
+
 
 /**
  * Create base filter structure with common fields
@@ -310,7 +335,7 @@ export function formatFilters(
   const rawOptions = formatOptionPairs(aggregations.optionPairs?.buckets);
   const usedOptionKeys = new Set<string>();
 
-  // Process configured option filters
+  // Process configured option filters (including standard filters)
   if (filterConfig?.options?.length) {
     const sortedOptions = [...filterConfig.options]
       .filter((option) => isPublishedStatus(option.status))
@@ -321,49 +346,96 @@ export function formatFilters(
       });
 
     for (const option of sortedOptions) {
-      const matchedKey = findMatchingOptionKey(rawOptions, [
-        option.optionSettings?.variantOptionKey,
-        option.optionType,
-        option.label,
-      ]);
+      // Check if this is a standard filter (collections, vendors, tags, productTypes)
+      const standardFilterMapping = getStandardFilterMapping(option.optionType);
+      
+      if (standardFilterMapping) {
+        // Process as standard filter
+        const aggregation = aggregations[standardFilterMapping.aggregationKey];
+        // Type guard: standard filters are TermsAggregation (have buckets property)
+        if (!aggregation || !('buckets' in aggregation)) continue;
 
-      if (!matchedKey) continue;
-      const optionValues = rawOptions[matchedKey];
-      if (!optionValues || optionValues.length === 0) continue;
+        const values = normalizeBuckets(aggregation);
+        if (!values || values.length === 0) continue;
 
-      usedOptionKeys.add(matchedKey);
-      const processedValues = applyOptionSettings(optionValues, option);
-      if (!processedValues.length) continue;
+        const processedValues = applyOptionSettings(values, option);
+        if (!processedValues.length) continue;
 
-      const label = option.label || option.optionType || matchedKey;
-      const baseFilter = createBaseFilter(
-        `option:${option.handle || matchedKey}`,
-        'option',
-        matchedKey,
-        label,
-        option.handle,
-        filters.length
-      );
+        const label = option.label || option.optionType || standardFilterMapping.queryKey;
+        const baseFilter = createBaseFilter(
+          `${standardFilterMapping.type}:${option.handle || standardFilterMapping.queryKey}`,
+          standardFilterMapping.type,
+          standardFilterMapping.queryKey,
+          label,
+          option.handle,
+          filters.length
+        );
 
-      filters.push({
-        ...baseFilter,
-        handle: option.handle,
-        position: option.position,
-        optionType: option.optionType,
-        optionKey: matchedKey,
-        displayType: option.displayType || baseFilter.displayType || 'LIST',
-        selectionType: option.selectionType || baseFilter.selectionType || 'MULTIPLE',
-        targetScope: option.targetScope,
-        allowedOptions: option.allowedOptions,
-        collapsed: option.collapsed ?? baseFilter.collapsed ?? false,
-        searchable: option.searchable ?? baseFilter.searchable ?? false,
-        showTooltip: option.showTooltip ?? baseFilter.showTooltip ?? false,
-        tooltipContent: option.tooltipContent || baseFilter.tooltipContent || '',
-        showCount: option.showCount !== undefined ? option.showCount : (baseFilter.showCount ?? true),
-        showMenu: option.showMenu ?? baseFilter.showMenu ?? false,
-        status: option.status || baseFilter.status || 'PUBLISHED',
-        values: processedValues,
-      } as StorefrontFilterDescriptor);
+        filters.push({
+          ...baseFilter,
+          handle: option.handle,
+          position: option.position,
+          optionType: option.optionType,
+          optionKey: standardFilterMapping.queryKey,
+          displayType: option.displayType || baseFilter.displayType || 'LIST',
+          selectionType: option.selectionType || baseFilter.selectionType || 'MULTIPLE',
+          targetScope: option.targetScope,
+          allowedOptions: option.allowedOptions,
+          collapsed: option.collapsed ?? baseFilter.collapsed ?? false,
+          searchable: option.searchable ?? baseFilter.searchable ?? false,
+          showTooltip: option.showTooltip ?? baseFilter.showTooltip ?? false,
+          tooltipContent: option.tooltipContent || baseFilter.tooltipContent || '',
+          showCount: option.showCount !== undefined ? option.showCount : (baseFilter.showCount ?? true),
+          showMenu: option.showMenu ?? baseFilter.showMenu ?? false,
+          status: option.status || baseFilter.status || 'PUBLISHED',
+          values: processedValues,
+        } as StorefrontFilterDescriptor);
+      } else {
+        // Process as regular option filter
+        const matchedKey = findMatchingOptionKey(rawOptions, [
+          option.optionSettings?.variantOptionKey,
+          option.optionType,
+          option.label,
+        ]);
+
+        if (!matchedKey) continue;
+        const optionValues = rawOptions[matchedKey];
+        if (!optionValues || optionValues.length === 0) continue;
+
+        usedOptionKeys.add(matchedKey);
+        const processedValues = applyOptionSettings(optionValues, option);
+        if (!processedValues.length) continue;
+
+        const label = option.label || option.optionType || matchedKey;
+        const baseFilter = createBaseFilter(
+          `option:${option.handle || matchedKey}`,
+          'option',
+          matchedKey,
+          label,
+          option.handle,
+          filters.length
+        );
+
+        filters.push({
+          ...baseFilter,
+          handle: option.handle,
+          position: option.position,
+          optionType: option.optionType,
+          optionKey: matchedKey,
+          displayType: option.displayType || baseFilter.displayType || 'LIST',
+          selectionType: option.selectionType || baseFilter.selectionType || 'MULTIPLE',
+          targetScope: option.targetScope,
+          allowedOptions: option.allowedOptions,
+          collapsed: option.collapsed ?? baseFilter.collapsed ?? false,
+          searchable: option.searchable ?? baseFilter.searchable ?? false,
+          showTooltip: option.showTooltip ?? baseFilter.showTooltip ?? false,
+          tooltipContent: option.tooltipContent || baseFilter.tooltipContent || '',
+          showCount: option.showCount !== undefined ? option.showCount : (baseFilter.showCount ?? true),
+          showMenu: option.showMenu ?? baseFilter.showMenu ?? false,
+          status: option.status || baseFilter.status || 'PUBLISHED',
+          values: processedValues,
+        } as StorefrontFilterDescriptor);
+      }
     }
   }
 
