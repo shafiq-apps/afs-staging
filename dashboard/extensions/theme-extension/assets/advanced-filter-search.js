@@ -522,14 +522,20 @@
         ? item 
         : (item.label || item.value || value);
       
-      // If this is a Collection filter, map collection ID to collection label
-      if (config?.optionType === 'Collection' && State.collections && Array.isArray(State.collections)) {
+      // If this is a Collection filter, map collection ID to collection label from State.collections
+      // Check both optionType and type to handle different filter configurations
+      const isCollectionFilter = (config?.optionType === 'Collection' || config?.type === 'collection' || handle === 'collections');
+      if (isCollectionFilter && State.collections && Array.isArray(State.collections)) {
+        // Collection IDs are already numeric strings, just convert to string for comparison
         const collection = State.collections.find(c => {
-          const collectionId = c.id || c.gid || c.collectionId || String(c.id || '');
-          return String(collectionId) === String(value);
+          const cId = String(c.id || c.gid || c.collectionId || '');
+          return cId && String(cId) === String(value);
         });
-        if (!collection) return null;
-        displayLabel = collection.title || collection.label || collection.name || displayLabel;
+        if (collection) {
+          // Use title from State.collections for display, keep value (collection ID) unchanged for filtering
+          displayLabel = collection.title || collection.label || collection.name || displayLabel;
+        }
+        // If collection not found, keep original displayLabel (don't hide the filter item)
       }
       
       // Check if this filter is currently active (use handle directly)
