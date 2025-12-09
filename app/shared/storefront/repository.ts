@@ -248,9 +248,9 @@ export class StorefrontSearchRepository {
         field: 'productType.keyword',
         values: sanitizedFilters?.productTypes,
       },
-      tags: { field: 'tags.keyword', values: sanitizedFilters?.tags },
+      tags: { field: 'tags', values: sanitizedFilters?.tags }, // Tags is an array field
       collections: {
-        field: 'collections.keyword',
+        field: 'collections', // Collections is an array field, use directly (not .keyword)
         values: sanitizedFilters?.collections,
       },
     };
@@ -593,7 +593,8 @@ export class StorefrontSearchRepository {
     }
 
     if (hasValues(sanitizedFilters?.tags)) {
-      const clause = { terms: { 'tags.keyword': sanitizedFilters!.tags } };
+      // Tags is an array field, use directly (not .keyword)
+      const clause = { terms: { 'tags': sanitizedFilters!.tags } };
       if (shouldPreserve('tags')) {
         postFilterQueries.push(clause);
       } else {
@@ -780,7 +781,7 @@ export class StorefrontSearchRepository {
         if (enabledAggregations.standard.has('tags')) {
           aggregationObject.tags = {
             terms: {
-              field: 'tags.keyword', // Use keyword field for aggregations
+              field: 'tags', // Tags is an array field, use directly (not .keyword)
               size: DEFAULT_BUCKET_SIZE * 2,
               order: { _count: 'desc' as const },
             },
@@ -790,7 +791,7 @@ export class StorefrontSearchRepository {
         if (enabledAggregations.standard.has('collections')) {
           aggregationObject.collections = {
             terms: {
-              field: 'collections.keyword', // Use keyword field for aggregations
+              field: 'collections', // Collections is an array field, use directly (not .keyword)
               size: DEFAULT_BUCKET_SIZE * 2,
               order: { _count: 'desc' as const },
             },

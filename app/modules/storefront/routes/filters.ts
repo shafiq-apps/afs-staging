@@ -79,10 +79,12 @@ export const GET = handler(async (req: HttpRequest) => {
   // Get raw aggregations from repository (not formatted yet)
   // We need FacetAggregations (raw ES format) to pass to formatFilters
   // This allows formatFilters to apply filterConfig settings (position sorting, targetScope filtering, etc.)
+  // For REST endpoint, we want ALL aggregations regardless of filterConfig (unlike GraphQL which respects filterConfig)
+  // Pass null as filterConfig to getRawAggregations to ensure all aggregations are included
   const aggregations = await productsService.getRawAggregations(
     shopParam,
     filterInput,
-    filterConfig
+    null // Pass null to get all aggregations for REST endpoint
   );
 
   logger.debug('Raw aggregations from repository', {
@@ -103,7 +105,8 @@ export const GET = handler(async (req: HttpRequest) => {
   // Format filters with filterConfig settings applied (position sorting, targetScope filtering, etc.)
   // This pre-compiles filters on server-side for optimal performance
   // formatFilters expects FacetAggregations (raw ES format), not ProductFilters
-  const formattedFilters = formatFilters(aggregations, filterConfig)
+  // For REST endpoint, pass null as filterConfig to formatFilters to get ALL filters (not just configured ones)
+  const formattedFilters = formatFilters(aggregations, null)
 
 
   logger.debug('Formatted filters', {

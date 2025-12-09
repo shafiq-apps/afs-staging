@@ -114,7 +114,10 @@ export class StorefrontSearchService implements Injectable {
 
     // Step 3: Cache miss - query ES and cache the result
     this.log.info('Cache miss for raw aggregations, querying ES', { shop, filters, filterConfigHash });
-    const { aggregations } = await this.repo.getFacets(shop, filters, filterConfig);
+    // For REST endpoint, we want all options when filterConfig is null/undefined
+    // This ensures formatFilters gets all aggregations to work with
+    const includeAllOptions = !filterConfig || !filterConfig.options;
+    const { aggregations } = await this.repo.getFacets(shop, filters, filterConfig, includeAllOptions);
     
     // Cache the raw aggregations for future requests
     this.cache.setFilterResults(shop, filters, aggregations, undefined, filterConfigHash);

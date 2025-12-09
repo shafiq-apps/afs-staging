@@ -335,6 +335,62 @@ export function formatFilters(
   const rawOptions = formatOptionPairs(aggregations.optionPairs?.buckets);
   const usedOptionKeys = new Set<string>();
 
+  // If no filterConfig, return all available filters (for REST endpoint)
+  if (!filterConfig || !filterConfig.options?.length) {
+    // Add all standard filters
+    const standardFilters = [
+      { type: 'vendor' as const, queryKey: 'vendors', aggregationKey: 'vendors' as const, label: 'Vendor' },
+      { type: 'productType' as const, queryKey: 'productTypes', aggregationKey: 'productTypes' as const, label: 'Product Type' },
+      { type: 'tag' as const, queryKey: 'tags', aggregationKey: 'tags' as const, label: 'Tags' },
+      { type: 'collection' as const, queryKey: 'collections', aggregationKey: 'collections' as const, label: 'Collection' },
+    ];
+
+    for (const standardFilter of standardFilters) {
+      const aggregation = aggregations[standardFilter.aggregationKey];
+      if (!aggregation || !('buckets' in aggregation)) continue;
+
+      const values = normalizeBuckets(aggregation);
+      if (!values || values.length === 0) continue;
+
+      const baseFilter = createBaseFilter(
+        `${standardFilter.type}:${standardFilter.queryKey}`,
+        standardFilter.type,
+        standardFilter.queryKey,
+        standardFilter.label,
+        standardFilter.queryKey,
+        filters.length
+      );
+
+      filters.push({
+        ...baseFilter,
+        values,
+      } as StorefrontFilterDescriptor);
+    }
+
+    // Add all option filters
+    for (const [optionName, optionValues] of Object.entries(rawOptions)) {
+      if (!optionValues || optionValues.length === 0) continue;
+
+      const baseFilter = createBaseFilter(
+        `option:${optionName}`,
+        'option',
+        optionName,
+        optionName,
+        optionName,
+        filters.length
+      );
+
+      filters.push({
+        ...baseFilter,
+        optionType: optionName,
+        optionKey: optionName,
+        values: optionValues,
+      } as StorefrontFilterDescriptor);
+    }
+
+    return filters;
+  }
+
   // Process configured option filters (including standard filters)
   if (filterConfig?.options?.length) {
     const sortedOptions = [...filterConfig.options]
