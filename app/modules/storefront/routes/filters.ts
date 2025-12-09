@@ -103,7 +103,7 @@ export const GET = handler(async (req: HttpRequest) => {
   // Format filters with filterConfig settings applied (position sorting, targetScope filtering, etc.)
   // This pre-compiles filters on server-side for optimal performance
   // formatFilters expects FacetAggregations (raw ES format), not ProductFilters
-  const formattedFilters = formatFilters(aggregations, filterConfig);
+  const formattedFilters = formatFilters(aggregations, filterConfig).sort((a,b) => a.position - b.position);
   
   logger.debug('Formatted filters', {
     shop: shopParam,
