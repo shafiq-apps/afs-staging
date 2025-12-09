@@ -52,7 +52,7 @@ export const GET = handler(async (req: HttpRequest) => {
     // Extract collection ID from query params or filter input for priority matching
     const collectionId = (req.query.collection as string) || filterInput?.collections?.[0];
     filterConfig = await getActiveFilterConfig(filtersRepository, shopParam, collectionId);
-    
+
     if (filterConfig) {
       logger.log('Active filter configuration found', {
         shop: shopParam,
@@ -63,7 +63,7 @@ export const GET = handler(async (req: HttpRequest) => {
         optionsCount: filterConfig.options?.length || 0,
         publishedOptionsCount: filterConfig.options?.filter(o => o.status === 'PUBLISHED').length || 0,
       });
-      
+
       // Apply filter configuration to filter input
       if (filterInput) {
         const collection = filterInput.collections?.[0];
@@ -84,7 +84,7 @@ export const GET = handler(async (req: HttpRequest) => {
     filterInput,
     filterConfig
   );
-  
+
   logger.debug('Raw aggregations from repository', {
     shop: shopParam,
     hasVendors: !!aggregations?.vendors?.buckets?.length,
@@ -103,8 +103,9 @@ export const GET = handler(async (req: HttpRequest) => {
   // Format filters with filterConfig settings applied (position sorting, targetScope filtering, etc.)
   // This pre-compiles filters on server-side for optimal performance
   // formatFilters expects FacetAggregations (raw ES format), not ProductFilters
-  const formattedFilters = formatFilters(aggregations, filterConfig).sort((a,b) => a.position - b.position);
-  
+  const formattedFilters = formatFilters(aggregations, filterConfig)
+
+
   logger.debug('Formatted filters', {
     shop: shopParam,
     filterCount: formattedFilters.length,
@@ -119,7 +120,7 @@ export const GET = handler(async (req: HttpRequest) => {
   return {
     success: true,
     data: {
-      // filterConfig: filterConfig ? formatFilterConfigForStorefront(filterConfig) : null, --> REMOVED (to save payload size)
+      filterConfig: filterConfig ? formatFilterConfigForStorefront(filterConfig) : null, // --> REMOVED (to save payload size)
       filters: formattedFilters, // Pre-compiled filter aggregations (facets) with settings applied
       appliedFilters: cleanedAppliedFilters,
     }
