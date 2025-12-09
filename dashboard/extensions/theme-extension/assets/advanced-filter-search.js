@@ -24,6 +24,9 @@
     PAGE_SIZE: 20
   };
 
+  // Excluded query parameter keys (not processed as filters)
+  const EXCLUDED_QUERY_PARAMS = new Set(['shop', 'shop_domain', 'preserveFilters', 'cpid']);
+
   // ============================================================================
   // TINY REUSABLE UTILITIES (Smallest possible functions)
   // ============================================================================
@@ -166,7 +169,7 @@
       });
       
       url.searchParams.forEach((value, key) => {
-        if (key === 'shop' || key === 'shop_domain' || key === 'preserveFilters') return;
+        if (EXCLUDED_QUERY_PARAMS.has(key)) return;
         
         if (key === 'vendor' || key === 'vendors') params.vendor = $.split(value);
         else if (key === 'productType' || key === 'productTypes') params.productType = $.split(value);
@@ -326,6 +329,7 @@
       
       const params = new URLSearchParams();
       params.set('shop', State.shop);
+      params.set('cpid', State.selectedCollection); // collection page id -> wher user is landed on collection so if jeans colleciton is requested/user lands on this, then must show that collection's product
       Object.keys(filters).forEach(k => {
         const v = filters[k];
         if ($.empty(v)) return;
@@ -382,6 +386,7 @@
       
       const params = new URLSearchParams();
       params.set('shop', State.shop);
+      params.set('cpid', State.selectedCollection);
       Object.keys(filters).forEach(k => {
         const v = filters[k];
         if (!$.empty(v) && Array.isArray(v)) params.set(k, v.join(','));
