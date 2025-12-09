@@ -12,3 +12,4 @@ TC010,Filter state preservation on update,Collapsed/search state maintained afte
 TC011,Invalid handle in URL,Invalid handle ignored filters still work,Not Tested,
 TC012,Empty filter response,No errors graceful handling,Not Tested,
 
+
