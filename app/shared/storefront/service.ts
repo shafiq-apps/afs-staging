@@ -59,13 +59,64 @@ export class StorefrontSearchService implements Injectable {
   /**
    * Fetch raw facet aggregations without formatting
    * Used by modules that need full control over formatting logic
+   * 
+   * Smart caching: First checks filter cache, then checks if aggregations
+   * were already computed in a previous products endpoint call (search cache)
+   * to avoid redundant ES queries.
    */
   async getRawAggregations(
     shop: string,
     filters?: ProductFilterInput,
     filterConfig?: Filter | null
   ): Promise<FacetAggregations> {
+    // Generate filter config hash for cache key
+    const filterConfigHash = getFilterConfigHash(filterConfig);
+    
+    // Step 1: Check filter cache first (fastest path)
+    const cachedAggregations = this.cache.getFilterResults(shop, filters, filterConfigHash);
+    if (cachedAggregations) {
+      this.log.info('Cache hit for raw aggregations (filter cache)', { shop, filters, filterConfigHash });
+      return cachedAggregations;
+    }
+
+    // Step 2: Check if aggregations were already computed in products endpoint (search cache)
+    // Convert ProductFilterInput to ProductSearchInput (they're compatible, ProductFilterInput is a subset)
+    // Try common pagination values that products endpoint typically uses
+    const searchInput: ProductSearchInput = {
+      ...filters,
+      includeFilters: true, // Products endpoint includes filters when this is true
+    };
+
+    // Try to find cached search results with same filters (pagination may vary, but aggregations are the same)
+    // Try most common case first: page 1, limit 20
+    const commonSearchInput: ProductSearchInput = {
+      ...searchInput,
+      page: 1,
+      limit: 20,
+    };
+
+    const cachedSearchResult = this.cache.getSearchResults(shop, commonSearchInput, filterConfigHash);
+    if (cachedSearchResult?.filters) {
+      this.log.info('Cache hit for raw aggregations (search cache)', { 
+        shop, 
+        filters, 
+        filterConfigHash,
+        source: 'products_endpoint_cache'
+      });
+      
+      // Cache the aggregations in filter cache for future direct lookups
+      this.cache.setFilterResults(shop, filters, cachedSearchResult.filters, undefined, filterConfigHash);
+      
+      return cachedSearchResult.filters;
+    }
+
+    // Step 3: Cache miss - query ES and cache the result
+    this.log.info('Cache miss for raw aggregations, querying ES', { shop, filters, filterConfigHash });
     const { aggregations } = await this.repo.getFacets(shop, filters, filterConfig);
+    
+    // Cache the raw aggregations for future requests
+    this.cache.setFilterResults(shop, filters, aggregations, undefined, filterConfigHash);
+    
     return aggregations;
   }
 
