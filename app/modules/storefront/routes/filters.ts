@@ -120,7 +120,7 @@ export const GET = handler(async (req: HttpRequest) => {
   return {
     success: true,
     data: {
-      filterConfig: filterConfig ? formatFilterConfigForStorefront(filterConfig) : null, // --> REMOVED (to save payload size)
+      // filterConfig: filterConfig ? formatFilterConfigForStorefront(filterConfig) : null, // --> REMOVED (to save payload size)
       filters: formattedFilters, // Pre-compiled filter aggregations (facets) with settings applied
       appliedFilters: cleanedAppliedFilters,
     }
