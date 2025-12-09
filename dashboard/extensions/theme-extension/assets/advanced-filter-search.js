@@ -79,39 +79,39 @@
   // ============================================================================
   
   const Maps = {
-    // Build handle->option map from filterConfig
-    buildHandleMap: (config) => {
-      const m = new Map();
-      if (!config?.options) return m;
-      config.options.forEach(opt => {
-        if (opt.handle && opt.status === 'published') {
-          m.set(opt.handle, opt.variantOptionKey || opt.optionType || opt.handle);
-        }
-      });
-      return m;
-    },
-    
-    // Build handle->filter map from availableFilters
-    buildFilterMap: (filters) => {
+    // Build handle->option map from filters array (replaces filterConfig)
+    buildHandleMap: (filters) => {
       const m = new Map();
       if (!Array.isArray(filters)) return m;
       filters.forEach(f => {
         if (f.type === 'option' && f.handle) {
-          m.set(f.handle, f.queryKey || f.optionKey || f.handle);
+          // Map handle to option name (queryKey or optionKey)
+          const optionName = f.queryKey || f.optionKey || f.handle;
+          m.set(f.handle, optionName);
+          Log.debug('Handle mapping from filter', { handle: f.handle, optionName, queryKey: f.queryKey, optionKey: f.optionKey });
         }
       });
       return m;
     },
     
-    // Build option->handle map
+    // Build handle->filter map from availableFilters (alias for consistency)
+    buildFilterMap: (filters) => {
+      return Maps.buildHandleMap(filters);
+    },
+    
+    // Build option->handle map (for URL building: option name -> handle)
     buildOptionMap: (filters) => {
       const m = new Map();
       if (!Array.isArray(filters)) return m;
       filters.forEach(f => {
-        if (f.type === 'option') {
-          const key = $.str(f.queryKey || f.optionKey || f.label || f.handle).toLowerCase();
-          const handle = $.str(f.handle || f.queryKey || f.optionKey || f.label);
-          if (key && handle) m.set(key, handle);
+        if (f.type === 'option' && f.handle) {
+          const optionName = f.queryKey || f.optionKey || f.label || f.handle;
+          const key = $.str(optionName).toLowerCase();
+          const handle = $.str(f.handle);
+          if (key && handle) {
+            m.set(key, handle);
+            Log.debug('Option mapping', { optionName, key, handle });
+          }
         }
       });
       return m;
@@ -130,7 +130,6 @@
     sort: { field: 'createdAt', order: 'desc' },
     loading: false,
     availableFilters: [],
-    filterConfig: null,
     handleMap: new Map(),
     optionMap: new Map()
   };
@@ -152,28 +151,15 @@
   // ============================================================================
   
   const UrlManager = {
-    parse(filterConfig = null) {
+    parse() {
       const url = new URL(window.location);
       const params = {};
-      const handleMap = Maps.buildHandleMap(filterConfig);
-      const filterMap = Maps.buildFilterMap(State.availableFilters);
       
-      // Build reverse map: handle -> optionName from availableFilters for O(1) lookup
-      const handleToOptionMap = new Map();
-      if (Array.isArray(State.availableFilters)) {
-        State.availableFilters.forEach(f => {
-          if (f.type === 'option' && f.handle) {
-            const optionName = f.queryKey || f.optionKey || f.handle;
-            handleToOptionMap.set(f.handle, optionName);
-            Log.debug('Handle mapping', { handle: f.handle, optionName, queryKey: f.queryKey, optionKey: f.optionKey });
-          }
-        });
-      }
+      // Build handle->optionName map from availableFilters (replaces filterConfig)
+      const handleToOptionMap = Maps.buildHandleMap(State.availableFilters);
       
       Log.debug('Handle maps built', { 
         handleToOptionMapSize: handleToOptionMap.size,
-        handleMapSize: handleMap.size,
-        filterMapSize: filterMap.size,
         availableFiltersCount: State.availableFilters?.length || 0
       });
       
@@ -204,7 +190,7 @@
         else {
           // Check if key is a handle - try to find matching filter by handle
           // Handles are used directly as URL param keys (e.g., ef4gd=red, not options[color]=red)
-          const optionName = handleToOptionMap.get(key) || handleMap.get(key) || filterMap.get(key);
+          const optionName = handleToOptionMap.get(key);
           if (optionName) {
             // This is an option filter with a handle - map handle to option name for internal state
             if (!params.options) params.options = {};
@@ -373,8 +359,7 @@
         Log.info('Products response', { 
           productsCount: data.products?.length || 0, 
           total: data.pagination?.total || 0,
-          hasFilters: !!data.filters,
-          hasConfig: !!data.filterConfig
+          hasFilters: !!data.filters
         });
         this.set(key, data);
         this.pending.delete(key);
@@ -972,20 +957,13 @@
         State.products = data.products || [];
         State.pagination = data.pagination || State.pagination;
         
-        // Update filterConfig if provided
-        if (data.filterConfig !== undefined) {
-          State.filterConfig = data.filterConfig;
-        }
-        
         // Fetch updated filters after products (will hit cache created by products request)
         try {
           const updatedFiltersData = await API.filters(State.filters);
           if (Array.isArray(updatedFiltersData.filters)) {
             State.availableFilters = updatedFiltersData.filters;
-            if (updatedFiltersData.filterConfig !== undefined) {
-              State.filterConfig = updatedFiltersData.filterConfig;
-            }
             State.optionMap = Maps.buildOptionMap(State.availableFilters);
+            State.handleMap = Maps.buildHandleMap(State.availableFilters);
             DOM.renderFilters(State.availableFilters);
           }
         } catch (e) {
@@ -1080,8 +1058,8 @@
       });
       
       window.addEventListener('popstate', () => {
-        const params = UrlManager.parse(State.filterConfig);
-        if (params.vendor || params.productType || params.tags || params.collections || params.search || params.options) {
+        const params = UrlManager.parse();
+        if (params.vendor || params.productType || params.tags || params.collections || params.search || params.options || params.priceRange) {
           State.filters = {
             vendor: params.vendor || [],
             productType: params.productType || [],
@@ -1140,7 +1118,7 @@
       try {
         Log.info('Loading filters...', { shop: State.shop, filters: State.filters });
         const filtersData = await API.filters(State.filters);
-        Log.info('Filters loaded', { filtersCount: filtersData.filters?.length || 0, hasConfig: !!filtersData.filterConfig });
+        Log.info('Filters loaded', { filtersCount: filtersData.filters?.length || 0 });
         
         // Validate filters is an array
         if (!Array.isArray(filtersData.filters)) {
@@ -1149,12 +1127,11 @@
         }
         
         State.availableFilters = filtersData.filters || [];
-        State.filterConfig = filtersData.filterConfig || null;
         State.optionMap = Maps.buildOptionMap(State.availableFilters);
-        State.handleMap = Maps.buildHandleMap(State.filterConfig);
+        State.handleMap = Maps.buildHandleMap(State.availableFilters);
         
         // Parse URL params AFTER filters are loaded (so we can map handles to option names)
-        const urlParams = UrlManager.parse(State.filterConfig);
+        const urlParams = UrlManager.parse();
         Log.debug('Parsed URL params', { urlParams, availableFiltersCount: State.availableFilters.length });
         
         if (urlParams.vendor || urlParams.productType || urlParams.tags || urlParams.collections || urlParams.search || urlParams.options || urlParams.priceRange) {
@@ -1181,20 +1158,13 @@
         State.products = productsData.products || [];
         State.pagination = productsData.pagination || State.pagination;
         
-        // Update filterConfig if provided (products endpoint may have updated it)
-        if (productsData.filterConfig !== undefined) {
-          State.filterConfig = productsData.filterConfig;
-        }
-        
         // Fetch updated filters after products (will hit cache created by products request)
         try {
           const updatedFiltersData = await API.filters(State.filters);
           if (Array.isArray(updatedFiltersData.filters)) {
             State.availableFilters = updatedFiltersData.filters;
-            if (updatedFiltersData.filterConfig !== undefined) {
-              State.filterConfig = updatedFiltersData.filterConfig;
-            }
             State.optionMap = Maps.buildOptionMap(State.availableFilters);
+            State.handleMap = Maps.buildHandleMap(State.availableFilters);
             DOM.renderFilters(State.availableFilters);
           }
         } catch (e) {

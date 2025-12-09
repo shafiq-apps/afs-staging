@@ -7,7 +7,8 @@
       filtersContainer: '.afs-filters-container',
       productsContainer: '.afs-products-container',
       pageSize: 20,
-      enableLogging: {{ block.settings.enable_logging | default: false }}
+      enableLogging: {{ block.settings.enable_logging | default: false }},
+      collections: {{ collections | json }}
     };
 
     // Function to initialize AFS

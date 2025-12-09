@@ -269,13 +269,18 @@ function createBaseFilter(
   key: string,
   type: StorefrontFilterDescriptor['type'],
   queryKey: string,
-  label: string
+  label: string,
+  handle: string,
+  position: number,
 ): Partial<StorefrontFilterDescriptor> {
   return {
     key,
-    type,
     queryKey,
     label,
+    handle,
+    position,
+    optionType: type,
+    optionKey: queryKey,
     displayType: 'LIST',
     selectionType: 'MULTIPLE',
     collapsed: false,
@@ -285,6 +290,8 @@ function createBaseFilter(
     showCount: true,
     showMenu: false,
     status: 'PUBLISHED',
+    targetScope: "all",
+    allowedOptions: [],
   };
 }
 
@@ -333,7 +340,9 @@ export function formatFilters(
         `option:${option.handle || matchedKey}`,
         'option',
         matchedKey,
-        label
+        label,
+        option.handle,
+        filters.length
       );
 
       filters.push({
@@ -356,89 +365,6 @@ export function formatFilters(
         values: processedValues,
       } as StorefrontFilterDescriptor);
     }
-  }
-
-  // Process leftover option filters (not in config)
-  const leftoverOptionKeys = Object.keys(rawOptions).filter((key) => !usedOptionKeys.has(key));
-  leftoverOptionKeys.sort((a, b) => a.localeCompare(b));
-
-  for (const optionName of leftoverOptionKeys) {
-    const optionValues = rawOptions[optionName];
-    if (!optionValues || optionValues.length === 0) continue;
-
-    const baseFilter = createBaseFilter(
-      `option:${optionName}`,
-      'option',
-      optionName,
-      optionName
-    );
-
-    filters.push({
-      ...baseFilter,
-      optionType: optionName,
-      optionKey: optionName,
-      values: optionValues,
-    } as StorefrontFilterDescriptor);
-  }
-
-  // Process standard filters (vendor, productType, tags, collections)
-  const vendors = normalizeBuckets(aggregations.vendors);
-  const productTypes = normalizeBuckets(aggregations.productTypes);
-  const tags = normalizeBuckets(aggregations.tags);
-  const collections = normalizeBuckets(aggregations.collections);
-
-  const standardFilterConfigs = [
-    { key: 'vendors', type: 'vendor' as const, label: 'Vendor', values: vendors },
-    { key: 'productTypes', type: 'productType' as const, label: 'Product Type', values: productTypes },
-    { key: 'tags', type: 'tag' as const, label: 'Tag', values: tags },
-    { key: 'collections', type: 'collection' as const, label: 'Collection', values: collections },
-  ];
-
-  for (const config of standardFilterConfigs) {
-    if (!config.values || config.values.length === 0) continue;
-
-    const baseFilter = createBaseFilter(config.key, config.type, config.key, config.label);
-    
-    filters.push({
-      ...baseFilter,
-      searchable: true,
-      values: config.values,
-    } as StorefrontFilterDescriptor);
-  }
-
-  // Process price range filters
-  if (
-    aggregations.priceRange &&
-    (aggregations.priceRange.min !== null || aggregations.priceRange.max !== null)
-  ) {
-    const baseFilter = createBaseFilter('priceRange', 'priceRange', 'priceRange', 'Price');
-    
-    filters.push({
-      ...baseFilter,
-      displayType: 'RANGE',
-      selectionType: 'RANGE',
-      range: {
-        min: aggregations.priceRange.min ?? 0,
-        max: aggregations.priceRange.max ?? 0,
-      },
-    } as StorefrontFilterDescriptor);
-  }
-
-  if (
-    aggregations.variantPriceRange &&
-    (aggregations.variantPriceRange.min !== null || aggregations.variantPriceRange.max !== null)
-  ) {
-    const baseFilter = createBaseFilter('variantPriceRange', 'variantPriceRange', 'variantPriceRange', 'Variant Price');
-    
-    filters.push({
-      ...baseFilter,
-      displayType: 'RANGE',
-      selectionType: 'RANGE',
-      range: {
-        min: aggregations.variantPriceRange.min ?? 0,
-        max: aggregations.variantPriceRange.max ?? 0,
-      },
-    } as StorefrontFilterDescriptor);
   }
 
   return filters;
