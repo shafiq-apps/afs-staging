@@ -9,7 +9,7 @@ import { createModuleLogger } from '@shared/utils/logger.util';
 import { normalizeShopifyId, extractShopifyResourceType } from '@shared/utils/shopify-id.util';
 import { normalizeGraphQLNode } from '@shared/utils/graphql.util';
 import { PRODUCT_OPTION_PAIR_SEPARATOR } from '@shared/constants/products.constants';
-import type { shopifyProduct, productOption, productVariant, productVariantOption, productMetafield, productMedia } from '@shared/storefront/types';
+import type { shopifyProduct, productOption, productVariant, productVariantOption, productMetafield } from '@shared/storefront/types';
 
 const logger = createModuleLogger('IndexerHelper');
 
@@ -159,9 +159,8 @@ export function transformProductToESDoc(raw: any): shopifyProduct {
   const optionPairs = Array.from(optionPairSet);
   const variantOptionKeys = Array.from(variantOptionKeysSet);
 
+  // Extract image URLs for imagesUrls field (media field removed - not using it anymore)
   // Handle both 'media' (from GraphQL) and 'images' (from JSONL parsing)
-  // JSONL format: images array with MediaImage objects that have __parentId
-  // GraphQL format: media array with media objects nested in product
   let mediaNodes: any[] = [];
   
   if (Array.isArray(normalizedProduct?.images) && normalizedProduct.images.length > 0) {
@@ -178,97 +177,11 @@ export function transformProductToESDoc(raw: any): shopifyProduct {
     }
   }
 
-  // Filter out empty objects from mediaNodes and transform to productMedia type
-  // MediaImage rows from JSONL have: id, alt, preview.image.url, status, __parentId
-  // productMedia type: { id?, alt?, preview?, status? }
-  const validMediaNodes: productMedia[] = mediaNodes
-    .filter((media: any) => {
-      if (!media || typeof media !== 'object' || Array.isArray(media)) return false;
-      
-      // Must have at least preview.image.url to be valid (this is the key field)
-      // MediaImage from JSONL always has preview.image.url
-      return !!(
-        media.preview?.image?.url ||
-        media.url // Fallback for ProductImage format
-      );
-    })
+  // Extract image URLs from mediaNodes - try various possible locations
+  const images: string[] = mediaNodes
     .map((media: any) => {
-      // Transform to productMedia type structure
-      // CRITICAL: Only create object if we have preview.image.url (guaranteed by filter above)
-      const productMediaObj: productMedia = {};
-      
-      // Only set fields if they have actual values (not null/undefined/empty)
-      if (media.id && media.id !== '__parentId') {
-        productMediaObj.id = media.id;
-      }
-      if (media.alt !== undefined && media.alt !== null && media.alt !== '') {
-        productMediaObj.alt = media.alt;
-      }
-      if (media.status && media.status !== '') {
-        productMediaObj.status = media.status;
-      }
-      
-      // Transform preview structure - MUST have image.url (guaranteed by filter)
-      if (media.preview?.image?.url) {
-        productMediaObj.preview = {
-          image: {
-            url: media.preview.image.url,
-            altText: media.preview.image.altText || null,
-            thumbhash: media.preview.image.thumbhash || null,
-          }
-        };
-      } else if (media.url) {
-        // Fallback: if there's a direct url, create preview structure
-        productMediaObj.preview = {
-          image: {
-            url: media.url,
-            altText: null,
-            thumbhash: null,
-          }
-        };
-      }
-      
-      // Final validation: MUST have preview.image.url (should never fail due to filter, but double-check)
-      if (!productMediaObj.preview?.image?.url) {
-        return null;
-      }
-      
-      // Ensure object has at least preview (which has image.url)
-      // This prevents empty objects {}
-      return productMediaObj;
-    })
-    .filter((m): m is productMedia => {
-      // Final strict filter: ensure object is not empty and has preview.image.url
-      if (!m || typeof m !== 'object' || Array.isArray(m)) return false;
-      
-      // MUST have preview.image.url (the essential field)
-      if (!m.preview?.image?.url) return false;
-      
-      // Count non-null fields to ensure object is not empty
-      // At minimum, must have preview.image.url
-      const fieldCount = [
-        m.id,
-        m.alt,
-        m.status,
-        m.preview?.image?.url
-      ].filter(v => v !== null && v !== undefined && v !== '').length;
-      
-      // Must have at least preview.image.url (fieldCount >= 1)
-      return fieldCount > 0;
-    })
-    .filter((m): m is productMedia => {
-      // Final safety check: ensure object has at least one key
-      return m !== null && 
-             typeof m === 'object' && 
-             Object.keys(m).length > 0 &&
-             !!m.preview?.image?.url;
-    });
-
-  // Extract image URLs from valid media/images
-  // All validMediaNodes have preview.image.url (guaranteed by filter above)
-  const images = validMediaNodes
-    .map((media: productMedia) => {
-      return media.preview?.image?.url || null;
+      if (!media || typeof media !== 'object' || Array.isArray(media)) return null;
+      return media.preview?.image?.url || media.url || media.image?.url || null;
     })
     .filter((url): url is string => Boolean(url));
 
@@ -355,10 +268,7 @@ export function transformProductToESDoc(raw: any): shopifyProduct {
     bestSellerRank,
     variants,
     metafields,
-    // Use validMediaNodes (filtered to remove empty objects)
-    // Final safety: only include if we have valid media objects
-    media: validMediaNodes.length > 0 ? validMediaNodes : undefined,
-    // Extract image URLs for backward compatibility
+    // Media field removed - using imagesUrls instead for product display
     imageUrl: images.length > 0 ? images[0] : null,
     imagesUrls: images,
     optionPairs,

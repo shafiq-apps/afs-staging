@@ -843,11 +843,46 @@ export class ProductBulkIndexer {
       const data = products[productId];
       if (!data) return;
 
-      // Always set collections array - use productCollections if available, otherwise empty array
-      if (productCollections[productId] && productCollections[productId].size > 0) {
-        data.collections = Array.from(productCollections[productId]);
+      // Always set collections array - check both GID and normalized formats
+      const normalizedProductId = normalizeShopifyId(productId);
+      let collectionsSet = productCollections[productId] || productCollections[normalizedProductId] || null;
+      
+      // Debug: Log all available keys to see what's in productCollections
+      const availableKeys = Object.keys(productCollections);
+      const matchingKeys = availableKeys.filter(k => k === productId || k === normalizedProductId || normalizeShopifyId(k) === normalizedProductId);
+      
+      if (collectionsSet && collectionsSet.size > 0) {
+        data.collections = Array.from(collectionsSet);
+        const debugCount = ((this as any)._collectionDebugCount || 0) + 1;
+        (this as any)._collectionDebugCount = debugCount;
+        if (debugCount <= 5) {
+          LOGGER.log(`✅ Product ${productId} has ${data.collections.length} collections:`, {
+            collections: data.collections,
+            productId,
+            normalizedProductId,
+            foundIn: collectionsSet === productCollections[productId] ? 'productId' : 'normalizedProductId',
+            totalProductCollections: availableKeys.length,
+            matchingKeys
+          });
+        }
       } else {
         data.collections = [];
+        // Log warning if product has no collections (only for first few to avoid spam)
+        const noCollectionCount = ((this as any)._noCollectionCount || 0) + 1;
+        (this as any)._noCollectionCount = noCollectionCount;
+        if (noCollectionCount <= 10) {
+          LOGGER.warn(`⚠️ Product ${productId} (normalized: ${normalizedProductId}) has NO collections.`, {
+            productId,
+            normalizedProductId,
+            totalProductCollections: availableKeys.length,
+            availableKeys: availableKeys.slice(0, 10),
+            matchingKeys,
+            sampleProductCollection: availableKeys.length > 0 ? {
+              key: availableKeys[0],
+              collections: Array.from(productCollections[availableKeys[0]] || [])
+            } : null
+          });
+        }
       }
       
       // Inject best seller rank if available
@@ -878,6 +913,24 @@ export class ProductBulkIndexer {
               sampleRankKeys: Array.from(this.productRanks.keys()).slice(0, 3),
             });
           }
+        }
+      }
+      
+      // Debug: log images before transformation
+      if (data.images && data.images.length > 0) {
+        const imageDebugCount = ((this as any)._imageDebugCount || 0) + 1;
+        (this as any)._imageDebugCount = imageDebugCount;
+        if (imageDebugCount <= 3) {
+          LOGGER.log(`🖼️ Product ${productId} has ${data.images.length} images before transform:`, {
+            firstImageKeys: Object.keys(data.images[0] || {}),
+            hasPreview: !!data.images[0]?.preview?.image?.url
+          });
+        }
+      } else {
+        const noImageCount = ((this as any)._noImageCount || 0) + 1;
+        (this as any)._noImageCount = noImageCount;
+        if (noImageCount <= 3) {
+          LOGGER.warn(`⚠️ Product ${productId} has NO images when flushing`);
         }
       }
       
@@ -926,7 +979,9 @@ export class ProductBulkIndexer {
       }
 
       delete products[productId];
-      delete productCollections[productId];
+      // DON'T delete from productCollections - CollectionProduct rows might come AFTER products are flushed
+      // We'll use productCollections at the end to update products that got collections after being flushed
+      // delete productCollections[productId];
     };
     // ----------------------------------------------------------------
 
@@ -970,15 +1025,30 @@ export class ProductBulkIndexer {
           await flushIfNeeded();
         }
 
-        // Preserve options from Product row if they exist (JSONL format includes options in Product row)
+        // Preserve options and collections from Product row if they exist (JSONL format may include them)
         // Initialize arrays for child rows that will be collected separately
+        const rowCollections = Array.isArray(row.collections) 
+          ? row.collections.map((c: any) => normalizeShopifyId(c?.id || c)).filter((id: any) => id && typeof id === 'string')
+          : [];
+        
         products[pid] = {
           ...row,
           options: Array.isArray(row.options) ? row.options : [], // Keep options from Product row
           images: [],
           variants: [],
-          collections: []
+          collections: rowCollections // Preserve collections from Product row if present
         };
+        
+        // Initialize productCollections map with collections from Product row
+        // IMPORTANT: Don't overwrite existing Set if CollectionProduct rows already added collections
+        // Merge collections from Product row with any existing collections
+        if (!productCollections[pid]) {
+          productCollections[pid] = new Set();
+        }
+        // Add collections from Product row to existing Set (if any)
+        if (rowCollections.length > 0) {
+          rowCollections.forEach((cId: string) => productCollections[pid].add(cId));
+        }
 
         continue;
       }
@@ -997,6 +1067,20 @@ export class ProductBulkIndexer {
           // Always push MediaImage row - it has full data structure
           // The row contains: id, alt, preview.image.url, status, __parentId
           parent.images.push(row);
+          
+          // Debug logging for first few MediaImage rows
+          const mediaImageCount = ((this as any)._mediaImageCount || 0) + 1;
+          (this as any)._mediaImageCount = mediaImageCount;
+          if (mediaImageCount <= 5) {
+            LOGGER.log(`📷 MediaImage: productId=${row.__parentId}, hasPreview=${!!row.preview?.image?.url}, hasUrl=${!!row.url}, rowKeys=${Object.keys(row).join(',')}`);
+          }
+        } else {
+          // Debug: MediaImage row came before Product row
+          const orphanMediaCount = ((this as any)._orphanMediaCount || 0) + 1;
+          (this as any)._orphanMediaCount = orphanMediaCount;
+          if (orphanMediaCount <= 3) {
+            LOGGER.warn(`⚠️ MediaImage row for product ${row.__parentId} came before Product row - will be lost`);
+          }
         }
         continue;
       }
@@ -1012,31 +1096,100 @@ export class ProductBulkIndexer {
        *                     COLLECTION ROOT
        * ====================================================== */
       if (type === "Collection") {
+        // Extract products from collection if they're embedded in the row
+        // GraphQL bulk operation might embed products in collections.products.edges
+        const embeddedProducts: string[] = [];
+        if (row.products?.edges && Array.isArray(row.products.edges)) {
+          embeddedProducts.push(...row.products.edges.map((edge: any) => edge?.node?.id).filter(Boolean));
+        } else if (Array.isArray(row.products)) {
+          embeddedProducts.push(...row.products.map((p: any) => p?.id || p).filter(Boolean));
+        }
+        
+        // Debug: Log collection structure to see what we have
+        const collectionDebugCount = ((this as any)._collectionDebugCount || 0) + 1;
+        (this as any)._collectionDebugCount = collectionDebugCount;
+        if (collectionDebugCount <= 3) {
+          LOGGER.log(`📚 Collection row: id=${row.id}, hasProductsField=${!!row.products}, hasProductsEdges=${!!row.products?.edges}, embeddedProductsCount=${embeddedProducts.length}, rowKeys=${Object.keys(row).join(',')}`);
+        }
+        
         collections[row.id] = {
           ...row,
-          products: []
+          products: embeddedProducts
         };
+        
+        // Process embedded products as CollectionProduct relationships
+        const collectionId = normalizeShopifyId(row.id);
+        for (const productId of embeddedProducts) {
+          if (productId && collectionId) {
+            if (!productCollections[productId]) {
+              productCollections[productId] = new Set();
+            }
+            productCollections[productId].add(collectionId);
+            
+            // Also add to normalized key
+            const normalizedProductId = normalizeShopifyId(productId);
+            if (normalizedProductId && normalizedProductId !== productId) {
+              if (!productCollections[normalizedProductId]) {
+                productCollections[normalizedProductId] = new Set();
+              }
+              productCollections[normalizedProductId].add(collectionId);
+            }
+          }
+        }
+        
+        if (embeddedProducts.length > 0) {
+          const embeddedCount = ((this as any)._embeddedProductsCount || 0) + 1;
+          (this as any)._embeddedProductsCount = embeddedCount;
+          if (embeddedCount <= 5) {
+            LOGGER.log(`📚 Collection ${row.id} has ${embeddedProducts.length} embedded products`);
+          }
+        }
+        
         continue;
       }
 
       /* ------------------ Collection Product Mapping ------------------ */
       if (type === "CollectionProduct") {
+        // CollectionProduct rows link products to collections
+        // row.__parentId = collection GID
+        // row.id = product GID
         const parent = collections[row.__parentId];
         if (parent) parent.products.push(row.id);
+        
+        // Debug: Log first few to verify they're being processed
+        const collectionProductDebugCount = ((this as any)._collectionProductDebugCount || 0) + 1;
+        (this as any)._collectionProductDebugCount = collectionProductDebugCount;
+        if (collectionProductDebugCount <= 5) {
+          LOGGER.log(`🔗 CollectionProduct row detected: __parentId=${row.__parentId}, productId=${row.id}, parentExists=${!!parent}`);
+        }
 
+        // Extract numeric collection ID (collections are stored as numeric strings in ES)
         const collectionId = normalizeShopifyId(row.__parentId);
-        // Normalize productId to match the key used in products map (could be GID or numeric)
-        const productId = normalizeShopifyId(row.id) || row.id;
+        // Use row.id directly as key (products map uses row.id as key, which is GID format)
+        const productId = row.id;
+        const normalizedProductId = normalizeShopifyId(productId);
+        
         if (collectionId && productId) {
-          // Try both normalized and original productId to handle different formats
-          const productKey = products[productId] ? productId : (products[row.id] ? row.id : productId);
-          if (!productCollections[productKey]) productCollections[productKey] = new Set();
-          productCollections[productKey].add(collectionId);
+          // Always add to productCollections with the productId (GID format) as key
+          // This matches the key format used in products map
+          if (!productCollections[productId]) {
+            productCollections[productId] = new Set();
+          }
+          productCollections[productId].add(collectionId);
           
-          // Also add to original format if different
-          if (productKey !== row.id && products[row.id]) {
-            if (!productCollections[row.id]) productCollections[row.id] = new Set();
-            productCollections[row.id].add(collectionId);
+          // Also add to normalized key if different (for products that might use normalized keys)
+          if (normalizedProductId && normalizedProductId !== productId) {
+            if (!productCollections[normalizedProductId]) {
+              productCollections[normalizedProductId] = new Set();
+            }
+            productCollections[normalizedProductId].add(collectionId);
+          }
+          
+          // Debug logging for first few CollectionProduct rows
+          const collectionProductCount = ((this as any)._collectionProductCount || 0) + 1;
+          (this as any)._collectionProductCount = collectionProductCount;
+          if (collectionProductCount <= 10) {
+            LOGGER.log(`📦 CollectionProduct: productId=${productId}, collectionId=${collectionId}, productExists=${!!products[productId]}, productCollectionsKeys=${Object.keys(productCollections).length}`);
           }
         }
 
@@ -1056,6 +1209,53 @@ export class ProductBulkIndexer {
      * =========================================================== */
     for (const pid of Object.keys(products)) {
       await flushProduct(pid);
+    }
+
+    /* ===========================================================
+     *        Update products that got collections after being flushed
+     * =========================================================== */
+    // CollectionProduct rows might come AFTER products are flushed
+    // So we need to update products in ES that have collections in productCollections
+    // but were already indexed without them
+    const productsToUpdate = Object.keys(productCollections).filter(pid => {
+      const collections = productCollections[pid];
+      return collections && collections.size > 0 && !products[pid]; // Product was flushed but has collections
+    });
+
+    if (productsToUpdate.length > 0) {
+      LOGGER.log(`Updating ${productsToUpdate.length} products with collections that were added after flush`);
+      const updateBatch: any[] = [];
+      
+      for (const productId of productsToUpdate) {
+        const collections = Array.from(productCollections[productId]);
+        
+        // Update the product in ES with collections
+        updateBatch.push({
+          update: {
+            _index: this.indexName,
+            _id: productId,
+          }
+        });
+        updateBatch.push({
+          doc: {
+            collections: collections
+          }
+        });
+      }
+
+      if (updateBatch.length > 0) {
+        try {
+          const response = await this.esClient.bulk({ body: updateBatch });
+          if (response.errors) {
+            const errors = response.items.filter((item: any) => item.update?.error);
+            LOGGER.warn(`Some collection updates failed: ${errors.length} errors`);
+          } else {
+            LOGGER.log(`Successfully updated ${updateBatch.length / 2} products with collections`);
+          }
+        } catch (err) {
+          LOGGER.error('Error updating products with collections', err);
+        }
+      }
     }
 
     /* ------------------ Final batch flush ------------------ */

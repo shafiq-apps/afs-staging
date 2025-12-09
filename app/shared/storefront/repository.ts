@@ -394,7 +394,7 @@ export class StorefrontSearchRepository {
       addTermsAgg('tags', 'tags.keyword', 2);
 
     if (enabledAggregations.standard.has('collections'))
-      addTermsAgg('collections', 'collections.keyword', 2);
+      addTermsAgg('collections', 'collections', 2);
 
     //
     // Variant Option Aggregations
@@ -601,7 +601,10 @@ export class StorefrontSearchRepository {
     }
 
     if (hasValues(sanitizedFilters?.collections)) {
-      const clause = { terms: { 'collections.keyword': sanitizedFilters!.collections } };
+      // Collections are stored as an array of strings (numeric collection IDs)
+      // For array fields in ES, use the field name directly (not .keyword)
+      // The terms query will match any value in the array
+      const clause = { terms: { 'collections': sanitizedFilters!.collections } };
       if (shouldPreserve('collections')) {
         postFilterQueries.push(clause);
       } else {

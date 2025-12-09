@@ -16,6 +16,7 @@ export const DEFAULT_STOREFRONT_FIELDS = [
   'title',
   'imageUrl',      // Primary image URL
   'imagesUrls',    // Array of all image URLs
+  'collections',   // Collection IDs for filtering
 ] as const;
 
 /**
