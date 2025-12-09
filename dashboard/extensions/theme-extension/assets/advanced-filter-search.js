@@ -558,16 +558,19 @@
         : (item.label || item.value || value);
       
       // If this is a Collection filter, map collection ID to collection label
+      // Remove filter item if collection ID is not found in State.collections
       if (config?.optionType === 'Collection' && State.collections && Array.isArray(State.collections)) {
         const collection = State.collections.find(c => {
           // Try different possible ID fields
           const collectionId = c.id || c.gid || c.collectionId || String(c.id || '');
           return String(collectionId) === String(value);
         });
-        if (collection) {
-          // Use collection title/label if available
-          displayLabel = collection.title || collection.label || collection.name || displayLabel;
+        if (!collection) {
+          // Collection not found in State.collections, remove this filter item
+          return null;
         }
+        // Use collection title/label if available
+        displayLabel = collection.title || collection.label || collection.name || displayLabel;
       }
       
       // Check if this filter is currently active
