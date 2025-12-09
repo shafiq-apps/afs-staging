@@ -48,7 +48,9 @@ export class StorefrontSearchService implements Injectable {
 
     this.log.info(`Fetching filters for shop: ${shop}`, filters);
 
-    const { aggregations } = await this.repo.getFacets(shop, filters, filterConfig);
+    // When filterConfig is null/undefined, include all options (for GraphQL and general use)
+    const includeAllOptions = !filterConfig || !filterConfig.options;
+    const { aggregations } = await this.repo.getFacets(shop, filters, filterConfig, includeAllOptions);
 
     // Cache the raw aggregations (include filterConfig hash in cache key for smart invalidation)
     this.cache.setFilterResults(shop, filters, aggregations, undefined, filterConfigHash);

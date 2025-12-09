@@ -204,7 +204,8 @@ export class StorefrontSearchRepository {
   async getFacets(
     shopDomain: string,
     filters?: ProductFilterInput,
-    filterConfig?: Filter | null
+    filterConfig?: Filter | null,
+    includeAllOptions: boolean = false
   ) {
     const index = PRODUCT_INDEX_NAME(shopDomain);
 
@@ -371,7 +372,7 @@ export class StorefrontSearchRepository {
     // -----------------------
     //
 
-    const enabledAggregations = getEnabledAggregations(filterConfig);
+    const enabledAggregations = getEnabledAggregations(filterConfig, includeAllOptions);
     const aggs: Record<string, any> = {};
 
     const addTermsAgg = (name: string, field: string, sizeMult = 1) => {
@@ -391,7 +392,7 @@ export class StorefrontSearchRepository {
       addTermsAgg('productTypes', 'productType.keyword');
 
     if (enabledAggregations.standard.has('tags'))
-      addTermsAgg('tags', 'tags.keyword', 2);
+      addTermsAgg('tags', 'tags', 2); // Tags is an array field, use 'tags' not 'tags.keyword'
 
     if (enabledAggregations.standard.has('collections'))
       addTermsAgg('collections', 'collections', 2);
@@ -421,7 +422,7 @@ export class StorefrontSearchRepository {
     } else {
       aggs.optionPairs = {
         terms: {
-          field: 'optionPairs.keyword',
+          field: 'optionPairs', // optionPairs is an array field, use directly (like tags/collections)
           size: DEFAULT_BUCKET_SIZE * 5,
           order: { _count: 'desc' as const },
         },

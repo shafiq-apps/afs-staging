@@ -316,8 +316,9 @@ export const productsResolvers = {
           optionsCount: productFilters?.options ? Object.keys(productFilters.options).length : 0,
         });
         
-        // Format filters using the same helper function
-        return formatFilters(productFilters);
+        // Return ProductFilters directly (already formatted by service.getFilters)
+        // GraphQL schema expects ProductFilters type, not StorefrontFilterDescriptor[]
+        return productFilters;
       } catch (error: any) {
         logger.error('Error in storefrontFilters resolver', {
           error: error?.message || error,
