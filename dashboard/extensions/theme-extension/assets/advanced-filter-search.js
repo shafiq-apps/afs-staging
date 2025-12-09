@@ -124,7 +124,7 @@
   
   const State = {
     shop: null,
-    filters: { vendor: [], productType: [], tags: [], collections: [], options: {}, search: '' },
+    filters: { vendor: [], productType: [], tags: [], collections: [], options: {}, search: '', priceRange: null },
     products: [],
     pagination: { page: 1, limit: C.PAGE_SIZE, total: 0, totalPages: 0 },
     sort: { field: 'createdAt', order: 'desc' },
@@ -185,6 +185,16 @@
         else if (key === 'tag' || key === 'tags') params.tags = $.split(value);
         else if (key === 'collection' || key === 'collections') params.collections = $.split(value);
         else if (key === 'search') params.search = value;
+        else if (key === 'priceRange' || key === 'price') {
+          const parts = value.split('-');
+          if (parts.length === 2) {
+            const min = parseFloat(parts[0]) || 0;
+            const max = parseFloat(parts[1]) || 0;
+            if (min >= 0 && max > min) {
+              params.priceRange = { min, max };
+            }
+          }
+        }
         else if (key === 'page') params.page = parseInt(value, 10) || 1;
         else if (key === 'limit') params.limit = parseInt(value, 10) || C.PAGE_SIZE;
         else if (key === 'sort') {
@@ -235,6 +245,10 @@
                 Log.debug('Option URL param set', { optKey, handle, values: optValues.join(','), optionMapSize: optionMap.size });
               }
             });
+          }
+          else if (key === 'priceRange' && value && typeof value === 'object' && value.min !== undefined && value.max !== undefined) {
+            url.searchParams.set('priceRange', `${value.min}-${value.max}`);
+            Log.debug('Price range URL param set', { min: value.min, max: value.max });
           }
           else if (key === 'search' && typeof value === 'string' && value.trim()) {
             url.searchParams.set(key, value.trim());
@@ -337,6 +351,9 @@
               params.set(`options[${optKey}]`, optValues.join(','));
             }
           });
+        }
+        else if (k === 'priceRange' && v && typeof v === 'object' && v.min !== undefined && v.max !== undefined) {
+          params.set('priceRange', `${v.min}-${v.max}`);
         }
         else if (typeof v === 'string') params.set(k, v);
       });
@@ -459,7 +476,13 @@
       // Clear and rebuild in one batch
       $.clear(this.filtersContainer);
       
-      const validFilters = filters.filter(f => f && f.values?.length > 0 && f.type !== 'priceRange' && f.type !== 'variantPriceRange');
+      const validFilters = filters.filter(f => {
+        if (!f) return false;
+        if (f.type === 'priceRange' || f.type === 'variantPriceRange') {
+          return f.range && typeof f.range.min === 'number' && typeof f.range.max === 'number' && f.range.max > f.range.min;
+        }
+        return f.values?.length > 0;
+      });
       Log.debug('Rendering filters', { total: filters.length, valid: validFilters.length });
       
       if (validFilters.length === 0) {
@@ -470,6 +493,13 @@
       const fragment = document.createDocumentFragment();
       
       validFilters.forEach(filter => {
+        // Handle price range filters separately
+        if (filter.type === 'priceRange' || filter.type === 'variantPriceRange') {
+          const group = this.createPriceRangeGroup(filter, states);
+          if (group) fragment.appendChild(group);
+          return;
+        }
+        
         const isOption = filter.type === 'option';
         const optionName = isOption ? filter.queryKey : null;
         const filterType = isOption ? 'options' : (filter.queryKey || filter.key);
@@ -569,6 +599,126 @@
       }
       
       return label;
+    },
+    
+    // Create price range filter group with dual-handle slider
+    createPriceRangeGroup(filter, savedStates = null) {
+      if (!filter.range || typeof filter.range.min !== 'number' || typeof filter.range.max !== 'number') {
+        Log.warn('Invalid price range filter', { filter });
+        return null;
+      }
+      
+      const minRange = filter.range.min;
+      const maxRange = filter.range.max;
+      const currentRange = State.filters.priceRange || { min: minRange, max: maxRange };
+      const currentMin = Math.max(minRange, Math.min(maxRange, currentRange.min || minRange));
+      const currentMax = Math.max(minRange, Math.min(maxRange, currentRange.max || maxRange));
+      
+      const group = $.el('div', 'afs-filter-group', { 
+        'data-afs-filter-type': 'priceRange',
+        'data-afs-filter-key': filter.key || 'priceRange'
+      });
+      
+      const saved = savedStates?.get(filter.key || 'priceRange');
+      const collapsed = saved?.collapsed ?? filter.collapsed === true;
+      group.setAttribute('data-afs-collapsed', collapsed ? 'true' : 'false');
+      
+      // Header
+      const header = $.el('div', 'afs-filter-group__header');
+      const toggle = $.el('button', 'afs-filter-group__toggle', { type: 'button', 'aria-expanded': !collapsed ? 'true' : 'false' });
+      toggle.appendChild($.txt($.el('span', 'afs-filter-group__icon'), '▼'));
+      toggle.appendChild($.txt($.el('label', 'afs-filter-group__label'), filter.label || 'Price'));
+      header.appendChild(toggle);
+      group.appendChild(header);
+      
+      // Content
+      const content = $.el('div', 'afs-filter-group__content');
+      
+      // Price range slider container
+      const sliderContainer = $.el('div', 'afs-price-range-container');
+      
+      // Range slider track
+      const track = $.el('div', 'afs-price-range-track');
+      const activeTrack = $.el('div', 'afs-price-range-active');
+      track.appendChild(activeTrack);
+      
+      // Min and Max input handles (overlaid on track)
+      const minHandle = $.el('input', 'afs-price-range-handle afs-price-range-handle--min', {
+        type: 'range',
+        min: minRange,
+        max: maxRange,
+        value: currentMin,
+        step: 1
+      });
+      minHandle.setAttribute('data-afs-range-type', 'min');
+      
+      const maxHandle = $.el('input', 'afs-price-range-handle afs-price-range-handle--max', {
+        type: 'range',
+        min: minRange,
+        max: maxRange,
+        value: currentMax,
+        step: 1
+      });
+      maxHandle.setAttribute('data-afs-range-type', 'max');
+      
+      track.appendChild(minHandle);
+      track.appendChild(maxHandle);
+      sliderContainer.appendChild(track);
+      
+      // Value display
+      const valueDisplay = $.el('div', 'afs-price-range-values');
+      const minDisplay = $.el('span', 'afs-price-range-value afs-price-range-value--min');
+      const maxDisplay = $.el('span', 'afs-price-range-value afs-price-range-value--max');
+      const formatPrice = (val) => `$${parseFloat(val).toFixed(0)}`;
+      minDisplay.textContent = formatPrice(currentMin);
+      maxDisplay.textContent = formatPrice(currentMax);
+      valueDisplay.appendChild(minDisplay);
+      valueDisplay.appendChild($.txt($.el('span', 'afs-price-range-separator'), ' - '));
+      valueDisplay.appendChild(maxDisplay);
+      sliderContainer.appendChild(valueDisplay);
+      
+      // Update active track position
+      const updateActiveTrack = () => {
+        const min = parseFloat(minHandle.value);
+        const max = parseFloat(maxHandle.value);
+        const range = maxRange - minRange;
+        const leftPercent = ((min - minRange) / range) * 100;
+        const rightPercent = ((maxRange - max) / range) * 100;
+        activeTrack.style.left = `${leftPercent}%`;
+        activeTrack.style.right = `${rightPercent}%`;
+        minDisplay.textContent = formatPrice(min);
+        maxDisplay.textContent = formatPrice(max);
+      };
+      
+      // Ensure min <= max
+      const constrainValues = () => {
+        const min = parseFloat(minHandle.value);
+        const max = parseFloat(maxHandle.value);
+        if (min > max) {
+          minHandle.value = max;
+          maxHandle.value = min;
+        }
+        updateActiveTrack();
+      };
+      
+      // Event handlers
+      minHandle.addEventListener('input', () => {
+        constrainValues();
+        Filters.updatePriceRange(parseFloat(minHandle.value), parseFloat(maxHandle.value));
+      });
+      
+      maxHandle.addEventListener('input', () => {
+        constrainValues();
+        Filters.updatePriceRange(parseFloat(minHandle.value), parseFloat(maxHandle.value));
+      });
+      
+      // Initialize active track
+      updateActiveTrack();
+      
+      content.appendChild(sliderContainer);
+      group.appendChild(content);
+      
+      return group;
     },
     
     // Fastest product rendering (incremental updates)
@@ -787,6 +937,32 @@
       this.apply();
     },
     
+    updatePriceRange(min, max) {
+      if (typeof min !== 'number' || typeof max !== 'number' || min < 0 || max < min) {
+        Log.warn('Invalid price range', { min, max });
+        return;
+      }
+      
+      // Check if range matches the full range (no filter applied)
+      const priceFilter = State.availableFilters.find(f => f.type === 'priceRange' || f.type === 'variantPriceRange');
+      if (priceFilter && priceFilter.range) {
+        if (min === priceFilter.range.min && max === priceFilter.range.max) {
+          State.filters.priceRange = null;
+        } else {
+          State.filters.priceRange = { min, max };
+        }
+      } else {
+        State.filters.priceRange = { min, max };
+      }
+      
+      State.pagination.page = 1;
+      
+      Log.debug('Price range updated', { min, max, priceRange: State.filters.priceRange });
+      
+      UrlManager.update(State.filters, State.pagination, State.sort);
+      this.apply();
+    },
+    
     apply: $.debounce(async () => {
       DOM.showLoading();
       try {
@@ -841,7 +1017,7 @@
         const pagination = e.target.closest('.afs-pagination__button');
         
         if (action === 'clear-all') {
-          State.filters = { vendor: [], productType: [], tags: [], collections: [], options: {}, search: '' };
+          State.filters = { vendor: [], productType: [], tags: [], collections: [], options: {}, search: '', priceRange: null };
           State.pagination.page = 1;
           UrlManager.update(State.filters, State.pagination, State.sort);
           Filters.apply();
@@ -910,7 +1086,8 @@
             tags: params.tags || [],
             collections: params.collections || [],
             search: params.search || '',
-            options: params.options || {}
+            options: params.options || {},
+            priceRange: params.priceRange || null
           };
         }
         if (params.page) State.pagination.page = params.page;
@@ -978,14 +1155,15 @@
         const urlParams = UrlManager.parse(State.filterConfig);
         Log.debug('Parsed URL params', { urlParams, availableFiltersCount: State.availableFilters.length });
         
-        if (urlParams.vendor || urlParams.productType || urlParams.tags || urlParams.collections || urlParams.search || urlParams.options) {
+        if (urlParams.vendor || urlParams.productType || urlParams.tags || urlParams.collections || urlParams.search || urlParams.options || urlParams.priceRange) {
           State.filters = {
             vendor: urlParams.vendor || [],
             productType: urlParams.productType || [],
             tags: urlParams.tags || [],
             collections: urlParams.collections || [],
             search: urlParams.search || '',
-            options: urlParams.options || {}
+            options: urlParams.options || {},
+            priceRange: urlParams.priceRange || null
           };
           Log.info('Filters set from URL', { filters: State.filters });
         }
