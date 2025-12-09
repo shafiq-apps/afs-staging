@@ -127,6 +127,7 @@
     filters: { vendor: [], productType: [], tags: [], collections: [], options: {}, search: '', priceRange: null },
     products: [],
     collections: [],
+    selectedCollection: {id: null, title: null},
     pagination: { page: 1, limit: C.PAGE_SIZE, total: 0, totalPages: 0 },
     sort: { field: 'createdAt', order: 'desc' },
     loading: false,
@@ -1110,9 +1111,11 @@
         if (!config.shop) {
           throw new Error('Shop parameter is required in config');
         }
-        
+
         State.shop = config.shop;
         State.collections = config.collections;
+        State.selectedCollection = config.selectedCollection;
+
         Log.info('Shop set', { shop: State.shop });
         Log.info('Collections set', { collections: State.collections });
         
