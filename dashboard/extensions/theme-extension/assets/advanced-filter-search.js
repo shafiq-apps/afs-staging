@@ -418,6 +418,8 @@
         Log.warn('Filters response contains non-array filters', { filters: data.filters });
         data.filters = [];
       }
+
+      Log.info('Filters response:', { filters: data.filters });
       
       return data;
     },
