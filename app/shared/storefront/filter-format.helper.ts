@@ -74,7 +74,7 @@ function applyTextTransform(value: string, transform: string | undefined): strin
     case 'title':
       return value
         .split(' ')
-        .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .map((word) => (word ? word.charAt(0).toUpperCase() + word.slice(1).toLowerCase() : word))
         .join(' ');
     default:
       return value;
@@ -268,7 +268,7 @@ function getStandardFilterMapping(
   optionType?: string | null
 ): { type: StorefrontFilterDescriptor['type']; queryKey: string; aggregationKey: keyof FacetAggregations } | null {
   if (!optionType) return null;
-  
+
   const normalized = normalizeKey(optionType);
   const standardFilterMapping: Record<string, { type: StorefrontFilterDescriptor['type']; queryKey: string; aggregationKey: keyof FacetAggregations }> = {
     vendor: { type: 'vendor', queryKey: 'vendors', aggregationKey: 'vendors' },
@@ -285,7 +285,6 @@ function getStandardFilterMapping(
 
   return standardFilterMapping[normalized] || null;
 }
-
 
 /**
  * Create base filter structure with common fields
@@ -331,170 +330,125 @@ export function formatFilters(
     return [];
   }
 
+
+  if (!filterConfig || !Array.isArray(filterConfig.options) || filterConfig.options.length === 0) {
+    // Returning empty to enforce "handles only from filterConfig" rule.
+    return [];
+  }
+
   const filters: StorefrontFilterDescriptor[] = [];
   const rawOptions = formatOptionPairs(aggregations.optionPairs?.buckets);
   const usedOptionKeys = new Set<string>();
 
-  // If no filterConfig, return all available filters (for REST endpoint)
-  if (!filterConfig || !filterConfig.options?.length) {
-    // Add all standard filters
-    const standardFilters = [
-      { type: 'vendor' as const, queryKey: 'vendors', aggregationKey: 'vendors' as const, label: 'Vendor' },
-      { type: 'productType' as const, queryKey: 'productTypes', aggregationKey: 'productTypes' as const, label: 'Product Type' },
-      { type: 'tag' as const, queryKey: 'tags', aggregationKey: 'tags' as const, label: 'Tags' },
-      { type: 'collection' as const, queryKey: 'collections', aggregationKey: 'collections' as const, label: 'Collection' },
-    ];
+  // Process configured option filters (including standard filters)
+  const sortedOptions = [...filterConfig.options]
+    .filter((option) => isPublishedStatus(option.status))
+    .sort((a, b) => {
+      const posA = a.position !== undefined ? Number(a.position) : 999;
+      const posB = b.position !== undefined ? Number(b.position) : 999;
+      return posA - posB;
+    });
 
-    for (const standardFilter of standardFilters) {
-      const aggregation = aggregations[standardFilter.aggregationKey];
+  for (const option of sortedOptions) {
+    // Enforce strict rule: option.handle MUST exist
+    if (!option.handle) {
+      // Skip any configured filter that does not include a handle
+      continue;
+    }
+
+    // Check if this is a standard filter (collections, vendors, tags, productTypes)
+    const standardFilterMapping = getStandardFilterMapping(option.optionType);
+
+    if (standardFilterMapping) {
+      // Process as standard filter
+      const aggregation = aggregations[standardFilterMapping.aggregationKey];
+      // Type guard: standard filters are TermsAggregation (have buckets property)
       if (!aggregation || !('buckets' in aggregation)) continue;
 
       const values = normalizeBuckets(aggregation);
       if (!values || values.length === 0) continue;
 
+      const processedValues = applyOptionSettings(values, option);
+      if (!processedValues.length) continue;
+
+      const label = option.label || option.optionType || standardFilterMapping.queryKey;
+
       const baseFilter = createBaseFilter(
-        `${standardFilter.type}:${standardFilter.queryKey}`,
-        standardFilter.type,
-        standardFilter.queryKey,
-        standardFilter.label,
-        standardFilter.queryKey,
+        `${standardFilterMapping.type}:${option.handle}`,
+        standardFilterMapping.type,
+        standardFilterMapping.queryKey,
+        label,
+        option.handle,
         filters.length
       );
 
       filters.push({
         ...baseFilter,
-        values,
+        handle: option.handle,
+        position: option.position,
+        optionType: option.optionType,
+        optionKey: standardFilterMapping.queryKey,
+        displayType: option.displayType || baseFilter.displayType || 'LIST',
+        selectionType: option.selectionType || baseFilter.selectionType || 'MULTIPLE',
+        targetScope: option.targetScope,
+        allowedOptions: option.allowedOptions,
+        collapsed: option.collapsed ?? baseFilter.collapsed ?? false,
+        searchable: option.searchable ?? baseFilter.searchable ?? false,
+        showTooltip: option.showTooltip ?? baseFilter.showTooltip ?? false,
+        tooltipContent: option.tooltipContent || baseFilter.tooltipContent || '',
+        showCount: option.showCount !== undefined ? option.showCount : (baseFilter.showCount ?? true),
+        showMenu: option.showMenu ?? baseFilter.showMenu ?? false,
+        status: option.status || baseFilter.status || 'PUBLISHED',
+        values: processedValues,
       } as StorefrontFilterDescriptor);
-    }
+    } else {
+      // Process as regular option filter
+      const matchedKey = findMatchingOptionKey(rawOptions, [
+        option.optionSettings?.variantOptionKey,
+        option.optionType,
+        option.label,
+      ]);
 
-    // Add all option filters
-    for (const [optionName, optionValues] of Object.entries(rawOptions)) {
+      if (!matchedKey) continue;
+      const optionValues = rawOptions[matchedKey];
       if (!optionValues || optionValues.length === 0) continue;
 
+      usedOptionKeys.add(matchedKey);
+      const processedValues = applyOptionSettings(optionValues, option);
+      if (!processedValues.length) continue;
+
+      const label = option.label || option.optionType || matchedKey;
+
       const baseFilter = createBaseFilter(
-        `option:${optionName}`,
+        `option:${option.handle}`,
         'option',
-        optionName,
-        optionName,
-        optionName,
+        matchedKey,
+        label,
+        option.handle,
         filters.length
       );
 
       filters.push({
         ...baseFilter,
-        optionType: optionName,
-        optionKey: optionName,
-        values: optionValues,
+        handle: option.handle,
+        position: option.position,
+        optionType: option.optionType,
+        optionKey: matchedKey,
+        displayType: option.displayType || baseFilter.displayType || 'LIST',
+        selectionType: option.selectionType || baseFilter.selectionType || 'MULTIPLE',
+        targetScope: option.targetScope,
+        allowedOptions: option.allowedOptions,
+        collapsed: option.collapsed ?? baseFilter.collapsed ?? false,
+        searchable: option.searchable ?? baseFilter.searchable ?? false,
+        showTooltip: option.showTooltip ?? baseFilter.showTooltip ?? false,
+        tooltipContent: option.tooltipContent || baseFilter.tooltipContent || '',
+        showCount: option.showCount !== undefined ? option.showCount : (baseFilter.showCount ?? true),
+        showMenu: option.showMenu ?? baseFilter.showMenu ?? false,
+        status: option.status || baseFilter.status || 'PUBLISHED',
+        values: processedValues,
       } as StorefrontFilterDescriptor);
-    }
-
-    return filters;
-  }
-
-  // Process configured option filters (including standard filters)
-  if (filterConfig?.options?.length) {
-    const sortedOptions = [...filterConfig.options]
-      .filter((option) => isPublishedStatus(option.status))
-      .sort((a, b) => {
-        const posA = a.position !== undefined ? Number(a.position) : 999;
-        const posB = b.position !== undefined ? Number(b.position) : 999;
-        return posA - posB;
-      });
-
-    for (const option of sortedOptions) {
-      // Check if this is a standard filter (collections, vendors, tags, productTypes)
-      const standardFilterMapping = getStandardFilterMapping(option.optionType);
-      
-      if (standardFilterMapping) {
-        // Process as standard filter
-        const aggregation = aggregations[standardFilterMapping.aggregationKey];
-        // Type guard: standard filters are TermsAggregation (have buckets property)
-        if (!aggregation || !('buckets' in aggregation)) continue;
-
-        const values = normalizeBuckets(aggregation);
-        if (!values || values.length === 0) continue;
-
-        const processedValues = applyOptionSettings(values, option);
-        if (!processedValues.length) continue;
-
-        const label = option.label || option.optionType || standardFilterMapping.queryKey;
-        const baseFilter = createBaseFilter(
-          `${standardFilterMapping.type}:${option.handle || standardFilterMapping.queryKey}`,
-          standardFilterMapping.type,
-          standardFilterMapping.queryKey,
-          label,
-          option.handle,
-          filters.length
-        );
-
-        filters.push({
-          ...baseFilter,
-          handle: option.handle,
-          position: option.position,
-          optionType: option.optionType,
-          optionKey: standardFilterMapping.queryKey,
-          displayType: option.displayType || baseFilter.displayType || 'LIST',
-          selectionType: option.selectionType || baseFilter.selectionType || 'MULTIPLE',
-          targetScope: option.targetScope,
-          allowedOptions: option.allowedOptions,
-          collapsed: option.collapsed ?? baseFilter.collapsed ?? false,
-          searchable: option.searchable ?? baseFilter.searchable ?? false,
-          showTooltip: option.showTooltip ?? baseFilter.showTooltip ?? false,
-          tooltipContent: option.tooltipContent || baseFilter.tooltipContent || '',
-          showCount: option.showCount !== undefined ? option.showCount : (baseFilter.showCount ?? true),
-          showMenu: option.showMenu ?? baseFilter.showMenu ?? false,
-          status: option.status || baseFilter.status || 'PUBLISHED',
-          values: processedValues,
-        } as StorefrontFilterDescriptor);
-      } else {
-        // Process as regular option filter
-        const matchedKey = findMatchingOptionKey(rawOptions, [
-          option.optionSettings?.variantOptionKey,
-          option.optionType,
-          option.label,
-        ]);
-
-        if (!matchedKey) continue;
-        const optionValues = rawOptions[matchedKey];
-        if (!optionValues || optionValues.length === 0) continue;
-
-        usedOptionKeys.add(matchedKey);
-        const processedValues = applyOptionSettings(optionValues, option);
-        if (!processedValues.length) continue;
-
-        const label = option.label || option.optionType || matchedKey;
-        const baseFilter = createBaseFilter(
-          `option:${option.handle || matchedKey}`,
-          'option',
-          matchedKey,
-          label,
-          option.handle,
-          filters.length
-        );
-
-        filters.push({
-          ...baseFilter,
-          handle: option.handle,
-          position: option.position,
-          optionType: option.optionType,
-          optionKey: matchedKey,
-          displayType: option.displayType || baseFilter.displayType || 'LIST',
-          selectionType: option.selectionType || baseFilter.selectionType || 'MULTIPLE',
-          targetScope: option.targetScope,
-          allowedOptions: option.allowedOptions,
-          collapsed: option.collapsed ?? baseFilter.collapsed ?? false,
-          searchable: option.searchable ?? baseFilter.searchable ?? false,
-          showTooltip: option.showTooltip ?? baseFilter.showTooltip ?? false,
-          tooltipContent: option.tooltipContent || baseFilter.tooltipContent || '',
-          showCount: option.showCount !== undefined ? option.showCount : (baseFilter.showCount ?? true),
-          showMenu: option.showMenu ?? baseFilter.showMenu ?? false,
-          status: option.status || baseFilter.status || 'PUBLISHED',
-          values: processedValues,
-        } as StorefrontFilterDescriptor);
-      }
     }
   }
 
   return filters;
 }
-

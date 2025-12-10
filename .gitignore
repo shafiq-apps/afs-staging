@@ -113,3 +113,4 @@ gitpush.sh
 .cursor
 .gemini
 es_products_sample_index.json
+app_filters_es_sample.json
