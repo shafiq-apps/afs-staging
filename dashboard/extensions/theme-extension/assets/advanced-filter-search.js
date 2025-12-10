@@ -1139,6 +1139,30 @@
       this.apply();
     },
     
+    // Apply products only (for sort/pagination changes - no filter update needed)
+    applyProductsOnly: $.debounce(async () => {
+      Log.info('applyProductsOnly called', { filters: State.filters, pagination: State.pagination, sort: State.sort });
+      DOM.showLoading();
+      try {
+        Log.info('Fetching products...', { url: `${API.baseURL}/storefront/products` });
+        const data = await API.products(State.filters, State.pagination, State.sort);
+        Log.info('Products fetched successfully', { count: data.products?.length || 0 });
+        State.products = data.products || [];
+        State.pagination = data.pagination || State.pagination;
+        
+        DOM.renderProducts(State.products);
+        DOM.renderInfo(State.pagination, State.pagination.total || 0);
+        DOM.renderPagination(State.pagination);
+        DOM.renderApplied(State.filters);
+        DOM.hideLoading();
+      } catch (e) {
+        DOM.hideLoading();
+        Log.error('Failed to load products', e);
+        DOM.showError(`Failed to load products: ${e.message || 'Unknown error'}`);
+      }
+    }, C.DEBOUNCE),
+    
+    // Apply filters and products (for filter changes - needs to update both)
     apply: $.debounce(async () => {
       DOM.showLoading();
       try {
@@ -1147,6 +1171,7 @@
         State.pagination = data.pagination || State.pagination;
         
         // Fetch filters after products (will hit cache created by products request)
+        // Only fetch filters when filters actually changed
         try {
           const filtersData = await API.filters(State.filters);
           if (Array.isArray(filtersData.filters)) {
@@ -1201,23 +1226,7 @@
             Filters.toggle(key, value);
           }
         }
-        else if (e.target.classList.contains('afs-sort-select') || e.target.closest('.afs-sort-select')) {
-          const select = e.target.classList.contains('afs-sort-select') ? e.target : e.target.closest('.afs-sort-select');
-          if (!select) return;
-          const sortValue = select.value;
-          if (sortValue) {
-            // Handle best-selling sort (no order needed)
-            if (sortValue === 'best-selling' || sortValue === 'bestselling') {
-              State.sort = { field: 'best-selling', order: 'asc' };
-            } else {
-              const [field, order] = sortValue.split(':');
-              State.sort = { field, order: order || 'desc' };
-            }
-            State.pagination.page = 1;
-            UrlManager.update(State.filters, State.pagination, State.sort);
-            Filters.apply();
-          }
-        }
+        // Sort dropdown is handled by change event (see below)
         else if (checkbox && item) {
           e.preventDefault(); // Prevent default checkbox toggle behavior
           e.stopPropagation(); // Stop event bubbling
@@ -1239,7 +1248,8 @@
           if (page) {
             State.pagination.page = page;
             UrlManager.update(State.filters, State.pagination, State.sort);
-            Filters.apply();
+            // Only fetch products, not filters (filters haven't changed)
+            Filters.applyProductsOnly();
           }
         }
         else if (e.target.closest('.afs-filter-group__toggle')) {
@@ -1287,8 +1297,84 @@
         }
       });
       
+      // Helper function to handle sort change
+      const handleSortChange = (select) => {
+        const sortValue = select.value;
+        if (!sortValue) return;
+        
+        Log.info('Sort dropdown changed', { sortValue, currentSort: State.sort });
+        
+        // Calculate new sort state
+        let newSort;
+        if (sortValue === 'best-selling' || sortValue === 'bestselling') {
+          newSort = { field: 'best-selling', order: 'asc' };
+        } else {
+          const [field, order] = sortValue.split(':');
+          newSort = { field, order: order || 'desc' };
+        }
+        
+        // Always update state and call API when sort is selected
+        // (even if value is same, user explicitly selected it)
+        State.sort = newSort;
+        State.pagination.page = 1;
+        UrlManager.update(State.filters, State.pagination, State.sort);
+        Log.info('Calling applyProductsOnly after sort change', { sort: State.sort });
+        // Only fetch products, not filters (filters haven't changed)
+        Filters.applyProductsOnly();
+      };
+      
+      // Store the previous value to detect changes
+      let previousSortValue = null;
+      
+      // Track when select is focused to capture initial value
+      DOM.container.addEventListener('focus', (e) => {
+        if (e.target.classList.contains('afs-sort-select')) {
+          previousSortValue = e.target.value;
+        }
+      }, true);
+      
+      // Sort dropdown change event (fires when value changes)
+      DOM.container.addEventListener('change', (e) => {
+        if (e.target.classList.contains('afs-sort-select')) {
+          handleSortChange(e.target);
+          previousSortValue = e.target.value;
+        }
+      });
+      
+      // Also listen for blur event (fires when dropdown closes)
+      // This catches cases where user selects the same option (change event doesn't fire)
+      DOM.container.addEventListener('blur', (e) => {
+        if (e.target.classList.contains('afs-sort-select')) {
+          const select = e.target;
+          const currentValue = select.value;
+          
+          // If value is different from previous, or if change event didn't fire
+          // (previousSortValue might be null on first interaction)
+          if (currentValue && currentValue !== previousSortValue) {
+            // Small delay to ensure change event has a chance to fire first
+            setTimeout(() => {
+              // Double-check: if value still doesn't match state, trigger change
+              const currentSortValue = State.sort.field === 'best-selling' || State.sort.field === 'bestselling' 
+                ? 'best-selling' 
+                : `${State.sort.field}:${State.sort.order}`;
+              
+              if (currentValue !== currentSortValue) {
+                handleSortChange(select);
+              }
+            }, 50);
+          }
+          previousSortValue = currentValue;
+        }
+      }, true);
+      
       window.addEventListener('popstate', () => {
         const params = UrlManager.parse();
+        
+        // Store old state to detect if filters changed
+        const oldFilters = JSON.stringify(State.filters);
+        const oldPage = State.pagination.page;
+        const oldSort = JSON.stringify(State.sort);
+        
         // Rebuild filters from params (includes standard filters + handles)
         State.filters = {
           vendor: params.vendor || [],
@@ -1308,7 +1394,11 @@
             }
           }
         });
-        if (params.page) State.pagination.page = params.page;
+        
+        const newPage = params.page || State.pagination.page;
+        if (newPage !== oldPage) {
+          State.pagination.page = newPage;
+        }
         
         // Update sort from URL params or default to best-selling
         if (params.sort) {
@@ -1329,7 +1419,18 @@
           State.sort = { field: 'best-selling', order: 'asc' };
         }
         
-        Filters.apply();
+        // Check if filters changed
+        const newFilters = JSON.stringify(State.filters);
+        const newSort = JSON.stringify(State.sort);
+        const filtersChanged = oldFilters !== newFilters;
+        const onlySortOrPageChanged = !filtersChanged && (newSort !== oldSort || newPage !== oldPage);
+        
+        // Only fetch filters if filters actually changed
+        if (onlySortOrPageChanged) {
+          Filters.applyProductsOnly();
+        } else {
+          Filters.apply();
+        }
       });
     }
   };
@@ -1455,7 +1556,7 @@
         DOM.renderPagination(State.pagination);
         DOM.renderApplied(State.filters);
         
-        // Update sort select value
+        // Update sort select value (programmatically - won't trigger change event)
         if (DOM.sortSelect) {
           // Handle best-selling sort (no order in value)
           if (State.sort.field === 'best-selling' || State.sort.field === 'bestselling') {
@@ -1463,6 +1564,7 @@
           } else {
             DOM.sortSelect.value = `${State.sort.field}:${State.sort.order}`;
           }
+          Log.debug('Sort select value updated programmatically', { value: DOM.sortSelect.value, sort: State.sort });
         }
         
         DOM.hideLoading();
