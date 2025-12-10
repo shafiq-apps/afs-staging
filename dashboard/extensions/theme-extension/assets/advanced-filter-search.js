@@ -109,7 +109,7 @@
     collections: [],
     selectedCollection: {id: null, sortBy: null},
     pagination: { page: 1, limit: C.PAGE_SIZE, total: 0, totalPages: 0 },
-    sort: { field: 'createdAt', order: 'desc' },
+    sort: { field: 'best-selling', order: 'asc' },
     loading: false,
     availableFilters: [],
     // Metadata maps (for display only, not for state management)
@@ -162,8 +162,14 @@
         else if (key === 'page') params.page = parseInt(value, 10) || 1;
         else if (key === 'limit') params.limit = parseInt(value, 10) || C.PAGE_SIZE;
         else if (key === 'sort') {
-          const [field, order] = value.split(':');
-          params.sort = { field, order: order || 'desc' };
+          // Handle sort parameter - can be "best-selling", "price:asc", "createdAt:desc", etc.
+          const sortValue = value.toLowerCase().trim();
+          if (sortValue === 'best-selling' || sortValue === 'bestselling') {
+            params.sort = { field: 'best-selling', order: 'asc' };
+          } else {
+            const [field, order] = value.split(':');
+            params.sort = { field, order: order || 'desc' };
+          }
         }
         else {
           // Everything else is a handle (dynamic filter) - use directly, no conversion
@@ -205,6 +211,16 @@
       if (pagination && pagination.page > 1) {
         url.searchParams.set('page', pagination.page);
         Log.debug('Page URL param set', { page: pagination.page });
+      }
+      
+      // Update sort parameter
+      if (sort && sort.field) {
+        if (sort.field === 'best-selling' || sort.field === 'bestselling') {
+          url.searchParams.set('sort', 'best-selling');
+        } else {
+          url.searchParams.set('sort', `${sort.field}:${sort.order || 'desc'}`);
+        }
+        Log.debug('Sort URL param set', { field: sort.field, order: sort.order });
       }
       
       const newUrl = url.toString();
@@ -318,7 +334,14 @@
       });
       params.set('page', pagination.page);
       params.set('limit', pagination.limit);
-      if (sort.field) params.set('sort', `${sort.field}:${sort.order}`);
+      if (sort.field) {
+        // Handle best-selling sort (no order needed, server handles it)
+        if (sort.field === 'best-selling' || sort.field === 'bestselling') {
+          params.set('sort', 'best-selling');
+        } else {
+          params.set('sort', `${sort.field}:${sort.order}`);
+        }
+      }
       
       const url = `${this.baseURL}/storefront/products?${params}`;
       Log.info('Fetching products', { url, shop: State.shop, page: pagination.page });
@@ -399,6 +422,8 @@
     productsInfo: null,
     productsGrid: null,
     loading: null,
+    sortContainer: null,
+    sortSelect: null,
     
     init(containerSel, filtersSel, productsSel) {
       this.container = document.querySelector(containerSel) || document.querySelector('[data-afs-container]');
@@ -418,12 +443,13 @@
       this.productsInfo = $.el('div', 'afs-products-info');
       this.productsContainer.insertBefore(this.productsInfo, this.productsContainer.firstChild);
       
-      // Sort dropdown
-      const sortContainer = $.el('div', 'afs-sort-container');
+      // Sort dropdown - create and store reference
+      this.sortContainer = $.el('div', 'afs-sort-container');
       const sortLabel = $.el('label', 'afs-sort-label');
       sortLabel.textContent = 'Sort by: ';
-      const sortSelect = $.el('select', 'afs-sort-select', { 'data-afs-sort': 'true' });
-      sortSelect.innerHTML = `
+      this.sortSelect = $.el('select', 'afs-sort-select', { 'data-afs-sort': 'true' });
+      this.sortSelect.innerHTML = `
+        <option value="best-selling">Best Selling</option>
         <option value="createdAt:desc">Newest First</option>
         <option value="createdAt:asc">Oldest First</option>
         <option value="title:asc">Name (A-Z)</option>
@@ -431,9 +457,9 @@
         <option value="price:asc">Price (Low to High)</option>
         <option value="price:desc">Price (High to Low)</option>
       `;
-      sortContainer.appendChild(sortLabel);
-      sortContainer.appendChild(sortSelect);
-      this.productsInfo.appendChild(sortContainer);
+      this.sortContainer.appendChild(sortLabel);
+      this.sortContainer.appendChild(this.sortSelect);
+      this.productsInfo.appendChild(this.sortContainer);
       
       this.productsGrid = $.el('div', 'afs-products-grid');
       this.productsContainer.appendChild(this.productsGrid);
@@ -869,18 +895,48 @@
     // Products info
     renderInfo(pagination, total) {
       if (!this.productsInfo) return;
-      $.clear(this.productsInfo);
       
-      if (total === 0) this.productsInfo.appendChild($.txt($.el('div', 'afs-products-info__results'), 'No products found'));
-      else if (total === 1) this.productsInfo.appendChild($.txt($.el('div', 'afs-products-info__results'), '1 product found'));
-      else {
+      // Preserve sort container when clearing
+      const sortContainer = this.sortContainer;
+      const existingResults = this.productsInfo.querySelector('.afs-products-info__results');
+      const existingPage = this.productsInfo.querySelector('.afs-products-info__page');
+      
+      // Remove only the results and page elements, keep sort container
+      if (existingResults) existingResults.remove();
+      if (existingPage) existingPage.remove();
+      
+      // Create results text
+      let resultsEl;
+      if (total === 0) {
+        resultsEl = $.txt($.el('div', 'afs-products-info__results'), 'No products found');
+      } else if (total === 1) {
+        resultsEl = $.txt($.el('div', 'afs-products-info__results'), '1 product found');
+      } else {
         const start = (pagination.page - 1) * pagination.limit + 1;
         const end = Math.min(pagination.page * pagination.limit, total);
-        this.productsInfo.appendChild($.txt($.el('div', 'afs-products-info__results'), `Showing ${start}-${end} of ${total} products`));
+        resultsEl = $.txt($.el('div', 'afs-products-info__results'), `Showing ${start}-${end} of ${total} products`);
       }
       
+      // Insert results before sort container (left side)
+      if (sortContainer && sortContainer.parentNode) {
+        this.productsInfo.insertBefore(resultsEl, sortContainer);
+      } else {
+        this.productsInfo.appendChild(resultsEl);
+        // Re-add sort container if it was removed
+        if (sortContainer && !sortContainer.parentNode) {
+          this.productsInfo.appendChild(sortContainer);
+        }
+      }
+      
+      // Add page info if needed
       if (pagination.totalPages > 1) {
-        this.productsInfo.appendChild($.txt($.el('div', 'afs-products-info__page'), `Page ${pagination.page} of ${pagination.totalPages}`));
+        const pageEl = $.txt($.el('div', 'afs-products-info__page'), `Page ${pagination.page} of ${pagination.totalPages}`);
+        // Insert page info after results, before sort container
+        if (sortContainer && sortContainer.parentNode) {
+          this.productsInfo.insertBefore(pageEl, sortContainer);
+        } else {
+          this.productsInfo.appendChild(pageEl);
+        }
       }
     },
     
@@ -1147,10 +1203,16 @@
         }
         else if (e.target.classList.contains('afs-sort-select') || e.target.closest('.afs-sort-select')) {
           const select = e.target.classList.contains('afs-sort-select') ? e.target : e.target.closest('.afs-sort-select');
+          if (!select) return;
           const sortValue = select.value;
           if (sortValue) {
-            const [field, order] = sortValue.split(':');
-            State.sort = { field, order: order || 'desc' };
+            // Handle best-selling sort (no order needed)
+            if (sortValue === 'best-selling' || sortValue === 'bestselling') {
+              State.sort = { field: 'best-selling', order: 'asc' };
+            } else {
+              const [field, order] = sortValue.split(':');
+              State.sort = { field, order: order || 'desc' };
+            }
             State.pagination.page = 1;
             UrlManager.update(State.filters, State.pagination, State.sort);
             Filters.apply();
@@ -1247,6 +1309,26 @@
           }
         });
         if (params.page) State.pagination.page = params.page;
+        
+        // Update sort from URL params or default to best-selling
+        if (params.sort) {
+          const sortValue = params.sort.field || params.sort;
+          if (typeof sortValue === 'string') {
+            const normalized = sortValue.toLowerCase().trim();
+            if (normalized === 'best-selling' || normalized === 'bestselling') {
+              State.sort = { field: 'best-selling', order: 'asc' };
+            } else {
+              const [field, order] = sortValue.split(':');
+              State.sort = { field, order: order || 'desc' };
+            }
+          } else if (params.sort.field) {
+            State.sort = { field: params.sort.field, order: params.sort.order || 'desc' };
+          }
+        } else {
+          // Default to best-selling if no sort in URL
+          State.sort = { field: 'best-selling', order: 'asc' };
+        }
+        
         Filters.apply();
       });
     }
@@ -1339,6 +1421,25 @@
         Log.info('Filters set from URL', { filters: State.filters });
         if (urlParams.page) State.pagination.page = urlParams.page;
         
+        // Set sort from URL params or default to best-selling
+        if (urlParams.sort) {
+          const sortValue = urlParams.sort.field || urlParams.sort;
+          if (typeof sortValue === 'string') {
+            const normalized = sortValue.toLowerCase().trim();
+            if (normalized === 'best-selling' || normalized === 'bestselling') {
+              State.sort = { field: 'best-selling', order: 'asc' };
+            } else {
+              const [field, order] = sortValue.split(':');
+              State.sort = { field, order: order || 'desc' };
+            }
+          } else if (urlParams.sort.field) {
+            State.sort = { field: urlParams.sort.field, order: urlParams.sort.order || 'desc' };
+          }
+        } else {
+          // Default to best-selling if no sort in URL
+          State.sort = { field: 'best-selling', order: 'asc' };
+        }
+        
         DOM.renderFilters(State.availableFilters);
         Log.info('Filters rendered', { count: State.availableFilters.length });
         
@@ -1355,9 +1456,13 @@
         DOM.renderApplied(State.filters);
         
         // Update sort select value
-        const sortSelect = DOM.container?.querySelector('.afs-sort-select');
-        if (sortSelect) {
-          sortSelect.value = `${State.sort.field}:${State.sort.order}`;
+        if (DOM.sortSelect) {
+          // Handle best-selling sort (no order in value)
+          if (State.sort.field === 'best-selling' || State.sort.field === 'bestselling') {
+            DOM.sortSelect.value = 'best-selling';
+          } else {
+            DOM.sortSelect.value = `${State.sort.field}:${State.sort.order}`;
+          }
         }
         
         DOM.hideLoading();

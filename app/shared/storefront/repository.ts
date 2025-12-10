@@ -850,11 +850,26 @@ export class StorefrontSearchRepository {
       else if (sortParam === 'created:asc' || sortParam === 'created-asc' || sortParam === 'oldest') {
         sort.push({ createdAt: 'asc' });
       }
+      // Handle title-based sorting (use keyword field for text fields)
+      else if (sortParam === 'title:asc' || sortParam === 'title-asc' || sortParam === 'name_asc') {
+        sort.push({ 'title.keyword': 'asc' });
+      }
+      else if (sortParam === 'title:desc' || sortParam === 'title-desc' || sortParam === 'name_desc') {
+        sort.push({ 'title.keyword': 'desc' });
+      }
       // Handle legacy format: "field:order"
       else {
         const [field, order] = filters.sort.split(':');
         if (field && order) {
-          const sortField = field === 'price' ? 'minPrice' : field;
+          // Map field names to correct ES field names
+          let sortField;
+          if (field === 'price') {
+            sortField = order === 'asc' ? 'minPrice' : 'maxPrice';
+          } else if (field === 'title') {
+            sortField = 'title.keyword'; // Use keyword field for text fields
+          } else {
+            sortField = field;
+          }
           sort.push({ [sortField]: order });
         } else {
           // Default to bestSellerRank if sort param is invalid
