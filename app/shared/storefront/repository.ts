@@ -69,17 +69,19 @@ function getEnabledAggregations(filterConfig: Filter | null, includeAllOptions: 
     'price range': 'priceRange',
   };
 
-  for (const option of filterConfig.options) {
-    // Only include published options
-    if (option.status !== 'PUBLISHED') continue;
+    for (const option of filterConfig.options) {
+      // Only include published options
+      if (option.status !== 'PUBLISHED') continue;
 
-    const optionType = option.optionType?.trim() || '';
-    const normalizedOptionType = optionType.toLowerCase();
-    const optionSettings = option.optionSettings || {};
+      const optionType = option.optionType?.trim() || '';
+      const normalizedOptionType = optionType.toLowerCase();
+      const optionSettings = option.optionSettings || {};
 
-    // Get the actual variant option key (for variant options)
-    const variantOptionKey = optionSettings.variantOptionKey || optionType;
-    const baseOptionType = optionSettings.baseOptionType;
+      // Derive variant option key at runtime to ensure perfect ES matching
+      // This uses the exact name that matches ES storage (optionPairs format)
+      const derivedVariantOptionKey = deriveVariantOptionKey(option);
+      const variantOptionKey = derivedVariantOptionKey || optionType;
+      const baseOptionType = optionSettings.baseOptionType;
 
     // Check if it's a standard filter type
     if (optionTypeToAggregation[normalizedOptionType]) {
@@ -135,6 +137,38 @@ const STANDARD_FILTER_TYPES = new Set([
  * @param filterConfig - The filter configuration to extract keys from
  * @returns A set of variant option keys in original case (matching ES storage)
  */
+/**
+ * Derive variantOptionKey at runtime from filter config option
+ * This ensures perfect matching with ES storage where optionPairs are stored as "OptionName::Value"
+ * 
+ * Logic:
+ * 1. If variantOptionKey is explicitly set, use it (exact match with ES)
+ * 2. If baseOptionType === "OPTION" (variant option), use optionType (matches ES storage)
+ * 3. For standard filters, variantOptionKey is not applicable
+ */
+function deriveVariantOptionKey(option: Filter['options'][number]): string | null {
+  const optionSettings = option.optionSettings || {};
+  
+  // Priority 1: If variantOptionKey is explicitly set, use it (exact match with ES)
+  if (optionSettings.variantOptionKey) {
+    return optionSettings.variantOptionKey.trim();
+  }
+  
+  // Priority 2: If baseOptionType === "OPTION", use optionType (matches ES storage)
+  // ES stores optionPairs as "OptionName::Value" where OptionName is from product data
+  // For variant options, optionType is the exact name that matches ES storage
+  const baseOptionType = optionSettings.baseOptionType?.trim().toUpperCase();
+  if (baseOptionType === 'OPTION') {
+    const optionType = option.optionType?.trim();
+    if (optionType) {
+      return optionType; // This matches ES storage exactly
+    }
+  }
+  
+  // For standard filters (VENDOR, PRODUCT_TYPE, etc.), variantOptionKey is not applicable
+  return null;
+}
+
 function getVariantOptionKeys(filterConfig: Filter | null): Set<string> {
   const variantOptionKeys = new Set<string>();
 
@@ -146,48 +180,30 @@ function getVariantOptionKeys(filterConfig: Filter | null): Set<string> {
     // Only include published options
     if (option.status !== 'PUBLISHED') continue;
 
+    // Derive variantOptionKey at runtime to ensure perfect ES matching
+    const derivedVariantOptionKey = deriveVariantOptionKey(option);
+    
+    if (derivedVariantOptionKey) {
+      // Use derived variantOptionKey (exact match with ES storage)
+      variantOptionKeys.add(derivedVariantOptionKey);
+      continue;
+    }
+
+    // For standard filters or options without variantOptionKey, skip
+    // Standard filters use their own aggregation fields (vendors, productTypes, etc.)
     const optionSettings = option.optionSettings || {};
-
-    // Priority 1: If variantOptionKey is explicitly stored, use it (keep original case)
-    if (optionSettings.variantOptionKey) {
-      variantOptionKeys.add(optionSettings.variantOptionKey.trim());
+    const baseOptionType = optionSettings.baseOptionType?.trim().toUpperCase();
+    
+    // Skip standard filter types (they don't use variantOptionKeys)
+    if (baseOptionType && baseOptionType !== 'OPTION') {
       continue;
     }
 
-    // Priority 2: For variant options (baseOptionType === "Option"), use optionType
-    // baseOptionType "Option" is a category, not the actual variant option name
-    if (optionSettings.baseOptionType && optionSettings.baseOptionType.toLowerCase().trim() === 'option') {
-      // For variant options, use optionType as the key (keep original case)
-      const optionType = option.optionType?.trim() || '';
-      if (optionType && !STANDARD_FILTER_TYPES.has(optionType.toLowerCase())) {
-        variantOptionKeys.add(optionType);
-      }
-      continue;
-    }
-
-    // Priority 3: For other derived options, extract from baseOptionType
-    if (optionSettings.baseOptionType) {
-      const baseOptionName = optionSettings.baseOptionType.trim();
-      if (baseOptionName) {
-        // Keep original case, but check against lowercase for standard types
-        if (!STANDARD_FILTER_TYPES.has(baseOptionName.toLowerCase())) {
-          variantOptionKeys.add(baseOptionName);
-        }
-      }
-      continue;
-    }
-
-    // Priority 4: Try to extract from optionType (fallback for legacy filters)
+    // Fallback: If no baseOptionType but optionType exists and it's not a standard type
     const optionType = option.optionType?.trim() || '';
-    if (!optionType) continue;
-
-    // Check if it's a standard type - if so, skip it (case-insensitive check)
-    if (STANDARD_FILTER_TYPES.has(optionType.toLowerCase())) {
-      continue;
+    if (optionType && !STANDARD_FILTER_TYPES.has(optionType.toLowerCase())) {
+      variantOptionKeys.add(optionType);
     }
-
-    // Extract the option name from optionType (keep original case)
-    variantOptionKeys.add(optionType);
   }
 
   return variantOptionKeys;
@@ -211,6 +227,15 @@ export class StorefrontSearchRepository {
 
     // Sanitize filter input to prevent ES query injection
     const sanitizedFilters = filters ? sanitizeFilterInput(filters) : undefined;
+
+    logger.debug('Filter input after sanitization', {
+      shop: shopDomain,
+      hasFilters: !!filters,
+      hasSanitizedFilters: !!sanitizedFilters,
+      options: sanitizedFilters?.options,
+      collections: sanitizedFilters?.collections,
+      vendors: sanitizedFilters?.vendors,
+    });
 
     const mustQueries: any[] = [];
     const postFilterQueries: any[] = [];
@@ -280,8 +305,10 @@ export class StorefrontSearchRepository {
 
         if (!encodedValues.length) continue;
 
+        // optionPairs is an array field (type: keyword), use directly (not .keyword)
+        // For array fields in ES, use the field name directly (like tags/collections)
         const clause = {
-          terms: { 'optionPairs.keyword': encodedValues },
+          terms: { 'optionPairs': encodedValues },
         };
 
         (shouldPreserve(optionName) ? postFilterQueries : mustQueries).push(clause);
@@ -402,16 +429,17 @@ export class StorefrontSearchRepository {
     //
     if (enabledAggregations.variantOptions.size > 0) {
       for (const [aggName, optionType] of enabledAggregations.variantOptions) {
+        // optionPairs is a keyword array field, use directly (not .keyword)
         aggs[aggName] = {
           filter: {
             prefix: {
-              'optionPairs.keyword': `${optionType}${PRODUCT_OPTION_PAIR_SEPARATOR}`,
+              'optionPairs': `${optionType}${PRODUCT_OPTION_PAIR_SEPARATOR}`,
             },
           },
           aggs: {
             values: {
               terms: {
-                field: 'optionPairs.keyword',
+                field: 'optionPairs', // Array field, use directly
                 size: DEFAULT_BUCKET_SIZE * 2,
                 order: { _count: 'desc' as const },
               },
@@ -450,6 +478,17 @@ export class StorefrontSearchRepository {
     //
     // Execute Query
     //
+    logger.debug('Executing ES query', {
+      shop: shopDomain,
+      index,
+      mustQueriesCount: mustQueries.length,
+      postFilterQueriesCount: postFilterQueries.length,
+      hasQuery: !!query,
+      aggregationsCount: Object.keys(aggs).length,
+      mustQueries: mustQueries.length > 0 ? JSON.stringify(mustQueries, null, 2) : 'none',
+      postFilterQueries: postFilterQueries.length > 0 ? JSON.stringify(postFilterQueries, null, 2) : 'none',
+    });
+
     const response = await this.esClient.search<unknown, FacetAggregations>({
       index,
       size: 0,
@@ -461,6 +500,13 @@ export class StorefrontSearchRepository {
           ? { bool: { must: postFilterQueries } }
           : undefined,
       aggs,
+    });
+
+    logger.debug('ES query response', {
+      shop: shopDomain,
+      totalHits: response.hits.total,
+      aggregationsKeys: Object.keys(response.aggregations || {}),
+      optionPairsBuckets: (response.aggregations as any)?.optionPairs?.buckets?.length || 0,
     });
 
     //
@@ -630,14 +676,35 @@ export class StorefrontSearchRepository {
 
         if (!encodedValues.length) continue;
 
+        logger.debug('Encoding option filter for ES query', {
+          optionName,
+          values,
+          encodedValues,
+          shop: shopDomain,
+          field: 'optionPairs', // Array field, use directly
+        });
+
+        // optionPairs is an array field (type: keyword), use directly (not .keyword)
+        // For array fields in ES, use the field name directly (like tags/collections)
         const termsQuery = {
-          terms: { 'optionPairs.keyword': encodedValues },
+          terms: { 'optionPairs': encodedValues },
         };
 
-        if (shouldPreserve(optionName)) {
+        // For filters endpoint, we want to preserve option aggregations even when filtering
+        // This allows users to see available filter values even when current filters match 0 products
+        // Use post_filter for option filters to preserve aggregations
+        if (shouldPreserve(optionName) || shouldPreserve('__all__')) {
           postFilterQueries.push(termsQuery);
+          logger.debug('Option filter added to post_filter (preserve aggregations)', {
+            optionName,
+            encodedValues,
+          });
         } else {
           mustQueries.push(termsQuery);
+          logger.debug('Option filter added to must query (affects aggregations)', {
+            optionName,
+            encodedValues,
+          });
         }
       }
     }
@@ -801,16 +868,17 @@ export class StorefrontSearchRepository {
         if (enabledAggregations.variantOptions.size > 0) {
           // Build specific variant option aggregations
           for (const [aggName, optionType] of enabledAggregations.variantOptions.entries()) {
+            // optionPairs is a keyword array field, use directly (not .keyword)
             aggregationObject[aggName] = {
               filter: {
                 prefix: {
-                  'optionPairs.keyword': `${optionType}${PRODUCT_OPTION_PAIR_SEPARATOR}`,
+                  'optionPairs': `${optionType}${PRODUCT_OPTION_PAIR_SEPARATOR}`,
                 },
               },
               aggs: {
                 values: {
                   terms: {
-                    field: 'optionPairs.keyword',
+                    field: 'optionPairs', // Array field, use directly
                     size: DEFAULT_BUCKET_SIZE * 2,
                     order: { _count: 'desc' as const },
                   },
@@ -820,9 +888,10 @@ export class StorefrontSearchRepository {
           }
         } else {
           // Fallback: fetch all optionPairs
+          // optionPairs is a keyword array field, use directly (not .keyword)
           aggregationObject.optionPairs = {
             terms: {
-              field: 'optionPairs.keyword',
+              field: 'optionPairs', // Array field, use directly
               size: DEFAULT_BUCKET_SIZE * 5,
               order: { _count: 'desc' as const },
             },

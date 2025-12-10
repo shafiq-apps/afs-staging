@@ -34,6 +34,41 @@ const isSupportedDeployment = (channel?: string | null) => {
 };
 
 /**
+ * Derive variantOptionKey at runtime from filter config option
+ * This ensures perfect matching with ES storage where optionPairs are stored as "OptionName::Value"
+ * 
+ * Logic:
+ * 1. If variantOptionKey is explicitly set, use it (exact match with ES)
+ * 2. If baseOptionType === "OPTION" (variant option), use optionType (matches ES storage)
+ * 3. For standard filters, variantOptionKey is not applicable
+ * 
+ * @param option - Filter config option
+ * @returns The variantOptionKey to use for ES queries and matching
+ */
+function deriveVariantOptionKey(option: Filter['options'][number]): string | null {
+  const optionSettings = option.optionSettings || {};
+  
+  // Priority 1: If variantOptionKey is explicitly set, use it (exact match with ES)
+  if (optionSettings.variantOptionKey) {
+    return optionSettings.variantOptionKey.trim();
+  }
+  
+  // Priority 2: If baseOptionType === "OPTION", use optionType (matches ES storage)
+  // ES stores optionPairs as "OptionName::Value" where OptionName is from product data
+  // For variant options, optionType is the exact name that matches ES storage
+  const baseOptionType = optionSettings.baseOptionType?.trim().toUpperCase();
+  if (baseOptionType === 'OPTION') {
+    const optionType = option.optionType?.trim();
+    if (optionType) {
+      return optionType; // This matches ES storage exactly
+    }
+  }
+  
+  // For standard filters (VENDOR, PRODUCT_TYPE, etc.), variantOptionKey is not applicable
+  return null;
+}
+
+/**
  * Get active filter configuration for a shop
  * Implements priority system:
  * 1. Custom published filter (filterType: "custom")
@@ -182,7 +217,11 @@ export function isOptionKey(filterConfig: Filter | null, key: string): boolean {
       // Check optionType (case-insensitive)
       if (opt.optionType?.toLowerCase() === lowerKey) return true;
       
-      // Check variantOptionKey (case-insensitive)
+      // Check derived variantOptionKey (case-insensitive) - ensures perfect ES matching
+      const derivedVariantOptionKey = deriveVariantOptionKey(opt);
+      if (derivedVariantOptionKey?.toLowerCase() === lowerKey) return true;
+      
+      // Also check explicit variantOptionKey for backward compatibility
       const optionSettings = opt.optionSettings || {};
       if (optionSettings.variantOptionKey?.toLowerCase() === lowerKey) return true;
       
@@ -217,7 +256,11 @@ export function mapOptionKeyToName(filterConfig: Filter | null, optionKey: strin
       // Check optionType (case-insensitive)
       if (opt.optionType?.toLowerCase() === lowerKey) return true;
       
-      // Check variantOptionKey (case-insensitive)
+      // Check derived variantOptionKey (case-insensitive) - ensures perfect ES matching
+      const derivedVariantOptionKey = deriveVariantOptionKey(opt);
+      if (derivedVariantOptionKey?.toLowerCase() === lowerKey) return true;
+      
+      // Also check explicit variantOptionKey for backward compatibility
       const optionSettings = opt.optionSettings || {};
       if (optionSettings.variantOptionKey?.toLowerCase() === lowerKey) return true;
       
@@ -226,9 +269,12 @@ export function mapOptionKeyToName(filterConfig: Filter | null, optionKey: strin
   );
 
   if (option) {
-    // Return the variantOptionKey if available, otherwise use optionType
-    const optionSettings = option.optionSettings || {};
-    const baseName = optionSettings.variantOptionKey || 
+    // Derive variantOptionKey at runtime to ensure perfect ES matching
+    const derivedVariantOptionKey = deriveVariantOptionKey(option);
+    
+    // Use derived variantOptionKey if available, otherwise fall back to optionType
+    // This ensures we use the exact name that matches ES storage
+    const baseName = derivedVariantOptionKey || 
                      option.optionType?.trim() || 
                      optionKey;
     return baseName;
@@ -288,28 +334,39 @@ export function applyFilterConfigToInput(
     
     for (const [queryKey, values] of Object.entries(result.options)) {
       // Check if this key (handle or option name) matches an actual option in the filter config
-      // This ensures we only process valid option filters
-      if (!isOptionKey(filterConfig, queryKey)) {
-        // Key doesn't match any option - skip it (might be invalid handle or unrelated param)
-        continue;
-      }
+      const matchesFilterConfig = isOptionKey(filterConfig, queryKey);
       
-      // Map handle/ID to actual option name
-      const optionName = mapOptionKeyToName(filterConfig, queryKey);
-      
-      // Only include if we got a valid mapping (should always be true if isOptionKey passed)
-      if (optionName && optionName !== queryKey) {
-        // This was a handle that got mapped to an option name
-        // Merge values if the option name already exists (can happen with different handles mapping to same name)
-        if (mappedOptions[optionName]) {
-          mappedOptions[optionName] = [...new Set([...mappedOptions[optionName], ...values])];
-        } else {
+      if (matchesFilterConfig) {
+        // Key matches filter config - map handle/ID to actual option name
+        const optionName = mapOptionKeyToName(filterConfig, queryKey);
+        
+        logger.debug('Mapping option key to name', {
+          queryKey,
+          optionName,
+          values,
+          matchesFilterConfig,
+        });
+        
+        if (optionName && optionName !== queryKey) {
+          // This was a handle that got mapped to an option name
+          // Merge values if the option name already exists (can happen with different handles mapping to same name)
+          if (mappedOptions[optionName]) {
+            mappedOptions[optionName] = [...new Set([...mappedOptions[optionName], ...values])];
+          } else {
+            mappedOptions[optionName] = values;
+          }
+        } else if (optionName === queryKey) {
+          // This is already an option name (not a handle) - use it directly
           mappedOptions[optionName] = values;
         }
-      } else if (optionName === queryKey) {
-        // This is already an option name (not a handle) - use it directly
-        mappedOptions[optionName] = values;
+      } else {
+        logger.debug('Skipping option key - not in filter config', {
+          queryKey,
+          values,
+        });
       }
+      // Strict enforcement: If option doesn't match filter config, skip it
+      // This ensures only configured options can be used for filtering
     }
     
     result.options = mappedOptions;
@@ -332,16 +389,34 @@ export function applyFilterConfigToInput(
         // Move to standard filter field
         if (standardField === 'vendors' || standardField === 'productTypes' || 
             standardField === 'tags' || standardField === 'collections') {
-          const existing = result[standardField] || [];
-          result[standardField] = [...new Set([...existing, ...values])];
-          
-          logger.debug('Converted standard filter from options to dedicated field', {
-            optionName,
-            standardField,
-            values,
-            existingCount: existing.length,
-            newCount: result[standardField].length,
-          });
+          // For collections, preserve cpid if it exists (cpid takes precedence)
+          if (standardField === 'collections' && result.cpid) {
+            // cpid already set collections - don't overwrite it
+            // Extract collection ID from cpid to verify it matches
+            const cpidCollectionId = result.cpid.startsWith('gid://') 
+              ? result.cpid.split('/').pop() || result.cpid
+              : result.cpid;
+            
+            logger.debug('Skipping collection option conversion - cpid takes precedence', {
+              optionName,
+              cpid: result.cpid,
+              cpidCollectionId,
+              optionValues: values,
+              existingCollections: result.collections,
+            });
+            // Still remove from options since it's a standard filter
+          } else {
+            const existing = result[standardField] || [];
+            result[standardField] = [...new Set([...existing, ...values])];
+            
+            logger.debug('Converted standard filter from options to dedicated field', {
+              optionName,
+              standardField,
+              values,
+              existingCount: existing.length,
+              newCount: result[standardField].length,
+            });
+          }
         }
         // Don't add to remainingOptions - it's been moved to standard filter field
       } else {
@@ -362,11 +437,14 @@ export function applyFilterConfigToInput(
       // Skip if option is not published
       if (!isPublishedStatus(option.status)) continue;
 
-      // Get the actual option name (variantOptionKey or optionType)
-      const optionSettings = option.optionSettings || {};
-      const optionName = optionSettings.variantOptionKey || 
+      // Get the actual option name using derived variantOptionKey for perfect ES matching
+      const derivedVariantOptionKey = deriveVariantOptionKey(option);
+      const optionName = derivedVariantOptionKey || 
                          option.optionType?.trim() || 
                          option.handle;
+      
+      // Get optionSettings for processing (keep it available throughout the function)
+      const optionSettings = option.optionSettings || {};
       
       // Apply targetScope for this option
       if (option.targetScope === 'entitled' && option.allowedOptions?.length > 0) {
