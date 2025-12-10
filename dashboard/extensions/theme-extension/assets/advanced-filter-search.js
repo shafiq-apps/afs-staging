@@ -19,7 +19,8 @@
   };
 
   // Excluded query parameter keys (not processed as filters)
-  const EXCLUDED_QUERY_PARAMS = new Set(['shop', 'shop_domain', 'preserveFilters', 'cpid']);
+  // Note: preserveFilter/preserveFilters is excluded from filter processing but will be parsed separately
+  const EXCLUDED_QUERY_PARAMS = new Set(['shop', 'shop_domain', 'preserveFilter', 'preserveFilters', 'cpid']);
 
   // ============================================================================
   // TINY REUSABLE UTILITIES (Smallest possible functions)
@@ -113,7 +114,9 @@
     loading: false,
     availableFilters: [],
     // Metadata maps (for display only, not for state management)
-    filterMetadata: new Map() // handle -> { label, type, queryKey, optionKey }
+    filterMetadata: new Map(), // handle -> { label, type, queryKey, optionKey }
+    // Preserve filter keys for maintaining filter aggregations
+    preserveFilters: null // null, array of strings, or '__all__'
   };
 
   // ============================================================================
@@ -171,6 +174,16 @@
             params.sort = { field, order: order || 'desc' };
           }
         }
+        else if (key === 'preserveFilter' || key === 'preserveFilters') {
+          // Parse preserveFilter/preserveFilters - can be comma-separated string or '__all__'
+          const preserveValue = $.str(value);
+          if (preserveValue === '__all__') {
+            params.preserveFilters = '__all__';
+          } else {
+            params.preserveFilters = $.split(value);
+          }
+          Log.debug('Preserve filters parsed', { preserveFilters: params.preserveFilters });
+        }
         else {
           // Everything else is a handle (dynamic filter) - use directly, no conversion
           params[key] = $.split(value);
@@ -221,6 +234,16 @@
           url.searchParams.set('sort', `${sort.field}:${sort.order || 'desc'}`);
         }
         Log.debug('Sort URL param set', { field: sort.field, order: sort.order });
+      }
+      
+      // Update preserveFilters parameter
+      if (State.preserveFilters !== null && State.preserveFilters !== undefined) {
+        if (State.preserveFilters === '__all__') {
+          url.searchParams.set('preserveFilters', '__all__');
+        } else if (Array.isArray(State.preserveFilters) && State.preserveFilters.length > 0) {
+          url.searchParams.set('preserveFilters', State.preserveFilters.join(','));
+        }
+        Log.debug('Preserve filters URL param set', { preserveFilters: State.preserveFilters });
       }
       
       const newUrl = url.toString();
@@ -343,6 +366,16 @@
         }
       }
       
+      // Add preserveFilters parameter if set
+      if (State.preserveFilters !== null && State.preserveFilters !== undefined) {
+        if (State.preserveFilters === '__all__') {
+          params.set('preserveFilters', '__all__');
+        } else if (Array.isArray(State.preserveFilters) && State.preserveFilters.length > 0) {
+          params.set('preserveFilters', State.preserveFilters.join(','));
+        }
+        Log.debug('Preserve filters sent to products API', { preserveFilters: State.preserveFilters });
+      }
+      
       const url = `${this.baseURL}/storefront/products?${params}`;
       Log.info('Fetching products', { url, shop: State.shop, page: pagination.page });
       
@@ -383,6 +416,16 @@
         const v = filters[k];
         if (!$.empty(v) && Array.isArray(v)) params.set(k, v.join(','));
       });
+      
+      // Add preserveFilters parameter if set
+      if (State.preserveFilters !== null && State.preserveFilters !== undefined) {
+        if (State.preserveFilters === '__all__') {
+          params.set('preserveFilters', '__all__');
+        } else if (Array.isArray(State.preserveFilters) && State.preserveFilters.length > 0) {
+          params.set('preserveFilters', State.preserveFilters.join(','));
+        }
+        Log.debug('Preserve filters sent to filters API', { preserveFilters: State.preserveFilters });
+      }
       
       const url = `${this.baseURL}/storefront/filters?${params}`;
       Log.info('Fetching filters', { url, shop: State.shop });
@@ -899,11 +942,9 @@
       // Preserve sort container when clearing
       const sortContainer = this.sortContainer;
       const existingResults = this.productsInfo.querySelector('.afs-products-info__results');
-      const existingPage = this.productsInfo.querySelector('.afs-products-info__page');
       
       // Remove only the results and page elements, keep sort container
       if (existingResults) existingResults.remove();
-      if (existingPage) existingPage.remove();
       
       // Create results text
       let resultsEl;
@@ -925,17 +966,6 @@
         // Re-add sort container if it was removed
         if (sortContainer && !sortContainer.parentNode) {
           this.productsInfo.appendChild(sortContainer);
-        }
-      }
-      
-      // Add page info if needed
-      if (pagination.totalPages > 1) {
-        const pageEl = $.txt($.el('div', 'afs-products-info__page'), `Page ${pagination.page} of ${pagination.totalPages}`);
-        // Insert page info after results, before sort container
-        if (sortContainer && sortContainer.parentNode) {
-          this.productsInfo.insertBefore(pageEl, sortContainer);
-        } else {
-          this.productsInfo.appendChild(pageEl);
         }
       }
     },
@@ -1037,6 +1067,20 @@
       this.container.insertBefore(appliedContainer, this.container.firstChild);
     },
     
+    scrollToProducts() {
+      // Scroll to products section when filters are applied
+      if (this.productsContainer) {
+        this.productsContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        Log.debug('Scrolled to products section');
+      } else if (this.productsGrid) {
+        this.productsGrid.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        Log.debug('Scrolled to products grid');
+      } else if (this.productsInfo) {
+        this.productsInfo.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        Log.debug('Scrolled to products info');
+      }
+    },
+    
     showLoading() {
       if (!this.loading) {
         this.loading = $.el('div', 'afs-loading-indicator');
@@ -1110,6 +1154,8 @@
       
       UrlManager.update(State.filters, State.pagination, State.sort);
       DOM.updateFilterState(handle, normalized, !isActive);
+      // Scroll to top when filter is clicked
+      DOM.scrollToProducts();
       this.apply();
     },
     
@@ -1136,12 +1182,16 @@
       Log.debug('Price range updated', { min, max, priceRange: State.filters.priceRange });
       
       UrlManager.update(State.filters, State.pagination, State.sort);
+      // Scroll to top when price range is updated
+      DOM.scrollToProducts();
       this.apply();
     },
     
     // Apply products only (for sort/pagination changes - no filter update needed)
     applyProductsOnly: $.debounce(async () => {
       Log.info('applyProductsOnly called', { filters: State.filters, pagination: State.pagination, sort: State.sort });
+      // Scroll to top when products are being fetched
+      DOM.scrollToProducts();
       DOM.showLoading();
       try {
         Log.info('Fetching products...', { url: `${API.baseURL}/storefront/products` });
@@ -1164,6 +1214,8 @@
     
     // Apply filters and products (for filter changes - needs to update both)
     apply: $.debounce(async () => {
+      // Scroll to top when products are being fetched
+      DOM.scrollToProducts();
       DOM.showLoading();
       try {
         const data = await API.products(State.filters, State.pagination, State.sort);
@@ -1216,6 +1268,8 @@
           State.filters = { vendor: [], productType: [], tags: [], collections: [], search: '', priceRange: null };
           State.pagination.page = 1;
           UrlManager.update(State.filters, State.pagination, State.sort);
+          // Scroll to top when clearing all filters
+          DOM.scrollToProducts();
           Filters.apply();
         }
         else if (e.target.closest('.afs-applied-filter-chip__remove')) {
@@ -1248,6 +1302,8 @@
           if (page) {
             State.pagination.page = page;
             UrlManager.update(State.filters, State.pagination, State.sort);
+            // Scroll to top when pagination changes
+            DOM.scrollToProducts();
             // Only fetch products, not filters (filters haven't changed)
             Filters.applyProductsOnly();
           }
@@ -1375,6 +1431,17 @@
         const oldPage = State.pagination.page;
         const oldSort = JSON.stringify(State.sort);
         
+        // Set preserveFilters from URL params
+        if (params.preserveFilters !== undefined) {
+          if (params.preserveFilters === '__all__') {
+            State.preserveFilters = '__all__';
+          } else if (Array.isArray(params.preserveFilters) && params.preserveFilters.length > 0) {
+            State.preserveFilters = params.preserveFilters;
+          } else {
+            State.preserveFilters = null;
+          }
+        }
+        
         // Rebuild filters from params (includes standard filters + handles)
         State.filters = {
           vendor: params.vendor || [],
@@ -1386,7 +1453,7 @@
         };
         // Add all handle-based filters (everything that's not a standard filter)
         Object.keys(params).forEach(key => {
-          if (!['vendor', 'productType', 'tags', 'collections', 'search', 'priceRange', 'page', 'limit', 'sort'].includes(key)) {
+          if (!['vendor', 'productType', 'tags', 'collections', 'search', 'priceRange', 'page', 'limit', 'sort', 'preserveFilters'].includes(key)) {
             if (Array.isArray(params[key])) {
               State.filters[key] = params[key];
             } else if (typeof params[key] === 'string') {
@@ -1458,6 +1525,19 @@
         State.collections = config.collections;
         State.selectedCollection = config.selectedCollection;
         
+        // Initialize preserveFilters from config if provided
+        if (config.preserveFilters !== undefined) {
+          if (config.preserveFilters === '__all__' || config.preserveFilters === '__ALL__') {
+            State.preserveFilters = '__all__';
+          } else if (Array.isArray(config.preserveFilters) && config.preserveFilters.length > 0) {
+            State.preserveFilters = config.preserveFilters;
+          } else if (typeof config.preserveFilters === 'string' && config.preserveFilters.trim()) {
+            State.preserveFilters = $.split(config.preserveFilters);
+          } else {
+            State.preserveFilters = null;
+          }
+          Log.info('Preserve filters set from config', { preserveFilters: State.preserveFilters });
+        }
 
         Log.info('Shop set', { shop: State.shop });
         Log.info('Collections set', { collections: State.collections });
@@ -1500,6 +1580,20 @@
         const urlParams = UrlManager.parse();
         Log.debug('Parsed URL params', { urlParams, availableFiltersCount: State.availableFilters.length });
         
+        // Set preserveFilters from URL params
+        if (urlParams.preserveFilters !== undefined) {
+          if (urlParams.preserveFilters === '__all__') {
+            State.preserveFilters = '__all__';
+          } else if (Array.isArray(urlParams.preserveFilters) && urlParams.preserveFilters.length > 0) {
+            State.preserveFilters = urlParams.preserveFilters;
+          } else {
+            State.preserveFilters = null;
+          }
+          Log.debug('Preserve filters set from URL', { preserveFilters: State.preserveFilters });
+        } else {
+          State.preserveFilters = null;
+        }
+        
         // Rebuild filters from params (includes standard filters + handles)
         State.filters = {
           vendor: urlParams.vendor || [],
@@ -1511,7 +1605,7 @@
         };
         // Add all handle-based filters (everything that's not a standard filter)
         Object.keys(urlParams).forEach(key => {
-          if (!['vendor', 'productType', 'tags', 'collections', 'search', 'priceRange', 'page', 'limit', 'sort'].includes(key)) {
+          if (!['vendor', 'productType', 'tags', 'collections', 'search', 'priceRange', 'page', 'limit', 'sort', 'preserveFilters'].includes(key)) {
             if (Array.isArray(urlParams[key])) {
               State.filters[key] = urlParams[key];
             } else if (typeof urlParams[key] === 'string') {

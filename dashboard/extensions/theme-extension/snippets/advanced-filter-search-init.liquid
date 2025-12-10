@@ -6,7 +6,7 @@
       container: '#afs-container-{{ block.id }}',
       filtersContainer: '.afs-filters-container',
       productsContainer: '.afs-products-container',
-      pageSize: 20,
+      pageSize: 24,
       enableLogging: {{ block.settings.enable_logging | default: false }},
       collections: [
         {% for c in collections %}
