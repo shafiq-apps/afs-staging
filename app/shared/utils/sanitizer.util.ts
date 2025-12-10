@@ -33,7 +33,7 @@ export function sanitizeSearchQuery(query: string | null | undefined): string {
   }
 
   let sanitized = sanitizeString(query, 500);
-  sanitized = sanitized.replace(/[+\-=&|!(){}[\]^"~*?:\\]/g, '');
+  sanitized = sanitized.replace(/[\=|!(){}[\]^~*?:\\]/g, '');
   sanitized = sanitized.replace(/\s+/g, ' ').trim();
 
   return sanitized;
