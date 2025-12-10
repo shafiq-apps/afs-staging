@@ -387,6 +387,16 @@ export class StorefrontSearchRepository {
       });
     }
 
+    // Filter for ACTIVE products only
+    mustQueries.push({
+      term: { 'status': 'ACTIVE' },
+    });
+
+    // Filter for product documentType only
+    mustQueries.push({
+      term: { 'documentType': 'product' },
+    });
+
     //
     // Final Search Query
     //
@@ -775,6 +785,16 @@ export class StorefrontSearchRepository {
       });
     }
 
+    // Filter for ACTIVE products only
+    mustQueries.push({
+      term: { 'status.keyword': 'ACTIVE' },
+    });
+
+    // Filter for product documentType only
+    mustQueries.push({
+      term: { 'documentType.keyword': 'product' },
+    });
+
     // Hide out of stock items (from filter configuration settings)
     if (filters?.hideOutOfStockItems) {
       // Filter to only products with at least one variant that has inventory
@@ -803,18 +823,68 @@ export class StorefrontSearchRepository {
     // Build sort
     let sort: any[] = [];
     if (filters?.sort) {
-      const [field, order] = filters.sort.split(':');
-      if (field && order) {
-        const sortField = field === 'price' ? 'minPrice' : field;
-        sort.push({ [sortField]: order });
-      } else {
+      const sortParam = filters.sort.toLowerCase().trim();
+      
+      // Handle "best-selling" sort parameter
+      if (sortParam === 'best-selling' || sortParam === 'bestselling') {
+        // Sort by bestSellerRank ascending (lower rank = better seller)
+        // Use missing: '_last' to handle products without bestSellerRank
+        sort.push({ 
+          bestSellerRank: { 
+            order: 'asc',
+            missing: '_last'
+          } 
+        });
+      } 
+      // Handle price-based sorting
+      else if (sortParam === 'price:asc' || sortParam === 'price-asc' || sortParam === 'price_low_to_high') {
+        sort.push({ minPrice: 'asc' });
+      } 
+      else if (sortParam === 'price:desc' || sortParam === 'price-desc' || sortParam === 'price_high_to_low') {
+        sort.push({ maxPrice: 'desc' });
+      }
+      // Handle createdAt-based sorting (newest/oldest)
+      else if (sortParam === 'created:desc' || sortParam === 'created-desc' || sortParam === 'newest') {
         sort.push({ createdAt: 'desc' });
       }
+      else if (sortParam === 'created:asc' || sortParam === 'created-asc' || sortParam === 'oldest') {
+        sort.push({ createdAt: 'asc' });
+      }
+      // Handle legacy format: "field:order"
+      else {
+        const [field, order] = filters.sort.split(':');
+        if (field && order) {
+          const sortField = field === 'price' ? 'minPrice' : field;
+          sort.push({ [sortField]: order });
+        } else {
+          // Default to bestSellerRank if sort param is invalid
+          sort.push({ 
+            bestSellerRank: { 
+              order: 'asc',
+              missing: '_last'
+            } 
+          });
+        }
+      }
     } else {
+      // Default sorting: bestSellerRank (ascending - lower rank = better seller)
+      // If search query exists, combine relevance score with bestSellerRank
       if (filters?.search) {
         sort.push({ _score: 'desc' });
+        sort.push({ 
+          bestSellerRank: { 
+            order: 'asc',
+            missing: '_last'
+          } 
+        });
       } else {
-        sort.push({ createdAt: 'desc' });
+        // Default: sort by bestSellerRank ascending
+        sort.push({ 
+          bestSellerRank: { 
+            order: 'asc',
+            missing: '_last'
+          } 
+        });
       }
     }
 
