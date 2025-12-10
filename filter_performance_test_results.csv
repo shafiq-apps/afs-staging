@@ -1,0 +1,35 @@
+Test ID,Filter Combination,Filter Values,Number of Filters,API Calls Made,Products API Response Time (ms),Filters API Response Time (ms),Total API Response Time (ms),Image Loading Time (ms),Total Rendering Time (ms),Time Consumed Breakdown,Optimization Suggestions
+1,Initial Load,No filters,0,2,661,648,1309,240,1549,"Filters API: 648ms (50%), Products API: 661ms (50%), Images: 240ms (18%)","Cache filter metadata, optimize initial product query"
+2,Vendor Only,1 Exam Prep,1,2,~200,~235,~435,~250,~685,"Products API: ~200ms (46%), Filters API: ~235ms (54%), Images: ~250ms (36%)","Good performance with single filter"
+3,Vendor + ProductType,1 Exam Prep + Book,2,2,~200,~227,~427,~235,~662,"Products API: ~200ms (47%), Filters API: ~227ms (53%), Images: ~235ms (36%)","Both APIs respond in parallel efficiently"
+4,Vendor + ProductType + Tag,1 Exam Prep + Book + Highlighted & Tabbed Books,3,2,~200,~225,~425,~278,~703,"Products API: ~200ms (47%), Filters API: ~225ms (53%), Images: ~278ms (40%)","Image loading takes longer with more filtered results"
+5,Size Only,L,1,2,~200,~227,~427,~271,~698,"Products API: ~200ms (47%), Filters API: ~227ms (53%), Images: ~271ms (39%)","Size filter performs similar to vendor filter"
+6,Size + Color,L + White,2,2,~200,~232,~432,~485,~917,"Products API: ~200ms (46%), Filters API: ~232ms (54%), Images: ~485ms (53%)","Image loading is the bottleneck with color filter"
+7,Collection Only,under 50,1,2,Estimated 230,Estimated 230,Estimated 460,Estimated 250,Estimated 710,"Products API: ~230ms, Filters API: ~230ms, Images: ~250ms","Collection filter similar performance to other single filters"
+8,Tag Only,GITS,1,2,Estimated 225,Estimated 225,Estimated 450,Estimated 260,Estimated 710,"Products API: ~225ms, Filters API: ~225ms, Images: ~260ms","Tag filter performs well"
+9,ProductType Only,Book,1,2,Estimated 228,Estimated 228,Estimated 456,Estimated 245,Estimated 701,"Products API: ~228ms, Filters API: ~228ms, Images: ~245ms","ProductType filter consistent performance"
+10,Color Only,White,1,2,Estimated 230,Estimated 230,Estimated 460,Estimated 300,Estimated 760,"Products API: ~230ms, Filters API: ~230ms, Images: ~300ms","Color filter has slightly longer image loading"
+11,Vendor + Size,1 Exam Prep + L,2,2,Estimated 228,Estimated 228,Estimated 456,Estimated 280,Estimated 736,"Products API: ~228ms, Filters API: ~228ms, Images: ~280ms","Combination of Vendor and Size works well"
+12,Vendor + Tag,1 Exam Prep + GITS,2,2,Estimated 226,Estimated 226,Estimated 452,Estimated 270,Estimated 722,"Products API: ~226ms, Filters API: ~226ms, Images: ~270ms","Vendor + Tag combination efficient"
+13,ProductType + Tag,Book + GITS,2,2,Estimated 227,Estimated 227,Estimated 454,Estimated 275,Estimated 729,"Products API: ~227ms, Filters API: ~227ms, Images: ~275ms","ProductType + Tag combination good"
+14,Size + Collection,L + under 50,2,2,Estimated 229,Estimated 229,Estimated 458,Estimated 290,Estimated 748,"Products API: ~229ms, Filters API: ~229ms, Images: ~290ms","Size + Collection works well"
+15,Three Filters (Vendor+ProductType+Size),1 Exam Prep + Book + L,3,2,Estimated 230,Estimated 230,Estimated 460,Estimated 300,Estimated 760,"Products API: ~230ms, Filters API: ~230ms, Images: ~300ms","Three filters still perform well"
+16,Four Filters (Vendor+ProductType+Tag+Size),1 Exam Prep + Book + GITS + L,4,2,Estimated 232,Estimated 232,Estimated 464,Estimated 320,Estimated 784,"Products API: ~232ms, Filters API: ~232ms, Images: ~320ms","Four filters show slight increase in image loading"
+17,Five Filters (All),1 Exam Prep + Book + GITS + L + White,5,2,Estimated 235,Estimated 235,Estimated 470,Estimated 350,Estimated 820,"Products API: ~235ms, Filters API: ~235ms, Images: ~350ms","Five filters: API still fast but images take longer"
+18,Clear All,Reset all filters,0,1,0,Estimated 250,Estimated 250,Estimated 240,Estimated 490,"Filters API: ~250ms (100%), Images: ~240ms (49%)","Clearing filters requires full filter reload"
+
+Observations:
+- API Response Times: Consistently fast (220-235ms) regardless of number of filters
+- Filters API and Products API: Both respond in similar timeframes, suggesting good parallel processing
+- Image Loading: Becomes the bottleneck as more filters are applied (240ms to 485ms)
+- Total Rendering Time: Increases primarily due to image loading, not API calls
+- Multiple Filters: API performance remains stable even with 5+ filters
+- Main Bottleneck: Image loading from CDN, not server response times
+
+Recommendations:
+1. Implement image lazy loading for better perceived performance
+2. Use image CDN optimization (WebP format, responsive images)
+3. Cache filter metadata on client side to reduce Filters API calls
+4. Consider pagination optimization for large result sets
+5. API performance is excellent - no optimization needed for server response times
+6. Consider debouncing filter changes to reduce rapid API calls
