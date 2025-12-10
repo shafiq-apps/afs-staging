@@ -69,11 +69,11 @@ export function sanitizeTermsArray(terms: any, maxItems = 100, maxLength = 100):
       }
       // Remove + from rejection pattern - it's a valid character in product option values
       // Reject only truly dangerous ES query operators
-      if (/[\-=|!(){}[\]^"~*?:\\]/.test(term)) {
+      if (/[\=|!(){}[\]^"~*?:\\]/.test(term)) {
         rejectedTerms.push(term);
         logger.warn('Filter term rejected: contains dangerous ES query operators', { 
           term, 
-          rejectedChars: term.match(/[\-=|!(){}[\]^"~*?:\\]/g) 
+          rejectedChars: term.match(/[\=|!(){}[\]^"~*?:\\]/g) 
         });
         return false;
       }
