@@ -787,12 +787,12 @@ export class StorefrontSearchRepository {
 
     // Filter for ACTIVE products only
     mustQueries.push({
-      term: { 'status.keyword': 'ACTIVE' },
+      term: { 'status': 'ACTIVE' },
     });
 
     // Filter for product documentType only
     mustQueries.push({
-      term: { 'documentType.keyword': 'product' },
+      term: { 'documentType': 'product' },
     });
 
     // Hide out of stock items (from filter configuration settings)
