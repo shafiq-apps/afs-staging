@@ -18,8 +18,6 @@ export interface CacheServiceOptions extends CacheOptions {
   enableStats?: boolean; // Enable cache statistics tracking
 }
 
-import { Filter } from '@shared/filters/types';
-
 export class CacheService {
   private searchCache: CacheManager<ProductSearchResult>;
   private filterCache: CacheManager<FacetAggregations>;
