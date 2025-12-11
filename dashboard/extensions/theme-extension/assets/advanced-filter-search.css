@@ -665,8 +665,21 @@
 /* Skeleton cards use the same grid as products grid (no separate container needed) */
 /* Fixed colors - not theme-dependent to ensure visibility */
 
+/* Override theme's empty element hiding rule for skeleton elements */
+[data-afs-container] .afs-skeleton-card:empty,
+[data-afs-container] .afs-skeleton-card__image:empty,
+[data-afs-container] .afs-skeleton-card__info:empty,
+[data-afs-container] .afs-skeleton-card__title:empty,
+[data-afs-container] .afs-skeleton-card__vendor:empty,
+[data-afs-container] .afs-skeleton-card__price:empty,
+[data-afs-container] .afs-skeleton-filter-group__title:empty,
+[data-afs-container] .afs-skeleton-filter-item:empty {
+  display: block !important;
+  visibility: visible !important;
+}
+
 [data-afs-container] .afs-skeleton-card {
-  display: flex;
+  display: flex !important;
   flex-direction: column;
   background: #ffffff;
   border-radius: 4px;
@@ -689,6 +702,18 @@
   animation-iteration-count: infinite !important;
   will-change: background-position;
   flex-shrink: 0;
+  display: block !important;
+  /* Add pseudo-element to prevent being considered empty */
+  position: relative;
+}
+
+[data-afs-container] .afs-skeleton-card__image::before {
+  content: '';
+  display: block;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
 }
 
 [data-afs-container] .afs-skeleton-card__info {
@@ -715,6 +740,18 @@
   will-change: background-position;
   border-radius: 4px;
   flex-shrink: 0;
+  display: block !important;
+  /* Add pseudo-element to prevent being considered empty */
+  position: relative;
+}
+
+[data-afs-container] .afs-skeleton-card__title::before {
+  content: '';
+  display: block;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
 }
 
 [data-afs-container] .afs-skeleton-card__vendor {
@@ -732,6 +769,18 @@
   will-change: background-position;
   border-radius: 4px;
   flex-shrink: 0;
+  display: block !important;
+  /* Add pseudo-element to prevent being considered empty */
+  position: relative;
+}
+
+[data-afs-container] .afs-skeleton-card__vendor::before {
+  content: '';
+  display: block;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
 }
 
 [data-afs-container] .afs-skeleton-card__price {
@@ -749,6 +798,18 @@
   will-change: background-position;
   border-radius: 4px;
   flex-shrink: 0;
+  display: block !important;
+  /* Add pseudo-element to prevent being considered empty */
+  position: relative;
+}
+
+[data-afs-container] .afs-skeleton-card__price::before {
+  content: '';
+  display: block;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
 }
 
 /* Scoped keyframes to prevent theme conflicts */
@@ -806,6 +867,18 @@
   will-change: background-position;
   border-radius: 4px;
   flex-shrink: 0;
+  display: block !important;
+  /* Add pseudo-element to prevent being considered empty */
+  position: relative;
+}
+
+[data-afs-container] .afs-skeleton-filter-group__title::before {
+  content: '';
+  display: block;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
 }
 
 [data-afs-container] .afs-skeleton-filter-group__content {
@@ -830,6 +903,18 @@
   will-change: background-position;
   border-radius: 4px;
   flex-shrink: 0;
+  display: block !important;
+  /* Add pseudo-element to prevent being considered empty */
+  position: relative;
+}
+
+[data-afs-container] .afs-skeleton-filter-item::before {
+  content: '';
+  display: block;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
 }
 
 /* ============================================================================

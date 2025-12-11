@@ -1190,12 +1190,13 @@
         const skeletonCards = [];
         for (let i = 0; i < skeletonCount; i++) {
           const skeletonCard = $.el('div', 'afs-skeleton-card');
+          // Add non-breaking space to prevent theme from hiding empty elements
           skeletonCard.innerHTML = `
-            <div class="afs-skeleton-card__image"></div>
+            <div class="afs-skeleton-card__image">&#8203;</div>
             <div class="afs-skeleton-card__info">
-              <div class="afs-skeleton-card__title"></div>
-              <div class="afs-skeleton-card__title" style="width: 60%;"></div>
-              <div class="afs-skeleton-card__price"></div>
+              <div class="afs-skeleton-card__title">&#8203;</div>
+              <div class="afs-skeleton-card__title" style="width: 60%;">&#8203;</div>
+              <div class="afs-skeleton-card__price">&#8203;</div>
             </div>
           `;
           skeletonCards.push(skeletonCard);
@@ -1226,15 +1227,16 @@
       // Create 3-4 skeleton filter groups
       for (let i = 0; i < 4; i++) {
         const skeletonGroup = $.el('div', 'afs-skeleton-filter-group');
+        // Add zero-width space (&#8203;) to prevent theme from hiding empty elements
         skeletonGroup.innerHTML = `
           <div class="afs-skeleton-filter-group__header">
-            <div class="afs-skeleton-filter-group__title"></div>
+            <div class="afs-skeleton-filter-group__title">&#8203;</div>
           </div>
           <div class="afs-skeleton-filter-group__content">
-            <div class="afs-skeleton-filter-item"></div>
-            <div class="afs-skeleton-filter-item"></div>
-            <div class="afs-skeleton-filter-item" style="width: 70%;"></div>
-            <div class="afs-skeleton-filter-item" style="width: 85%;"></div>
+            <div class="afs-skeleton-filter-item">&#8203;</div>
+            <div class="afs-skeleton-filter-item">&#8203;</div>
+            <div class="afs-skeleton-filter-item" style="width: 70%;">&#8203;</div>
+            <div class="afs-skeleton-filter-item" style="width: 85%;">&#8203;</div>
           </div>
         `;
         filtersSkeleton.appendChild(skeletonGroup);
