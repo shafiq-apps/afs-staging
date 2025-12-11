@@ -836,21 +836,42 @@ export class StorefrontSearchRepository {
           } 
         });
       } 
-      // Handle price-based sorting
+      // Handle new format: title-ascending, title-descending
+      else if (sortParam === 'title-ascending') {
+        sort.push({ 'title.keyword': 'asc' });
+      }
+      else if (sortParam === 'title-descending') {
+        sort.push({ 'title.keyword': 'desc' });
+      }
+      // Handle new format: price-ascending, price-descending
+      else if (sortParam === 'price-ascending') {
+        sort.push({ minPrice: 'asc' });
+      }
+      else if (sortParam === 'price-descending') {
+        sort.push({ maxPrice: 'desc' });
+      }
+      // Handle new format: created-ascending, created-descending
+      else if (sortParam === 'created-ascending') {
+        sort.push({ createdAt: 'asc' });
+      }
+      else if (sortParam === 'created-descending') {
+        sort.push({ createdAt: 'desc' });
+      }
+      // Handle legacy price-based sorting (backward compatibility)
       else if (sortParam === 'price:asc' || sortParam === 'price-asc' || sortParam === 'price_low_to_high') {
         sort.push({ minPrice: 'asc' });
       } 
       else if (sortParam === 'price:desc' || sortParam === 'price-desc' || sortParam === 'price_high_to_low') {
         sort.push({ maxPrice: 'desc' });
       }
-      // Handle createdAt-based sorting (newest/oldest)
+      // Handle legacy createdAt-based sorting (backward compatibility)
       else if (sortParam === 'created:desc' || sortParam === 'created-desc' || sortParam === 'newest') {
         sort.push({ createdAt: 'desc' });
       }
       else if (sortParam === 'created:asc' || sortParam === 'created-asc' || sortParam === 'oldest') {
         sort.push({ createdAt: 'asc' });
       }
-      // Handle title-based sorting (use keyword field for text fields)
+      // Handle legacy title-based sorting (backward compatibility)
       else if (sortParam === 'title:asc' || sortParam === 'title-asc' || sortParam === 'name_asc') {
         sort.push({ 'title.keyword': 'asc' });
       }

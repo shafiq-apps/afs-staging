@@ -116,7 +116,11 @@
     // Metadata maps (for display only, not for state management)
     filterMetadata: new Map(), // handle -> { label, type, queryKey, optionKey }
     // Preserve filter keys for maintaining filter aggregations
-    preserveFilters: null // null, array of strings, or '__all__'
+    preserveFilters: null, // null, array of strings, or '__all__'
+    // Fallback products from Liquid (to prevent blank screen when API fails)
+    fallbackProducts: [],
+    // Flag to track if we're using fallback mode (API failed)
+    usingFallback: false
   };
 
   // ============================================================================
@@ -165,11 +169,17 @@
         else if (key === 'page') params.page = parseInt(value, 10) || 1;
         else if (key === 'limit') params.limit = parseInt(value, 10) || C.PAGE_SIZE;
         else if (key === 'sort') {
-          // Handle sort parameter - can be "best-selling", "price:asc", "createdAt:desc", etc.
+          // Handle sort parameter - can be "best-selling", "title-ascending", "price:asc", etc.
           const sortValue = value.toLowerCase().trim();
           if (sortValue === 'best-selling' || sortValue === 'bestselling') {
             params.sort = { field: 'best-selling', order: 'asc' };
+          } else if (sortValue.includes('-')) {
+            // New format: "field-direction" (e.g., "title-ascending")
+            const [field, direction] = sortValue.split('-');
+            const order = direction === 'ascending' ? 'asc' : direction === 'descending' ? 'desc' : 'desc';
+            params.sort = { field, order };
           } else {
+            // Legacy format: "field:order" (backward compatibility)
             const [field, order] = value.split(':');
             params.sort = { field, order: order || 'desc' };
           }
@@ -231,7 +241,9 @@
         if (sort.field === 'best-selling' || sort.field === 'bestselling') {
           url.searchParams.set('sort', 'best-selling');
         } else {
-          url.searchParams.set('sort', `${sort.field}:${sort.order || 'desc'}`);
+          // Convert to new format: "field-direction" (e.g., "title-ascending")
+          const direction = sort.order === 'asc' ? 'ascending' : 'descending';
+          url.searchParams.set('sort', `${sort.field}-${direction}`);
         }
         Log.debug('Sort URL param set', { field: sort.field, order: sort.order });
       }
@@ -362,7 +374,9 @@
         if (sort.field === 'best-selling' || sort.field === 'bestselling') {
           params.set('sort', 'best-selling');
         } else {
-          params.set('sort', `${sort.field}:${sort.order}`);
+          // Convert to new format: "field-direction" (e.g., "title-ascending")
+          const direction = sort.order === 'asc' ? 'ascending' : 'descending';
+          params.set('sort', `${sort.field}-${direction}`);
         }
       }
       
@@ -493,12 +507,12 @@
       this.sortSelect = $.el('select', 'afs-sort-select', { 'data-afs-sort': 'true' });
       this.sortSelect.innerHTML = `
         <option value="best-selling">Best Selling</option>
-        <option value="createdAt:desc">Newest First</option>
-        <option value="createdAt:asc">Oldest First</option>
-        <option value="title:asc">Name (A-Z)</option>
-        <option value="title:desc">Name (Z-A)</option>
-        <option value="price:asc">Price (Low to High)</option>
-        <option value="price:desc">Price (High to Low)</option>
+        <option value="title-ascending">Name (A-Z)</option>
+        <option value="title-descending">Name (Z-A)</option>
+        <option value="price-ascending">Price (Low to High)</option>
+        <option value="price-descending">Price (High to Low)</option>
+        <option value="created-ascending">Oldest First</option>
+        <option value="created-descending">Newest First</option>
       `;
       this.sortContainer.appendChild(sortLabel);
       this.sortContainer.appendChild(this.sortSelect);
@@ -1104,7 +1118,31 @@
       // Remove loading if present
       this.hideLoading();
       
-      // Clear existing error
+      // Check if we have fallback products to show instead of error
+      if (State.fallbackProducts && State.fallbackProducts.length > 0) {
+        Log.warn('API error occurred, using fallback products from Liquid', { 
+          error: message, 
+          fallbackCount: State.fallbackProducts.length 
+        });
+        
+        // Use fallback products
+        State.products = State.fallbackProducts;
+        State.pagination = {
+          page: 1,
+          limit: C.PAGE_SIZE,
+          total: State.fallbackProducts.length,
+          totalPages: Math.ceil(State.fallbackProducts.length / C.PAGE_SIZE)
+        };
+        
+        // Render fallback products
+        this.renderProducts(State.products);
+        this.renderInfo(State.pagination, State.pagination.total);
+        this.renderPagination(State.pagination);
+        
+        return;
+      }
+      
+      // No fallback available, show error
       const existingError = this.productsContainer.querySelector('.afs-error-message');
       if (existingError) existingError.remove();
       
@@ -1120,6 +1158,51 @@
       }
       
       Log.error('Error displayed', { message });
+    }
+  };
+
+  // ============================================================================
+  // FALLBACK MODE HELPER (Page reload for Liquid products)
+  // ============================================================================
+  
+  const FallbackMode = {
+    // Reload page with updated URL parameters for sort/pagination
+    reloadPage(filters, pagination, sort) {
+      const url = new URL(window.location);
+      url.search = '';
+      
+      // Add sort parameter
+      if (sort && sort.field) {
+        if (sort.field === 'best-selling' || sort.field === 'bestselling') {
+          url.searchParams.set('sort', 'best-selling');
+        } else {
+          // Convert to new format: "field-direction" (e.g., "title-ascending")
+          const direction = sort.order === 'asc' ? 'ascending' : 'descending';
+          url.searchParams.set('sort', `${sort.field}-${direction}`);
+        }
+      }
+      
+      // Add page parameter
+      if (pagination && pagination.page > 1) {
+        url.searchParams.set('page', pagination.page);
+      }
+      
+      // Preserve any existing filter parameters (they'll be handled by Liquid)
+      Object.keys(filters || {}).forEach(key => {
+        const value = filters[key];
+        if ($.empty(value)) return;
+        
+        if (Array.isArray(value) && value.length > 0) {
+          url.searchParams.set(key, value.join(','));
+        } else if (key === 'priceRange' && value && typeof value === 'object' && value.min !== undefined && value.max !== undefined) {
+          url.searchParams.set('priceRange', `${value.min}-${value.max}`);
+        } else if (key === 'search' && typeof value === 'string' && value.trim()) {
+          url.searchParams.set(key, value.trim());
+        }
+      });
+      
+      Log.info('Reloading page for fallback mode', { url: url.toString(), sort, pagination });
+      window.location.href = url.toString();
     }
   };
 
@@ -1189,7 +1272,15 @@
     
     // Apply products only (for sort/pagination changes - no filter update needed)
     applyProductsOnly: $.debounce(async () => {
-      Log.info('applyProductsOnly called', { filters: State.filters, pagination: State.pagination, sort: State.sort });
+      Log.info('applyProductsOnly called', { filters: State.filters, pagination: State.pagination, sort: State.sort, usingFallback: State.usingFallback });
+      
+      // If in fallback mode, reload page with new URL parameters
+      if (State.usingFallback) {
+        Log.info('In fallback mode, reloading page with new parameters');
+        FallbackMode.reloadPage(State.filters, State.pagination, State.sort);
+        return;
+      }
+      
       // Scroll to top when products are being fetched
       DOM.scrollToProducts();
       DOM.showLoading();
@@ -1199,6 +1290,7 @@
         Log.info('Products fetched successfully', { count: data.products?.length || 0 });
         State.products = data.products || [];
         State.pagination = data.pagination || State.pagination;
+        State.usingFallback = false; // Reset fallback flag on success
         
         DOM.renderProducts(State.products);
         DOM.renderInfo(State.pagination, State.pagination.total || 0);
@@ -1208,7 +1300,30 @@
       } catch (e) {
         DOM.hideLoading();
         Log.error('Failed to load products', e);
-        DOM.showError(`Failed to load products: ${e.message || 'Unknown error'}`);
+        
+        // Try to use fallback products if available
+        if (State.fallbackProducts && State.fallbackProducts.length > 0) {
+          Log.warn('Products API failed, using fallback products from Liquid', { 
+            error: e.message, 
+            fallbackCount: State.fallbackProducts.length 
+          });
+          
+          State.usingFallback = true; // Set fallback flag
+          State.products = State.fallbackProducts;
+          State.pagination = {
+            page: 1,
+            limit: C.PAGE_SIZE,
+            total: State.fallbackProducts.length,
+            totalPages: Math.ceil(State.fallbackProducts.length / C.PAGE_SIZE)
+          };
+          
+          DOM.renderProducts(State.products);
+          DOM.renderInfo(State.pagination, State.pagination.total);
+          DOM.renderPagination(State.pagination);
+          
+        } else {
+          DOM.showError(`Failed to load products: ${e.message || 'Unknown error'}`);
+        }
       }
     }, C.DEBOUNCE),
     
@@ -1244,7 +1359,30 @@
       } catch (e) {
         DOM.hideLoading();
         Log.error('Failed to apply filters', e);
-        DOM.showError(`Failed to load products: ${e.message || 'Unknown error'}`);
+        
+        // Try to use fallback products if available
+        if (State.fallbackProducts && State.fallbackProducts.length > 0) {
+          Log.warn('Filters API failed, using fallback products from Liquid', { 
+            error: e.message, 
+            fallbackCount: State.fallbackProducts.length 
+          });
+          
+          State.products = State.fallbackProducts;
+          State.pagination = {
+            page: 1,
+            limit: C.PAGE_SIZE,
+            total: State.fallbackProducts.length,
+            totalPages: Math.ceil(State.fallbackProducts.length / C.PAGE_SIZE)
+          };
+          
+          DOM.renderProducts(State.products);
+          DOM.renderInfo(State.pagination, State.pagination.total);
+          DOM.renderPagination(State.pagination);
+          DOM.renderApplied(State.filters);
+          
+        } else {
+          DOM.showError(`Failed to load products: ${e.message || 'Unknown error'}`);
+        }
       }
     }, C.DEBOUNCE)
   };
@@ -1361,10 +1499,17 @@
         Log.info('Sort dropdown changed', { sortValue, currentSort: State.sort });
         
         // Calculate new sort state
+        // New format: "title-ascending", "price-descending", etc.
         let newSort;
         if (sortValue === 'best-selling' || sortValue === 'bestselling') {
           newSort = { field: 'best-selling', order: 'asc' };
+        } else if (sortValue.includes('-')) {
+          // New format: "field-direction" (e.g., "title-ascending")
+          const [field, direction] = sortValue.split('-');
+          const order = direction === 'ascending' ? 'asc' : direction === 'descending' ? 'desc' : 'desc';
+          newSort = { field, order };
         } else {
+          // Legacy format: "field:order" (backward compatibility)
           const [field, order] = sortValue.split(':');
           newSort = { field, order: order || 'desc' };
         }
@@ -1410,9 +1555,14 @@
             // Small delay to ensure change event has a chance to fire first
             setTimeout(() => {
               // Double-check: if value still doesn't match state, trigger change
-              const currentSortValue = State.sort.field === 'best-selling' || State.sort.field === 'bestselling' 
-                ? 'best-selling' 
-                : `${State.sort.field}:${State.sort.order}`;
+              let currentSortValue;
+              if (State.sort.field === 'best-selling' || State.sort.field === 'bestselling') {
+                currentSortValue = 'best-selling';
+              } else {
+                // Convert to new format: "field-direction" (e.g., "title-ascending")
+                const direction = State.sort.order === 'asc' ? 'ascending' : 'descending';
+                currentSortValue = `${State.sort.field}-${direction}`;
+              }
               
               if (currentValue !== currentSortValue) {
                 handleSortChange(select);
@@ -1474,7 +1624,13 @@
             const normalized = sortValue.toLowerCase().trim();
             if (normalized === 'best-selling' || normalized === 'bestselling') {
               State.sort = { field: 'best-selling', order: 'asc' };
+            } else if (normalized.includes('-')) {
+              // New format: "field-direction" (e.g., "title-ascending")
+              const [field, direction] = normalized.split('-');
+              const order = direction === 'ascending' ? 'asc' : direction === 'descending' ? 'desc' : 'desc';
+              State.sort = { field, order };
             } else {
+              // Legacy format: "field:order" (backward compatibility)
               const [field, order] = sortValue.split(':');
               State.sort = { field, order: order || 'desc' };
             }
@@ -1525,6 +1681,12 @@
         State.collections = config.collections;
         State.selectedCollection = config.selectedCollection;
         
+        // Store fallback products from Liquid
+        if (config.fallbackProducts && Array.isArray(config.fallbackProducts) && config.fallbackProducts.length > 0) {
+          State.fallbackProducts = config.fallbackProducts;
+          Log.info('Fallback products loaded from Liquid', { count: State.fallbackProducts.length });
+        }
+        
         // Initialize preserveFilters from config if provided
         if (config.preserveFilters !== undefined) {
           if (config.preserveFilters === '__all__' || config.preserveFilters === '__ALL__') {
@@ -1562,9 +1724,15 @@
       DOM.showLoading();
       try {
         Log.info('Loading filters...', { shop: State.shop, filters: State.filters });
-        const filtersData = await API.filters(State.filters);
-        Log.enabled = true;
-        Log.info('Filters loaded', { filtersCount: filtersData.filters || 0 });
+        let filtersData;
+        try {
+          filtersData = await API.filters(State.filters);
+          Log.enabled = true;
+          Log.info('Filters loaded', { filtersCount: filtersData.filters || 0 });
+        } catch (filterError) {
+          Log.warn('Failed to load filters, continuing with empty filters', { error: filterError.message });
+          filtersData = { filters: [] };
+        }
         
         Log.enabled = false;
         // Validate filters is an array
@@ -1642,8 +1810,29 @@
         const productsData = await API.products(State.filters, State.pagination, State.sort);
         Log.info('Products loaded', { count: productsData.products?.length || 0, total: productsData.pagination?.total || 0 });
         
-        State.products = productsData.products || [];
-        State.pagination = productsData.pagination || State.pagination;
+        // Check if API returned no products or empty response
+        const hasProducts = productsData.products && Array.isArray(productsData.products) && productsData.products.length > 0;
+        const hasFilters = State.availableFilters && Array.isArray(State.availableFilters) && State.availableFilters.length > 0;
+        
+        if (!hasProducts && State.fallbackProducts && State.fallbackProducts.length > 0) {
+          Log.warn('API returned no products, using fallback products from Liquid', { 
+            apiProductsCount: productsData.products?.length || 0,
+            fallbackCount: State.fallbackProducts.length 
+          });
+          
+          State.usingFallback = true; // Set fallback flag
+          State.products = State.fallbackProducts;
+          State.pagination = {
+            page: 1,
+            limit: C.PAGE_SIZE,
+            total: State.fallbackProducts.length,
+            totalPages: Math.ceil(State.fallbackProducts.length / C.PAGE_SIZE)
+          };
+        } else {
+          State.usingFallback = false; // Reset fallback flag on success
+          State.products = productsData.products || [];
+          State.pagination = productsData.pagination || State.pagination;
+        }
         
         DOM.renderProducts(State.products);
         DOM.renderInfo(State.pagination, State.pagination.total || 0);
@@ -1656,20 +1845,45 @@
           if (State.sort.field === 'best-selling' || State.sort.field === 'bestselling') {
             DOM.sortSelect.value = 'best-selling';
           } else {
-            DOM.sortSelect.value = `${State.sort.field}:${State.sort.order}`;
+            // Convert to new format: "field-direction" (e.g., "title-ascending")
+            const direction = State.sort.order === 'asc' ? 'ascending' : 'descending';
+            DOM.sortSelect.value = `${State.sort.field}-${direction}`;
           }
           Log.debug('Sort select value updated programmatically', { value: DOM.sortSelect.value, sort: State.sort });
         }
         
         DOM.hideLoading();
         
-        if (State.products.length === 0 && State.availableFilters.length === 0) {
+        if (State.products.length === 0 && !hasFilters && (!State.fallbackProducts || State.fallbackProducts.length === 0)) {
           DOM.showError('No products or filters found. Please check your configuration.');
         }
       } catch (e) {
         DOM.hideLoading();
         Log.error('Load failed', { error: e.message, stack: e.stack, shop: State.shop, apiBaseURL: API.baseURL });
-        DOM.showError(`Failed to load: ${e.message || 'Unknown error'}. Check console for details.`);
+        
+        // Try to use fallback products if available
+        if (State.fallbackProducts && State.fallbackProducts.length > 0) {
+          Log.warn('Initial load failed, using fallback products from Liquid', { 
+            error: e.message, 
+            fallbackCount: State.fallbackProducts.length 
+          });
+          
+          State.usingFallback = true; // Set fallback flag
+          State.products = State.fallbackProducts;
+          State.pagination = {
+            page: 1,
+            limit: C.PAGE_SIZE,
+            total: State.fallbackProducts.length,
+            totalPages: Math.ceil(State.fallbackProducts.length / C.PAGE_SIZE)
+          };
+          
+          DOM.renderProducts(State.products);
+          DOM.renderInfo(State.pagination, State.pagination.total);
+          DOM.renderPagination(State.pagination);
+          
+        } else {
+          DOM.showError(`Failed to load: ${e.message || 'Unknown error'}. Check console for details.`);
+        }
       }
     },
     
