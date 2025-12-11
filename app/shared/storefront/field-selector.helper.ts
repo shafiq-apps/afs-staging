@@ -13,10 +13,14 @@ import { shopifyProduct, StorefrontProduct } from './types';
  */
 export const DEFAULT_STOREFRONT_FIELDS = [
   'id',
+  'productId',
   'title',
-  'imageUrl',      // Primary image URL
-  'imagesUrls',    // Array of all image URLs
-  'collections',   // Collection IDs for filtering
+  'imageUrl',
+  'imagesUrls',
+  'vendor',
+  'minPrice',
+  'maxPrice',
+  'bestSellerRank'
 ] as const;
 
 /**
