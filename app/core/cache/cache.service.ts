@@ -7,20 +7,26 @@ import { CacheManager, CacheOptions } from './cache.manager';
 import { generateSearchCacheKey, generateFilterCacheKey, generateCacheKeyPattern, matchesPattern } from './cache.key';
 import { ProductSearchInput, ProductSearchResult, FacetAggregations, ProductFilterInput } from '@shared/storefront/types';
 import { createModuleLogger } from '@shared/utils/logger.util';
+import { Filter } from '@shared/filters/types';
 
 const logger = createModuleLogger('cache-service', {disabled: true});
 
 export interface CacheServiceOptions extends CacheOptions {
   searchTTL?: number; // TTL for search results (default: 5 minutes)
   filterTTL?: number; // TTL for filter results (default: 10 minutes)
+  filterListTTL?: number; // TTL for filter list results (default: 10 minutes)
   enableStats?: boolean; // Enable cache statistics tracking
 }
+
+import { Filter } from '@shared/filters/types';
 
 export class CacheService {
   private searchCache: CacheManager<ProductSearchResult>;
   private filterCache: CacheManager<FacetAggregations>;
+  private filterListCache: CacheManager<{ filters: Filter[]; total: number }>;
   private readonly searchTTL: number;
   private readonly filterTTL: number;
+  private readonly filterListTTL: number;
   private readonly enableStats: boolean;
 
   // Statistics
@@ -28,6 +34,8 @@ export class CacheService {
   private searchMisses = 0;
   private filterHits = 0;
   private filterMisses = 0;
+  private filterListHits = 0;
+  private filterListMisses = 0;
 
   constructor(options: CacheServiceOptions = {}) {
     const cacheOptions: CacheOptions = {
@@ -38,15 +46,97 @@ export class CacheService {
 
     this.searchCache = new CacheManager<ProductSearchResult>(cacheOptions);
     this.filterCache = new CacheManager<FacetAggregations>(cacheOptions);
+    this.filterListCache = new CacheManager<{ filters: Filter[]; total: number }>(cacheOptions);
     this.searchTTL = options.searchTTL || parseInt(process.env.CACHE_SEARCH_TTL || '300000'); // 5 minutes
     this.filterTTL = options.filterTTL || parseInt(process.env.CACHE_FILTER_TTL || '600000'); // 10 minutes
+    this.filterListTTL = options.filterListTTL || parseInt(process.env.CACHE_FILTER_LIST_TTL || '600000'); // 10 minutes
     this.enableStats = options.enableStats !== false;
 
     logger.info('Cache service initialized', {
       searchTTL: this.searchTTL,
       filterTTL: this.filterTTL,
+      filterListTTL: this.filterListTTL,
       enableStats: this.enableStats,
     });
+  }
+
+  /**
+   * Get cached filter list for a shop
+   * Caches based on shop + cpid (collection page ID) for optimal performance
+   */
+  getFilterList(shopDomain: string, cpid?: string): { filters: Filter[]; total: number } | null {
+    const key = this.generateFilterListCacheKey(shopDomain, cpid);
+    const result = this.filterListCache.get(key);
+
+    if (result) {
+      if (this.enableStats) {
+        this.filterListHits++;
+      }
+      logger.info('Filter list cache hit', { key, shopDomain, cpid: cpid || 'none' });
+      return result;
+    }
+
+    if (this.enableStats) {
+      this.filterListMisses++;
+    }
+    logger.info('Filter list cache miss', { key, shopDomain, cpid: cpid || 'none' });
+    return null;
+  }
+
+  /**
+   * Set cached filter list for a shop
+   */
+  setFilterList(
+    shopDomain: string,
+    data: { filters: Filter[]; total: number },
+    ttl?: number,
+    cpid?: string
+  ): void {
+    const key = this.generateFilterListCacheKey(shopDomain, cpid);
+    this.filterListCache.set(key, data, ttl || this.filterListTTL);
+    logger.info('Filter list cached', { key, shopDomain, cpid: cpid || 'none', filterCount: data.filters.length });
+  }
+
+  /**
+   * Generate cache key for filter list
+   * Key format: filter-list:shopDomain:cpid:hash
+   * If cpid is not provided, uses 'all' as placeholder
+   */
+  private generateFilterListCacheKey(shopDomain: string, cpid?: string): string {
+    // Normalize cpid: extract numeric ID if it's in GID format
+    const normalizedCpid = cpid 
+      ? (cpid.startsWith('gid://') ? cpid.split('/').pop() || cpid : cpid)
+      : 'all';
+    
+    return `filter-list:${shopDomain}:cpid:${normalizedCpid}`;
+  }
+
+  /**
+   * Invalidate filter list cache for a shop
+   * Optionally invalidate only for a specific cpid
+   */
+  invalidateFilterList(shopDomain: string, cpid?: string): void {
+    if (cpid) {
+      // Invalidate specific cpid cache
+      const key = this.generateFilterListCacheKey(shopDomain, cpid);
+      const deleted = this.filterListCache.delete(key);
+      if (deleted) {
+        logger.info('Filter list cache invalidated for specific cpid', { key, shopDomain, cpid });
+      }
+    } else {
+      // Invalidate all filter list caches for this shop
+      const pattern = `filter-list:${shopDomain}:cpid:*`;
+      let invalidated = 0;
+      for (const key of this.filterListCache.keys()) {
+        if (matchesPattern(key, pattern)) {
+          this.filterListCache.delete(key);
+          invalidated++;
+        }
+      }
+      if (invalidated > 0) {
+        logger.info('Filter list cache invalidated for shop', { shopDomain, invalidated });
+      }
+    }
   }
 
   /**
@@ -132,6 +222,7 @@ export class CacheService {
 
     let searchInvalidated = 0;
     let filterInvalidated = 0;
+    let filterListInvalidated = 0;
 
     // Invalidate search cache
     for (const key of this.searchCache.keys()) {
@@ -149,10 +240,21 @@ export class CacheService {
       }
     }
 
+    // Invalidate filter list cache
+    this.invalidateFilterList(shopDomain);
+    const filterListPattern = `filter-list:${shopDomain}:cpid:*`;
+    for (const key of this.filterListCache.keys()) {
+      if (matchesPattern(key, filterListPattern)) {
+        this.filterListCache.delete(key);
+        filterListInvalidated++;
+      }
+    }
+
     logger.info('Shop cache invalidated', {
       shopDomain,
       searchInvalidated,
       filterInvalidated,
+      filterListInvalidated,
     });
   }
 
@@ -184,6 +286,7 @@ export class CacheService {
   clear(): void {
     this.searchCache.clear();
     this.filterCache.clear();
+    this.filterListCache.clear();
     this.resetStats();
     logger.info('All cache cleared');
   }
@@ -194,6 +297,7 @@ export class CacheService {
   getStats() {
     const searchStats = this.searchCache.getStats();
     const filterStats = this.filterCache.getStats();
+    const filterListStats = this.filterListCache.getStats();
 
     const stats = {
       search: {
@@ -208,13 +312,19 @@ export class CacheService {
         misses: this.filterMisses,
         hitRate: this.calculateHitRate(this.filterHits, this.filterMisses),
       },
+      filterList: {
+        ...filterListStats,
+        hits: this.filterListHits,
+        misses: this.filterListMisses,
+        hitRate: this.calculateHitRate(this.filterListHits, this.filterListMisses),
+      },
       total: {
-        size: searchStats.size + filterStats.size,
-        hits: this.searchHits + this.filterHits,
-        misses: this.searchMisses + this.filterMisses,
+        size: searchStats.size + filterStats.size + filterListStats.size,
+        hits: this.searchHits + this.filterHits + this.filterListHits,
+        misses: this.searchMisses + this.filterMisses + this.filterListMisses,
         hitRate: this.calculateHitRate(
-          this.searchHits + this.filterHits,
-          this.searchMisses + this.filterMisses
+          this.searchHits + this.filterHits + this.filterListHits,
+          this.searchMisses + this.filterMisses + this.filterListMisses
         ),
       },
     };
@@ -230,6 +340,8 @@ export class CacheService {
     this.searchMisses = 0;
     this.filterHits = 0;
     this.filterMisses = 0;
+    this.filterListHits = 0;
+    this.filterListMisses = 0;
     logger.info('Cache statistics reset');
   }
 

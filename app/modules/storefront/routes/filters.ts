@@ -51,7 +51,9 @@ export const GET = handler(async (req: HttpRequest) => {
   if (filtersRepository) {
     // Extract collection ID from query params or filter input for priority matching
     const collectionId = (req.query.collection as string) || filterInput?.collections?.[0];
-    filterConfig = await getActiveFilterConfig(filtersRepository, shopParam, collectionId);
+    // Extract cpid (collection page ID) for cache key generation
+    const cpid = typeof req.query.cpid === 'string' ? req.query.cpid.trim() : filterInput?.cpid;
+    filterConfig = await getActiveFilterConfig(filtersRepository, shopParam, collectionId, cpid);
 
     if (filterConfig) {
       logger.log('Active filter configuration found', {

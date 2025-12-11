@@ -189,12 +189,46 @@ export class FiltersRepository {
    * List all filters for a shop
    * Filters by shop field in single index for all shops
    * Uses must with term query for exact shop matching
+   * 
+   * Caching: Results are cached based on shop + cpid (collection page ID)
+   * If cpid changes and there are multiple filters, cache is invalidated and rechecked
+   * 
+   * @param shop - Shop domain
+   * @param cpid - Optional collection page ID for cache key generation
    */
-  async listFilters(shop: string): Promise<{ filters: Filter[]; total: number }> {
+  async listFilters(shop: string, cpid?: string): Promise<{ filters: Filter[]; total: number }> {
     try {
+      const cacheService = getCacheService();
+      
+      // Try to get from cache first
+      const cached = cacheService.getFilterList(shop, cpid);
+      if (cached) {
+        logger.log('Filter list cache hit', { shop, cpid: cpid || 'none', count: cached.filters.length });
+        return cached;
+      }
+
+      // If cpid is provided, check if we have a cached result for 'all' (no cpid)
+      // If there's only 1 filter, we can reuse that cache regardless of cpid
+      if (cpid) {
+        const cachedAll = cacheService.getFilterList(shop);
+        if (cachedAll && cachedAll.filters.length === 1) {
+          // Only one filter exists, cache is valid for all cpids
+          logger.log('Reusing single filter cache for different cpid', { 
+            shop, 
+            cpid, 
+            filterId: cachedAll.filters[0].id 
+          });
+          // Cache this result for the specific cpid too
+          cacheService.setFilterList(shop, cachedAll, undefined, cpid);
+          return cachedAll;
+        }
+        // If there are multiple filters and cpid changed, we need to recheck
+        // (cache miss will trigger ES query below)
+      }
+
       const index = FILTERS_INDEX_NAME;
       
-      logger.log('Listing filters for shop', { shop, index });
+      logger.log('Listing filters for shop', { shop, index, cpid: cpid || 'none' });
       
       // Use must with term query for exact shop matching
       // Try both shop.keyword (if keyword subfield exists) and shop (direct keyword field)
@@ -246,10 +280,25 @@ export class FiltersRepository {
         total,
         sampleIds: filters.slice(0, 3).map(f => f.id),
         sampleShops,
-        queryShop: shop
+        queryShop: shop,
+        cpid: cpid || 'none'
       });
       
-      return { filters, total };
+      const result = { filters, total };
+      
+      // Cache the result based on shop + cpid
+      // If there are multiple filters and cpid is provided, we cache it
+      // If cpid changes later, the cache will be invalidated and rechecked
+      cacheService.setFilterList(shop, result, undefined, cpid);
+      
+      // If there's only 1 filter, also cache it without cpid (for 'all')
+      // This allows reusing the cache when cpid changes but there's only one filter
+      if (filters.length === 1) {
+        cacheService.setFilterList(shop, result, undefined);
+        logger.log('Single filter cached for all cpids', { shop, filterId: filters[0].id });
+      }
+      
+      return result;
     } catch (error: any) {
       if (error.statusCode === 404) {
         // Index doesn't exist yet, return empty

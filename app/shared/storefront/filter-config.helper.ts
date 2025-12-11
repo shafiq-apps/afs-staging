@@ -82,16 +82,19 @@ function deriveVariantOptionKey(option: Filter['options'][number]): string | nul
  * @returns The selected filter configuration or null
  */
 export interface FilterConfigRepository {
-  listFilters(shop: string): Promise<{ filters: Filter[] }>;
+  listFilters(shop: string, cpid?: string): Promise<{ filters: Filter[] }>;
 }
 
 export async function getActiveFilterConfig(
   filtersRepository: FilterConfigRepository,
   shop: string,
-  collectionId?: string
+  collectionId?: string,
+  cpid?: string
 ): Promise<Filter | null> {
   try {
-    const { filters } = await filtersRepository.listFilters(shop);
+    // Pass cpid to listFilters for cache key generation
+    // If cpid changes and there are multiple filters, cache will be invalidated
+    const { filters } = await filtersRepository.listFilters(shop, cpid);
     
     // Filter to only published filters with supported deployment channels
     const publishedFilters = (filters || []).filter(
