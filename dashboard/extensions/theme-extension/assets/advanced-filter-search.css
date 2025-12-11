@@ -565,6 +565,9 @@
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 20px;
   align-content: start;
+  /* Ensure grid items maintain consistent sizing */
+  grid-auto-rows: min-content; /* Prevent rows from stretching */
+  align-items: start; /* Align items to start to prevent stretching */
 }
 
 /* Responsive grid */
@@ -572,11 +575,21 @@
   [data-afs-container] .afs-products-grid {
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   }
+  
+  [data-afs-container] .afs-product-card__image {
+    /* Keep consistent square ratio on tablets */
+    padding-top: 100%;
+  }
 }
 
 @media (min-width: 1024px) {
   [data-afs-container] .afs-products-grid {
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  }
+  
+  [data-afs-container] .afs-product-card__image {
+    /* Keep consistent square ratio on desktop */
+    padding-top: 100%;
   }
 }
 
@@ -592,6 +605,10 @@
   overflow: hidden;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   cursor: pointer;
+  /* Ensure consistent height and prevent grid breakage */
+  min-height: 0;
+  height: 100%;
+  align-self: start; /* Align to start to prevent stretching */
 }
 
 [data-afs-container] .afs-product-card:hover {
@@ -601,20 +618,46 @@
 
 [data-afs-container] .afs-product-card__image {
   width: 100%;
-  padding-top: 100%; /* 1:1 aspect ratio */
+  /* Use a reasonable aspect ratio that works for most product images */
+  padding-top: 100%; /* 1:1 square - provides consistent container size */
   position: relative;
   background: var(--afs-bg-secondary, #f5f5f5);
   overflow: hidden;
+  /* Ensure container never exceeds bounds */
+  min-height: 0;
+  flex-shrink: 0; /* Prevent image container from shrinking */
+  /* Optimize rendering performance */
+  contain: layout style paint;
+  content-visibility: auto;
 }
 
 [data-afs-container] .afs-product-card__image img {
   position: absolute;
   top: 0;
   left: 0;
+  /* Use contain instead of cover to show full image without cropping or stretching */
+  object-fit: contain; /* Shows entire image, maintains aspect ratio, no cropping */
+  object-position: center center; /* Center the image within container */
+  /* Fill container but let object-fit handle aspect ratio */
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  max-width: 100%;
+  max-height: 100%;
+  /* Prevent image from breaking out of container */
+  min-width: 0;
+  min-height: 0;
+  /* Ensure image always fits within container */
+  display: block;
   transition: transform 0.3s ease;
+  /* Optimize image rendering */
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+  /* Prevent layout shift */
+  background-color: #f5f5f5;
+  /* Performance optimizations */
+  will-change: transform;
+  backface-visibility: hidden;
+  transform: translateZ(0); /* Force GPU acceleration */
 }
 
 [data-afs-container] .afs-product-card:hover .afs-product-card__image img {
@@ -626,6 +669,10 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+  /* Ensure info section doesn't break layout */
+  min-height: 0;
+  flex: 1 1 auto; /* Allow info to grow but maintain structure */
+  overflow: hidden; /* Prevent text overflow from breaking layout */
 }
 
 [data-afs-container] .afs-product-card__title {
@@ -640,6 +687,10 @@
   line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  /* Prevent text from breaking layout */
+  text-overflow: ellipsis;
+  word-break: break-word;
+  min-height: 2.8em; /* Reserve space for 2 lines to prevent layout shift */
 }
 
 [data-afs-container] .afs-product-card__vendor {
@@ -648,6 +699,11 @@
   font-family: var(--afs-font-family);
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  /* Prevent text overflow from breaking layout */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 [data-afs-container] .afs-product-card__price {
@@ -656,6 +712,11 @@
   color: var(--afs-text-color, #000000);
   font-family: var(--afs-font-family);
   margin-top: 4px;
+  /* Prevent text overflow from breaking layout */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 /* ============================================================================
@@ -684,14 +745,14 @@
   background: #ffffff;
   border-radius: 4px;
   overflow: hidden;
-  min-height: 240px; /* Explicit height to prevent collapse */
+  min-height: 300px; /* Explicit height to prevent collapse */
   width: 100%;
 }
 
 [data-afs-container] .afs-skeleton-card__image {
   width: 100%;
-  height: 170px; /* Explicit height instead of padding-top */
-  min-height: 140px; /* Prevent collapse */
+  height: 200px; /* Explicit height instead of padding-top */
+  min-height: 180px; /* Prevent collapse */
   background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%) !important;
   background-size: 200% 100% !important;
   background-position: 200% 0 !important;

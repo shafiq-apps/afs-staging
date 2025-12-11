@@ -15,7 +15,7 @@
     DEBOUNCE: 200,
     TIMEOUT: 10000,
     CACHE_TTL: 300000,
-    PAGE_SIZE: 20
+    PAGE_SIZE: 24
   };
 
   // Store SVG HTML content for inline use (allows CSS color control)
@@ -75,6 +75,63 @@
       const f = document.createDocumentFragment();
       items.forEach(item => f.appendChild(fn(item)));
       return f;
+    },
+    
+    // Optimize Shopify image URL with transformations
+    optimizeImageUrl: (url, options = {}) => {
+      if (!url || typeof url !== 'string') return '';
+      
+      const {
+        width = 500,
+        format = 'webp',
+        quality = 80,
+        crop = null
+      } = options;
+      
+      // Check if URL is already a Shopify CDN URL
+      const shopifyCdnPattern = /(cdn\.shopify\.com|shopifycdn\.com)/i;
+      if (!shopifyCdnPattern.test(url)) {
+        // Not a Shopify URL, return as-is
+        return url;
+      }
+      
+      // Parse the URL to extract base path
+      try {
+        const urlObj = new URL(url);
+        const pathname = urlObj.pathname;
+        
+        // Remove existing size parameters if present
+        const cleanPath = pathname.replace(/_(?:small|medium|large|grande|compact|master|1024x1024|2048x2048)\.(jpg|jpeg|png|webp)/i, '');
+        
+        // Extract file extension
+        const match = cleanPath.match(/\.(jpg|jpeg|png|webp|gif)$/i);
+        const ext = match ? match[1].toLowerCase() : 'jpg';
+        
+        // Build optimized URL
+        // Format: /path/to/image_{width}x{width}_{format}.{ext}
+        const optimizedPath = cleanPath.replace(/\.(jpg|jpeg|png|webp|gif)$/i, `_${width}x${width}.${ext}`);
+        
+        // Add quality parameter if supported (Shopify CDN supports ?quality=)
+        const searchParams = new URLSearchParams();
+        if (quality && quality !== 100) {
+          searchParams.set('quality', quality);
+        }
+        
+        return `${urlObj.origin}${optimizedPath}${searchParams.toString() ? '?' + searchParams.toString() : ''}`;
+      } catch (e) {
+        // If URL parsing fails, return original
+        return url;
+      }
+    },
+    
+    // Build responsive srcset for Shopify images
+    buildImageSrcset: (baseUrl, sizes = [200, 300, 500]) => {
+      if (!baseUrl) return '';
+      
+      return sizes.map(size => {
+        const optimized = $.optimizeImageUrl(baseUrl, { width: size, format: 'webp', quality: size <= 200 ? 75 : size <= 300 ? 80 : 85 });
+        return `${optimized} ${size}w`;
+      }).join(', ');
     }
   };
 
@@ -151,9 +208,6 @@
     parse() {
       const url = new URL(window.location);
       const params = {};
-      
-      // Standard filter keys (fixed)
-      const STANDARD_FILTERS = new Set(['vendor', 'vendors', 'productType', 'productTypes', 'tag', 'tags', 'collection', 'collections', 'search', 'priceRange', 'price', 'page', 'limit', 'sort']);
       
       url.searchParams.forEach((value, key) => {
         if (EXCLUDED_QUERY_PARAMS.has(key)) return;
@@ -983,7 +1037,68 @@
       
       if (p.imageUrl || p.featuredImage) {
         const imgContainer = $.el('div', 'afs-product-card__image');
-        const img = $.el('img', '', { src: p.imageUrl || p.featuredImage?.url || '', alt: p.title || '', loading: 'lazy' });
+        const img = $.el('img', '', { 
+          alt: p.title || '',
+          loading: 'lazy',
+          decoding: 'async',
+          fetchpriority: 'low'
+        });
+        
+        // Get base image URL
+        const baseImageUrl = p.featuredImage?.url || p.featuredImage?.urlFallback || p.imageUrl || '';
+        
+        if (baseImageUrl) {
+          // Use responsive images with srcset for optimal loading
+          if (p.featuredImage && (p.featuredImage.urlSmall || p.featuredImage.urlMedium || p.featuredImage.urlLarge)) {
+            // Use pre-optimized URLs from Liquid if available
+            const srcset = [];
+            if (p.featuredImage.urlSmall) srcset.push(`${p.featuredImage.urlSmall} 200w`);
+            if (p.featuredImage.urlMedium) srcset.push(`${p.featuredImage.urlMedium} 300w`);
+            if (p.featuredImage.urlLarge) srcset.push(`${p.featuredImage.urlLarge} 500w`);
+            
+            if (srcset.length > 0) {
+              img.setAttribute('srcset', srcset.join(', '));
+              img.setAttribute('sizes', '(max-width: 768px) 200px, (max-width: 1024px) 300px, 500px');
+            }
+            
+            // Set src with WebP first, fallback to original
+            img.src = p.featuredImage.url || p.featuredImage.urlFallback || baseImageUrl;
+          } else {
+            // Optimize image URL on-the-fly for API responses
+            const optimizedUrl = $.optimizeImageUrl(baseImageUrl, { width: 300, format: 'webp', quality: 80 });
+            const srcset = $.buildImageSrcset(baseImageUrl, [200, 300, 500]);
+            
+            if (srcset) {
+              img.setAttribute('srcset', srcset);
+              img.setAttribute('sizes', '(max-width: 768px) 200px, (max-width: 1024px) 300px, 500px');
+            }
+            
+            img.src = optimizedUrl || baseImageUrl;
+          }
+          
+          // Add error handling for failed image loads
+          img.onerror = function() {
+            // Fallback to original format if WebP fails
+            const fallbackUrl = p.featuredImage?.urlFallback || baseImageUrl;
+            if (fallbackUrl && this.src !== fallbackUrl) {
+              // Try original format
+              this.src = fallbackUrl;
+            } else if (this.src.includes('_webp.')) {
+              // If WebP failed, try original format
+              const originalUrl = baseImageUrl.replace(/_(?:small|medium|large|grande|compact|master|\d+x\d+)_webp\./i, '_300x300.');
+              if (originalUrl !== this.src) {
+                this.src = originalUrl;
+              } else {
+                // Hide broken image
+                this.style.display = 'none';
+              }
+            } else {
+              // Hide broken image
+              this.style.display = 'none';
+            }
+          };
+        }
+        
         imgContainer.appendChild(img);
         card.appendChild(imgContainer);
       }
@@ -2168,6 +2283,8 @@
   };
 
   window.DOM = DOM;
+  window.AFS_State = State;
+  window.AFS_API = API;
 
   // Export
   if (typeof window !== 'undefined') window.AFS = AFS;

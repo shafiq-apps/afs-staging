@@ -24,9 +24,13 @@
               vendor: {{ product.vendor | json }},
               handle: {{ product.handle | json }},
               url: {{ product.url | json }},
-              imageUrl: {% if product.featured_image %}{{ product.featured_image | image_url: width: 500 | json }}{% else %}''{% endif %},
+              imageUrl: {% if product.featured_image %}{{ product.featured_image | image_url: width: 300, format: 'webp', quality: 80 | json }}{% else %}''{% endif %},
               featuredImage: {% if product.featured_image %}{
-                url: {{ product.featured_image | image_url: width: 500 | json }},
+                url: {{ product.featured_image | image_url: width: 300, format: 'webp', quality: 80 | json }},
+                urlFallback: {{ product.featured_image | image_url: width: 300 | json }},
+                urlSmall: {{ product.featured_image | image_url: width: 200, format: 'webp', quality: 75 | json }},
+                urlMedium: {{ product.featured_image | image_url: width: 300, format: 'webp', quality: 80 | json }},
+                urlLarge: {{ product.featured_image | image_url: width: 500, format: 'webp', quality: 85 | json }},
                 alt: {{ product.featured_image.alt | json }}
               }{% else %}null{% endif %},
               priceRange: {
