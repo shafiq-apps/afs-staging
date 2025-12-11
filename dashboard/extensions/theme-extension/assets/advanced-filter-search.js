@@ -18,6 +18,12 @@
     PAGE_SIZE: 20
   };
 
+  // Store SVG HTML content for inline use (allows CSS color control)
+  const Icons = {
+    rightArrow: '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" fill="#000000" height="800px" width="800px" version="1.1" id="Layer_1" viewBox="0 0 512.005 512.005" xml:space="preserve"><g><g><path d="M388.418,240.923L153.751,6.256c-8.341-8.341-21.824-8.341-30.165,0s-8.341,21.824,0,30.165L343.17,256.005 L123.586,475.589c-8.341,8.341-8.341,21.824,0,30.165c4.16,4.16,9.621,6.251,15.083,6.251c5.461,0,10.923-2.091,15.083-6.251 l234.667-234.667C396.759,262.747,396.759,249.264,388.418,240.923z"/></g></g></svg>',
+    downArrow: '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" fill="#000000" height="800px" width="800px" version="1.1" id="Layer_1" viewBox="0 0 512.011 512.011" xml:space="preserve"><g><g><path d="M505.755,123.592c-8.341-8.341-21.824-8.341-30.165,0L256.005,343.176L36.421,123.592c-8.341-8.341-21.824-8.341-30.165,0 s-8.341,21.824,0,30.165l234.667,234.667c4.16,4.16,9.621,6.251,15.083,6.251c5.462,0,10.923-2.091,15.083-6.251l234.667-234.667 C514.096,145.416,514.096,131.933,505.755,123.592z"/></g></g></svg>'
+  };
+
   // Excluded query parameter keys (not processed as filters)
   // Note: preserveFilter/preserveFilters is excluded from filter processing but will be parsed separately
   const EXCLUDED_QUERY_PARAMS = new Set(['shop', 'shop_domain', 'preserveFilter', 'preserveFilters', 'cpid']);
@@ -527,7 +533,7 @@
       
       // Sort dropdown - create and store reference
       this.sortContainer = $.el('div', 'afs-sort-container');
-      const sortLabel = $.el('label', 'afs-sort-label');
+      const sortLabel = $.el('label', 'afs-sort-label', {'for': 'afs-sort-label'});
       sortLabel.textContent = 'Sort by: ';
       this.sortSelect = $.el('select', 'afs-sort-select', { 'data-afs-sort': 'true' });
       this.sortSelect.innerHTML = `
@@ -686,9 +692,10 @@
         const header = $.el('div', 'afs-filter-group__header');
         const toggle = $.el('button', 'afs-filter-group__toggle', { type: 'button', 'aria-expanded': !collapsed ? 'true' : 'false' });
         const icon = $.el('span', 'afs-filter-group__icon');
-        icon.textContent = collapsed ? '▶' : '▼';
+        // Use inline SVG HTML for better CSS control
+        icon.innerHTML = collapsed ? (Icons.rightArrow || '') : (Icons.downArrow || '');
         toggle.appendChild(icon);
-        toggle.appendChild($.txt($.el('label', 'afs-filter-group__label'), filter.label || handle));
+        toggle.appendChild($.txt($.el('label', 'afs-filter-group__label', {'for': 'afs-filter-group__label'}), filter.label || handle));
         header.appendChild(toggle);
         group.appendChild(header);
         
@@ -779,7 +786,8 @@
       
       const label = $.el('label', 'afs-filter-item', {
         'data-afs-filter-handle': handle, // Store handle for filtering
-        'data-afs-filter-value': value     // Store original value for filtering
+        'data-afs-filter-value': value,     // Store original value for filtering
+        'for': 'afs-filter-item'
       });
       if (isChecked) label.classList.add('afs-filter-item--active');
       
@@ -823,9 +831,10 @@
       const header = $.el('div', 'afs-filter-group__header');
       const toggle = $.el('button', 'afs-filter-group__toggle', { type: 'button', 'aria-expanded': !collapsed ? 'true' : 'false' });
       const icon = $.el('span', 'afs-filter-group__icon');
-      icon.textContent = collapsed ? '▶' : '▼';
+      // Use inline SVG HTML for better CSS control
+      icon.innerHTML = collapsed ? (Icons.rightArrow || '') : (Icons.downArrow || '');
       toggle.appendChild(icon);
-      toggle.appendChild($.txt($.el('label', 'afs-filter-group__label'), filter.label || 'Price'));
+      toggle.appendChild($.txt($.el('label', 'afs-filter-group__label', {'for':'afs-filter-group__label'}), filter.label || 'Price'));
       header.appendChild(toggle);
       group.appendChild(header);
       
@@ -1173,16 +1182,19 @@
         // Clear existing products
         $.clear(this.productsGrid);
         
-        // Create skeleton product cards directly in the grid (24 cards to fill multiple rows)
+        // Get page size from State or use minimum of 24
+        const pageSize = State.pagination?.limit || C.PAGE_SIZE || 24;
+        const skeletonCount = Math.max(pageSize, 24); // At least 24 skeleton cards
+        
+        // Create skeleton product cards directly in the grid
         const skeletonCards = [];
-        for (let i = 0; i < 24; i++) {
+        for (let i = 0; i < skeletonCount; i++) {
           const skeletonCard = $.el('div', 'afs-skeleton-card');
           skeletonCard.innerHTML = `
             <div class="afs-skeleton-card__image"></div>
             <div class="afs-skeleton-card__info">
               <div class="afs-skeleton-card__title"></div>
               <div class="afs-skeleton-card__title" style="width: 60%;"></div>
-              <div class="afs-skeleton-card__vendor"></div>
               <div class="afs-skeleton-card__price"></div>
             </div>
           `;
@@ -1681,7 +1693,10 @@
           // Update icon
           const icon = group.querySelector('.afs-filter-group__icon');
           if (icon) {
-            icon.textContent = collapsedState ? '▶' : '▼';
+            // Update inline SVG HTML
+            icon.innerHTML = collapsedState 
+              ? (Icons.rightArrow || '')
+              : (Icons.downArrow || '');
           }
           
           // Content visibility is handled by CSS via data-afs-collapsed attribute
@@ -2149,6 +2164,8 @@
     
     Logger: Log
   };
+
+  window.DOM = DOM;
 
   // Export
   if (typeof window !== 'undefined') window.AFS = AFS;
