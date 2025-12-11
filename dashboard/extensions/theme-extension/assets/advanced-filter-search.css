@@ -679,9 +679,15 @@
   width: 100%;
   height: 170px; /* Explicit height instead of padding-top */
   min-height: 140px; /* Prevent collapse */
-  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-  background-size: 200% 100%;
-  animation: afs-skeleton-loading 1.5s ease-in-out infinite;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%) !important;
+  background-size: 200% 100% !important;
+  background-position: 200% 0 !important;
+  animation: afs-skeleton-loading 1.5s ease-in-out infinite !important;
+  animation-name: afs-skeleton-loading !important;
+  animation-duration: 1.5s !important;
+  animation-timing-function: ease-in-out !important;
+  animation-iteration-count: infinite !important;
+  will-change: background-position;
   flex-shrink: 0;
 }
 
@@ -698,9 +704,15 @@
   height: 16px;
   min-height: 16px; /* Prevent collapse */
   width: 100%;
-  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-  background-size: 200% 100%;
-  animation: afs-skeleton-loading 1.5s ease-in-out infinite;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%) !important;
+  background-size: 200% 100% !important;
+  background-position: 200% 0 !important;
+  animation: afs-skeleton-loading 1.5s ease-in-out infinite !important;
+  animation-name: afs-skeleton-loading !important;
+  animation-duration: 1.5s !important;
+  animation-timing-function: ease-in-out !important;
+  animation-iteration-count: infinite !important;
+  will-change: background-position;
   border-radius: 4px;
   flex-shrink: 0;
 }
@@ -709,9 +721,15 @@
   height: 12px;
   min-height: 12px; /* Prevent collapse */
   width: 40%;
-  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-  background-size: 200% 100%;
-  animation: afs-skeleton-loading 1.5s ease-in-out infinite;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%) !important;
+  background-size: 200% 100% !important;
+  background-position: 200% 0 !important;
+  animation: afs-skeleton-loading 1.5s ease-in-out infinite !important;
+  animation-name: afs-skeleton-loading !important;
+  animation-duration: 1.5s !important;
+  animation-timing-function: ease-in-out !important;
+  animation-iteration-count: infinite !important;
+  will-change: background-position;
   border-radius: 4px;
   flex-shrink: 0;
 }
@@ -720,20 +738,33 @@
   height: 16px;
   min-height: 16px; /* Prevent collapse */
   width: 50%;
-  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-  background-size: 200% 100%;
-  animation: afs-skeleton-loading 1.5s ease-in-out infinite;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%) !important;
+  background-size: 200% 100% !important;
+  background-position: 200% 0 !important;
+  animation: afs-skeleton-loading 1.5s ease-in-out infinite !important;
+  animation-name: afs-skeleton-loading !important;
+  animation-duration: 1.5s !important;
+  animation-timing-function: ease-in-out !important;
+  animation-iteration-count: infinite !important;
+  will-change: background-position;
   border-radius: 4px;
   flex-shrink: 0;
 }
 
+/* Scoped keyframes to prevent theme conflicts */
 @keyframes afs-skeleton-loading {
   0% {
-    background-position: 200% 0;
+    background-position: 200% 0 !important;
   }
   100% {
-    background-position: -200% 0;
+    background-position: -200% 0 !important;
   }
+}
+
+/* Ensure animation works even if theme overrides */
+[data-afs-container] [class*="afs-skeleton"] {
+  animation-fill-mode: both !important;
+  animation-play-state: running !important;
 }
 
 /* ============================================================================
@@ -764,9 +795,15 @@
   height: 20px;
   min-height: 20px; /* Prevent collapse */
   width: 60%;
-  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-  background-size: 200% 100%;
-  animation: afs-skeleton-loading 1.5s ease-in-out infinite;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%) !important;
+  background-size: 200% 100% !important;
+  background-position: 200% 0 !important;
+  animation: afs-skeleton-loading 1.5s ease-in-out infinite !important;
+  animation-name: afs-skeleton-loading !important;
+  animation-duration: 1.5s !important;
+  animation-timing-function: ease-in-out !important;
+  animation-iteration-count: infinite !important;
+  will-change: background-position;
   border-radius: 4px;
   flex-shrink: 0;
 }
@@ -782,9 +819,15 @@
   height: 18px;
   min-height: 18px; /* Prevent collapse */
   width: 100%;
-  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-  background-size: 200% 100%;
-  animation: afs-skeleton-loading 1.5s ease-in-out infinite;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%) !important;
+  background-size: 200% 100% !important;
+  background-position: 200% 0 !important;
+  animation: afs-skeleton-loading 1.5s ease-in-out infinite !important;
+  animation-name: afs-skeleton-loading !important;
+  animation-duration: 1.5s !important;
+  animation-timing-function: ease-in-out !important;
+  animation-iteration-count: infinite !important;
+  will-change: background-position;
   border-radius: 4px;
   flex-shrink: 0;
 }
