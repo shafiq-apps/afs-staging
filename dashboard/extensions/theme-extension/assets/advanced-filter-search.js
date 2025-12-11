@@ -46,7 +46,7 @@
     split: (v) => v ? (Array.isArray(v) ? v : v.split(',').map(s => s.trim()).filter(Boolean)) : [],
     
     // Fast ID getter
-    id: (p) => p.id || p.gid,
+    id: (p = {}) => (p.productId || p.id || p.gid).split('/').pop(),
     
     // Fast string check
     str: (v) => String(v || '').trim(),
@@ -132,6 +132,54 @@
         const optimized = $.optimizeImageUrl(baseUrl, { width: size, format: 'webp', quality: size <= 200 ? 75 : size <= 300 ? 80 : 85 });
         return `${optimized} ${size}w`;
       }).join(', ');
+    },
+    
+    // Format money using Shopify money format
+    formatMoney: (cents, moneyFormat, currency = '') => {
+      if (typeof cents !== 'number' || isNaN(cents)) return '';
+      
+      // Convert cents to dollars
+      const amount = cents / 100;
+      
+      // If no money format provided, use default format
+      if (!moneyFormat || typeof moneyFormat !== 'string') {
+        return `${currency || ''}${amount.toFixed(2)}`;
+      }
+      
+      // Replace {{amount}} placeholder with formatted amount
+      // Shopify money format examples:
+      // - "${{amount}}" → "$10.00"
+      // - "{{amount}} USD" → "10.00 USD"
+      // - "{{amount_no_decimals}}" → "10"
+      // - "{{amount_with_comma_separator}}" → "10,00"
+      // - "{{amount_no_decimals_with_comma_separator}}" → "10"
+      // - "{{amount_with_apostrophe_separator}}" → "10'00"
+      
+      let formattedAmount = amount.toFixed(2);
+      
+      // Handle different amount formats
+      if (moneyFormat.includes('{{amount_no_decimals}}')) {
+        formattedAmount = Math.round(amount).toString();
+        return moneyFormat.replace('{{amount_no_decimals}}', formattedAmount);
+      }
+      
+      if (moneyFormat.includes('{{amount_with_comma_separator}}')) {
+        formattedAmount = amount.toFixed(2).replace('.', ',');
+        return moneyFormat.replace('{{amount_with_comma_separator}}', formattedAmount);
+      }
+      
+      if (moneyFormat.includes('{{amount_no_decimals_with_comma_separator}}')) {
+        formattedAmount = Math.round(amount).toString();
+        return moneyFormat.replace('{{amount_no_decimals_with_comma_separator}}', formattedAmount);
+      }
+      
+      if (moneyFormat.includes('{{amount_with_apostrophe_separator}}')) {
+        formattedAmount = amount.toFixed(2).replace('.', "'");
+        return moneyFormat.replace('{{amount_with_apostrophe_separator}}', formattedAmount);
+      }
+      
+      // Default: replace {{amount}} with formatted amount
+      return moneyFormat.replace('{{amount}}', formattedAmount);
     }
   };
 
@@ -185,7 +233,11 @@
     // Fallback pagination from Liquid (for proper pagination controls when API fails)
     fallbackPagination: { currentPage: 1, totalPages: 1, totalProducts: 0 },
     // Flag to track if we're using fallback mode (API failed)
-    usingFallback: false
+    usingFallback: false,
+    // Money formatting from Shopify
+    moneyFormat: null,
+    moneyWithCurrencyFormat: null,
+    currency: null
   };
 
   // ============================================================================
@@ -1009,11 +1061,27 @@
           if (title && title.textContent !== product.title) title.textContent = product.title || 'Untitled';
           
           const price = el.querySelector('.afs-product-card__price');
-          if (price && product.priceRange) {
-            const min = product.priceRange.minVariantPrice?.amount || '0';
-            const max = product.priceRange.maxVariantPrice?.amount || '0';
-            const priceText = min === max ? `$${parseFloat(min).toFixed(2)}` : `$${parseFloat(min).toFixed(2)} - $${parseFloat(max).toFixed(2)}`;
-            if (price.textContent !== priceText) price.textContent = priceText;
+          if (price) {
+            // Use minPrice and maxPrice from API response (assumed to be in cents)
+            // Fallback to priceRange if minPrice/maxPrice not available
+            // priceRange amounts are in dollars, so multiply by 100 to convert to cents
+            let minPrice = product.minPrice !== undefined && product.minPrice !== null 
+              ? product.minPrice 
+              : (product.priceRange?.minVariantPrice?.amount ? product.priceRange.minVariantPrice.amount * 100 : null);
+            
+            let maxPrice = product.maxPrice !== undefined && product.maxPrice !== null 
+              ? product.maxPrice 
+              : (product.priceRange?.maxVariantPrice?.amount ? product.priceRange.maxVariantPrice.amount * 100 : null);
+            
+            if (minPrice !== null && maxPrice !== null && (minPrice > 0 || maxPrice > 0)) {
+              const moneyFormat = State.moneyFormat || '{{amount}}';
+              const formattedMin = $.formatMoney(minPrice, moneyFormat, State.currency || '');
+              
+              // If prices are equal, show single price, otherwise show "from" prefix
+              const priceText = minPrice === maxPrice ? formattedMin : `from ${formattedMin}`;
+              
+              if (price.textContent !== priceText) price.textContent = priceText;
+            }
           }
         } else {
           // Create product
@@ -1106,10 +1174,25 @@
       const info = $.el('div', 'afs-product-card__info');
       info.appendChild($.txt($.el('h3', 'afs-product-card__title'), p.title || 'Untitled'));
       if (p.vendor) info.appendChild($.txt($.el('div', 'afs-product-card__vendor'), p.vendor));
-      if (p.priceRange) {
-        const min = p.priceRange.minVariantPrice?.amount || '0';
-        const max = p.priceRange.maxVariantPrice?.amount || '0';
-        const priceText = min === max ? `$${parseFloat(min).toFixed(2)}` : `$${parseFloat(min).toFixed(2)} - $${parseFloat(max).toFixed(2)}`;
+      
+      // Use minPrice and maxPrice from API response (assumed to be in cents)
+      // Fallback to priceRange if minPrice/maxPrice not available
+      // priceRange amounts are in dollars, so multiply by 100 to convert to cents
+      let minPrice = p.minPrice !== undefined && p.minPrice !== null 
+        ? p.minPrice 
+        : (p.priceRange?.minVariantPrice?.amount ? p.priceRange.minVariantPrice.amount * 100 : null);
+      
+      let maxPrice = p.maxPrice !== undefined && p.maxPrice !== null 
+        ? p.maxPrice 
+        : (p.priceRange?.maxVariantPrice?.amount ? p.priceRange.maxVariantPrice.amount * 100 : null);
+      
+      if (minPrice !== null && maxPrice !== null && (minPrice > 0 || maxPrice > 0)) {
+        const moneyFormat = State.moneyFormat || '{{amount}}';
+        const formattedMin = $.formatMoney(minPrice, moneyFormat, State.currency || '');
+        
+        // If prices are equal, show single price, otherwise show "from" prefix
+        const priceText = minPrice === maxPrice ? formattedMin : `from ${formattedMin}`;
+        
         info.appendChild($.txt($.el('div', 'afs-product-card__price'), priceText));
       }
       card.appendChild(info);
@@ -2033,6 +2116,17 @@
         State.shop = config.shop;
         State.collections = config.collections;
         State.selectedCollection = config.selectedCollection;
+        
+        // Store money format from Shopify
+        if (config.moneyFormat) {
+          State.moneyFormat = config.moneyFormat;
+        }
+        if (config.moneyWithCurrencyFormat) {
+          State.moneyWithCurrencyFormat = config.moneyWithCurrencyFormat;
+        }
+        if (config.currency) {
+          State.currency = config.currency;
+        }
         
         // Store fallback products and pagination from Liquid
         if (config.fallbackProducts && Array.isArray(config.fallbackProducts) && config.fallbackProducts.length > 0) {

@@ -8,10 +8,6 @@
     // Extract products from Liquid collection as fallback
     const liquidProducts = [
       {% if collection.products %}
-        {% comment %} 
-          Shopify's paginate tag automatically reads ?page=X from URL
-          The collection will be sorted based on collection.default_sort_by or URL sort_by parameter
-        {% endcomment %}
         {% paginate collection.products by page_size %}
           {% assign liquid_current_page = paginate.current_page %}
           {% assign liquid_total_pages = paginate.pages %}
@@ -33,16 +29,9 @@
                 urlLarge: {{ product.featured_image | image_url: width: 500, format: 'webp', quality: 85 | json }},
                 alt: {{ product.featured_image.alt | json }}
               }{% else %}null{% endif %},
-              priceRange: {
-                minVariantPrice: {
-                  amount: {{ product.price_min | divided_by: 100.0 | json }},
-                  currencyCode: {{ cart.currency.iso_code | default: shop.currency | json }}
-                },
-                maxVariantPrice: {
-                  amount: {{ product.price_max | divided_by: 100.0 | json }},
-                  currencyCode: {{ cart.currency.iso_code | default: shop.currency | json }}
-                }
-              }
+              minPrice: {{ product.price_min | divided_by: 100.0 | json }},
+              minPrice: {{ product.price_max | divided_by: 100.0 | json }},
+              currencyCode: {{ cart.currency.iso_code | default: shop.currency | json }}
             }{% unless forloop.last %},{% endunless %}
           {% endfor %}
         {% endpaginate %}
@@ -76,7 +65,10 @@
         sortBy : {{ collection.default_sort_by  | json }}
       },
       fallbackProducts: liquidProducts,
-      fallbackPagination: liquidPagination
+      fallbackPagination: liquidPagination,
+      moneyFormat: {{ shop.money_format | json }},
+      moneyWithCurrencyFormat: {{ shop.money_with_currency_format | json }},
+      currency: {{ cart.currency.iso_code | default: shop.currency | json }}
     };
 
     // Function to initialize AFS

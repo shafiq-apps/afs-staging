@@ -29,11 +29,11 @@ export const DEFAULT_STOREFRONT_FIELDS = [
  */
 export const DEFAULT_VARIANT_FIELDS = [
   'id',
-  'title',                 // Variant title (e.g., "Red / M")
-  'price',                 // Variant price
-  'sku',                   // Variant SKU
-  'availableForSale',      // Availability flag
-  'sellableOnlineQuantity', // Sellable quantity
+  'displayName',
+  'price',
+  'sku',
+  'availableForSale',
+  'sellableOnlineQuantity',
 ] as const;
 
 /**
