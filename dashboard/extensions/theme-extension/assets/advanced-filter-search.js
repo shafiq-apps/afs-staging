@@ -507,8 +507,8 @@
       this.sortSelect = $.el('select', 'afs-sort-select', { 'data-afs-sort': 'true' });
       this.sortSelect.innerHTML = `
         <option value="best-selling">Best Selling</option>
-        <option value="title-ascending">Name (A-Z)</option>
-        <option value="title-descending">Name (Z-A)</option>
+        <option value="title-ascending">Title (A-Z)</option>
+        <option value="title-descending">Title (Z-A)</option>
         <option value="price-ascending">Price (Low to High)</option>
         <option value="price-descending">Price (High to Low)</option>
         <option value="created-ascending">Oldest First</option>
@@ -520,6 +520,22 @@
       
       this.productsGrid = $.el('div', 'afs-products-grid');
       this.productsContainer.appendChild(this.productsGrid);
+    },
+    
+    // Hide filters container (when using fallback mode)
+    hideFilters() {
+      if (this.filtersContainer) {
+        this.filtersContainer.style.display = 'none';
+        Log.debug('Filters container hidden');
+      }
+    },
+    
+    // Show filters container
+    showFilters() {
+      if (this.filtersContainer) {
+        this.filtersContainer.style.display = '';
+        Log.debug('Filters container shown');
+      }
     },
     
     // Fastest filter rendering (batched)
@@ -670,9 +686,13 @@
       
       if (fragment.children.length > 0) {
         this.filtersContainer.appendChild(fragment);
+        // Show filters container when filters are rendered
+        this.showFilters();
         Log.debug('Filters rendered', { count: fragment.children.length });
       } else {
         Log.warn('No filter groups created');
+        // Hide filters container if no filters to show
+        this.hideFilters();
       }
     },
     
@@ -856,6 +876,12 @@
     // Fastest product rendering (incremental updates)
     renderProducts(products) {
       if (!this.productsGrid) return;
+      
+      // Remove skeleton loader if present
+      const skeleton = this.productsGrid.querySelector('.afs-loading-skeleton');
+      if (skeleton) {
+        skeleton.remove();
+      }
       
       const existing = new Map();
       this.productsGrid.querySelectorAll('[data-afs-product-id]').forEach(el => {
@@ -1097,16 +1123,35 @@
     
     showLoading() {
       if (!this.loading) {
-        this.loading = $.el('div', 'afs-loading-indicator');
-        this.loading.innerHTML = '<div class="afs-loading-spinner"></div><p>Loading...</p>';
+        this.loading = $.el('div', 'afs-loading-skeleton');
+        // Create skeleton product cards (8 cards for a professional look)
+        const skeletonCards = [];
+        for (let i = 0; i < 8; i++) {
+          const skeletonCard = $.el('div', 'afs-skeleton-card');
+          skeletonCard.innerHTML = `
+            <div class="afs-skeleton-card__image"></div>
+            <div class="afs-skeleton-card__info">
+              <div class="afs-skeleton-card__title"></div>
+              <div class="afs-skeleton-card__title" style="width: 60%;"></div>
+              <div class="afs-skeleton-card__vendor"></div>
+              <div class="afs-skeleton-card__price"></div>
+            </div>
+          `;
+          skeletonCards.push(skeletonCard);
+        }
+        skeletonCards.forEach(card => this.loading.appendChild(card));
       }
-      if (!this.loading.parentNode && this.productsContainer) {
-        this.productsContainer.appendChild(this.loading);
+      if (!this.loading.parentNode && this.productsGrid) {
+        // Clear existing products and show skeleton
+        $.clear(this.productsGrid);
+        this.productsGrid.appendChild(this.loading);
       }
     },
     
     hideLoading() {
-      if (this.loading?.parentNode) this.loading.remove();
+      if (this.loading?.parentNode) {
+        this.loading.remove();
+      }
     },
     
     showError(message) {
@@ -1292,6 +1337,9 @@
         State.pagination = data.pagination || State.pagination;
         State.usingFallback = false; // Reset fallback flag on success
         
+        // Show filters section when API is working
+        DOM.showFilters();
+        
         DOM.renderProducts(State.products);
         DOM.renderInfo(State.pagination, State.pagination.total || 0);
         DOM.renderPagination(State.pagination);
@@ -1317,9 +1365,24 @@
             totalPages: Math.ceil(State.fallbackProducts.length / C.PAGE_SIZE)
           };
           
+          // Hide filters section when using fallback
+          State.availableFilters = [];
+          DOM.hideFilters();
+          
+          // Update sort select value based on current sort state
+          if (DOM.sortSelect) {
+            if (State.sort.field === 'best-selling' || State.sort.field === 'bestselling') {
+              DOM.sortSelect.value = 'best-selling';
+            } else {
+              const direction = State.sort.order === 'asc' ? 'ascending' : 'descending';
+              DOM.sortSelect.value = `${State.sort.field}-${direction}`;
+            }
+          }
+          
           DOM.renderProducts(State.products);
           DOM.renderInfo(State.pagination, State.pagination.total);
           DOM.renderPagination(State.pagination);
+          DOM.renderApplied(State.filters);
           
         } else {
           DOM.showError(`Failed to load products: ${e.message || 'Unknown error'}`);
@@ -1367,6 +1430,7 @@
             fallbackCount: State.fallbackProducts.length 
           });
           
+          State.usingFallback = true; // Set fallback flag
           State.products = State.fallbackProducts;
           State.pagination = {
             page: 1,
@@ -1374,6 +1438,20 @@
             total: State.fallbackProducts.length,
             totalPages: Math.ceil(State.fallbackProducts.length / C.PAGE_SIZE)
           };
+          
+          // Hide filters section when using fallback
+          State.availableFilters = [];
+          DOM.hideFilters();
+          
+          // Update sort select value based on current sort state
+          if (DOM.sortSelect) {
+            if (State.sort.field === 'best-selling' || State.sort.field === 'bestselling') {
+              DOM.sortSelect.value = 'best-selling';
+            } else {
+              const direction = State.sort.order === 'asc' ? 'ascending' : 'descending';
+              DOM.sortSelect.value = `${State.sort.field}-${direction}`;
+            }
+          }
           
           DOM.renderProducts(State.products);
           DOM.renderInfo(State.pagination, State.pagination.total);
@@ -1828,10 +1906,17 @@
             total: State.fallbackProducts.length,
             totalPages: Math.ceil(State.fallbackProducts.length / C.PAGE_SIZE)
           };
+          
+          // Hide filters section when using fallback
+          State.availableFilters = [];
+          DOM.hideFilters();
         } else {
           State.usingFallback = false; // Reset fallback flag on success
           State.products = productsData.products || [];
           State.pagination = productsData.pagination || State.pagination;
+          
+          // Show filters section when API is working
+          DOM.showFilters();
         }
         
         DOM.renderProducts(State.products);
@@ -1877,9 +1962,24 @@
             totalPages: Math.ceil(State.fallbackProducts.length / C.PAGE_SIZE)
           };
           
+          // Hide filters section when using fallback
+          State.availableFilters = [];
+          DOM.hideFilters();
+          
+          // Update sort select value based on URL params or current sort state
+          if (DOM.sortSelect) {
+            if (State.sort.field === 'best-selling' || State.sort.field === 'bestselling') {
+              DOM.sortSelect.value = 'best-selling';
+            } else {
+              const direction = State.sort.order === 'asc' ? 'ascending' : 'descending';
+              DOM.sortSelect.value = `${State.sort.field}-${direction}`;
+            }
+          }
+          
           DOM.renderProducts(State.products);
           DOM.renderInfo(State.pagination, State.pagination.total);
           DOM.renderPagination(State.pagination);
+          DOM.renderApplied(State.filters);
           
         } else {
           DOM.showError(`Failed to load: ${e.message || 'Unknown error'}. Check console for details.`);

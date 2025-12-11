@@ -158,6 +158,8 @@
   margin-bottom: 16px;
   padding-bottom: 12px;
   border-bottom: 1px solid #e5e5e5;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
 [data-afs-container] .afs-products-info__results {
@@ -177,6 +179,7 @@
   align-items: center;
   gap: 8px;
   margin-left: auto;
+  flex-shrink: 0;
 }
 
 [data-afs-container] .afs-sort-label {
@@ -626,37 +629,86 @@
 }
 
 /* ============================================================================
-   Loading Indicator
+   Loading Skeleton
    ============================================================================ */
 
-[data-afs-container] .afs-loading-indicator {
+[data-afs-container] .afs-loading-skeleton {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 20px;
+  width: 100%;
+}
+
+/* Responsive skeleton grid */
+@media (min-width: 768px) {
+  [data-afs-container] .afs-loading-skeleton {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  [data-afs-container] .afs-loading-skeleton {
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  }
+}
+
+[data-afs-container] .afs-skeleton-card {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 60px 20px;
-  grid-column: 1 / -1;
+  background: #fff;
+  border-radius: 4px;
+  overflow: hidden;
 }
 
-[data-afs-container] .afs-loading-spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid #f3f3f3;
-  border-top: 3px solid #000;
-  border-radius: 50%;
-  animation: afs-spin 1s linear infinite;
-  margin-bottom: 16px;
+[data-afs-container] .afs-skeleton-card__image {
+  width: 100%;
+  padding-top: 100%; /* 1:1 aspect ratio */
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: afs-skeleton-loading 1.5s ease-in-out infinite;
 }
 
-@keyframes afs-spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+[data-afs-container] .afs-skeleton-card__info {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-[data-afs-container] .afs-loading-indicator p {
-  margin: 0;
-  font-size: 14px;
-  color: #666;
+[data-afs-container] .afs-skeleton-card__title {
+  height: 16px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: afs-skeleton-loading 1.5s ease-in-out infinite;
+  border-radius: 4px;
+}
+
+[data-afs-container] .afs-skeleton-card__vendor {
+  height: 12px;
+  width: 40%;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: afs-skeleton-loading 1.5s ease-in-out infinite;
+  border-radius: 4px;
+}
+
+[data-afs-container] .afs-skeleton-card__price {
+  height: 16px;
+  width: 50%;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: afs-skeleton-loading 1.5s ease-in-out infinite;
+  border-radius: 4px;
+  margin-top: 4px;
+}
+
+@keyframes afs-skeleton-loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
 
 /* ============================================================================
@@ -756,6 +808,41 @@
   [data-afs-container] .afs-filter-group {
     margin-bottom: 24px;
     padding-bottom: 20px;
+  }
+  
+  /* Mobile responsive products info */
+  [data-afs-container] .afs-products-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
+  [data-afs-container] .afs-products-info__results {
+    width: 100%;
+    font-size: 13px;
+  }
+  
+  [data-afs-container] .afs-sort-container {
+    width: 100%;
+    margin-left: 0;
+    justify-content: space-between;
+  }
+  
+  [data-afs-container] .afs-sort-label {
+    font-size: 13px;
+  }
+  
+  [data-afs-container] .afs-sort-select {
+    flex: 1;
+    max-width: 200px;
+    font-size: 13px;
+    padding: 8px 12px;
+  }
+  
+  /* Mobile skeleton grid */
+  [data-afs-container] .afs-loading-skeleton {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 16px;
   }
 }
 
