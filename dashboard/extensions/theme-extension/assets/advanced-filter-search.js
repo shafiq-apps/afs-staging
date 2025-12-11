@@ -4,13 +4,13 @@
  * Describe hardcoded values and their means and functionality
 */
 
-(function(global) {
+(function (global) {
   'use strict';
 
   // ============================================================================
   // MINIMAL CONSTANTS
   // ============================================================================
-  
+
   const C = {
     DEBOUNCE: 200,
     TIMEOUT: 10000,
@@ -31,7 +31,7 @@
   // ============================================================================
   // TINY REUSABLE UTILITIES (Smallest possible functions)
   // ============================================================================
-  
+
   const $ = {
     // Fastest debounce
     debounce: (fn, ms) => {
@@ -41,19 +41,19 @@
         t = setTimeout(() => fn(...a), ms);
       };
     },
-    
+
     // Fast array split
     split: (v) => v ? (Array.isArray(v) ? v : v.split(',').map(s => s.trim()).filter(Boolean)) : [],
-    
+
     // Fast ID getter
     id: (p = {}) => (p.productId || p.id || p.gid).split('/').pop(),
-    
+
     // Fast string check
     str: (v) => String(v || '').trim(),
-    
+
     // Fast empty check
     empty: (v) => !v || (Array.isArray(v) && v.length === 0) || (typeof v === 'object' && Object.keys(v).length === 0),
-    
+
     // Fast element creator
     el: (tag, cls, attrs = {}) => {
       const e = document.createElement(tag);
@@ -61,91 +61,91 @@
       Object.entries(attrs).forEach(([k, v]) => e.setAttribute(k, v));
       return e;
     },
-    
+
     // Fast text setter
     txt: (el, text) => { el.textContent = text; return el; },
-    
+
     // Fast clear (replaces innerHTML)
     clear: (el) => {
       while (el.firstChild) el.removeChild(el.firstChild);
     },
-    
+
     // Fast fragment append
     frag: (items, fn) => {
       const f = document.createDocumentFragment();
       items.forEach(item => f.appendChild(fn(item)));
       return f;
     },
-    
+
     // Optimize Shopify image URL with transformations
     optimizeImageUrl: (url, options = {}) => {
       if (!url || typeof url !== 'string') return '';
-      
+
       const {
         width = 500,
         format = 'webp',
         quality = 80,
         crop = null
       } = options;
-      
+
       // Check if URL is already a Shopify CDN URL
       const shopifyCdnPattern = /(cdn\.shopify\.com|shopifycdn\.com)/i;
       if (!shopifyCdnPattern.test(url)) {
         // Not a Shopify URL, return as-is
         return url;
       }
-      
+
       // Parse the URL to extract base path
       try {
         const urlObj = new URL(url);
         const pathname = urlObj.pathname;
-        
+
         // Remove existing size parameters if present
         const cleanPath = pathname.replace(/_(?:small|medium|large|grande|compact|master|1024x1024|2048x2048)\.(jpg|jpeg|png|webp)/i, '');
-        
+
         // Extract file extension
         const match = cleanPath.match(/\.(jpg|jpeg|png|webp|gif)$/i);
         const ext = match ? match[1].toLowerCase() : 'jpg';
-        
+
         // Build optimized URL
         // Format: /path/to/image_{width}x{width}_{format}.{ext}
         const optimizedPath = cleanPath.replace(/\.(jpg|jpeg|png|webp|gif)$/i, `_${width}x${width}.${ext}`);
-        
+
         // Add quality parameter if supported (Shopify CDN supports ?quality=)
         const searchParams = new URLSearchParams();
         if (quality && quality !== 100) {
           searchParams.set('quality', quality);
         }
-        
+
         return `${urlObj.origin}${optimizedPath}${searchParams.toString() ? '?' + searchParams.toString() : ''}`;
       } catch (e) {
         // If URL parsing fails, return original
         return url;
       }
     },
-    
+
     // Build responsive srcset for Shopify images
     buildImageSrcset: (baseUrl, sizes = [200, 300, 500]) => {
       if (!baseUrl) return '';
-      
+
       return sizes.map(size => {
         const optimized = $.optimizeImageUrl(baseUrl, { width: size, format: 'webp', quality: size <= 200 ? 75 : size <= 300 ? 80 : 85 });
         return `${optimized} ${size}w`;
       }).join(', ');
     },
-    
+
     // Format money using Shopify money format
     formatMoney: (cents, moneyFormat, currency = '') => {
-      if (typeof cents !== 'number' || isNaN(cents)) return '';
-      
+      if (isNaN(cents)) return '';
+
       // Convert cents to dollars
-      const amount = cents / 100;
-      
+      const amount = parseFloat(cents) / 100;
+
       // If no money format provided, use default format
       if (!moneyFormat || typeof moneyFormat !== 'string') {
         return `${currency || ''}${amount.toFixed(2)}`;
       }
-      
+
       // Replace {{amount}} placeholder with formatted amount
       // Shopify money format examples:
       // - "${{amount}}" → "$10.00"
@@ -154,30 +154,30 @@
       // - "{{amount_with_comma_separator}}" → "10,00"
       // - "{{amount_no_decimals_with_comma_separator}}" → "10"
       // - "{{amount_with_apostrophe_separator}}" → "10'00"
-      
+
       let formattedAmount = amount.toFixed(2);
-      
+
       // Handle different amount formats
       if (moneyFormat.includes('{{amount_no_decimals}}')) {
         formattedAmount = Math.round(amount).toString();
         return moneyFormat.replace('{{amount_no_decimals}}', formattedAmount);
       }
-      
+
       if (moneyFormat.includes('{{amount_with_comma_separator}}')) {
         formattedAmount = amount.toFixed(2).replace('.', ',');
         return moneyFormat.replace('{{amount_with_comma_separator}}', formattedAmount);
       }
-      
+
       if (moneyFormat.includes('{{amount_no_decimals_with_comma_separator}}')) {
         formattedAmount = Math.round(amount).toString();
         return moneyFormat.replace('{{amount_no_decimals_with_comma_separator}}', formattedAmount);
       }
-      
+
       if (moneyFormat.includes('{{amount_with_apostrophe_separator}}')) {
         formattedAmount = amount.toFixed(2).replace('.', "'");
         return moneyFormat.replace('{{amount_with_apostrophe_separator}}', formattedAmount);
       }
-      
+
       // Default: replace {{amount}} with formatted amount
       return moneyFormat.replace('{{amount}}', formattedAmount);
     }
@@ -186,7 +186,7 @@
   // ============================================================================
   // METADATA BUILDERS (For display only, not for state management)
   // ============================================================================
-  
+
   const Metadata = {
     // Build metadata map from filters array (for display labels, types, etc.)
     buildFilterMetadata: (filters) => {
@@ -211,7 +211,7 @@
   // ============================================================================
   // STATE (Minimal, no copying)
   // ============================================================================
-  
+
   const State = {
     shop: null,
     // Filters: standard filters (fixed keys) + dynamic option filters (handles as keys)
@@ -219,7 +219,7 @@
     filters: { vendor: [], productType: [], tags: [], collections: [], search: '', priceRange: null },
     products: [],
     collections: [],
-    selectedCollection: {id: null, sortBy: null},
+    selectedCollection: { id: null, sortBy: null },
     pagination: { page: 1, limit: C.PAGE_SIZE, total: 0, totalPages: 0 },
     sort: { field: 'best-selling', order: 'asc' },
     loading: false,
@@ -243,27 +243,27 @@
   // ============================================================================
   // LOGGER (Minimal, production-safe)
   // ============================================================================
-  
+
   const Log = {
     enabled: true, // Always enabled for debugging
-    error: (msg, data) => Log.enabled? console.error('[AFS]', msg, data || ''): () => {},
-    warn: (msg, data) => Log.enabled? console.warn('[AFS]', msg, data || ''): () => {},
-    info: (msg, data) => Log.enabled? console.info('[AFS]', msg, data || ''): () => {},
-    debug: (msg, data) => Log.enabled? console.debug('[AFS]', msg, data || ''): () => {},
+    error: (msg, data) => Log.enabled ? console.error('[AFS]', msg, data || '') : () => { },
+    warn: (msg, data) => Log.enabled ? console.warn('[AFS]', msg, data || '') : () => { },
+    info: (msg, data) => Log.enabled ? console.info('[AFS]', msg, data || '') : () => { },
+    debug: (msg, data) => Log.enabled ? console.debug('[AFS]', msg, data || '') : () => { },
   };
 
   // ============================================================================
   // URL PARSER (Optimized with lookup maps)
   // ============================================================================
-  
+
   const UrlManager = {
     parse() {
       const url = new URL(window.location);
       const params = {};
-      
+
       url.searchParams.forEach((value, key) => {
         if (EXCLUDED_QUERY_PARAMS.has(key)) return;
-        
+
         // Standard filters
         if (key === 'vendor' || key === 'vendors') params.vendor = $.split(value);
         else if (key === 'productType' || key === 'productTypes') params.productType = $.split(value);
@@ -314,21 +314,21 @@
           Log.debug('Handle filter parsed directly', { handle: key, value });
         }
       });
-      
+
       return params;
     },
-    
+
     update(filters, pagination, sort) {
       const url = new URL(window.location);
       url.search = '';
-      
+
       Log.debug('Updating URL', { filters, pagination });
-      
+
       if (filters && !$.empty(filters)) {
         Object.keys(filters).forEach(key => {
           const value = filters[key];
           if ($.empty(value)) return;
-          
+
           // Standard filters and handles - all use same format
           if (Array.isArray(value) && value.length > 0) {
             url.searchParams.set(key, value.join(','));
@@ -344,12 +344,12 @@
           }
         });
       }
-      
+
       if (pagination && pagination.page > 1) {
         url.searchParams.set('page', pagination.page);
         Log.debug('Page URL param set', { page: pagination.page });
       }
-      
+
       // Update sort parameter
       if (sort && sort.field) {
         if (sort.field === 'best-selling' || sort.field === 'bestselling') {
@@ -361,7 +361,7 @@
         }
         Log.debug('Sort URL param set', { field: sort.field, order: sort.order });
       }
-      
+
       // Update preserveFilters parameter
       if (State.preserveFilters !== null && State.preserveFilters !== undefined) {
         if (State.preserveFilters === '__all__') {
@@ -371,7 +371,7 @@
         }
         Log.debug('Preserve filters URL param set', { preserveFilters: State.preserveFilters });
       }
-      
+
       const newUrl = url.toString();
       Log.info('URL updated', { newUrl, oldUrl: window.location.href });
       history.pushState({ filters, pagination, sort }, '', url);
@@ -381,17 +381,17 @@
   // ============================================================================
   // API CLIENT (Optimized with deduplication)
   // ============================================================================
-  
+
   const API = {
     baseURL: 'http://localhost:3554', // Default, should be set via config
     cache: new Map(),
     timestamps: new Map(),
     pending: new Map(),
-    
+
     key(filters, pagination, sort) {
       return `${pagination.page}-${pagination.limit}-${sort.field}-${sort.order}-${JSON.stringify(filters)}`;
     },
-    
+
     get(key) {
       const ts = this.timestamps.get(key);
       if (!ts || Date.now() - ts > C.CACHE_TTL) {
@@ -401,12 +401,12 @@
       }
       return this.cache.get(key);
     },
-    
+
     set(key, value) {
       this.cache.set(key, value);
       this.timestamps.set(key, Date.now());
     },
-    
+
     async fetch(url, timeout = C.TIMEOUT) {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), timeout);
@@ -428,31 +428,31 @@
         throw e;
       }
     },
-    
+
     async products(filters, pagination, sort) {
       if (!this.baseURL) throw new Error('API baseURL not set. Call AFS.init({ apiBaseUrl: "..." })');
       if (!State.shop) throw new Error('Shop not set');
-      
+
       const key = this.key(filters, pagination, sort);
       const cached = this.get(key);
       if (cached) {
         Log.debug('Cache hit', { key });
         return cached;
       }
-      
+
       // Deduplication: return existing promise if same request
       if (this.pending.has(key)) {
         Log.debug('Request deduplication', { key });
         return this.pending.get(key);
       }
-      
+
       const params = new URLSearchParams();
       params.set('shop', State.shop);
-      
+
       // The ID of the collection page the user is viewing.
       // Example: if the user navigates to the Jeans collection,
       // only products from that collection should be shown.
-      if(State.selectedCollection.id) {
+      if (State.selectedCollection.id) {
         params.set('cpid', State.selectedCollection.id);
       }
       // Send ALL filters as direct query parameters using handles as keys
@@ -461,7 +461,7 @@
       Object.keys(filters).forEach(k => {
         const v = filters[k];
         if ($.empty(v)) return;
-        
+
         // Direct params (search, priceRange)
         if (k === 'priceRange' && v && typeof v === 'object' && v.min !== undefined && v.max !== undefined) {
           params.set('priceRange', `${v.min}-${v.max}`);
@@ -493,7 +493,7 @@
           params.set('sort', `${sort.field}-${direction}`);
         }
       }
-      
+
       // Add preserveFilters parameter if set
       if (State.preserveFilters !== null && State.preserveFilters !== undefined) {
         if (State.preserveFilters === '__all__') {
@@ -503,18 +503,18 @@
         }
         Log.debug('Preserve filters sent to products API', { preserveFilters: State.preserveFilters });
       }
-      
+
       const url = `${this.baseURL}/storefront/products?${params}`;
       Log.info('Fetching products', { url, shop: State.shop, page: pagination.page });
-      
+
       const promise = this.fetch(url).then(res => {
         if (!res.success || !res.data) {
           Log.error('Invalid products response', { response: res });
           throw new Error('Invalid products response: ' + (res.message || 'Unknown error'));
         }
         const data = res.data;
-        Log.info('Products response', { 
-          productsCount: data.products?.length || 0, 
+        Log.info('Products response', {
+          productsCount: data.products?.length || 0,
           total: data.pagination?.total || 0,
           hasFilters: !!data.filters
         });
@@ -526,25 +526,25 @@
         Log.error('Products fetch failed', { error: e.message, url });
         throw e;
       });
-      
+
       this.pending.set(key, promise);
       return promise;
     },
-    
+
     async filters(filters) {
       if (!this.baseURL) throw new Error('API baseURL not set. Call AFS.init({ apiBaseUrl: "..." })');
       if (!State.shop) throw new Error('Shop not set');
-      
+
       const params = new URLSearchParams();
       params.set('shop', State.shop);
-      if(State.selectedCollection.id) {
+      if (State.selectedCollection.id) {
         params.set('cpid', State.selectedCollection.id);
       }
       Object.keys(filters).forEach(k => {
         const v = filters[k];
         if (!$.empty(v) && Array.isArray(v)) params.set(k, v.join(','));
       });
-      
+
       // Add preserveFilters parameter if set
       if (State.preserveFilters !== null && State.preserveFilters !== undefined) {
         if (State.preserveFilters === '__all__') {
@@ -554,16 +554,16 @@
         }
         Log.debug('Preserve filters sent to filters API', { preserveFilters: State.preserveFilters });
       }
-      
+
       const url = `${this.baseURL}/storefront/filters?${params}`;
       Log.info('Fetching filters', { url, shop: State.shop });
-      
+
       const res = await this.fetch(url);
       if (!res.success || !res.data) {
         Log.error('Invalid filters response', { response: res });
         throw new Error('Invalid filters response: ' + (res.message || 'Unknown error'));
       }
-      
+
       // Validate response structure
       const data = res.data;
       if (!data || typeof data !== 'object') {
@@ -575,17 +575,17 @@
       }
 
       Log.info('Filters response:', { filters: data.filters });
-      
+
       return data;
     },
-    
+
     setBaseURL(url) { this.baseURL = url; }
   };
 
   // ============================================================================
   // DOM RENDERER (Optimized, batched operations)
   // ============================================================================
-  
+
   const DOM = {
     container: null,
     filtersContainer: null,
@@ -595,30 +595,30 @@
     loading: null,
     sortContainer: null,
     sortSelect: null,
-    
+
     init(containerSel, filtersSel, productsSel) {
       this.container = document.querySelector(containerSel) || document.querySelector('[data-afs-container]');
       if (!this.container) throw new Error('Container not found');
-      
+
       this.container.setAttribute('data-afs-container', 'true');
-      
+
       const main = this.container.querySelector('.afs-main-content') || $.el('div', 'afs-main-content');
       if (!main.parentNode) this.container.appendChild(main);
-      
+
       this.filtersContainer = document.querySelector(filtersSel) || $.el('div', 'afs-filters-container');
       if (!this.filtersContainer.parentNode) main.appendChild(this.filtersContainer);
-      
+
       // Insert close button at the beginning of filters container
       if (this.mobileFilterClose && !this.mobileFilterClose.parentNode) {
         this.filtersContainer.insertBefore(this.mobileFilterClose, this.filtersContainer.firstChild);
       }
-      
+
       this.productsContainer = document.querySelector(productsSel) || $.el('div', 'afs-products-container');
       if (!this.productsContainer.parentNode) main.appendChild(this.productsContainer);
-      
+
       this.productsInfo = $.el('div', 'afs-products-info');
       this.productsContainer.insertBefore(this.productsInfo, this.productsContainer.firstChild);
-      
+
       // Mobile filter toggle button
       this.mobileFilterButton = $.el('button', 'afs-mobile-filter-button', {
         type: 'button',
@@ -627,7 +627,7 @@
       });
       this.mobileFilterButton.innerHTML = '<span class="afs-mobile-filter-button__icon">☰</span> <span class="afs-mobile-filter-button__text">Filters</span>';
       this.productsInfo.insertBefore(this.mobileFilterButton, this.productsInfo.firstChild);
-      
+
       // Mobile filter close button (inside filters container)
       this.mobileFilterClose = $.el('button', 'afs-mobile-filter-close', {
         type: 'button',
@@ -636,10 +636,10 @@
       });
       this.mobileFilterClose.innerHTML = '✕';
       this.mobileFilterClose.style.display = 'none'; // Hidden on desktop
-      
+
       // Sort dropdown - create and store reference
       this.sortContainer = $.el('div', 'afs-sort-container');
-      const sortLabel = $.el('label', 'afs-sort-label', {'for': 'afs-sort-label'});
+      const sortLabel = $.el('label', 'afs-sort-label', { 'for': 'afs-sort-label' });
       sortLabel.textContent = 'Sort by: ';
       this.sortSelect = $.el('select', 'afs-sort-select', { 'data-afs-sort': 'true' });
       this.sortSelect.innerHTML = `
@@ -654,11 +654,11 @@
       this.sortContainer.appendChild(sortLabel);
       this.sortContainer.appendChild(this.sortSelect);
       this.productsInfo.appendChild(this.sortContainer);
-      
+
       this.productsGrid = $.el('div', 'afs-products-grid');
       this.productsContainer.appendChild(this.productsGrid);
     },
-    
+
     // Hide filters container (when using fallback mode)
     hideFilters() {
       if (this.filtersContainer) {
@@ -666,7 +666,7 @@
         Log.debug('Filters container hidden');
       }
     },
-    
+
     // Show filters container
     showFilters() {
       if (this.filtersContainer) {
@@ -675,13 +675,13 @@
         Log.debug('Filters container shown');
       }
     },
-    
+
     // Toggle mobile filters
     toggleMobileFilters() {
       if (!this.filtersContainer) return;
-      
+
       const isOpen = this.filtersContainer.classList.contains('afs-filters-container--open');
-      
+
       if (isOpen) {
         this.filtersContainer.classList.remove('afs-filters-container--open');
         document.body.style.overflow = ''; // Restore body scroll
@@ -689,17 +689,17 @@
         this.filtersContainer.classList.add('afs-filters-container--open');
         document.body.style.overflow = 'hidden'; // Prevent body scroll when filters are open
       }
-      
+
       Log.debug('Mobile filters toggled', { isOpen: !isOpen });
     },
-    
+
     // Fastest filter rendering (batched)
     renderFilters(filters) {
       if (!this.filtersContainer || !Array.isArray(filters)) return;
-      
+
       // Hide filters skeleton when rendering real filters
       this.hideFiltersSkeleton();
-      
+
       // Save states
       const states = new Map();
       this.filtersContainer.querySelectorAll('.afs-filter-group').forEach(g => {
@@ -709,10 +709,10 @@
           search: g.querySelector('.afs-filter-group__search-input')?.value || ''
         });
       });
-      
+
       // Clear and rebuild in one batch
       $.clear(this.filtersContainer);
-      
+
       const validFilters = filters.filter(f => {
         if (!f) return false;
         if (f.type === 'priceRange' || f.type === 'variantPriceRange') {
@@ -720,20 +720,20 @@
         }
         return f.values?.length > 0;
       });
-      Log.debug('Rendering filters', { 
-        total: filters.length, 
+      Log.debug('Rendering filters', {
+        total: filters.length,
         valid: validFilters.length,
         filtersWithSearchable: validFilters.filter(f => f.searchable).length,
         filtersWithCollapsed: validFilters.filter(f => f.collapsed).length
       });
-      
+
       if (validFilters.length === 0) {
         Log.warn('No valid filters to render');
         return;
       }
-      
+
       const fragment = document.createDocumentFragment();
-      
+
       validFilters.forEach(filter => {
         // Handle price range filters separately
         if (filter.type === 'priceRange' || filter.type === 'variantPriceRange') {
@@ -741,7 +741,7 @@
           if (group) fragment.appendChild(group);
           return;
         }
-        
+
         // For option filters, use filter.handle (option handle like 'ef4gd')
         // For standard filters, use queryKey or key
         // Priority: handle (option handle) > queryKey > key
@@ -761,11 +761,11 @@
             return;
           }
         }
-        
-        Log.debug('Filter group handle determined', { 
-          handle, 
-          filterHandle: filter.handle, 
-          queryKey: filter.queryKey, 
+
+        Log.debug('Filter group handle determined', {
+          handle,
+          filterHandle: filter.handle,
+          queryKey: filter.queryKey,
           key: filter.key,
           label: filter.label,
           type: filter.type,
@@ -773,27 +773,27 @@
           optionKey: filter.optionKey,
           isOptionFilter: !!(filter.optionType || filter.optionKey)
         });
-        
+
         const group = $.el('div', 'afs-filter-group', { 'data-afs-filter-type': filter.type });
         group.setAttribute('data-afs-filter-handle', handle);
-        
+
         const stateKey = handle;
         group.setAttribute('data-afs-filter-key', stateKey);
-        
+
         const saved = states.get(stateKey);
         // Check collapsed state: saved state takes precedence, then filter.collapsed, default to false
         const collapsed = saved?.collapsed !== undefined ? saved.collapsed : (filter.collapsed === true || filter.collapsed === 'true' || filter.collapsed === 1);
         group.setAttribute('data-afs-collapsed', collapsed ? 'true' : 'false');
-        
-        Log.debug('Filter group created', { 
-          handle, 
-          label: filter.label, 
-          collapsed, 
+
+        Log.debug('Filter group created', {
+          handle,
+          label: filter.label,
+          collapsed,
           searchable: filter.searchable,
           showCount: filter.showCount,
           valuesCount: filter.values?.length || 0
         });
-        
+
         // Header
         const header = $.el('div', 'afs-filter-group__header');
         const toggle = $.el('button', 'afs-filter-group__toggle', { type: 'button', 'aria-expanded': !collapsed ? 'true' : 'false' });
@@ -801,23 +801,23 @@
         // Use inline SVG HTML for better CSS control
         icon.innerHTML = collapsed ? (Icons.rightArrow || '') : (Icons.downArrow || '');
         toggle.appendChild(icon);
-        toggle.appendChild($.txt($.el('label', 'afs-filter-group__label', {'for': 'afs-filter-group__label'}), filter.label || handle));
+        toggle.appendChild($.txt($.el('label', 'afs-filter-group__label', { 'for': 'afs-filter-group__label' }), filter.label || handle));
         header.appendChild(toggle);
         group.appendChild(header);
-        
+
         // Content
         const content = $.el('div', 'afs-filter-group__content');
         // Check searchable: check for true, 'true', 1, or any truthy value that indicates searchable
-        const isSearchable = filter.searchable === true || 
-                            filter.searchable === 'true' || 
-                            filter.searchable === 1 || 
-                            filter.searchable === '1' ||
-                            (typeof filter.searchable === 'string' && filter.searchable.toLowerCase() === 'true');
-        
+        const isSearchable = filter.searchable === true ||
+          filter.searchable === 'true' ||
+          filter.searchable === 1 ||
+          filter.searchable === '1' ||
+          (typeof filter.searchable === 'string' && filter.searchable.toLowerCase() === 'true');
+
         if (isSearchable) {
           const searchContainer = $.el('div', 'afs-filter-group__search');
-          const search = $.el('input', 'afs-filter-group__search-input', { 
-            type: 'text', 
+          const search = $.el('input', 'afs-filter-group__search-input', {
+            type: 'text',
             placeholder: filter.searchPlaceholder || 'Search...',
             'aria-label': `Search ${filter.label || handle}`
           });
@@ -826,10 +826,10 @@
           content.appendChild(searchContainer);
           Log.debug('Search input added', { handle, label: filter.label, searchable: filter.searchable });
         }
-        
+
         const items = $.el('div', 'afs-filter-group__items');
         items._items = filter.values; // Store directly, no JSON
-        
+
         // Create items fragment
         const itemsFragment = document.createDocumentFragment();
         filter.values.forEach(item => {
@@ -839,10 +839,10 @@
         items.appendChild(itemsFragment);
         content.appendChild(items);
         group.appendChild(content);
-        
+
         fragment.appendChild(group);
       });
-      
+
       if (fragment.children.length > 0) {
         this.filtersContainer.appendChild(fragment);
         // Show filters container when filters are rendered
@@ -854,7 +854,7 @@
         this.hideFilters();
       }
     },
-    
+
     // Minimal filter item creation
     // Displays label for UI, uses value for filtering
     // handle: the filter handle (e.g., 'ef4gd' for Color, 'vendor' for vendor)
@@ -862,12 +862,12 @@
       // Get value (for filtering) - always use original value
       const value = $.str(typeof item === 'string' ? item : (item.value || item.key || item.name || ''));
       if (!value || value === '[object Object]') return null;
-      
+
       // Get label (for display) - use label if available, fallback to value
-      let displayLabel = typeof item === 'string' 
-        ? item 
+      let displayLabel = typeof item === 'string'
+        ? item
         : (item.label || item.value || value);
-      
+
       // If this is a Collection filter, map collection ID to collection label from State.collections
       // Check both optionType and type to handle different filter configurations
       const isCollectionFilter = (config?.optionType === 'Collection' || config?.type === 'collection' || handle === 'collections');
@@ -885,54 +885,54 @@
           return null;
         }
       }
-      
+
       // Check if this filter is currently active (use handle directly)
       const currentValues = State.filters[handle] || [];
       const isChecked = currentValues.includes(value);
-      
+
       const label = $.el('label', 'afs-filter-item', {
         'data-afs-filter-handle': handle, // Store handle for filtering
         'data-afs-filter-value': value,     // Store original value for filtering
         'for': 'afs-filter-item'
       });
       if (isChecked) label.classList.add('afs-filter-item--active');
-      
+
       const cb = $.el('input', 'afs-filter-item__checkbox', { type: 'checkbox' });
       cb.checked = isChecked;
       cb.setAttribute('data-afs-filter-handle', handle);
       cb.setAttribute('data-afs-filter-value', value);
-      
+
       label.appendChild(cb);
       label.appendChild($.txt($.el('span', 'afs-filter-item__label'), displayLabel));
       if (config?.showCount && item.count) {
         label.appendChild($.txt($.el('span', 'afs-filter-item__count'), `(${item.count})`));
       }
-      
+
       return label;
     },
-    
+
     // Create price range filter group with dual-handle slider
     createPriceRangeGroup(filter, savedStates = null) {
       if (!filter.range || typeof filter.range.min !== 'number' || typeof filter.range.max !== 'number') {
         Log.warn('Invalid price range filter', { filter });
         return null;
       }
-      
+
       const minRange = filter.range.min;
       const maxRange = filter.range.max;
       const currentRange = State.filters.priceRange || { min: minRange, max: maxRange };
       const currentMin = Math.max(minRange, Math.min(maxRange, currentRange.min || minRange));
       const currentMax = Math.max(minRange, Math.min(maxRange, currentRange.max || maxRange));
-      
-      const group = $.el('div', 'afs-filter-group', { 
+
+      const group = $.el('div', 'afs-filter-group', {
         'data-afs-filter-type': 'priceRange',
         'data-afs-filter-key': filter.key || 'priceRange'
       });
-      
+
       const saved = savedStates?.get(filter.key || 'priceRange');
       const collapsed = saved?.collapsed ?? filter.collapsed === true;
       group.setAttribute('data-afs-collapsed', collapsed ? 'true' : 'false');
-      
+
       // Header
       const header = $.el('div', 'afs-filter-group__header');
       const toggle = $.el('button', 'afs-filter-group__toggle', { type: 'button', 'aria-expanded': !collapsed ? 'true' : 'false' });
@@ -940,21 +940,21 @@
       // Use inline SVG HTML for better CSS control
       icon.innerHTML = collapsed ? (Icons.rightArrow || '') : (Icons.downArrow || '');
       toggle.appendChild(icon);
-      toggle.appendChild($.txt($.el('label', 'afs-filter-group__label', {'for':'afs-filter-group__label'}), filter.label || 'Price'));
+      toggle.appendChild($.txt($.el('label', 'afs-filter-group__label', { 'for': 'afs-filter-group__label' }), filter.label || 'Price'));
       header.appendChild(toggle);
       group.appendChild(header);
-      
+
       // Content
       const content = $.el('div', 'afs-filter-group__content');
-      
+
       // Price range slider container
       const sliderContainer = $.el('div', 'afs-price-range-container');
-      
+
       // Range slider track
       const track = $.el('div', 'afs-price-range-track');
       const activeTrack = $.el('div', 'afs-price-range-active');
       track.appendChild(activeTrack);
-      
+
       // Min and Max input handles (overlaid on track)
       const minHandle = $.el('input', 'afs-price-range-handle afs-price-range-handle--min', {
         type: 'range',
@@ -964,7 +964,7 @@
         step: 1
       });
       minHandle.setAttribute('data-afs-range-type', 'min');
-      
+
       const maxHandle = $.el('input', 'afs-price-range-handle afs-price-range-handle--max', {
         type: 'range',
         min: minRange,
@@ -973,11 +973,11 @@
         step: 1
       });
       maxHandle.setAttribute('data-afs-range-type', 'max');
-      
+
       track.appendChild(minHandle);
       track.appendChild(maxHandle);
       sliderContainer.appendChild(track);
-      
+
       // Value display
       const valueDisplay = $.el('div', 'afs-price-range-values');
       const minDisplay = $.el('span', 'afs-price-range-value afs-price-range-value--min');
@@ -989,7 +989,7 @@
       valueDisplay.appendChild($.txt($.el('span', 'afs-price-range-separator'), ' - '));
       valueDisplay.appendChild(maxDisplay);
       sliderContainer.appendChild(valueDisplay);
-      
+
       // Update active track position
       const updateActiveTrack = () => {
         const min = parseFloat(minHandle.value);
@@ -1002,7 +1002,7 @@
         minDisplay.textContent = formatPrice(min);
         maxDisplay.textContent = formatPrice(max);
       };
-      
+
       // Ensure min <= max
       const constrainValues = () => {
         const min = parseFloat(minHandle.value);
@@ -1013,45 +1013,45 @@
         }
         updateActiveTrack();
       };
-      
+
       // Event handlers
       minHandle.addEventListener('input', () => {
         constrainValues();
         Filters.updatePriceRange(parseFloat(minHandle.value), parseFloat(maxHandle.value));
       });
-      
+
       maxHandle.addEventListener('input', () => {
         constrainValues();
         Filters.updatePriceRange(parseFloat(minHandle.value), parseFloat(maxHandle.value));
       });
-      
+
       // Initialize active track
       updateActiveTrack();
-      
+
       content.appendChild(sliderContainer);
       group.appendChild(content);
-      
+
       return group;
     },
-    
+
     // Fastest product rendering (incremental updates)
     renderProducts(products) {
       if (!this.productsGrid) return;
-      
+
       // Remove skeleton cards if present
       const skeletonCards = this.productsGrid.querySelectorAll('.afs-skeleton-card');
       if (skeletonCards.length > 0) {
         skeletonCards.forEach(card => card.remove());
       }
-      
+
       const existing = new Map();
       this.productsGrid.querySelectorAll('[data-afs-product-id]').forEach(el => {
         existing.set(el.getAttribute('data-afs-product-id'), el);
       });
-      
+
       const productIds = new Set(products.map($.id));
       const fragment = document.createDocumentFragment();
-      
+
       products.forEach(product => {
         const id = $.id(product);
         const el = existing.get(id);
@@ -1059,62 +1059,51 @@
           // Update existing
           const title = el.querySelector('.afs-product-card__title');
           if (title && title.textContent !== product.title) title.textContent = product.title || 'Untitled';
-          
+
           const price = el.querySelector('.afs-product-card__price');
           if (price) {
-            // Use minPrice and maxPrice from API response (assumed to be in cents)
-            // Fallback to priceRange if minPrice/maxPrice not available
-            // priceRange amounts are in dollars, so multiply by 100 to convert to cents
-            let minPrice = product.minPrice !== undefined && product.minPrice !== null 
-              ? product.minPrice 
-              : (product.priceRange?.minVariantPrice?.amount ? product.priceRange.minVariantPrice.amount * 100 : null);
-            
-            let maxPrice = product.maxPrice !== undefined && product.maxPrice !== null 
-              ? product.maxPrice 
-              : (product.priceRange?.maxVariantPrice?.amount ? product.priceRange.maxVariantPrice.amount * 100 : null);
-            
-            if (minPrice !== null && maxPrice !== null && (minPrice > 0 || maxPrice > 0)) {
-              const moneyFormat = State.moneyFormat || '{{amount}}';
-              const formattedMin = $.formatMoney(minPrice, moneyFormat, State.currency || '');
-              
-              // If prices are equal, show single price, otherwise show "from" prefix
-              const priceText = minPrice === maxPrice ? formattedMin : `from ${formattedMin}`;
-              
-              if (price.textContent !== priceText) price.textContent = priceText;
-            }
+            // price amounts are in dollars, so multiply by 100 to convert to cents
+            let minPrice = parseFloat(product.minPrice || 0) * 100;
+            let maxPrice = parseFloat(product.maxPrice || 0) * 100;
+            const formattedMin = $.formatMoney(minPrice, State.moneyFormat || '{{amount}}', State.currency || '');
+
+            // If prices are equal, show single price, otherwise show "from" prefix
+            const priceText = minPrice === maxPrice ? formattedMin : `from ${formattedMin}`;
+
+            if (price.textContent !== priceText) price.textContent = priceText;
           }
         } else {
           // Create product
           fragment.appendChild(this.createProduct(product));
         }
       });
-      
+
       // Remove products not in current list
       existing.forEach((el, id) => {
         if (!productIds.has(id)) el.remove();
       });
-      
+
       if (fragment.children.length > 0) {
         this.productsGrid.appendChild(fragment);
       }
     },
-    
+
     // Minimal product creation
     createProduct(p) {
       const card = $.el('div', 'afs-product-card', { 'data-afs-product-id': $.id(p) });
-      
+
       if (p.imageUrl || p.featuredImage) {
         const imgContainer = $.el('div', 'afs-product-card__image');
-        const img = $.el('img', '', { 
+        const img = $.el('img', '', {
           alt: p.title || '',
           loading: 'lazy',
           decoding: 'async',
           fetchpriority: 'low'
         });
-        
+
         // Get base image URL
         const baseImageUrl = p.featuredImage?.url || p.featuredImage?.urlFallback || p.imageUrl || '';
-        
+
         if (baseImageUrl) {
           // Use responsive images with srcset for optimal loading
           if (p.featuredImage && (p.featuredImage.urlSmall || p.featuredImage.urlMedium || p.featuredImage.urlLarge)) {
@@ -1123,29 +1112,29 @@
             if (p.featuredImage.urlSmall) srcset.push(`${p.featuredImage.urlSmall} 200w`);
             if (p.featuredImage.urlMedium) srcset.push(`${p.featuredImage.urlMedium} 300w`);
             if (p.featuredImage.urlLarge) srcset.push(`${p.featuredImage.urlLarge} 500w`);
-            
+
             if (srcset.length > 0) {
               img.setAttribute('srcset', srcset.join(', '));
               img.setAttribute('sizes', '(max-width: 768px) 200px, (max-width: 1024px) 300px, 500px');
             }
-            
+
             // Set src with WebP first, fallback to original
             img.src = p.featuredImage.url || p.featuredImage.urlFallback || baseImageUrl;
           } else {
             // Optimize image URL on-the-fly for API responses
             const optimizedUrl = $.optimizeImageUrl(baseImageUrl, { width: 300, format: 'webp', quality: 80 });
             const srcset = $.buildImageSrcset(baseImageUrl, [200, 300, 500]);
-            
+
             if (srcset) {
               img.setAttribute('srcset', srcset);
               img.setAttribute('sizes', '(max-width: 768px) 200px, (max-width: 1024px) 300px, 500px');
             }
-            
+
             img.src = optimizedUrl || baseImageUrl;
           }
-          
+
           // Add error handling for failed image loads
-          img.onerror = function() {
+          img.onerror = function () {
             // Fallback to original format if WebP fails
             const fallbackUrl = p.featuredImage?.urlFallback || baseImageUrl;
             if (fallbackUrl && this.src !== fallbackUrl) {
@@ -1166,52 +1155,42 @@
             }
           };
         }
-        
+
         imgContainer.appendChild(img);
         card.appendChild(imgContainer);
       }
-      
+
       const info = $.el('div', 'afs-product-card__info');
-      info.appendChild($.txt($.el('h3', 'afs-product-card__title'), p.title || 'Untitled'));
-      if (p.vendor) info.appendChild($.txt($.el('div', 'afs-product-card__vendor'), p.vendor));
-      
-      // Use minPrice and maxPrice from API response (assumed to be in cents)
-      // Fallback to priceRange if minPrice/maxPrice not available
-      // priceRange amounts are in dollars, so multiply by 100 to convert to cents
-      let minPrice = p.minPrice !== undefined && p.minPrice !== null 
-        ? p.minPrice 
-        : (p.priceRange?.minVariantPrice?.amount ? p.priceRange.minVariantPrice.amount * 100 : null);
-      
-      let maxPrice = p.maxPrice !== undefined && p.maxPrice !== null 
-        ? p.maxPrice 
-        : (p.priceRange?.maxVariantPrice?.amount ? p.priceRange.maxVariantPrice.amount * 100 : null);
-      
-      if (minPrice !== null && maxPrice !== null && (minPrice > 0 || maxPrice > 0)) {
-        const moneyFormat = State.moneyFormat || '{{amount}}';
-        const formattedMin = $.formatMoney(minPrice, moneyFormat, State.currency || '');
-        
+      if (info) {
+        info.appendChild($.txt($.el('h3', 'afs-product-card__title'), p.title || 'Untitled'));
+        if (p.vendor) info.appendChild($.txt($.el('div', 'afs-product-card__vendor'), p.vendor));
+
+        // price amounts are in dollars, so multiply by 100 to convert to cents
+        let minPrice = parseFloat(p.minPrice) * 100;
+        let maxPrice = parseFloat(p.maxPrice) * 100;
+        const formattedMin = $.formatMoney(minPrice, State.moneyFormat || '{{amount}}', State.currency || '');
+
         // If prices are equal, show single price, otherwise show "from" prefix
         const priceText = minPrice === maxPrice ? formattedMin : `from ${formattedMin}`;
-        
+
         info.appendChild($.txt($.el('div', 'afs-product-card__price'), priceText));
+        card.appendChild(info);
       }
-      card.appendChild(info);
-      
       return card;
     },
-    
+
     // Update filter active state (optimized)
     updateFilterState(handle, value, active) {
       if (!this.filtersContainer) {
         Log.warn('Cannot update filter state: filtersContainer not found');
         return;
       }
-      
+
       // Escape special characters in value for CSS selector
       const escapeValue = (val) => String(val).replace(/[!"#$%&'()*+,.\/:;<=>?@[\\\]^`{|}~]/g, '\\$&');
       const escapedValue = escapeValue(value);
       const escapedHandle = escapeValue(handle);
-      
+
       const selector = `.afs-filter-item[data-afs-filter-handle="${escapedHandle}"][data-afs-filter-value="${escapedValue}"]`;
       const item = this.filtersContainer.querySelector(selector);
       if (item) {
@@ -1227,18 +1206,18 @@
         Log.warn('Filter item not found for state update', { handle, value, active, selector });
       }
     },
-    
+
     // Products info
     renderInfo(pagination, total) {
       if (!this.productsInfo) return;
-      
+
       // Preserve sort container when clearing
       const sortContainer = this.sortContainer;
       const existingResults = this.productsInfo.querySelector('.afs-products-info__results');
-      
+
       // Remove only the results and page elements, keep sort container
       if (existingResults) existingResults.remove();
-      
+
       // Create results text
       let resultsEl;
       if (total === 0) {
@@ -1250,7 +1229,7 @@
         const end = Math.min(pagination.page * pagination.limit, total);
         resultsEl = $.txt($.el('div', 'afs-products-info__results'), `Showing ${start}-${end} of ${total} products`);
       }
-      
+
       // Insert results before sort container (left side)
       if (sortContainer && sortContainer.parentNode) {
         this.productsInfo.insertBefore(resultsEl, sortContainer);
@@ -1262,19 +1241,19 @@
         }
       }
     },
-    
+
     // Render pagination controls
     renderPagination(pagination) {
       if (!this.productsGrid || !pagination) return;
-      
+
       // Remove existing pagination
       const existing = this.productsGrid.parentNode?.querySelector('.afs-pagination');
       if (existing) existing.remove();
 
       if (pagination.totalPages <= 1) return;
-      
+
       const paginationEl = $.el('div', 'afs-pagination');
-      
+
       // Previous button
       const prevBtn = $.el('button', 'afs-pagination__button', {
         'data-afs-page': pagination.page - 1,
@@ -1283,12 +1262,12 @@
       prevBtn.textContent = 'Previous';
       prevBtn.disabled = pagination.page <= 1;
       paginationEl.appendChild(prevBtn);
-      
+
       // Page info
       const info = $.el('span', 'afs-pagination__info');
       info.textContent = `Page ${pagination.page} of ${pagination.totalPages}`;
       paginationEl.appendChild(info);
-      
+
       // Next button
       const nextBtn = $.el('button', 'afs-pagination__button', {
         'data-afs-page': pagination.page + 1,
@@ -1297,20 +1276,20 @@
       nextBtn.textContent = 'Next';
       nextBtn.disabled = pagination.page >= pagination.totalPages;
       paginationEl.appendChild(nextBtn);
-      
+
       if (this.productsContainer) {
         this.productsContainer.appendChild(paginationEl);
       }
     },
-    
+
     // Applied filters with clear all
     renderApplied(filters) {
       if (!this.container) return;
-      
+
       // Remove existing applied filters
       const existing = this.container.querySelector('.afs-applied-filters');
       if (existing) existing.remove();
-      
+
       // Count active filters
       // key here is the handle (for option filters) or queryKey (for standard filters)
       const activeFilters = [];
@@ -1328,14 +1307,14 @@
           });
         }
       });
-      
+
       if (activeFilters.length === 0) return;
-      
+
       const appliedContainer = $.el('div', 'afs-applied-filters');
       const header = $.el('div', 'afs-applied-filters__header');
       header.appendChild($.txt($.el('div', 'afs-applied-filters__label'), 'Applied Filters:'));
       appliedContainer.appendChild(header);
-      
+
       const list = $.el('div', 'afs-applied-filters__list');
       activeFilters.forEach(filter => {
         const chip = $.el('div', 'afs-applied-filter-chip');
@@ -1350,18 +1329,18 @@
         chip.appendChild(remove);
         list.appendChild(chip);
       });
-      
+
       const clearAll = $.el('button', 'afs-applied-filters__clear-all', {
         'data-afs-action': 'clear-all',
         type: 'button'
       });
       clearAll.textContent = 'Clear All';
       list.appendChild(clearAll);
-      
+
       appliedContainer.appendChild(list);
       this.container.insertBefore(appliedContainer, this.container.firstChild);
     },
-    
+
     scrollToProducts() {
       // Scroll to products section when filters are applied
       if (this.productsContainer) {
@@ -1375,17 +1354,17 @@
         Log.debug('Scrolled to products info');
       }
     },
-    
+
     showLoading() {
       // Show products skeleton
       if (this.productsGrid) {
         // Clear existing products
         $.clear(this.productsGrid);
-        
+
         // Get page size from State or use minimum of 24
         const pageSize = State.pagination?.limit || C.PAGE_SIZE || 24;
         const skeletonCount = Math.max(pageSize, 24); // At least 24 skeleton cards
-        
+
         // Create skeleton product cards directly in the grid
         const skeletonCards = [];
         for (let i = 0; i < skeletonCount; i++) {
@@ -1401,27 +1380,27 @@
           `;
           skeletonCards.push(skeletonCard);
         }
-        
+
         // Append skeleton cards directly to productsGrid (which is already a grid container)
         skeletonCards.forEach(card => this.productsGrid.appendChild(card));
-        
+
         // Store reference to skeleton cards for easy removal
         this.loading = skeletonCards;
       }
-      
+
       // Show filters skeleton if filters container exists and is visible
       if (this.filtersContainer && this.filtersContainer.style.display !== 'none') {
         this.showFiltersSkeleton();
       }
     },
-    
+
     showFiltersSkeleton() {
       // Remove existing skeleton if present
       const existingSkeleton = this.filtersContainer.querySelector('.afs-filters-skeleton');
       if (existingSkeleton) {
         existingSkeleton.remove();
       }
-      
+
       // Create filters skeleton
       const filtersSkeleton = $.el('div', 'afs-filters-skeleton');
       // Create 3-4 skeleton filter groups
@@ -1443,14 +1422,14 @@
       }
       this.filtersContainer.appendChild(filtersSkeleton);
     },
-    
+
     hideFiltersSkeleton() {
       const skeleton = this.filtersContainer?.querySelector('.afs-filters-skeleton');
       if (skeleton) {
         skeleton.remove();
       }
     },
-    
+
     hideLoading() {
       // Remove skeleton cards if they exist
       if (Array.isArray(this.loading)) {
@@ -1469,23 +1448,23 @@
       // Also hide filters skeleton
       this.hideFiltersSkeleton();
     },
-    
+
     showError(message) {
       if (!this.productsContainer) {
         Log.error('Cannot show error: productsContainer not found');
         return;
       }
-      
+
       // Remove loading if present
       this.hideLoading();
-      
+
       // Check if we have fallback products to show instead of error
       if (State.fallbackProducts && State.fallbackProducts.length > 0) {
-        Log.warn('API error occurred, using fallback products from Liquid', { 
-          error: message, 
-          fallbackCount: State.fallbackProducts.length 
+        Log.warn('API error occurred, using fallback products from Liquid', {
+          error: message,
+          fallbackCount: State.fallbackProducts.length
         });
-        
+
         // Use fallback products
         State.products = State.fallbackProducts;
         State.pagination = {
@@ -1494,22 +1473,22 @@
           total: State.fallbackProducts.length,
           totalPages: Math.ceil(State.fallbackProducts.length / C.PAGE_SIZE)
         };
-        
+
         // Render fallback products
         this.renderProducts(State.products);
         this.renderInfo(State.pagination, State.pagination.total);
         this.renderPagination(State.pagination);
-        
+
         return;
       }
-      
+
       // No fallback available, show error
       const existingError = this.productsContainer.querySelector('.afs-error-message');
       if (existingError) existingError.remove();
-      
+
       const error = $.el('div', 'afs-error-message');
       error.textContent = message || 'An error occurred. Please try again.';
-      
+
       // Insert error in products grid or container
       if (this.productsGrid) {
         $.clear(this.productsGrid);
@@ -1517,7 +1496,7 @@
       } else {
         this.productsContainer.appendChild(error);
       }
-      
+
       Log.error('Error displayed', { message });
     }
   };
@@ -1525,7 +1504,7 @@
   // ============================================================================
   // FALLBACK MODE HELPER (Page reload for Liquid products)
   // ============================================================================
-  
+
   const FallbackMode = {
     // Get pagination info for fallback mode (from URL params and Liquid data)
     getPagination() {
@@ -1533,7 +1512,7 @@
       const currentPage = urlParams.page || State.fallbackPagination.currentPage || 1;
       const totalPages = State.fallbackPagination.totalPages || 1;
       const totalProducts = State.fallbackPagination.totalProducts || State.fallbackProducts.length || 0;
-      
+
       return {
         page: currentPage,
         limit: C.PAGE_SIZE,
@@ -1541,12 +1520,12 @@
         totalPages: totalPages
       };
     },
-    
+
     // Reload page with updated URL parameters for sort/pagination
     reloadPage(filters, pagination, sort) {
       const url = new URL(window.location);
       url.search = '';
-      
+
       // Add sort parameter
       if (sort && sort.field) {
         if (sort.field === 'best-selling' || sort.field === 'bestselling') {
@@ -1557,17 +1536,17 @@
           url.searchParams.set('sort', `${sort.field}-${direction}`);
         }
       }
-      
+
       // Add page parameter (always set it, even if page 1, for consistency)
       if (pagination && pagination.page) {
         url.searchParams.set('page', pagination.page);
       }
-      
+
       // Preserve any existing filter parameters (they'll be handled by Liquid)
       Object.keys(filters || {}).forEach(key => {
         const value = filters[key];
         if ($.empty(value)) return;
-        
+
         if (Array.isArray(value) && value.length > 0) {
           url.searchParams.set(key, value.join(','));
         } else if (key === 'priceRange' && value && typeof value === 'object' && value.min !== undefined && value.max !== undefined) {
@@ -1576,7 +1555,7 @@
           url.searchParams.set(key, value.trim());
         }
       });
-      
+
       Log.info('Reloading page for fallback mode', { url: url.toString(), sort, pagination });
       window.location.href = url.toString();
     }
@@ -1585,7 +1564,7 @@
   // ============================================================================
   // FILTER MANAGER (Optimized)
   // ============================================================================
-  
+
   const Filters = {
     // Toggle standard filter (vendor, productType, tags, collections) or handle-based filter
     toggle(handle, value) {
@@ -1594,44 +1573,44 @@
         Log.warn('Invalid filter toggle', { handle, value });
         return;
       }
-      
+
       const current = State.filters[handle] || [];
       const isActive = current.includes(normalized);
       const filterValues = isActive
         ? current.filter(v => v !== normalized)
         : [...current, normalized];
-      
+
       if (filterValues.length === 0) {
         delete State.filters[handle];
       } else {
         State.filters[handle] = filterValues;
       }
-      
+
       State.pagination.page = 1;
-      
+
       Log.debug('Filter toggled', { handle, value: normalized, wasActive: isActive, isActive: !isActive, filterValues });
-      
+
       UrlManager.update(State.filters, State.pagination, State.sort);
       DOM.updateFilterState(handle, normalized, !isActive);
       // Scroll to top when filter is clicked
       DOM.scrollToProducts();
       // Show loading skeleton immediately (before debounce)
       DOM.showLoading();
-      
+
       // Close mobile filters after applying filter (on mobile devices)
       if (window.innerWidth <= 768 && DOM.filtersContainer?.classList.contains('afs-filters-container--open')) {
         DOM.toggleMobileFilters();
       }
-      
+
       this.apply();
     },
-    
+
     updatePriceRange(min, max) {
       if (typeof min !== 'number' || typeof max !== 'number' || min < 0 || max < min) {
         Log.warn('Invalid price range', { min, max });
         return;
       }
-      
+
       // Check if range matches the full range (no filter applied)
       const priceFilter = State.availableFilters.find(f => f.type === 'priceRange' || f.type === 'variantPriceRange');
       if (priceFilter && priceFilter.range) {
@@ -1643,11 +1622,11 @@
       } else {
         State.filters.priceRange = { min, max };
       }
-      
+
       State.pagination.page = 1;
-      
+
       Log.debug('Price range updated', { min, max, priceRange: State.filters.priceRange });
-      
+
       UrlManager.update(State.filters, State.pagination, State.sort);
       // Scroll to top when price range is updated
       DOM.scrollToProducts();
@@ -1655,18 +1634,18 @@
       DOM.showLoading();
       this.apply();
     },
-    
+
     // Apply products only (for sort/pagination changes - no filter update needed)
     applyProductsOnly: $.debounce(async () => {
       Log.info('applyProductsOnly called', { filters: State.filters, pagination: State.pagination, sort: State.sort, usingFallback: State.usingFallback });
-      
+
       // If in fallback mode, reload page with new URL parameters
       if (State.usingFallback) {
         Log.info('In fallback mode, reloading page with new parameters');
         FallbackMode.reloadPage(State.filters, State.pagination, State.sort);
         return;
       }
-      
+
       // Scroll to top when products are being fetched
       DOM.scrollToProducts();
       // Loading is already shown before debounce, but ensure it's shown here too
@@ -1678,10 +1657,10 @@
         State.products = data.products || [];
         State.pagination = data.pagination || State.pagination;
         State.usingFallback = false; // Reset fallback flag on success
-        
+
         // Show filters section when API is working
         DOM.showFilters();
-        
+
         DOM.renderProducts(State.products);
         DOM.renderInfo(State.pagination, State.pagination.total || 0);
         DOM.renderPagination(State.pagination);
@@ -1690,23 +1669,23 @@
       } catch (e) {
         DOM.hideLoading();
         Log.error('Failed to load products', e);
-        
+
         // Try to use fallback products if available
         if (State.fallbackProducts && State.fallbackProducts.length > 0) {
-          Log.warn('Products API failed, using fallback products from Liquid', { 
-            error: e.message, 
-            fallbackCount: State.fallbackProducts.length 
+          Log.warn('Products API failed, using fallback products from Liquid', {
+            error: e.message,
+            fallbackCount: State.fallbackProducts.length
           });
-          
+
           State.usingFallback = true; // Set fallback flag
           State.products = State.fallbackProducts;
           // Use pagination from URL params and Liquid data
           State.pagination = FallbackMode.getPagination();
-          
+
           // Hide filters section when using fallback
           State.availableFilters = [];
           DOM.hideFilters();
-          
+
           // Update sort select value based on current sort state
           if (DOM.sortSelect) {
             if (State.sort.field === 'best-selling' || State.sort.field === 'bestselling') {
@@ -1716,18 +1695,18 @@
               DOM.sortSelect.value = `${State.sort.field}-${direction}`;
             }
           }
-          
+
           DOM.renderProducts(State.products);
           DOM.renderInfo(State.pagination, State.pagination.total);
           DOM.renderPagination(State.pagination);
           DOM.renderApplied(State.filters);
-          
+
         } else {
           DOM.showError(`Failed to load products: ${e.message || 'Unknown error'}`);
         }
       }
     }, C.DEBOUNCE),
-    
+
     // Apply filters and products (for filter changes - needs to update both)
     apply: $.debounce(async () => {
       // Scroll to top when products are being fetched
@@ -1737,7 +1716,7 @@
         const data = await API.products(State.filters, State.pagination, State.sort);
         State.products = data.products || [];
         State.pagination = data.pagination || State.pagination;
-        
+
         // Fetch filters after products (will hit cache created by products request)
         // Only fetch filters when filters actually changed
         try {
@@ -1751,7 +1730,7 @@
           Log.warn('Failed to fetch updated filters', { error: e.message });
           // Continue with existing filters if update fails
         }
-        
+
         DOM.renderProducts(State.products);
         DOM.renderInfo(State.pagination, State.pagination.total || 0);
         DOM.renderPagination(State.pagination);
@@ -1760,23 +1739,23 @@
       } catch (e) {
         DOM.hideLoading();
         Log.error('Failed to apply filters', e);
-        
+
         // Try to use fallback products if available
         if (State.fallbackProducts && State.fallbackProducts.length > 0) {
-          Log.warn('Filters API failed, using fallback products from Liquid', { 
-            error: e.message, 
-            fallbackCount: State.fallbackProducts.length 
+          Log.warn('Filters API failed, using fallback products from Liquid', {
+            error: e.message,
+            fallbackCount: State.fallbackProducts.length
           });
-          
+
           State.usingFallback = true; // Set fallback flag
           State.products = State.fallbackProducts;
           // Use pagination from URL params and Liquid data
           State.pagination = FallbackMode.getPagination();
-          
+
           // Hide filters section when using fallback
           State.availableFilters = [];
           DOM.hideFilters();
-          
+
           // Update sort select value based on current sort state
           if (DOM.sortSelect) {
             if (State.sort.field === 'best-selling' || State.sort.field === 'bestselling') {
@@ -1786,12 +1765,12 @@
               DOM.sortSelect.value = `${State.sort.field}-${direction}`;
             }
           }
-          
+
           DOM.renderProducts(State.products);
           DOM.renderInfo(State.pagination, State.pagination.total);
           DOM.renderPagination(State.pagination);
           DOM.renderApplied(State.filters);
-          
+
         } else {
           DOM.showError(`Failed to load products: ${e.message || 'Unknown error'}`);
         }
@@ -1802,17 +1781,17 @@
   // ============================================================================
   // EVENT HANDLERS (Single delegated handler)
   // ============================================================================
-  
+
   const Events = {
     attach() {
       if (!DOM.container) return;
-      
+
       DOM.container.addEventListener('click', (e) => {
         const action = e.target.closest('[data-afs-action]')?.dataset.afsAction;
         const item = e.target.closest('.afs-filter-item');
         const checkbox = e.target.type === 'checkbox' ? e.target : item?.querySelector('.afs-filter-item__checkbox');
         const pagination = e.target.closest('.afs-pagination__button');
-        
+
         if (action === 'clear-all') {
           // Reset to initial state (standard filters only, handles will be removed dynamically)
           State.filters = { vendor: [], productType: [], tags: [], collections: [], search: '', priceRange: null };
@@ -1840,16 +1819,16 @@
         else if (checkbox && item) {
           e.preventDefault(); // Prevent default checkbox toggle behavior
           e.stopPropagation(); // Stop event bubbling
-          
+
           // Get handle from data attribute (handle is stored directly)
           const handle = item.getAttribute('data-afs-filter-handle') || item.getAttribute('data-afs-filter-type');
           const value = item.getAttribute('data-afs-filter-value');
-          
+
           if (!handle || !value) {
             Log.warn('Invalid filter item clicked', { handle, value });
             return;
           }
-          
+
           Log.debug('Filter toggle', { handle, value, currentChecked: checkbox.checked });
           Filters.toggle(handle, value);
         }
@@ -1881,31 +1860,31 @@
           e.stopPropagation();
           const group = e.target.closest('.afs-filter-group');
           if (!group) return;
-          
+
           const collapsed = group.getAttribute('data-afs-collapsed') === 'true';
           const collapsedState = !collapsed;
           group.setAttribute('data-afs-collapsed', collapsedState ? 'true' : 'false');
-          
+
           // Update toggle button aria-expanded
           const toggle = group.querySelector('.afs-filter-group__toggle');
           if (toggle) {
             toggle.setAttribute('aria-expanded', collapsedState ? 'false' : 'true');
           }
-          
+
           // Update icon
           const icon = group.querySelector('.afs-filter-group__icon');
           if (icon) {
             // Update inline SVG HTML
-            icon.innerHTML = collapsedState 
+            icon.innerHTML = collapsedState
               ? (Icons.rightArrow || '')
               : (Icons.downArrow || '');
           }
-          
+
           // Content visibility is handled by CSS via data-afs-collapsed attribute
           Log.debug('Filter group toggled', { collapsed: collapsedState });
         }
       });
-      
+
       // Search input
       DOM.container.addEventListener('input', (e) => {
         if (e.target.classList.contains('afs-filter-group__search-input')) {
@@ -1923,14 +1902,14 @@
           }
         }
       });
-      
+
       // Helper function to handle sort change
       const handleSortChange = (select) => {
         const sortValue = select.value;
         if (!sortValue) return;
-        
+
         Log.info('Sort dropdown changed', { sortValue, currentSort: State.sort });
-        
+
         // Calculate new sort state
         // New format: "title-ascending", "price-descending", etc.
         let newSort;
@@ -1946,7 +1925,7 @@
           const [field, order] = sortValue.split(':');
           newSort = { field, order: order || 'desc' };
         }
-        
+
         // Always update state and call API when sort is selected
         // (even if value is same, user explicitly selected it)
         State.sort = newSort;
@@ -1959,17 +1938,17 @@
         // Only fetch products, not filters (filters haven't changed)
         Filters.applyProductsOnly();
       };
-      
+
       // Store the previous value to detect changes
       let previousSortValue = null;
-      
+
       // Track when select is focused to capture initial value
       DOM.container.addEventListener('focus', (e) => {
         if (e.target.classList.contains('afs-sort-select')) {
           previousSortValue = e.target.value;
         }
       }, true);
-      
+
       // Sort dropdown change event (fires when value changes)
       DOM.container.addEventListener('change', (e) => {
         if (e.target.classList.contains('afs-sort-select')) {
@@ -1977,14 +1956,14 @@
           previousSortValue = e.target.value;
         }
       });
-      
+
       // Also listen for blur event (fires when dropdown closes)
       // This catches cases where user selects the same option (change event doesn't fire)
       DOM.container.addEventListener('blur', (e) => {
         if (e.target.classList.contains('afs-sort-select')) {
           const select = e.target;
           const currentValue = select.value;
-          
+
           // If value is different from previous, or if change event didn't fire
           // (previousSortValue might be null on first interaction)
           if (currentValue && currentValue !== previousSortValue) {
@@ -1999,7 +1978,7 @@
                 const direction = State.sort.order === 'asc' ? 'ascending' : 'descending';
                 currentSortValue = `${State.sort.field}-${direction}`;
               }
-              
+
               if (currentValue !== currentSortValue) {
                 handleSortChange(select);
               }
@@ -2008,15 +1987,15 @@
           previousSortValue = currentValue;
         }
       }, true);
-      
+
       window.addEventListener('popstate', () => {
         const params = UrlManager.parse();
-        
+
         // Store old state to detect if filters changed
         const oldFilters = JSON.stringify(State.filters);
         const oldPage = State.pagination.page;
         const oldSort = JSON.stringify(State.sort);
-        
+
         // Set preserveFilters from URL params
         if (params.preserveFilters !== undefined) {
           if (params.preserveFilters === '__all__') {
@@ -2027,7 +2006,7 @@
             State.preserveFilters = null;
           }
         }
-        
+
         // Rebuild filters from params (includes standard filters + handles)
         State.filters = {
           vendor: params.vendor || [],
@@ -2047,12 +2026,12 @@
             }
           }
         });
-        
+
         const newPage = params.page || State.pagination.page;
         if (newPage !== oldPage) {
           State.pagination.page = newPage;
         }
-        
+
         // Update sort from URL params or default to best-selling
         if (params.sort) {
           const sortValue = params.sort.field || params.sort;
@@ -2077,13 +2056,13 @@
           // Default to best-selling if no sort in URL
           State.sort = { field: 'best-selling', order: 'asc' };
         }
-        
+
         // Check if filters changed
         const newFilters = JSON.stringify(State.filters);
         const newSort = JSON.stringify(State.sort);
         const filtersChanged = oldFilters !== newFilters;
         const onlySortOrPageChanged = !filtersChanged && (newSort !== oldSort || newPage !== oldPage);
-        
+
         // Only fetch filters if filters actually changed
         if (onlySortOrPageChanged) {
           Filters.applyProductsOnly();
@@ -2097,18 +2076,18 @@
   // ============================================================================
   // MAIN API (Minimal)
   // ============================================================================
-  
+
   const AFS = {
     init(config = {}) {
       try {
         Log.enabled = config.enableLogging;
         Log.info('Initializing AFS', config);
-        
+
         if (config.apiBaseUrl) {
           API.setBaseURL(config.apiBaseUrl);
           Log.info('API base URL set', { url: API.baseURL });
         }
-        
+
         if (!config.shop) {
           throw new Error('Shop parameter is required in config');
         }
@@ -2116,7 +2095,7 @@
         State.shop = config.shop;
         State.collections = config.collections;
         State.selectedCollection = config.selectedCollection;
-        
+
         // Store money format from Shopify
         if (config.moneyFormat) {
           State.moneyFormat = config.moneyFormat;
@@ -2127,22 +2106,22 @@
         if (config.currency) {
           State.currency = config.currency;
         }
-        
+
         // Store fallback products and pagination from Liquid
         if (config.fallbackProducts && Array.isArray(config.fallbackProducts) && config.fallbackProducts.length > 0) {
           State.fallbackProducts = config.fallbackProducts;
           Log.info('Fallback products loaded from Liquid', { count: State.fallbackProducts.length });
         }
-        
+
         if (config.fallbackPagination) {
           State.fallbackPagination = config.fallbackPagination;
-          Log.info('Fallback pagination loaded from Liquid', { 
+          Log.info('Fallback pagination loaded from Liquid', {
             currentPage: State.fallbackPagination.currentPage,
             totalPages: State.fallbackPagination.totalPages,
             totalProducts: State.fallbackPagination.totalProducts
           });
         }
-        
+
         // Initialize preserveFilters from config if provided
         if (config.preserveFilters !== undefined) {
           if (config.preserveFilters === '__all__' || config.preserveFilters === '__ALL__') {
@@ -2159,16 +2138,16 @@
 
         Log.info('Shop set', { shop: State.shop });
         Log.info('Collections set', { collections: State.collections });
-        
+
         DOM.init(config.container || '[data-afs-container]', config.filtersContainer, config.productsContainer);
         Log.info('DOM initialized');
-        
+
         // Show loading skeleton immediately on initial load (before API calls)
         DOM.showLoading();
-        
+
         Events.attach();
         Log.info('Events attached');
-        
+
         this.load();
       } catch (e) {
         Log.error('Initialization failed', { error: e.message, stack: e.stack, config });
@@ -2178,7 +2157,7 @@
         throw e;
       }
     },
-    
+
     async load() {
       // Loading skeleton is already shown in init(), but ensure it's visible
       DOM.showLoading();
@@ -2193,21 +2172,21 @@
           Log.warn('Failed to load filters, continuing with empty filters', { error: filterError.message });
           filtersData = { filters: [] };
         }
-        
+
         Log.enabled = false;
         // Validate filters is an array
         if (!Array.isArray(filtersData.filters)) {
           Log.error('Invalid filters response: filters is not an array', { filters: filtersData.filters });
           filtersData.filters = [];
         }
-        
+
         State.availableFilters = filtersData.filters || [];
         State.filterMetadata = Metadata.buildFilterMetadata(State.availableFilters);
-        
+
         // Parse URL params - handles are parsed directly, no conversion needed
         const urlParams = UrlManager.parse();
         Log.debug('Parsed URL params', { urlParams, availableFiltersCount: State.availableFilters.length });
-        
+
         // Set preserveFilters from URL params
         if (urlParams.preserveFilters !== undefined) {
           if (urlParams.preserveFilters === '__all__') {
@@ -2221,7 +2200,7 @@
         } else {
           State.preserveFilters = null;
         }
-        
+
         // Rebuild filters from params (includes standard filters + handles)
         State.filters = {
           vendor: urlParams.vendor || [],
@@ -2251,7 +2230,7 @@
             State.pagination.page = State.fallbackPagination.currentPage;
           }
         }
-        
+
         // Set sort from URL params or default to best-selling
         if (urlParams.sort) {
           const sortValue = urlParams.sort.field || urlParams.sort;
@@ -2276,29 +2255,29 @@
           // Default to best-selling if no sort in URL
           State.sort = { field: 'best-selling', order: 'asc' };
         }
-        
+
         DOM.renderFilters(State.availableFilters);
         Log.info('Filters rendered', { count: State.availableFilters.length });
-        
+
         Log.info('Loading products...', { filters: State.filters, pagination: State.pagination });
         const productsData = await API.products(State.filters, State.pagination, State.sort);
         Log.info('Products loaded', { count: productsData.products?.length || 0, total: productsData.pagination?.total || 0 });
-        
+
         // Check if API returned no products or empty response
         const hasProducts = productsData.products && Array.isArray(productsData.products) && productsData.products.length > 0;
         const hasFilters = State.availableFilters && Array.isArray(State.availableFilters) && State.availableFilters.length > 0;
-        
+
         if (!hasProducts && State.fallbackProducts && State.fallbackProducts.length > 0) {
-          Log.warn('API returned no products, using fallback products from Liquid', { 
+          Log.warn('API returned no products, using fallback products from Liquid', {
             apiProductsCount: productsData.products?.length || 0,
-            fallbackCount: State.fallbackProducts.length 
+            fallbackCount: State.fallbackProducts.length
           });
-          
+
           State.usingFallback = true; // Set fallback flag
           State.products = State.fallbackProducts;
           // Use pagination from URL params and Liquid data
           State.pagination = FallbackMode.getPagination();
-          
+
           // Hide filters section when using fallback
           State.availableFilters = [];
           DOM.hideFilters();
@@ -2306,16 +2285,16 @@
           State.usingFallback = false; // Reset fallback flag on success
           State.products = productsData.products || [];
           State.pagination = productsData.pagination || State.pagination;
-          
+
           // Show filters section when API is working
           DOM.showFilters();
         }
-        
+
         DOM.renderProducts(State.products);
         DOM.renderInfo(State.pagination, State.pagination.total || 0);
         DOM.renderPagination(State.pagination);
         DOM.renderApplied(State.filters);
-        
+
         // Update sort select value (programmatically - won't trigger change event)
         if (DOM.sortSelect) {
           // Handle best-selling sort (no order in value)
@@ -2328,32 +2307,32 @@
           }
           Log.debug('Sort select value updated programmatically', { value: DOM.sortSelect.value, sort: State.sort });
         }
-        
+
         DOM.hideLoading();
-        
+
         if (State.products.length === 0 && !hasFilters && (!State.fallbackProducts || State.fallbackProducts.length === 0)) {
           DOM.showError('No products or filters found. Please check your configuration.');
         }
       } catch (e) {
         DOM.hideLoading();
         Log.error('Load failed', { error: e.message, stack: e.stack, shop: State.shop, apiBaseURL: API.baseURL });
-        
+
         // Try to use fallback products if available
         if (State.fallbackProducts && State.fallbackProducts.length > 0) {
-          Log.warn('Initial load failed, using fallback products from Liquid', { 
-            error: e.message, 
-            fallbackCount: State.fallbackProducts.length 
+          Log.warn('Initial load failed, using fallback products from Liquid', {
+            error: e.message,
+            fallbackCount: State.fallbackProducts.length
           });
-          
+
           State.usingFallback = true; // Set fallback flag
           State.products = State.fallbackProducts;
           // Use pagination from URL params and Liquid data
           State.pagination = FallbackMode.getPagination();
-          
+
           // Hide filters section when using fallback
           State.availableFilters = [];
           DOM.hideFilters();
-          
+
           // Update sort select value based on URL params or current sort state
           if (DOM.sortSelect) {
             if (State.sort.field === 'best-selling' || State.sort.field === 'bestselling') {
@@ -2363,18 +2342,18 @@
               DOM.sortSelect.value = `${State.sort.field}-${direction}`;
             }
           }
-          
+
           DOM.renderProducts(State.products);
           DOM.renderInfo(State.pagination, State.pagination.total);
           DOM.renderPagination(State.pagination);
           DOM.renderApplied(State.filters);
-          
+
         } else {
           DOM.showError(`Failed to load: ${e.message || 'Unknown error'}. Check console for details.`);
         }
       }
     },
-    
+
     Logger: Log
   };
 

@@ -20,6 +20,7 @@ import {
 import { PRODUCT_INDEX_NAME, PRODUCT_OPTION_PAIR_SEPARATOR } from '@shared/constants/products.constants';
 import { filterProductsForStorefront } from './storefront.helper';
 import { Filter } from '@shared/filters/types';
+import { mapOptionNameToHandle } from './filter-config.helper';
 
 const DEFAULT_BUCKET_SIZE = 500;
 
@@ -241,12 +242,36 @@ export class StorefrontSearchRepository {
     const postFilterQueries: any[] = [];
 
     /** Preserve Filters Logic */
+    // preserveFilters now contains handles (e.g., "pr_a3k9x", "sd5d3s") instead of option names
     const preserveFilters = new Set(
       (sanitizedFilters?.preserveFilters || []).map((k) => k.toLowerCase())
     );
     const preserveAll = preserveFilters.has('__all__');
-    const shouldPreserve = (key: string) =>
-      preserveAll || preserveFilters.has(key.toLowerCase());
+    
+    // Helper to check if a filter should be preserved
+    // For standard filters, check by key directly
+    // For option filters, map option name back to handle and check
+    const shouldPreserve = (key: string, isOptionFilter: boolean = false) => {
+      if (preserveAll) return true;
+      
+      const lowerKey = key.toLowerCase();
+      
+      // For standard filters, check directly
+      if (!isOptionFilter) {
+        return preserveFilters.has(lowerKey);
+      }
+      
+      // For option filters, we need to map option name back to handle
+      // because preserveFilters contains handles, but key is the option name
+      if (filterConfig) {
+        const handle = mapOptionNameToHandle(filterConfig, key);
+        if (handle) {
+          return preserveFilters.has(handle.toLowerCase());
+        }
+      }
+      
+      return false;
+    };
 
     //
     // -----------------------
@@ -311,7 +336,7 @@ export class StorefrontSearchRepository {
           terms: { 'optionPairs': encodedValues },
         };
 
-        (shouldPreserve(optionName) ? postFilterQueries : mustQueries).push(clause);
+        (shouldPreserve(optionName, true) ? postFilterQueries : mustQueries).push(clause);
       }
     }
 
@@ -613,11 +638,36 @@ export class StorefrontSearchRepository {
 
     const mustQueries: any[] = [];
     const postFilterQueries: any[] = [];
+    // preserveFilters now contains handles (e.g., "pr_a3k9x", "sd5d3s") instead of option names
     const preserveFilters = new Set(
       (sanitizedFilters?.preserveFilters || []).map((key) => key.toLowerCase())
     );
     const preserveAll = preserveFilters.has('__all__');
-    const shouldPreserve = (key: string) => preserveAll || preserveFilters.has(key.toLowerCase());
+    
+    // Helper to check if a filter should be preserved
+    // For standard filters, check by key directly
+    // For option filters, map option name back to handle and check
+    const shouldPreserve = (key: string, isOptionFilter: boolean = false) => {
+      if (preserveAll) return true;
+      
+      const lowerKey = key.toLowerCase();
+      
+      // For standard filters, check directly
+      if (!isOptionFilter) {
+        return preserveFilters.has(lowerKey);
+      }
+      
+      // For option filters, we need to map option name back to handle
+      // because preserveFilters contains handles, but key is the option name
+      if (filterConfig) {
+        const handle = mapOptionNameToHandle(filterConfig, key);
+        if (handle) {
+          return preserveFilters.has(handle.toLowerCase());
+        }
+      }
+      
+      return false;
+    };
 
     if (sanitizedFilters?.search) {
       mustQueries.push({
@@ -703,7 +753,7 @@ export class StorefrontSearchRepository {
         // For filters endpoint, we want to preserve option aggregations even when filtering
         // This allows users to see available filter values even when current filters match 0 products
         // Use post_filter for option filters to preserve aggregations
-        if (shouldPreserve(optionName) || shouldPreserve('__all__')) {
+        if (shouldPreserve(optionName, true) || preserveAll) {
           postFilterQueries.push(termsQuery);
           logger.debug('Option filter added to post_filter (preserve aggregations)', {
             optionName,

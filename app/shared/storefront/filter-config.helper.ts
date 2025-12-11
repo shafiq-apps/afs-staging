@@ -288,6 +288,44 @@ export function mapOptionKeyToName(filterConfig: Filter | null, optionKey: strin
 }
 
 /**
+ * Map option names back to handles using filter configuration
+ * This is used to check preserveFilters (which use handles) against option names (from mapped filters)
+ * 
+ * @param filterConfig - The filter configuration containing option mappings
+ * @param optionName - The option name (e.g., "Size", "Color")
+ * @returns The handle for this option, or null if not found
+ */
+export function mapOptionNameToHandle(filterConfig: Filter | null, optionName: string): string | null {
+  if (!filterConfig || !filterConfig.options || !optionName) {
+    return null;
+  }
+
+  const lowerName = optionName.toLowerCase();
+  
+  // Find option by optionType (case-insensitive)
+  const option = filterConfig.options.find(
+    (opt) => {
+      if (!isPublishedStatus(opt.status)) return false;
+      
+      // Check optionType (case-insensitive)
+      if (opt.optionType?.toLowerCase() === lowerName) return true;
+      
+      // Also check derived variantOptionKey for matching
+      const derivedVariantOptionKey = deriveVariantOptionKey(opt);
+      if (derivedVariantOptionKey?.toLowerCase() === lowerName) return true;
+      
+      return false;
+    }
+  );
+
+  if (option && option.handle) {
+    return option.handle;
+  }
+
+  return null;
+}
+
+/**
  * Apply filter configuration options to product search/filter input
  * This applies settings like allowedOptions, targetScope, hideOutOfStockItems, etc.
  * Also maps option handles/IDs to actual option names for filtering.
@@ -490,7 +528,9 @@ export function applyFilterConfigToInput(
     }
   }
 
-  // Map preserveFilters to actual query keys/option names
+  // Keep preserveFilters as handles (don't map to option names)
+  // This allows preserveFilters to work with handles like "pr_a3k9x", "sd5d3s" etc.
+  // Standard filters (vendors, productTypes, tags, collections) are still mapped for consistency
   if (result.preserveFilters && result.preserveFilters.length > 0) {
     const mappedPreserve = new Set<string>();
     for (const rawKey of result.preserveFilters) {
@@ -503,15 +543,18 @@ export function applyFilterConfigToInput(
         break;
       }
 
+      // Map standard filter names (vendors, productTypes, etc.) for consistency
       const standardField = STANDARD_FILTER_MAPPING[lowerKey];
       if (standardField) {
         mappedPreserve.add(standardField.toLowerCase());
         continue;
       }
 
-      const optionName = mapOptionKeyToName(filterConfig, key);
-      if (optionName) {
-        mappedPreserve.add(optionName.toLowerCase());
+      // For option filters, keep the handle as-is (don't map to option name)
+      // This allows preserveFilters to work with handles like "pr_a3k9x", "sd5d3s"
+      // Just validate that it's a valid option handle
+      if (isOptionKey(filterConfig, key)) {
+        mappedPreserve.add(key.toLowerCase());
       }
     }
 
