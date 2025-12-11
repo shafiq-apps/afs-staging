@@ -3,46 +3,59 @@
  * Utilities for parsing HTTP query parameters
  */
 
+import {
+  BLOCKED_CHARS_QUERY_KEY,
+  BLOCKED_CHARS_QUERY_VALUE,
+  MAX_QUERY_KEY_LENGTH,
+  MAX_QUERY_VALUE_LENGTH,
+} from '@shared/constants/sanitization.constants';
+
 /**
  * Sanitize query parameter key - remove dangerous characters
- * Allows alphanumeric, underscore, hyphen, and dot for handles/IDs
+ * Allows alphanumeric, underscore, hyphen, dot, and safe special characters for handles/IDs
+ * 
+ * Safe characters: alphanumeric, underscore, hyphen, dot, quotes, parentheses,
+ * forward slash, ampersand, percent, plus, hash, exclamation, brackets, etc.
+ * Only removes: HTML tags (< >), backticks (`), null bytes, and control characters
  */
 export function sanitizeQueryKey(key: string): string {
   if (!key || typeof key !== 'string') return '';
-  // Remove null bytes, control characters, and dangerous chars
-  // Allow: alphanumeric, underscore, hyphen, dot, brackets (for options[key] format)
+  // Remove blocked characters as defined in sanitization constants
+  // Allow: alphanumeric, underscore, hyphen, dot, brackets, quotes, and most special chars
+  // Only remove: Characters defined in BLOCKED_CHARS_QUERY_KEY
+  const blockedRegex = new RegExp(`[${BLOCKED_CHARS_QUERY_KEY.replace(/[\\^$.*+?()[\]{}|]/g, '\\$&')}]`, 'g');
   return key
-    .replace(/\0/g, '') // Remove null bytes
-    .replace(/[\x00-\x1F\x7F]/g, '') // Remove control characters
-    .replace(/[<>\"'`]/g, '') // Remove HTML/script injection chars
+    .replace(/\0/g, '') // Remove null bytes explicitly
+    .replace(blockedRegex, '') // Remove blocked characters
     .trim()
-    .substring(0, 200); // Max length
+    .substring(0, MAX_QUERY_KEY_LENGTH); // Max length from constants
 }
 
 /**
  * Sanitize query parameter value - remove dangerous characters
  * 
- * NOTE: Quotes (both single and double) are removed for security to prevent
- * HTML/script injection attacks. This means product option values that contain
- * quotes will have them stripped (e.g., "24"+Plyobox" becomes "24+Plyobox").
+ * NOTE: ES `terms` queries use exact matching on keyword fields, so most characters
+ * are safe. We only remove characters that pose security risks:
+ * - HTML/script injection chars: < > ` (backtick)
+ * - Control characters and null bytes
  * 
- * Ensure the Elasticsearch index also stores values without quotes for consistent
- * matching. If quotes are needed in stored values, they should be normalized
- * during indexing to match this sanitization behavior.
+ * Safe characters allowed: alphanumeric, spaces, quotes (" '), parentheses (),
+ * forward slash (/), ampersand (&), percent (%), hyphen (-), underscore (_),
+ * plus (+), hash (#), exclamation (!), dot (.), comma (,), and more.
  * 
- * Allowed characters: alphanumeric, spaces, underscore, hyphen, comma, plus, dot
- * Removed characters: null bytes, control characters, HTML/script injection chars (< > " ' `)
+ * This allows product option values like "24"+Plyobox", "Size: 5'6"", etc.
  */
 export function sanitizeQueryValue(value: string): string {
   if (!value || typeof value !== 'string') return '';
-  // Remove null bytes, control characters, and dangerous chars
-  // Allow: alphanumeric, spaces, underscore, hyphen, comma, plus, dot
+  // Remove blocked characters as defined in sanitization constants
+  // Allow: alphanumeric, spaces, quotes, parentheses, slashes, and most special chars
+  // Only remove: Characters defined in BLOCKED_CHARS_QUERY_VALUE
+  const blockedRegex = new RegExp(`[${BLOCKED_CHARS_QUERY_VALUE.replace(/[\\^$.*+?()[\]{}|]/g, '\\$&')}]`, 'g');
   return value
-    .replace(/\0/g, '') // Remove null bytes
-    .replace(/[\x00-\x1F\x7F]/g, '') // Remove control characters
-    .replace(/[<>\"'`]/g, '') // Remove HTML/script injection chars (quotes removed here)
+    .replace(/\0/g, '') // Remove null bytes explicitly
+    .replace(blockedRegex, '') // Remove blocked characters
     .trim()
-    .substring(0, 500); // Max length
+    .substring(0, MAX_QUERY_VALUE_LENGTH); // Max length from constants
 }
 
 /**

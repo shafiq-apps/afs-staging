@@ -4,6 +4,14 @@
  */
 
 import { createModuleLogger } from './logger.util';
+import {
+  BLOCKED_CHARS_ES_TERMS,
+  BLOCKED_CHARS_QUERY_KEY,
+  MAX_OPTION_KEY_LENGTH,
+  MAX_OPTION_VALUE_LENGTH,
+  MAX_TERM_LENGTH,
+  MAX_TERMS_ARRAY_ITEMS,
+} from '@shared/constants/sanitization.constants';
 
 const logger = createModuleLogger('sanitizer');
 
@@ -42,19 +50,27 @@ export function sanitizeSearchQuery(query: string | null | undefined): string {
 /**
  * Sanitize terms array for ES terms query
  * 
- * Rejects terms containing dangerous Elasticsearch query operators that could be used for injection.
- * Note: The plus sign (+) is allowed as it's a valid character in product option values.
+ * ES `terms` queries use exact matching on keyword fields, so most characters are safe.
+ * We only reject terms containing characters that could be used for ES query injection
+ * when constructing query strings (not applicable to terms queries, but kept for safety).
  * 
- * Rejected characters: - = & | ! ( ) { } [ ] ^ " ~ * ? : \
- * Allowed special characters: + (plus sign), space, underscore, dot, comma
+ * Note: Most special characters are now allowed including quotes, parentheses, slashes,
+ * ampersands, percent signs, plus, hash, exclamation, etc.
+ * 
+ * Rejected characters: = & | { } [ ] ^ ~ * ? : \ (only truly dangerous ES query operators)
+ * Allowed special characters: + - _ . , space, " ' ( ) / & % # ! and more
  */
-export function sanitizeTermsArray(terms: any, maxItems = 100, maxLength = 100): string[] {
+export function sanitizeTermsArray(terms: any, maxItems = MAX_TERMS_ARRAY_ITEMS, maxLength = MAX_TERM_LENGTH): string[] {
   if (!terms) {
     return [];
   }
 
   const array = Array.isArray(terms) ? terms : [terms];
   const rejectedTerms: string[] = [];
+  
+  // Create regex from blocked characters constant (escape special regex chars)
+  const escapedBlockedChars = BLOCKED_CHARS_ES_TERMS.replace(/[\\^$.*+?()[\]{}|]/g, '\\$&');
+  const blockedRegex = new RegExp(`[${escapedBlockedChars}]`, 'g');
   
   const sanitized = array
     .slice(0, maxItems)
@@ -67,13 +83,15 @@ export function sanitizeTermsArray(terms: any, maxItems = 100, maxLength = 100):
         }
         return false;
       }
-      // Remove + from rejection pattern - it's a valid character in product option values
-      // Reject only truly dangerous ES query operators
-      if (/[\=!{}[\]^~*?:\\]/.test(term)) {
+      // Only reject characters defined in BLOCKED_CHARS_ES_TERMS
+      // Allow: quotes (" '), parentheses ( ), slashes (/), ampersands (&), percent (%),
+      // plus (+), hash (#), exclamation (!), hyphen (-), underscore (_), dot (.), comma (,)
+      if (blockedRegex.test(term)) {
+        const matches = term.match(blockedRegex);
         rejectedTerms.push(term);
         logger.warn('Filter term rejected: contains dangerous ES query operators', { 
           term, 
-          rejectedChars: term.match(/[\=!{}[\]^~*?:\\]/g) 
+          rejectedChars: matches 
         });
         return false;
       }
@@ -232,16 +250,20 @@ export function sanitizeFilterInput(input: {
 
   if (input.options) {
     sanitized.options = {};
+    // Create regex from blocked characters constant
+    const blockedKeyRegex = new RegExp(`[${BLOCKED_CHARS_QUERY_KEY.replace(/[\\^$.*+?()[\]{}|]/g, '\\$&')}]`, 'g');
+    
     for (const [key, values] of Object.entries(input.options)) {
-      // Sanitize option key - remove dangerous characters
-      // Allow alphanumeric, underscore, hyphen, dot for handles/IDs and option names
-      let sanitizedKey = sanitizeString(key, 200);
-      // Additional sanitization: remove any remaining dangerous chars
-      sanitizedKey = sanitizedKey.replace(/[<>\"'`\x00-\x1F\x7F]/g, '');
+      // Sanitize option key - remove dangerous characters as defined in constants
+      // Allow alphanumeric, underscore, hyphen, dot, quotes, and safe special chars
+      // Only remove: Characters defined in BLOCKED_CHARS_QUERY_KEY
+      let sanitizedKey = sanitizeString(key, MAX_OPTION_KEY_LENGTH);
+      // Additional sanitization: remove blocked characters
+      sanitizedKey = sanitizedKey.replace(/\0/g, '').replace(blockedKeyRegex, '');
       
       if (sanitizedKey) {
-        // Sanitize option values
-        sanitized.options[sanitizedKey] = sanitizeTermsArray(values, 100, 200);
+        // Sanitize option values (sanitizeTermsArray now allows quotes and safe chars)
+        sanitized.options[sanitizedKey] = sanitizeTermsArray(values, MAX_TERMS_ARRAY_ITEMS, MAX_OPTION_VALUE_LENGTH);
       }
     }
   }
