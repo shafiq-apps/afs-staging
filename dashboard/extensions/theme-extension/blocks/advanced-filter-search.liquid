@@ -5,6 +5,35 @@
 
 {{ 'advanced-filter-search.css' | asset_url | stylesheet_tag }}
 
+{% comment %} Generate CSS Variables from Block Settings {% endcomment %}
+<style>
+  [data-afs-container] {
+    {% comment %} Default Color Variables {% endcomment %}
+    --afs-text-color: #000000;
+    --afs-text-secondary: #666666;
+    --afs-bg-color: #ffffff;
+    --afs-bg-secondary: #f5f5f5;
+    --afs-border-color: #e5e5e5;
+    --afs-accent-color: #000000;
+    --afs-accent-bg: #000000;
+    
+    {% comment %} Default Font Variables {% endcomment %}
+    --afs-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --afs-font-weight: 400;
+    --afs-font-weight-bold: 600;
+    --afs-font-style: normal;
+    
+    {% comment %} Override with user-defined variables {% endcomment %}
+    {% if block.settings.color_variables != blank %}
+      {{ block.settings.color_variables }}
+    {% endif %}
+    
+    {% if block.settings.font_variables != blank %}
+      {{ block.settings.font_variables }}
+    {% endif %}
+  }
+</style>
+
 <div data-afs-container id="afs-container-{{ block.id }}">
   {% comment %} Container will be populated by JavaScript {% endcomment %}
 </div>
@@ -30,7 +59,7 @@
       "id": "page_size",
       "label": "Products per page",
       "default": 24,
-      "info": "Maximum number of products to load per page",
+      "info": "Maximum number of products to load per page"
     },
     {
       "type": "checkbox",
@@ -38,6 +67,36 @@
       "label": "Enable Debug Logging",
       "default": false,
       "info": "Enable console logging for debugging"
+    },
+    {
+      "type": "header",
+      "content": "Color Configuration"
+    },
+    {
+      "type": "paragraph",
+      "content": "Map your theme's CSS variables to component colors. Use format: --afs-variable: var(--theme-variable, fallback); Example: --afs-text-color: var(--color-foreground, #000000);"
+    },
+    {
+      "type": "textarea",
+      "id": "color_variables",
+      "label": "CSS Color Variables",
+      "default": "--afs-text-color: var(--color-foreground, #000000);\n--afs-text-secondary: var(--color-foreground, #666666);\n--afs-bg-color: var(--color-background, #ffffff);\n--afs-bg-secondary: var(--color-background, #f5f5f5);\n--afs-border-color: var(--color-border, #e5e5e5);\n--afs-accent-color: var(--color-button, #000000);\n--afs-accent-bg: var(--color-button-background, #000000);",
+      "info": "Define CSS variables mapping theme colors to component colors. One variable per line."
+    },
+    {
+      "type": "header",
+      "content": "Font Configuration"
+    },
+    {
+      "type": "paragraph",
+      "content": "Map your theme's font variables to component fonts."
+    },
+    {
+      "type": "textarea",
+      "id": "font_variables",
+      "label": "CSS Font Variables",
+      "default": "--afs-font-family: var(--font-body-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);\n--afs-font-weight: var(--font-body-weight, 400);\n--afs-font-weight-bold: var(--font-body-weight-bold, 600);\n--afs-font-style: var(--font-body-style, normal);",
+      "info": "Define CSS variables mapping theme fonts to component fonts. One variable per line."
     }
   ]
 }

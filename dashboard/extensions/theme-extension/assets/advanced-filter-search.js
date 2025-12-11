@@ -496,11 +496,34 @@
       this.filtersContainer = document.querySelector(filtersSel) || $.el('div', 'afs-filters-container');
       if (!this.filtersContainer.parentNode) main.appendChild(this.filtersContainer);
       
+      // Insert close button at the beginning of filters container
+      if (this.mobileFilterClose && !this.mobileFilterClose.parentNode) {
+        this.filtersContainer.insertBefore(this.mobileFilterClose, this.filtersContainer.firstChild);
+      }
+      
       this.productsContainer = document.querySelector(productsSel) || $.el('div', 'afs-products-container');
       if (!this.productsContainer.parentNode) main.appendChild(this.productsContainer);
       
       this.productsInfo = $.el('div', 'afs-products-info');
       this.productsContainer.insertBefore(this.productsInfo, this.productsContainer.firstChild);
+      
+      // Mobile filter toggle button
+      this.mobileFilterButton = $.el('button', 'afs-mobile-filter-button', {
+        type: 'button',
+        'data-afs-action': 'toggle-filters',
+        'aria-label': 'Toggle filters'
+      });
+      this.mobileFilterButton.innerHTML = '<span class="afs-mobile-filter-button__icon">☰</span> <span class="afs-mobile-filter-button__text">Filters</span>';
+      this.productsInfo.insertBefore(this.mobileFilterButton, this.productsInfo.firstChild);
+      
+      // Mobile filter close button (inside filters container)
+      this.mobileFilterClose = $.el('button', 'afs-mobile-filter-close', {
+        type: 'button',
+        'data-afs-action': 'close-filters',
+        'aria-label': 'Close filters'
+      });
+      this.mobileFilterClose.innerHTML = '✕';
+      this.mobileFilterClose.style.display = 'none'; // Hidden on desktop
       
       // Sort dropdown - create and store reference
       this.sortContainer = $.el('div', 'afs-sort-container');
@@ -536,13 +559,34 @@
     showFilters() {
       if (this.filtersContainer) {
         this.filtersContainer.style.display = '';
+        this.filtersContainer.classList.add('afs-filters-container--open');
         Log.debug('Filters container shown');
       }
+    },
+    
+    // Toggle mobile filters
+    toggleMobileFilters() {
+      if (!this.filtersContainer) return;
+      
+      const isOpen = this.filtersContainer.classList.contains('afs-filters-container--open');
+      
+      if (isOpen) {
+        this.filtersContainer.classList.remove('afs-filters-container--open');
+        document.body.style.overflow = ''; // Restore body scroll
+      } else {
+        this.filtersContainer.classList.add('afs-filters-container--open');
+        document.body.style.overflow = 'hidden'; // Prevent body scroll when filters are open
+      }
+      
+      Log.debug('Mobile filters toggled', { isOpen: !isOpen });
     },
     
     // Fastest filter rendering (batched)
     renderFilters(filters) {
       if (!this.filtersContainer || !Array.isArray(filters)) return;
+      
+      // Hide filters skeleton when rendering real filters
+      this.hideFiltersSkeleton();
       
       // Save states
       const states = new Map();
@@ -879,10 +923,10 @@
     renderProducts(products) {
       if (!this.productsGrid) return;
       
-      // Remove skeleton loader if present
-      const skeleton = this.productsGrid.querySelector('.afs-loading-skeleton');
-      if (skeleton) {
-        skeleton.remove();
+      // Remove skeleton cards if present
+      const skeletonCards = this.productsGrid.querySelectorAll('.afs-skeleton-card');
+      if (skeletonCards.length > 0) {
+        skeletonCards.forEach(card => card.remove());
       }
       
       const existing = new Map();
@@ -1124,11 +1168,14 @@
     },
     
     showLoading() {
-      if (!this.loading) {
-        this.loading = $.el('div', 'afs-loading-skeleton');
-        // Create skeleton product cards (8 cards for a professional look)
+      // Show products skeleton
+      if (this.productsGrid) {
+        // Clear existing products
+        $.clear(this.productsGrid);
+        
+        // Create skeleton product cards directly in the grid (24 cards to fill multiple rows)
         const skeletonCards = [];
-        for (let i = 0; i < 8; i++) {
+        for (let i = 0; i < 24; i++) {
           const skeletonCard = $.el('div', 'afs-skeleton-card');
           skeletonCard.innerHTML = `
             <div class="afs-skeleton-card__image"></div>
@@ -1141,19 +1188,72 @@
           `;
           skeletonCards.push(skeletonCard);
         }
-        skeletonCards.forEach(card => this.loading.appendChild(card));
+        
+        // Append skeleton cards directly to productsGrid (which is already a grid container)
+        skeletonCards.forEach(card => this.productsGrid.appendChild(card));
+        
+        // Store reference to skeleton cards for easy removal
+        this.loading = skeletonCards;
       }
-      if (!this.loading.parentNode && this.productsGrid) {
-        // Clear existing products and show skeleton
-        $.clear(this.productsGrid);
-        this.productsGrid.appendChild(this.loading);
+      
+      // Show filters skeleton if filters container exists and is visible
+      if (this.filtersContainer && this.filtersContainer.style.display !== 'none') {
+        this.showFiltersSkeleton();
+      }
+    },
+    
+    showFiltersSkeleton() {
+      // Remove existing skeleton if present
+      const existingSkeleton = this.filtersContainer.querySelector('.afs-filters-skeleton');
+      if (existingSkeleton) {
+        existingSkeleton.remove();
+      }
+      
+      // Create filters skeleton
+      const filtersSkeleton = $.el('div', 'afs-filters-skeleton');
+      // Create 3-4 skeleton filter groups
+      for (let i = 0; i < 4; i++) {
+        const skeletonGroup = $.el('div', 'afs-skeleton-filter-group');
+        skeletonGroup.innerHTML = `
+          <div class="afs-skeleton-filter-group__header">
+            <div class="afs-skeleton-filter-group__title"></div>
+          </div>
+          <div class="afs-skeleton-filter-group__content">
+            <div class="afs-skeleton-filter-item"></div>
+            <div class="afs-skeleton-filter-item"></div>
+            <div class="afs-skeleton-filter-item" style="width: 70%;"></div>
+            <div class="afs-skeleton-filter-item" style="width: 85%;"></div>
+          </div>
+        `;
+        filtersSkeleton.appendChild(skeletonGroup);
+      }
+      this.filtersContainer.appendChild(filtersSkeleton);
+    },
+    
+    hideFiltersSkeleton() {
+      const skeleton = this.filtersContainer?.querySelector('.afs-filters-skeleton');
+      if (skeleton) {
+        skeleton.remove();
       }
     },
     
     hideLoading() {
-      if (this.loading?.parentNode) {
+      // Remove skeleton cards if they exist
+      if (Array.isArray(this.loading)) {
+        // If loading is an array of skeleton cards, remove each one
+        this.loading.forEach(card => {
+          if (card.parentNode) {
+            card.remove();
+          }
+        });
+        this.loading = null;
+      } else if (this.loading?.parentNode) {
+        // If loading is a single element, remove it
         this.loading.remove();
+        this.loading = null;
       }
+      // Also hide filters skeleton
+      this.hideFiltersSkeleton();
     },
     
     showError(message) {
@@ -1301,6 +1401,14 @@
       DOM.updateFilterState(handle, normalized, !isActive);
       // Scroll to top when filter is clicked
       DOM.scrollToProducts();
+      // Show loading skeleton immediately (before debounce)
+      DOM.showLoading();
+      
+      // Close mobile filters after applying filter (on mobile devices)
+      if (window.innerWidth <= 768 && DOM.filtersContainer?.classList.contains('afs-filters-container--open')) {
+        DOM.toggleMobileFilters();
+      }
+      
       this.apply();
     },
     
@@ -1329,6 +1437,8 @@
       UrlManager.update(State.filters, State.pagination, State.sort);
       // Scroll to top when price range is updated
       DOM.scrollToProducts();
+      // Show loading skeleton immediately (before debounce)
+      DOM.showLoading();
       this.apply();
     },
     
@@ -1345,6 +1455,7 @@
       
       // Scroll to top when products are being fetched
       DOM.scrollToProducts();
+      // Loading is already shown before debounce, but ensure it's shown here too
       DOM.showLoading();
       try {
         Log.info('Fetching products...', { url: `${API.baseURL}/storefront/products` });
@@ -1495,7 +1606,13 @@
           UrlManager.update(State.filters, State.pagination, State.sort);
           // Scroll to top when clearing all filters
           DOM.scrollToProducts();
+          // Show loading skeleton immediately (before debounce)
+          DOM.showLoading();
           Filters.apply();
+        }
+        else if (action === 'toggle-filters' || action === 'close-filters') {
+          // Toggle mobile filters
+          DOM.toggleMobileFilters();
         }
         else if (e.target.closest('.afs-applied-filter-chip__remove')) {
           const chip = e.target.closest('.afs-applied-filter-chip');
@@ -1539,6 +1656,8 @@
             UrlManager.update(State.filters, State.pagination, State.sort);
             // Scroll to top when pagination changes
             DOM.scrollToProducts();
+            // Show loading skeleton immediately (before debounce)
+            DOM.showLoading();
             // Only fetch products, not filters (filters haven't changed)
             Filters.applyProductsOnly();
           }
@@ -1617,6 +1736,9 @@
         State.pagination.page = 1;
         UrlManager.update(State.filters, State.pagination, State.sort);
         Log.info('Calling applyProductsOnly after sort change', { sort: State.sort });
+        // Show loading skeleton immediately (before debounce)
+        DOM.scrollToProducts();
+        DOM.showLoading();
         // Only fetch products, not filters (filters haven't changed)
         Filters.applyProductsOnly();
       };
@@ -1813,6 +1935,9 @@
         DOM.init(config.container || '[data-afs-container]', config.filtersContainer, config.productsContainer);
         Log.info('DOM initialized');
         
+        // Show loading skeleton immediately on initial load (before API calls)
+        DOM.showLoading();
+        
         Events.attach();
         Log.info('Events attached');
         
@@ -1827,6 +1952,7 @@
     },
     
     async load() {
+      // Loading skeleton is already shown in init(), but ensure it's visible
       DOM.showLoading();
       try {
         Log.info('Loading filters...', { shop: State.shop, filters: State.filters });
