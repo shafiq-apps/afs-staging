@@ -119,6 +119,8 @@
     preserveFilters: null, // null, array of strings, or '__all__'
     // Fallback products from Liquid (to prevent blank screen when API fails)
     fallbackProducts: [],
+    // Fallback pagination from Liquid (for proper pagination controls when API fails)
+    fallbackPagination: { currentPage: 1, totalPages: 1, totalProducts: 0 },
     // Flag to track if we're using fallback mode (API failed)
     usingFallback: false
   };
@@ -1211,6 +1213,21 @@
   // ============================================================================
   
   const FallbackMode = {
+    // Get pagination info for fallback mode (from URL params and Liquid data)
+    getPagination() {
+      const urlParams = UrlManager.parse();
+      const currentPage = urlParams.page || State.fallbackPagination.currentPage || 1;
+      const totalPages = State.fallbackPagination.totalPages || 1;
+      const totalProducts = State.fallbackPagination.totalProducts || State.fallbackProducts.length || 0;
+      
+      return {
+        page: currentPage,
+        limit: C.PAGE_SIZE,
+        total: totalProducts,
+        totalPages: totalPages
+      };
+    },
+    
     // Reload page with updated URL parameters for sort/pagination
     reloadPage(filters, pagination, sort) {
       const url = new URL(window.location);
@@ -1227,8 +1244,8 @@
         }
       }
       
-      // Add page parameter
-      if (pagination && pagination.page > 1) {
+      // Add page parameter (always set it, even if page 1, for consistency)
+      if (pagination && pagination.page) {
         url.searchParams.set('page', pagination.page);
       }
       
@@ -1358,12 +1375,8 @@
           
           State.usingFallback = true; // Set fallback flag
           State.products = State.fallbackProducts;
-          State.pagination = {
-            page: 1,
-            limit: C.PAGE_SIZE,
-            total: State.fallbackProducts.length,
-            totalPages: Math.ceil(State.fallbackProducts.length / C.PAGE_SIZE)
-          };
+          // Use pagination from URL params and Liquid data
+          State.pagination = FallbackMode.getPagination();
           
           // Hide filters section when using fallback
           State.availableFilters = [];
@@ -1432,12 +1445,8 @@
           
           State.usingFallback = true; // Set fallback flag
           State.products = State.fallbackProducts;
-          State.pagination = {
-            page: 1,
-            limit: C.PAGE_SIZE,
-            total: State.fallbackProducts.length,
-            totalPages: Math.ceil(State.fallbackProducts.length / C.PAGE_SIZE)
-          };
+          // Use pagination from URL params and Liquid data
+          State.pagination = FallbackMode.getPagination();
           
           // Hide filters section when using fallback
           State.availableFilters = [];
@@ -1515,8 +1524,18 @@
         }
         else if (pagination && !pagination.disabled) {
           const page = parseInt(pagination.getAttribute('data-afs-page'), 10);
-          if (page) {
-            State.pagination.page = page;
+          if (page && page > 0) {
+            // In fallback mode, read current page from URL to ensure accuracy
+            if (State.usingFallback) {
+              const urlParams = UrlManager.parse();
+              const currentPage = urlParams.page || State.pagination.page || 1;
+              // Calculate the correct next/previous page
+              const isNext = page > currentPage;
+              const isPrev = page < currentPage;
+              State.pagination.page = page;
+            } else {
+              State.pagination.page = page;
+            }
             UrlManager.update(State.filters, State.pagination, State.sort);
             // Scroll to top when pagination changes
             DOM.scrollToProducts();
@@ -1759,10 +1778,19 @@
         State.collections = config.collections;
         State.selectedCollection = config.selectedCollection;
         
-        // Store fallback products from Liquid
+        // Store fallback products and pagination from Liquid
         if (config.fallbackProducts && Array.isArray(config.fallbackProducts) && config.fallbackProducts.length > 0) {
           State.fallbackProducts = config.fallbackProducts;
           Log.info('Fallback products loaded from Liquid', { count: State.fallbackProducts.length });
+        }
+        
+        if (config.fallbackPagination) {
+          State.fallbackPagination = config.fallbackPagination;
+          Log.info('Fallback pagination loaded from Liquid', { 
+            currentPage: State.fallbackPagination.currentPage,
+            totalPages: State.fallbackPagination.totalPages,
+            totalProducts: State.fallbackPagination.totalProducts
+          });
         }
         
         // Initialize preserveFilters from config if provided
@@ -1860,7 +1888,15 @@
           }
         });
         Log.info('Filters set from URL', { filters: State.filters });
-        if (urlParams.page) State.pagination.page = urlParams.page;
+        // Read page from URL params (important for fallback mode)
+        if (urlParams.page) {
+          State.pagination.page = urlParams.page;
+        } else {
+          // If no page in URL, use fallback pagination current page if available
+          if (State.fallbackPagination && State.fallbackPagination.currentPage) {
+            State.pagination.page = State.fallbackPagination.currentPage;
+          }
+        }
         
         // Set sort from URL params or default to best-selling
         if (urlParams.sort) {
@@ -1869,7 +1905,13 @@
             const normalized = sortValue.toLowerCase().trim();
             if (normalized === 'best-selling' || normalized === 'bestselling') {
               State.sort = { field: 'best-selling', order: 'asc' };
+            } else if (normalized.includes('-')) {
+              // New format: "field-direction" (e.g., "title-ascending")
+              const [field, direction] = normalized.split('-');
+              const order = direction === 'ascending' ? 'asc' : direction === 'descending' ? 'desc' : 'desc';
+              State.sort = { field, order };
             } else {
+              // Legacy format: "field:order" (backward compatibility)
               const [field, order] = sortValue.split(':');
               State.sort = { field, order: order || 'desc' };
             }
@@ -1900,12 +1942,8 @@
           
           State.usingFallback = true; // Set fallback flag
           State.products = State.fallbackProducts;
-          State.pagination = {
-            page: 1,
-            limit: C.PAGE_SIZE,
-            total: State.fallbackProducts.length,
-            totalPages: Math.ceil(State.fallbackProducts.length / C.PAGE_SIZE)
-          };
+          // Use pagination from URL params and Liquid data
+          State.pagination = FallbackMode.getPagination();
           
           // Hide filters section when using fallback
           State.availableFilters = [];
@@ -1955,12 +1993,8 @@
           
           State.usingFallback = true; // Set fallback flag
           State.products = State.fallbackProducts;
-          State.pagination = {
-            page: 1,
-            limit: C.PAGE_SIZE,
-            total: State.fallbackProducts.length,
-            totalPages: Math.ceil(State.fallbackProducts.length / C.PAGE_SIZE)
-          };
+          // Use pagination from URL params and Liquid data
+          State.pagination = FallbackMode.getPagination();
           
           // Hide filters section when using fallback
           State.availableFilters = [];

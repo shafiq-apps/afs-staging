@@ -1,4 +1,7 @@
 {% assign page_size = block.settings.page_size | default: 24 %}
+{% assign liquid_current_page = 1 %}
+{% assign liquid_total_pages = 1 %}
+{% assign liquid_total_products = 0 %}
 
 <script>
   (function() {
@@ -10,6 +13,9 @@
           The collection will be sorted based on collection.default_sort_by or URL sort_by parameter
         {% endcomment %}
         {% paginate collection.products by page_size %}
+          {% assign liquid_current_page = paginate.current_page %}
+          {% assign liquid_total_pages = paginate.pages %}
+          {% assign liquid_total_products = paginate.items %}
           {% for product in collection.products %}
             {
               id: {{ product.id | json }},
@@ -38,6 +44,12 @@
         {% endpaginate %}
       {% endif %}
     ];
+    
+    const liquidPagination = {
+      currentPage: {{ liquid_current_page | json }},
+      totalPages: {{ liquid_total_pages | json }},
+      totalProducts: {{ liquid_total_products | json }}
+    };
 
     const config = {
       apiBaseUrl: {{ block.settings.api_base_url | json }},
@@ -59,7 +71,8 @@
         id: {{ collection.id | json }},
         sortBy : {{ collection.default_sort_by  | json }}
       },
-      fallbackProducts: liquidProducts
+      fallbackProducts: liquidProducts,
+      fallbackPagination: liquidPagination
     };
 
     // Function to initialize AFS
