@@ -1182,11 +1182,13 @@
     
     // Render pagination controls
     renderPagination(pagination) {
-      if (!this.productsGrid || !pagination || pagination.totalPages <= 1) return;
+      if (!this.productsGrid || !pagination) return;
       
       // Remove existing pagination
       const existing = this.productsGrid.parentNode?.querySelector('.afs-pagination');
       if (existing) existing.remove();
+
+      if (pagination.totalPages <= 1) return;
       
       const paginationEl = $.el('div', 'afs-pagination');
       
