@@ -21,7 +21,8 @@ export const DEFAULT_STOREFRONT_FIELDS = [
   'vendor',
   'minPrice',
   'maxPrice',
-  'bestSellerRank'
+  'bestSellerRank',
+  'totalInventory'
 ] as const;
 
 /**

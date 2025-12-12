@@ -1416,175 +1416,341 @@
 }
 
 /* ============================================================================
-   Shopify Web Component Modal
+   Product Modal (Shopify Web Components)
    ============================================================================ */
 
-.afs-shopify-modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 9999;
+.afs-product-modal {
+  border: 0 !important;
+  border-radius: 0.75rem;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  padding: 0 !important;
+  outline: none !important;
+  max-width: 70%;
+  width: 90%;
+  margin: auto;
+  overflow: hidden;
+  max-height: 90vh;
+  background: transparent;
+}
+
+.afs-product-modal::-webkit-scrollbar {
   display: none;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
 }
 
-.afs-shopify-modal--open,
-.afs-shopify-modal[open] {
-  display: flex;
+.afs-product-modal {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
-.afs-shopify-modal__overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
+@media (max-width: 768px) {
+  .afs-product-modal {
+    width: 100%;
+    max-width: 100%;
+    border-radius: 0;
+  }
+}
+
+.afs-product-modal::backdrop {
+  background-color: rgba(0, 0, 0, 0.75);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
 }
 
-.afs-shopify-modal__content {
+.afs-product-modal__container {
+  overflow: hidden;
+  padding: 0;
   position: relative;
-  background: #ffffff;
-  border-radius: 0;
-  max-width: 1200px;
-  width: 100%;
   max-height: 90vh;
-  overflow-y: auto;
-  z-index: 1;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-  animation: afs-modal-slide-up 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
 }
 
-@keyframes afs-modal-slide-up {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.afs-shopify-modal__close {
+.afs-product-modal__close-container {
+  display: grid;
+  justify-content: end;
+  justify-items: end;
+  padding: 2rem;
   position: absolute;
-  top: 20px;
-  right: 20px;
-  width: 40px;
-  height: 40px;
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  background: #ffffff;
-  border-radius: 0;
-  font-size: 20px;
-  line-height: 1;
+  right: 0;
+  top: 0;
+  z-index: 1;
+}
+
+.afs-product-modal__close {
+  border: 1px solid #cccccc;
+  border-radius: 50%;
   cursor: pointer;
-  z-index: 2;
+  height: 40px;
+  width: 40px;
+  background: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  font-size: 20px;
+  line-height: 1;
+  transition: all 0.2s ease;
   color: #000000;
+  padding: 0;
+  margin: 0;
 }
 
-.afs-shopify-modal__close:hover {
+.afs-product-modal__close:hover {
   background: #000000;
   color: #ffffff;
   border-color: #000000;
 }
 
-.afs-shopify-product-modal {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 60px;
-  align-items: start;
-  padding: 40px;
+.afs-product-modal__content {
+  background-color: #ffffff;
+  border-radius: 0.75rem;
+  width: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  max-height: 90vh;
+  border: 0;
 }
 
-.afs-shopify-product-modal__image {
+.afs-product-modal__content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.afs-product-modal__content::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.afs-product-modal__content::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+.afs-product-modal__content::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+.afs-product-modal__layout {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+@media (min-width: 768px) {
+  .afs-product-modal__layout {
+    flex-direction: row;
+  }
+}
+
+.afs-product-modal__media {
+  align-items: center;
+  background: #f3f3f3;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 1rem;
+  min-width: 400px;
+  max-width: 50%;
   width: 100%;
 }
 
-.afs-shopify-product-modal__image shopify-media {
+@media (max-width: 768px) {
+  .afs-product-modal__media {
+    min-width: auto;
+  }
+}
+
+.afs-product-modal__media shopify-media {
   display: block;
   width: 100%;
 }
 
-.afs-shopify-product-modal__image shopify-media img {
+.afs-product-modal__media shopify-media img {
+  border-radius: 4px;
   width: 100%;
   height: auto;
   display: block;
+  object-fit: contain;
 }
 
-.afs-shopify-product-modal__info {
+.afs-product-modal__details {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 2rem;
+  padding: 2rem;
+  width: 100%;
 }
 
-.afs-shopify-product-modal__title {
-  font-size: 24px;
-  font-weight: 600;
+.afs-product-modal__header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.afs-product-modal__vendor {
+  opacity: 0.5;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  color: #000000;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+.afs-product-modal__vendor shopify-data {
+  display: block;
+}
+
+.afs-product-modal__title {
+  font-size: 2.25rem;
+  font-weight: 700;
   margin: 0;
   color: #000000;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  line-height: 1.2;
 }
 
-.afs-shopify-product-modal__title shopify-data {
+.afs-product-modal__title shopify-data {
   display: block;
 }
 
-.afs-shopify-product-modal__vendor {
-  font-size: 14px;
-  color: #666666;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.afs-shopify-product-modal__vendor shopify-data {
-  display: block;
-}
-
-.afs-shopify-product-modal__price {
+.afs-product-modal__price-container {
   display: flex;
+  gap: 0.5rem;
+  font-weight: 500;
+  font-size: 1.25rem;
   align-items: center;
-  gap: 12px;
-  font-size: 20px;
-  font-weight: 600;
+  flex-wrap: wrap;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+.afs-product-modal__compare-price {
+  text-decoration: line-through;
+  opacity: 0.5;
+  font-size: 1rem;
+}
+
+.afs-product-modal__description {
+  display: flex;
+  justify-content: space-between;
+}
+
+.afs-product-modal__description-text {
+  font-weight: 400;
+  color: #717171;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+.afs-product-modal__description-text shopify-data {
+  display: block;
+}
+
+.afs-product-modal__description-text p {
+  margin: 0;
+}
+
+.afs-product-modal__buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.afs-product-modal__add-button {
+  background-color: #000000;
+  color: #ffffff;
+  border-radius: 0.75rem;
+  padding: 1rem;
+  font-size: 18px;
+  font-weight: 500;
+  width: 100%;
+  border: 2px solid #000000;
+  cursor: pointer;
+  text-transform: uppercase;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.afs-product-modal__add-button:hover {
+  background: #ffffff;
+  color: #000000;
+  border: 2px solid #000000;
+}
+
+.afs-product-modal__add-button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.afs-product-modal__buy-button {
+  background-color: #ffffff;
+  color: #000000;
+  border-radius: 0.75rem;
+  padding: 1rem;
+  font-size: 18px;
+  font-weight: 500;
+  width: 100%;
+  border: 2px solid #000000;
+  cursor: pointer;
+  text-transform: uppercase;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  transition: opacity 0.3s ease, background-color 0.3s ease;
+}
+
+.afs-product-modal__buy-button:hover {
+  opacity: 0.8;
+  background: #f5f5f5;
+}
+
+.afs-product-modal__buy-button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* Variant selector styling */
+shopify-variant-selector {
+  display: block;
+  margin: 1rem 0;
+}
+
+shopify-variant-selector::part(selector) {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+shopify-variant-selector::part(label) {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #000000;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+shopify-variant-selector::part(options) {
+  display: flex;
+  gap: 0.5rem;
   flex-wrap: wrap;
 }
 
-.afs-shopify-product-modal__compare-price {
-  text-decoration: line-through;
-  color: #999999;
-  font-size: 16px;
-}
-
-.afs-shopify-product-modal__description {
-  font-size: 14px;
-  line-height: 1.6;
-  color: #666666;
-}
-
-.afs-shopify-product-modal__description shopify-data {
-  display: block;
-}
-
-.afs-shopify-product-modal__view-full {
-  display: block;
-  text-align: center;
-  margin-top: 16px;
+shopify-variant-selector::part(option) {
+  padding: 0.5rem 1rem;
+  border: 1px solid #000000;
+  background: #ffffff;
   color: #000000;
-  text-decoration: underline;
-  font-size: 14px;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 
-.afs-shopify-product-modal__view-full:hover {
-  color: #666666;
+shopify-variant-selector::part(option):hover {
+  background: #f5f5f5;
+}
+
+shopify-variant-selector::part(option[selected]) {
+  background: #000000;
+  color: #ffffff;
 }
 
 /* Quick Add Success Message */
@@ -1650,15 +1816,31 @@
     width: 100%;
   }
 
-  .afs-shopify-modal__content {
-    width: 95%;
-    max-height: 95vh;
+  .afs-product-modal {
+    width: 100%;
+    max-width: 100%;
   }
 
-  .afs-shopify-product-modal {
-    grid-template-columns: 1fr;
-    gap: 24px;
-    padding: 20px;
+  .afs-product-modal__close-container {
+    padding: 1rem;
+  }
+
+  .afs-product-modal__media {
+    min-width: auto;
+    padding: 0.5rem;
+  }
+
+  .afs-product-modal__details {
+    padding: 1.5rem;
+    gap: 1.5rem;
+  }
+
+  .afs-product-modal__title {
+    font-size: 1.75rem;
+  }
+
+  .afs-product-modal__price-container {
+    font-size: 1.125rem;
   }
 
   .afs-quick-add-success {

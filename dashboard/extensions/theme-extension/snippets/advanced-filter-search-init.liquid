@@ -6,6 +6,12 @@
 <!-- Shopify Storefront Web Components -->
 <script type="module" src="https://cdn.shopify.com/storefront/web-components.js"></script>
 
+<!-- Shopify Store Component -->
+<shopify-store store-domain="{{ shop.permanent_domain }}" country="US" language="en"></shopify-store>
+
+<!-- Shopify Cart Component -->
+<shopify-cart id="cart"></shopify-cart>
+
 <script>
   (function() {
     // Extract products from Liquid collection as fallback

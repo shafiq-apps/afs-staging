@@ -21,7 +21,8 @@
   // Store SVG HTML content for inline use (allows CSS color control)
   const Icons = {
     rightArrow: '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" fill="#000000" height="800px" width="800px" version="1.1" id="Layer_1" viewBox="0 0 512.005 512.005" xml:space="preserve"><g><g><path d="M388.418,240.923L153.751,6.256c-8.341-8.341-21.824-8.341-30.165,0s-8.341,21.824,0,30.165L343.17,256.005 L123.586,475.589c-8.341,8.341-8.341,21.824,0,30.165c4.16,4.16,9.621,6.251,15.083,6.251c5.461,0,10.923-2.091,15.083-6.251 l234.667-234.667C396.759,262.747,396.759,249.264,388.418,240.923z"/></g></g></svg>',
-    downArrow: '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" fill="#000000" height="800px" width="800px" version="1.1" id="Layer_1" viewBox="0 0 512.011 512.011" xml:space="preserve"><g><g><path d="M505.755,123.592c-8.341-8.341-21.824-8.341-30.165,0L256.005,343.176L36.421,123.592c-8.341-8.341-21.824-8.341-30.165,0 s-8.341,21.824,0,30.165l234.667,234.667c4.16,4.16,9.621,6.251,15.083,6.251c5.462,0,10.923-2.091,15.083-6.251l234.667-234.667 C514.096,145.416,514.096,131.933,505.755,123.592z"/></g></g></svg>'
+    downArrow: '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" fill="#000000" height="800px" width="800px" version="1.1" id="Layer_1" viewBox="0 0 512.011 512.011" xml:space="preserve"><g><g><path d="M505.755,123.592c-8.341-8.341-21.824-8.341-30.165,0L256.005,343.176L36.421,123.592c-8.341-8.341-21.824-8.341-30.165,0 s-8.341,21.824,0,30.165l234.667,234.667c4.16,4.16,9.621,6.251,15.083,6.251c5.462,0,10.923-2.091,15.083-6.251l234.667-234.667 C514.096,145.416,514.096,131.933,505.755,123.592z"/></g></g></svg>',
+    eye: '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" fill="#000000" height="800px" width="800px" version="1.1" id="Layer_1" viewBox="0 0 24 24" enable-background="new 0 0 24 24" xml:space="preserve"><g id="view"><g><path d="M12,21c-5,0-8.8-2.8-11.8-8.5L0,12l0.2-0.5C3.2,5.8,7,3,12,3s8.8,2.8,11.8,8.5L24,12l-0.2,0.5C20.8,18.2,17,21,12,21z     M2.3,12c2.5,4.7,5.7,7,9.7,7s7.2-2.3,9.7-7C19.2,7.3,16,5,12,5S4.8,7.3,2.3,12z"/></g><g><path d="M12,17c-2.8,0-5-2.2-5-5s2.2-5,5-5s5,2.2,5,5S14.8,17,12,17z M12,9c-1.7,0-3,1.3-3,3s1.3,3,3,3s3-1.3,3-3S13.7,9,12,9z"/></g></g></svg>'
   };
 
   // Excluded query parameter keys (not processed as filters)
@@ -1191,13 +1192,8 @@
           'type': 'button'
         });
         const quickViewIcon = $.el('span', 'afs-product-card__quick-view-icon');
-        quickViewIcon.innerHTML = '👁';
-        const quickViewText = $.el('span');
-        quickViewText.textContent = 'Quick View';
-        quickViewBtn.appendChild(quickViewIcon);
-        quickViewBtn.appendChild(quickViewText);
-        
-        imgContainer.appendChild(quickAddBtn);
+        quickViewIcon.innerHTML = Icons.eye;
+        quickViewBtn.appendChild(quickViewIcon);        
         imgContainer.appendChild(quickViewBtn);
         card.appendChild(imgContainer);
       }
@@ -1822,53 +1818,69 @@
 
   // Create Shopify Web Component Modal
   function createShopifyWebComponentModal(handle, modalId) {
-    const dialog = $.el('dialog', 'afs-shopify-modal', { 'id': modalId });
-    
-    // Get shop domain from State or window
-    const shopDomain = State.shop || window.Shopify?.shop || '';
-    const storeDomain = shopDomain.includes('.myshopify.com') 
-      ? `https://${shopDomain}` 
-      : `https://${shopDomain}.myshopify.com`;
+    const dialog = $.el('dialog', 'afs-product-modal', { 'id': modalId });
     
     dialog.innerHTML = `
-      <div class="afs-shopify-modal__overlay"></div>
-      <div class="afs-shopify-modal__content">
-        <button class="afs-shopify-modal__close" aria-label="Close modal" type="button">×</button>
-        <shopify-store store-domain="${storeDomain}">
-          <shopify-context type="product" handle="${handle}">
-            <template>
-              <div class="afs-shopify-product-modal">
-                <div class="afs-shopify-product-modal__image">
-                  <shopify-media max-images="1" width="600" height="600" query="product.selectedOrFirstAvailableVariant.image"></shopify-media>
+      <shopify-context id="${modalId}-context" type="product" handle="${handle}" wait-for-update>
+        <template>
+          <div class="afs-product-modal__container">
+            <div class="afs-product-modal__close-container">
+              <button class="afs-product-modal__close" onclick="getElementById('${modalId}').close();" type="button">&#10005;</button>
+            </div>
+            <div class="afs-product-modal__content">
+              <div class="afs-product-modal__layout">
+                <div class="afs-product-modal__media">
+                  <shopify-media max-images="1" width="400" height="500" query="product.selectedOrFirstAvailableVariant.image"></shopify-media>
                 </div>
-                <div class="afs-shopify-product-modal__info">
-                  <h2 class="afs-shopify-product-modal__title">
-                    <shopify-data query="product.title"></shopify-data>
-                  </h2>
-                  <div class="afs-shopify-product-modal__vendor">
-                    <shopify-data query="product.vendor"></shopify-data>
-                  </div>
-                  <div class="afs-shopify-product-modal__price">
-                    <shopify-money query="product.selectedOrFirstAvailableVariant.price"></shopify-money>
-                    <shopify-money class="afs-shopify-product-modal__compare-price" query="product.selectedOrFirstAvailableVariant.compareAtPrice"></shopify-money>
-                  </div>
-                  <div class="afs-shopify-product-modal__description">
-                    <shopify-data query="product.descriptionHtml"></shopify-data>
+                <div class="afs-product-modal__details">
+                  <div class="afs-product-modal__header">
+                    <div>
+                      <span class="afs-product-modal__vendor">
+                        <shopify-data query="product.vendor"></shopify-data>
+                      </span>
+                    </div>
+                    <h1 class="afs-product-modal__title">
+                      <shopify-data query="product.title"></shopify-data>
+                    </h1>
+                    <div class="afs-product-modal__price-container">
+                      <shopify-money query="product.selectedOrFirstAvailableVariant.price"></shopify-money>
+                      <shopify-money class="afs-product-modal__compare-price" query="product.selectedOrFirstAvailableVariant.compareAtPrice"></shopify-money>
+                    </div>
                   </div>
                   <shopify-variant-selector></shopify-variant-selector>
-                  <shopify-buy-button></shopify-buy-button>
-                  <a href="/products/${handle}" class="afs-shopify-product-modal__view-full">View Full Details</a>
+                  <div class="afs-product-modal__buttons">
+                    <button
+                      class="afs-product-modal__add-button"
+                      onclick="getElementById('cart').addLine(event).showModal();getElementById('${modalId}').close();"
+                      shopify-attr--disabled="!product.selectedOrFirstAvailableVariant.availableForSale"
+                      type="button"
+                    >
+                      Add to cart
+                    </button>
+                    <button
+                      class="afs-product-modal__buy-button"
+                      onclick="document.querySelector('shopify-store').buyNow(event)"
+                      shopify-attr--disabled="!product.selectedOrFirstAvailableVariant.availableForSale"
+                      type="button"
+                    >
+                      Buy now
+                    </button>
+                  </div>
+                  <div class="afs-product-modal__description">
+                    <span class="afs-product-modal__description-text">
+                      <shopify-data query="product.descriptionHtml"></shopify-data>
+                    </span>
+                  </div>
                 </div>
               </div>
-            </template>
-          </shopify-context>
-        </shopify-store>
-      </div>
+            </div>
+          </div>
+        </template>
+      </shopify-context>
     `;
     
     // Close button handler
-    const closeBtn = dialog.querySelector('.afs-shopify-modal__close');
-    const overlay = dialog.querySelector('.afs-shopify-modal__overlay');
+    const closeBtn = dialog.querySelector('.afs-product-modal__close');
     
     const closeModal = () => {
       if (dialog.close) {
@@ -1876,6 +1888,7 @@
       } else {
         dialog.style.display = 'none';
       }
+      // Restore body scroll
       document.body.style.overflow = '';
     };
     
@@ -1883,12 +1896,13 @@
       closeBtn.addEventListener('click', closeModal);
     }
     
-    if (overlay) {
-      overlay.addEventListener('click', closeModal);
-    }
-    
-    // Handle ESC key
+    // Handle ESC key and backdrop click
     dialog.addEventListener('cancel', closeModal);
+    dialog.addEventListener('click', (e) => {
+      if (e.target === dialog) {
+        closeModal();
+      }
+    });
     
     return dialog;
   }
@@ -2135,19 +2149,27 @@
           const handle = btn.getAttribute('data-product-handle');
           if (handle) {
             // Open Shopify web component modal
-            const modalId = `afs-quick-view-modal-${handle}`;
+            const modalId = `product-modal-${handle}`;
             let modal = document.getElementById(modalId);
             if (!modal) {
               modal = createShopifyWebComponentModal(handle, modalId);
               document.body.appendChild(modal);
             }
+            
+            // Update context if it exists
+            const context = modal.querySelector(`#${modalId}-context`);
+            if (context && context.update) {
+              context.update({ target: btn });
+            }
+            
             // Show modal
-            document.body.style.overflow = 'hidden';
             if (modal.showModal) {
               modal.showModal();
+              // Prevent body scroll when modal is open
+              document.body.style.overflow = 'hidden';
             } else {
-              modal.style.display = 'flex';
-              modal.classList.add('afs-shopify-modal--open');
+              modal.style.display = 'block';
+              document.body.style.overflow = 'hidden';
             }
           }
         }
