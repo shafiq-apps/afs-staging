@@ -1370,6 +1370,9 @@
   height: 48px;
   border-radius: 24px;
   padding: 0 20px;
+  background: var(--afs-accent-color);
+  color: var(--afs-text-color-inverse);
+  border-color: var(--afs-accent-color);
 }
 
 [data-afs-container] .afs-product-card:hover .afs-product-card__quick-view-icon {
