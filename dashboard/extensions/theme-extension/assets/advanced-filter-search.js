@@ -1178,7 +1178,7 @@
         quickAddBtn.appendChild(quickAddText);
         
         // Disable button if product is not available
-        if (p.available === false || (p.variants && !p.variants.some(v => v.available))) {
+        if (parseInt(p.totalInventory) <= 0 || (p.variants && !p.variants.some(v => v.availableForSale))) {
           quickAddBtn.disabled = true;
           quickAddBtn.classList.add('afs-product-card__quick-add--disabled');
           quickAddBtn.setAttribute('aria-label', 'Product unavailable');
