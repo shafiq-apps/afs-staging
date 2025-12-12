@@ -8,29 +8,43 @@
 {% comment %} Generate CSS Variables from Block Settings {% endcomment %}
 <style>
   [data-afs-container] {
-    {% comment %} Default Color Variables {% endcomment %}
-    --afs-text-color: #000000;
-    --afs-text-secondary: #666666;
-    --afs-bg-color: #ffffff;
-    --afs-bg-secondary: #f5f5f5;
-    --afs-border-color: #e5e5e5;
-    --afs-accent-color: #000000;
-    --afs-accent-bg: #000000;
+    {% comment %} Text Colors {% endcomment %}
+    --afs-text-color: {{ block.settings.text_color | default: '#000000' }};
+    --afs-text-color-inverse: {{ block.settings.text_color_inverse | default: '#ffffff' }};
+    
+    {% comment %} Background Colors {% endcomment %}
+    --afs-bg-color: {{ block.settings.bg_color | default: '#ffffff' }};
+    --afs-bg-color-inverse: {{ block.settings.bg_color_inverse | default: '#000000' }};
+    --afs-bg-secondary: {{ block.settings.bg_secondary | default: '#f5f5f5' }};
+    
+    {% comment %} Border & Accent Colors {% endcomment %}
+    --afs-border-color: {{ block.settings.border_color | default: '#e5e5e5' }};
+    --afs-accent-color: {{ block.settings.accent_color | default: '#000000' }};
+    --afs-accent-color-hover: {{ block.settings.accent_color_hover | default: '#1a1a1a' }};
+    
+    {% comment %} Shadow Colors {% endcomment %}
+    --afs-shadow-color: {{ block.settings.shadow_color | default: 'rgba(0, 0, 0, 0.1)' }};
+    --afs-shadow-color-medium: {{ block.settings.shadow_color_medium | default: 'rgba(0, 0, 0, 0.2)' }};
+    --afs-shadow-color-strong: {{ block.settings.shadow_color_strong | default: 'rgba(0, 0, 0, 0.25)' }};
+    
+    {% comment %} Overlay Colors {% endcomment %}
+    --afs-overlay-color: {{ block.settings.overlay_color | default: 'rgba(0, 0, 0, 0.5)' }};
+    --afs-overlay-color-strong: {{ block.settings.overlay_color_strong | default: 'rgba(0, 0, 0, 0.75)' }};
+    
+    {% comment %} Skeleton Loader Colors {% endcomment %}
+    --afs-skeleton-color-light: {{ block.settings.skeleton_color_light | default: '#f0f0f0' }};
+    --afs-skeleton-color-dark: {{ block.settings.skeleton_color_dark | default: '#e0e0e0' }};
+    
+    {% comment %} Scrollbar Colors {% endcomment %}
+    --afs-scrollbar-track: {{ block.settings.scrollbar_track | default: '#f1f1f1' }};
+    --afs-scrollbar-thumb: {{ block.settings.scrollbar_thumb | default: '#888888' }};
+    --afs-scrollbar-thumb-hover: {{ block.settings.scrollbar_thumb_hover | default: '#555555' }};
     
     {% comment %} Default Font Variables {% endcomment %}
-    --afs-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    --afs-font-weight: 400;
-    --afs-font-weight-bold: 600;
-    --afs-font-style: normal;
-    
-    {% comment %} Override with user-defined variables {% endcomment %}
-    {% if block.settings.color_variables != blank %}
-      {{ block.settings.color_variables }}
-    {% endif %}
-    
-    {% if block.settings.font_variables != blank %}
-      {{ block.settings.font_variables }}
-    {% endif %}
+    --afs-font-family: {{ block.settings.font_family | default: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }};
+    --afs-font-weight: {{ block.settings.font_weight | default: 400 }};
+    --afs-font-weight-bold: {{ block.settings.font_weight_bold | default: 600 }};
+    --afs-font-style: {{ block.settings.font_style | default: 'normal' }};
   }
 </style>
 
@@ -70,33 +84,101 @@
     },
     {
       "type": "header",
-      "content": "Color Configuration"
+      "content": "Text Colors"
     },
     {
-      "type": "paragraph",
-      "content": "Map your theme's CSS variables to component colors. Use format: --afs-variable: var(--theme-variable, fallback); Example: --afs-text-color: var(--color-foreground, #000000);"
+      "type": "color",
+      "id": "text_color",
+      "label": "Text Color",
+      "default": "#000000"
     },
     {
-      "type": "textarea",
-      "id": "color_variables",
-      "label": "CSS Color Variables",
-      "default": "--afs-text-color: var(--color-foreground, #000000);\n--afs-text-secondary: var(--color-foreground, #666666);\n--afs-bg-color: var(--color-background, #ffffff);\n--afs-bg-secondary: var(--color-background, #f5f5f5);\n--afs-border-color: var(--color-border, #e5e5e5);\n--afs-accent-color: var(--color-button, #000000);\n--afs-accent-bg: var(--color-button-background, #000000);",
-      "info": "Define CSS variables mapping theme colors to component colors. One variable per line."
+      "type": "color",
+      "id": "text_color_inverse",
+      "label": "Text Color (Inverse)",
+      "default": "#ffffff",
+      "info": "Used for text on dark backgrounds"
+    },
+    {
+      "type": "header",
+      "content": "Background Colors"
+    },
+    {
+      "type": "color",
+      "id": "bg_color",
+      "label": "Background Color",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "bg_color_inverse",
+      "label": "Background Color (Inverse)",
+      "default": "#000000",
+      "info": "Used for dark backgrounds"
+    },
+    {
+      "type": "color",
+      "id": "bg_secondary",
+      "label": "Secondary Background",
+      "default": "#f5f5f5",
+      "info": "Used for secondary backgrounds and image containers"
+    },
+    {
+      "type": "header",
+      "content": "Border & Accent Colors"
+    },
+    {
+      "type": "color",
+      "id": "border_color",
+      "label": "Border Color",
+      "default": "#e5e5e5"
+    },
+    {
+      "type": "color",
+      "id": "accent_color",
+      "label": "Accent Color",
+      "default": "#000000",
+      "info": "Used for buttons, links, and active states"
+    },
+    {
+      "type": "color",
+      "id": "accent_color_hover",
+      "label": "Accent Color (Hover)",
+      "default": "#1a1a1a",
+      "info": "Used for hover states on buttons and links"
+    },
+    {
+      "type": "header",
+      "content": "Shadow Colors"
+    },
+    {
+      "type": "color_background",
+      "id": "shadow_color",
+      "label": "Shadow Color (Light)",
+      "default": "rgba(0, 0, 0, 0.1)"
+    },
+    {
+      "type": "color_background",
+      "id": "shadow_color_medium",
+      "label": "Shadow Color (Medium)",
+      "default": "rgba(0, 0, 0, 0.2)"
+    },
+    {
+      "type": "color_background",
+      "id": "shadow_color_strong",
+      "label": "Shadow Color (Strong)",
+      "default": "rgba(0, 0, 0, 0.25)"
     },
     {
       "type": "header",
       "content": "Font Configuration"
     },
     {
-      "type": "paragraph",
-      "content": "Map your theme's font variables to component fonts."
-    },
-    {
-      "type": "textarea",
-      "id": "font_variables",
-      "label": "CSS Font Variables",
-      "default": "--afs-font-family: var(--font-body-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);\n--afs-font-weight: var(--font-body-weight, 400);\n--afs-font-weight-bold: var(--font-body-weight-bold, 600);\n--afs-font-style: var(--font-body-style, normal);",
-      "info": "Define CSS variables mapping theme fonts to component fonts. One variable per line."
+      "type": "text",
+      "id": "font_family",
+      "label": "Font Family",
+      "default": "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+      "info": "CSS font-family value"
     }
   ]
 }
