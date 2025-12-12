@@ -1157,6 +1157,43 @@
         }
 
         imgContainer.appendChild(img);
+        
+        // Add Quick Add button - bottom right corner with + icon
+        const quickAddBtn = $.el('button', 'afs-product-card__quick-add', {
+          'data-product-handle': p.handle || '',
+          'data-product-id': $.id(p),
+          'aria-label': 'Quick add to cart',
+          'type': 'button'
+        });
+        
+        // Add + icon
+        const plusIcon = $.el('span', 'afs-product-card__quick-add-icon');
+        plusIcon.innerHTML = '+';
+        quickAddBtn.appendChild(plusIcon);
+        
+        // Add text that shows on hover
+        const quickAddText = $.el('span', 'afs-product-card__quick-add-text');
+        quickAddText.textContent = 'Quick Add';
+        quickAddBtn.appendChild(quickAddText);
+        
+        // Disable button if product is not available
+        if (p.available === false || (p.variants && !p.variants.some(v => v.available))) {
+          quickAddBtn.disabled = true;
+          quickAddBtn.classList.add('afs-product-card__quick-add--disabled');
+          quickAddBtn.setAttribute('aria-label', 'Product unavailable');
+        }
+        
+        // Add Quick View button - opens Shopify web component modal
+        const quickViewBtn = $.el('button', 'afs-product-card__quick-view', {
+          'data-product-handle': p.handle || '',
+          'data-product-id': $.id(p),
+          'aria-label': 'Quick view',
+          'type': 'button'
+        });
+        quickViewBtn.textContent = 'Quick View';
+        
+        imgContainer.appendChild(quickAddBtn);
+        imgContainer.appendChild(quickViewBtn);
         card.appendChild(imgContainer);
       }
 
@@ -1778,6 +1815,198 @@
     }, C.DEBOUNCE)
   };
 
+  // Create Shopify Web Component Modal
+  function createShopifyWebComponentModal(handle, modalId) {
+    const dialog = $.el('dialog', 'afs-shopify-modal', { 'id': modalId });
+    
+    // Get shop domain from State or window
+    const shopDomain = State.shop || window.Shopify?.shop || '';
+    const storeDomain = shopDomain.includes('.myshopify.com') 
+      ? `https://${shopDomain}` 
+      : `https://${shopDomain}.myshopify.com`;
+    
+    dialog.innerHTML = `
+      <div class="afs-shopify-modal__overlay"></div>
+      <div class="afs-shopify-modal__content">
+        <button class="afs-shopify-modal__close" aria-label="Close modal" type="button">×</button>
+        <shopify-store store-domain="${storeDomain}">
+          <shopify-context type="product" handle="${handle}">
+            <template>
+              <div class="afs-shopify-product-modal">
+                <div class="afs-shopify-product-modal__image">
+                  <shopify-media max-images="1" width="600" height="600" query="product.selectedOrFirstAvailableVariant.image"></shopify-media>
+                </div>
+                <div class="afs-shopify-product-modal__info">
+                  <h2 class="afs-shopify-product-modal__title">
+                    <shopify-data query="product.title"></shopify-data>
+                  </h2>
+                  <div class="afs-shopify-product-modal__vendor">
+                    <shopify-data query="product.vendor"></shopify-data>
+                  </div>
+                  <div class="afs-shopify-product-modal__price">
+                    <shopify-money query="product.selectedOrFirstAvailableVariant.price"></shopify-money>
+                    <shopify-money class="afs-shopify-product-modal__compare-price" query="product.selectedOrFirstAvailableVariant.compareAtPrice"></shopify-money>
+                  </div>
+                  <div class="afs-shopify-product-modal__description">
+                    <shopify-data query="product.descriptionHtml"></shopify-data>
+                  </div>
+                  <shopify-variant-selector></shopify-variant-selector>
+                  <shopify-buy-button></shopify-buy-button>
+                  <a href="/products/${handle}" class="afs-shopify-product-modal__view-full">View Full Details</a>
+                </div>
+              </div>
+            </template>
+          </shopify-context>
+        </shopify-store>
+      </div>
+    `;
+    
+    // Close button handler
+    const closeBtn = dialog.querySelector('.afs-shopify-modal__close');
+    const overlay = dialog.querySelector('.afs-shopify-modal__overlay');
+    
+    const closeModal = () => {
+      if (dialog.close) {
+        dialog.close();
+      } else {
+        dialog.style.display = 'none';
+      }
+      document.body.style.overflow = '';
+    };
+    
+    if (closeBtn) {
+      closeBtn.addEventListener('click', closeModal);
+    }
+    
+    if (overlay) {
+      overlay.addEventListener('click', closeModal);
+    }
+    
+    // Handle ESC key
+    dialog.addEventListener('cancel', closeModal);
+    
+    return dialog;
+  }
+
+  // Quick Add functionality
+  const QuickAdd = {
+    async add(handle, productId) {
+      try {
+        // Fetch product to get first variant
+        const productUrl = `/products/${handle}.json`;
+        const response = await fetch(productUrl);
+        
+        if (!response.ok) {
+          throw new Error('Failed to load product');
+        }
+        
+        const data = await response.json();
+        const product = data.product;
+        
+        if (!product || !product.variants || product.variants.length === 0) {
+          throw new Error('Product has no variants');
+        }
+        
+        // Use first available variant
+        const variant = product.variants.find(v => v.available) || product.variants[0];
+        
+        await this.addVariant(variant.id, 1);
+      } catch (error) {
+        Log.error('Quick add failed', { error: error.message, handle });
+        alert('Failed to add product to cart. Please try again.');
+      }
+    },
+
+    async addFromForm(form, handle) {
+      try {
+        const formData = new FormData(form);
+        const variantId = formData.get('id');
+        const quantity = parseInt(formData.get('quantity') || '1', 10);
+        
+        if (!variantId) {
+          // If no variant ID, need to find variant based on selected options
+          const options = [];
+          for (let i = 1; i <= 3; i++) {
+            const option = formData.get(`option${i}`);
+            if (option) options.push(option);
+          }
+          
+          // Fetch product to find matching variant
+          const productUrl = `/products/${handle}.json`;
+          const response = await fetch(productUrl);
+          const data = await response.json();
+          const product = data.product;
+          
+          const variant = product.variants.find(v => {
+            return v.options.length === options.length && 
+                   v.options.every((opt, idx) => opt === options[idx]);
+          });
+          
+          if (variant) {
+            await this.addVariant(variant.id, quantity);
+          } else {
+            throw new Error('Variant not found');
+          }
+        } else {
+          await this.addVariant(variantId, quantity);
+        }
+      } catch (error) {
+        Log.error('Add from form failed', { error: error.message });
+        alert('Failed to add product to cart. Please try again.');
+      }
+    },
+
+    async addVariant(variantId, quantity) {
+      try {
+        const response = await fetch('/cart/add.js', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            id: variantId,
+            quantity: quantity
+          })
+        });
+        
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.description || 'Failed to add to cart');
+        }
+        
+        const item = await response.json();
+        
+        // Trigger cart update event
+        document.dispatchEvent(new CustomEvent('cart:updated'));
+        
+        // Show success message
+        this.showSuccess();
+        
+        // Close quick view if open
+        QuickView.close();
+      } catch (error) {
+        Log.error('Add variant failed', { error: error.message, variantId });
+        throw error;
+      }
+    },
+
+    showSuccess() {
+      // Create or update success message
+      let message = document.querySelector('.afs-quick-add-success');
+      if (!message) {
+        message = $.el('div', 'afs-quick-add-success');
+        document.body.appendChild(message);
+      }
+      
+      message.textContent = 'Added to cart!';
+      message.classList.add('afs-quick-add-success--show');
+      
+      setTimeout(() => {
+        message.classList.remove('afs-quick-add-success--show');
+      }, 3000);
+    }
+  };
+
   // ============================================================================
   // EVENT HANDLERS (Single delegated handler)
   // ============================================================================
@@ -1882,6 +2111,44 @@
 
           // Content visibility is handled by CSS via data-afs-collapsed attribute
           Log.debug('Filter group toggled', { collapsed: collapsedState });
+        }
+        else if (e.target.closest('.afs-product-card__quick-add')) {
+          e.preventDefault();
+          e.stopPropagation();
+          const btn = e.target.closest('.afs-product-card__quick-add');
+          if (btn.disabled) return;
+          const handle = btn.getAttribute('data-product-handle');
+          const productId = btn.getAttribute('data-product-id');
+          if (handle) {
+            QuickAdd.add(handle, productId);
+          }
+        }
+        else if (e.target.closest('.afs-product-card__quick-view')) {
+          e.preventDefault();
+          e.stopPropagation();
+          const btn = e.target.closest('.afs-product-card__quick-view');
+          const handle = btn.getAttribute('data-product-handle');
+          if (handle) {
+            // Open Shopify web component modal
+            const modalId = `afs-quick-view-modal-${handle}`;
+            let modal = document.getElementById(modalId);
+            if (!modal) {
+              modal = createShopifyWebComponentModal(handle, modalId);
+              document.body.appendChild(modal);
+            }
+            // Show modal
+            document.body.style.overflow = 'hidden';
+            if (modal.showModal) {
+              modal.showModal();
+            } else {
+              modal.style.display = 'flex';
+              modal.classList.add('afs-shopify-modal--open');
+            }
+          }
+        }
+        else if (e.target.closest('.afs-quick-view-modal__close') || e.target.closest('.afs-quick-view-modal__overlay')) {
+          e.preventDefault();
+          QuickView.close();
         }
       });
 

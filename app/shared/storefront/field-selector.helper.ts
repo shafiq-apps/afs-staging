@@ -14,6 +14,7 @@ import { shopifyProduct, StorefrontProduct } from './types';
 export const DEFAULT_STOREFRONT_FIELDS = [
   'id',
   'productId',
+  'handle',
   'title',
   'imageUrl',
   'imagesUrls',
