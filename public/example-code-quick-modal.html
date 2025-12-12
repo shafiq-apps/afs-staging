@@ -1,0 +1,1037 @@
+<link href="https://fonts.googleapis.com/css2?family=Jost:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
+<script type="module" src="https://cdn.shopify.com/storefront/web-components.js"></script>
+<!-- Provide the token and set the market context -->
+<shopify-store store-domain="mock.shop" country="US" language="en"></shopify-store>
+
+<div class="product-layout">
+  <div class="product-card">
+    <!-- Set product you want to display -->
+    <shopify-context type="product" handle="hoodie">
+      <template>
+        <div class="product-card__container">
+          <div class="product-card__media">
+            <!-- Image carousel -->
+            <div class="product-card__image-slider">
+              <div class="product-card__image-grid" id="product-card__image-grid">
+                <shopify-list-context type="image" query="product.selectedOrFirstAvailableVariant.product.images" first="3">
+                  <template>
+                    <shopify-media layout="fixed" width="420" height="420" query="image"></shopify-media>
+                  </template>
+                </shopify-list-context>
+              </div>
+            </div>
+            <div class="product-card__images">
+              <shopify-list-context
+                type="image"
+                onclick="updateSlider(event)"
+                query="product.selectedOrFirstAvailableVariant.product.images"
+                first="3"
+              >
+                <template>
+                  <div class="product-card__image">
+                    <shopify-media class="product-card__image-small" width="130" height="130" query="image"></shopify-media>
+                  </div>
+                </template>
+              </shopify-list-context>
+            </div>
+          </div>
+          <div class="product-card__details">
+            <div class="product-card__info">
+              <h1 class="product-card__title">
+                <shopify-data query="product.title"></shopify-data>
+              </h1>
+              <div class="product-card__price">
+                <span>
+                  <shopify-money query="product.selectedOrFirstAvailableVariant.price"></shopify-money>
+                  <shopify-money
+                    class="product-card__compare-price"
+                    query="product.selectedOrFirstAvailableVariant.compareAtPrice"
+                  ></shopify-money>
+                </span>
+              </div>
+            </div>
+            <shopify-variant-selector></shopify-variant-selector>
+
+            <div class="product-card__buttons">
+              <div class="product-card__add-to-cart">
+                <div class="product-card__incrementor">
+                  <button class="decrease" onclick="decreaseValue();">-</button>
+                  <span class="product-card__count" id="product-card__count">1</span>
+                  <button class="increase" onclick="increaseValue();">+</button>
+                </div>
+                <button
+                  class="product-card__add-button"
+                  onclick="addToCart();"
+                  shopify-attr--disabled="!product.selectedOrFirstAvailableVariant.availableForSale"
+                >
+                  <shopify-money query="product.selectedOrFirstAvailableVariant.price"></shopify-money>
+                  · Add to cart
+                </button>
+              </div>
+              <button
+                class="product-card__buy-button"
+                onclick="document.querySelector('shopify-store').buyNow(event)"
+                class="product-buy-now__button"
+                shopify-attr--disabled="!product.selectedOrFirstAvailableVariant.availableForSale"
+              >
+                Buy it now
+              </button>
+            </div>
+
+            <div class="product-card__accordion">
+              <div class="product-card__accordion__item">
+                <div class="product-card__accordion__header" data-toggle="#product1" onclick="toggleAccordion(event);">Description</div>
+                <div class="product-card__accordion__content" id="product1">
+                  <p>
+                    <span class="product-card__description-text">
+                      <shopify-data query="product.description"></shopify-data>
+                    </span>
+                  </p>
+                </div>
+              </div>
+
+              <div class="product-card__accordion__item">
+                <div class="product-card__accordion__header" data-toggle="#product2" onclick="toggleAccordion(event);">Pairs well with</div>
+                <div class="product-card__accordion__content" id="product2">
+                  <div class="product-card__pairs-well-with__layout">
+                    <a
+                      class="product-card__pairs-well-with"
+                      shopify-attr--disabled="!product.availableForSale"
+                      onclick="getElementById('product-modal').showModal(); getElementById('product-modal-context').update(event);"
+                      ><div class="product-card__pairs-well-with__card">
+                        <shopify-context type="product" handle="sweatpants">
+                          <template>
+                            <div class="product-card__container">
+                              <div class="product-card__media">
+                                <shopify-media
+                                  width="120"
+                                  height="120"
+                                  query="product.selectedOrFirstAvailableVariant.image"
+                                ></shopify-media>
+                              </div>
+                              <div class="product-card__info">
+                                <h1 class="product-card__title">
+                                  <shopify-data query="product.title"></shopify-data>
+                                </h1>
+                                <div class="product-card__price">
+                                  <span>
+                                    <shopify-money query="product.selectedOrFirstAvailableVariant.price"></shopify-money>
+                                  </span>
+                                </div>
+                              </div>
+                              <button
+                                class="product-card__add-button"
+                                onclick="event.stopPropagation();getElementById('cart').addLine(event).showModal();"
+                                shopify-attr--disabled="!product.availableForSale"
+                              >
+                                Quick add
+                              </button>
+                            </div>
+                          </template>
+                        </shopify-context>
+                      </div></a
+                    >
+
+                    <a
+                      class="product-card__pairs-well-with"
+                      shopify-attr--disabled="!product.availableForSale"
+                      onclick="getElementById('product-modal').showModal(); getElementById('product-modal-context').update(event);"
+                      ><div class="product-card__pairs-well-with__card last">
+                        <shopify-context type="product" handle="beanie">
+                          <template>
+                            <div class="product-card__container">
+                              <div class="product-card__media">
+                                <shopify-media
+                                  width="120"
+                                  height="120"
+                                  query="product.selectedOrFirstAvailableVariant.image"
+                                ></shopify-media>
+                              </div>
+
+                              <div class="product-card__info">
+                                <h1 class="product-card__title">
+                                  <shopify-data query="product.title"></shopify-data>
+                                </h1>
+                                <div class="product-card__price">
+                                  <span>
+                                    <shopify-money query="product.selectedOrFirstAvailableVariant.price"></shopify-money>
+                                  </span>
+                                </div>
+                              </div>
+                              <button
+                                class="product-card__add-button"
+                                onclick="event.stopPropagation();getElementById('cart').addLine(event).showModal();"
+                                shopify-attr--disabled="!product.availableForSale"
+                              >
+                                Quick add
+                              </button>
+                            </div>
+                          </template>
+                        </shopify-context>
+                      </div>
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+    </shopify-context>
+  </div>
+</div>
+
+<!-- Collection / You may also like section -->
+<div class="collection-layout">
+  <shopify-context type="collection" handle="accessories">
+    <template>
+      <div class="collection-container">
+        <div class="collection-title">
+          <h2>You may also like</h2>
+          <div class="collection__slider-controls">
+            <button class="collection__slider-button prev" onclick="moveSlider(-1)">❮</button>
+            <button class="collection__slider-button next" onclick="moveSlider(1)">❯</button>
+          </div>
+        </div>
+        <!-- Collection slider -->
+        <div class="collection__slider">
+          <div class="collection-grid" id="collection__product-slider">
+            <shopify-list-context type="product" query="collection.products" first="8">
+              <template>
+                <button
+                  shopify-attr--disabled="!product.availableForSale"
+                  class="collection-grid__product"
+                  onclick="getElementById('product-modal').showModal(); getElementById('product-modal-context').update(event);"
+                >
+                  <div class="product-card__image-container">
+                    <a
+                      class="product-card__hover-button"
+                      onclick="event.stopPropagation();document.querySelector('shopify-cart').addLine(event); document.querySelector('shopify-cart').showModal()"
+                    >
+                      <span>Quick add</span>
+                    </a>
+                    <shopify-media
+                      width="242"
+                      height="242"
+                      max-images="1"
+                      query="product.selectedOrFirstAvailableVariant.image"
+                    ></shopify-media>
+                  </div>
+                  <div class="product-card__info">
+                    <h3>
+                      <shopify-data query="product.title"></shopify-data>
+                    </h3>
+                    <p class="product-card__price">
+                      <shopify-money query="product.selectedOrFirstAvailableVariant.price"></shopify-money>
+                    </p>
+                  </div>
+                </button>
+              </template>
+            </shopify-list-context>
+          </div>
+        </div>
+      </div>
+    </template>
+  </shopify-context>
+</div>
+
+<shopify-cart id="cart"></shopify-cart>
+
+<dialog id="product-modal" class="product-modal">
+  <!-- The handle of this context is automatically set when the dialog is opened -->
+  <shopify-context id="product-modal-context" type="product" wait-for-update>
+    <template>
+      <div class="product-modal__container">
+        <div class="product-modal__close-container">
+          <button class="product-modal__close" onclick="getElementById('product-modal').close();">&#10005;</button>
+        </div>
+        <div class="product-modal__content">
+          <div class="product-modal__layout">
+            <div class="product-modal__media">
+              <shopify-media max-images="1" width="400" height="500" query="product.selectedOrFirstAvailableVariant.image"></shopify-media>
+            </div>
+            <div class="product-modal__details">
+              <div class="product-modal__header">
+                <h1 class="product-modal__title">
+                  <shopify-data query="product.title"></shopify-data>
+                </h1>
+                <div class="product-modal__price-container">
+                  <shopify-money query="product.selectedOrFirstAvailableVariant.price"></shopify-money>
+                  <shopify-money
+                    class="product-modal__compare-price"
+                    query="product.selectedOrFirstAvailableVariant.compareAtPrice"
+                  ></shopify-money>
+                </div>
+              </div>
+              <shopify-variant-selector></shopify-variant-selector>
+
+              <div class="product-modal__buttons">
+                <button
+                  class="product-card__add-button"
+                  onclick="getElementById('cart').addLine(event).showModal();getElementById('product-modal').close();"
+                  shopify-attr--disabled="!product.availableForSale"
+                >
+                  Add to cart
+                </button>
+                <button
+                  class="product-card__buy-button"
+                  onclick="document.querySelector('shopify-store').buyNow(event)"
+                  class="product-buy-now__button"
+                  shopify-attr--disabled="!product.availableForSale"
+                >
+                  Buy now
+                </button>
+              </div>
+              <div class="product-modal__description">
+                <shopify-data query="product.descriptionHtml"></shopify-data>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </template>
+  </shopify-context>
+</dialog>
+
+<style>
+  body {
+    background: #f3f3f3;
+    font-family: 'Jost', sans-serif;
+    font-weight: 400;
+    font-style: normal;
+    margin: 0;
+  }
+  /** Button style **/
+  button {
+    cursor: pointer;
+    border: 0;
+    font-family: 'Jost', sans-serif;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+  button:hover {
+    background: #3e3937;
+    color: #fff;
+  }
+  /** Product style **/
+  .product-layout {
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .product-card {
+    width: 100%;
+    max-width: 70rem;
+    min-width: 320px;
+    border-radius: 0.5rem;
+  }
+  .product-card__container {
+    background: inherit;
+    display: flex;
+    flex-direction: column;
+    padding: 2rem;
+    gap: 2rem;
+    box-sizing: border-box;
+  }
+  .product-card__image-container img {
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+  }
+  @media (min-width: 800px) {
+    .product-card__container {
+      flex-direction: row;
+    }
+  }
+  @media (min-width: 1024px) {
+    .product-card__container {
+      padding-left: 40px;
+      padding-right: 40px;
+    }
+  }
+  .product-card__media {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+  }
+  .product-card__image-slider {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    height: auto;
+  }
+  .product-card__image-grid {
+    display: flex;
+    flex-direction: row;
+    width: 420px;
+    transition: transform 0.3s ease;
+  }
+  .product-card__image-grid img {
+    border-radius: 0.5rem;
+    max-width: 100%;
+    height: auto;
+  }
+  .product-card__images {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    width: 420px;
+    margin-top: 8px;
+  }
+  .product-card__image-small {
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+  }
+  .product-card__image-small img {
+    border: 1px solid transparent;
+    width: 130px;
+    height: 130px;
+    border-radius: 4px;
+    opacity: 0.8;
+    transition: opacity 0.2s ease;
+  }
+  .product-card__image-small img:hover {
+    opacity: 1;
+  }
+  .product-card__image-small.selected img {
+    opacity: 1;
+    border: 1px solid #ccc;
+  }
+  @media (max-width: 768px) {
+    .product-card__image-small img {
+      width: 100px;
+      height: 100px;
+    }
+  }
+  .product-card__details {
+    background: #fff;
+    border-radius: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    padding: 2rem;
+  }
+  .product-card__info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .product-card__description {
+    display: flex;
+    justify-content: space-between;
+    padding-top: 1.5rem;
+    border-color: rgb(229 231 235);
+    opacity: 1;
+    border-top-width: 1px;
+  }
+  .product-card__description-text {
+    font-weight: 400;
+    letter-spacing: 0.03em;
+    color: #717171;
+    font-size: 0.875rem;
+  }
+  .product-card__title {
+    color: 787473;
+    font-size: 2.5rem;
+    font-weight: 500;
+    line-height: 2.5rem;
+    margin: 0;
+  }
+  .product-card__price {
+    color: #787473;
+    display: flex;
+    gap: 0.5rem;
+    font-weight: 500;
+    font-size: 1rem;
+    line-height: 1.75rem;
+  }
+  .product-card__compare-price {
+    text-decoration: line-through;
+    opacity: 0.5;
+  }
+  .product-card__buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .product-card__add-button {
+    background-color: #627059;
+    color: #ffffff;
+    padding: 1rem;
+    font-size: 1rem;
+    font-weight: 500;
+    width: 100%;
+  }
+  .product-card__add-button:disabled {
+    opacity: 0.3;
+  }
+  .product-card__add-button[disabled]:hover {
+    cursor: not-allowed;
+    opacity: 0.3;
+    background-color: #627059;
+  }
+  .product-card__buy-button {
+    background-color: #eff1ee;
+    color: #627059;
+    padding: 1rem;
+    font-size: 1rem;
+    font-weight: 500;
+    width: 100%;
+  }
+  .product-card__buy-button:disabled {
+    opacity: 0.3;
+  }
+  .product-card__buy-button:hover {
+    color: #819177;
+    background: #f4f6f4;
+  }
+  .product-card__buy-button[disabled]:hover {
+    opacity: 0.3;
+    cursor: not-allowed;
+    background-color: #eff1ee;
+  }
+  /* Add to Cart Counter style **/
+  .product-card__incrementor {
+    border: 1px solid #ccc;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-radius: 0.25rem;
+    margin-right: 0.5rem;
+    width: fit-content;
+  }
+  .product-card__incrementor button {
+    color: #616161;
+    background: inherit;
+    cursor: pointer;
+    font-size: 1rem;
+    width: 40px;
+    height: 100%;
+  }
+  .product-card__incrementor button:hover {
+    background: #eff1ee;
+  }
+  .product-card__add-to-cart {
+    display: flex;
+    flex-direction: row;
+  }
+  .product-card__count {
+    font-size: 0.875rem;
+    padding: 0 0.25rem;
+  }
+  /** Accordion style **/
+  .product-card__accordion {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+  }
+  .product-card__accordion__item {
+    border: 1px solid #ccc;
+    border-radius: 0.5rem;
+    overflow: hidden;
+  }
+  .product-card__accordion__header {
+    padding: 1rem;
+    cursor: pointer;
+    position: relative;
+  }
+  .product-card__accordion__header::after {
+    content: '';
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="none" d="M8 10L12 14L16 10" stroke="grey" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>');
+    background-size: contain;
+    background-repeat: no-repeat;
+    width: 20px;
+    height: 20px;
+    transition: 0.4s;
+    display: inline-block;
+    position: absolute;
+    right: 20px;
+    top: 18px;
+    z-index: 1;
+  }
+  .product-card__accordion__header.active {
+    border-bottom: 1px solid #ccc;
+  }
+  .product-card__accordion__header.active::after {
+    transform: rotateX(180deg);
+  }
+  .product-card__accordion__header:hover {
+    color: #627059;
+    background: #eff1ee;
+  }
+  .product-card__accordion__item .product-card__accordion__content {
+    padding: 0 25px;
+    max-height: 0;
+    transition: 0.5s;
+    overflow: hidden;
+  }
+  .product-card__accordion__item .product-card__accordion__content p {
+    padding: 0.5rem 0;
+  }
+  /* Pairs well with styles */
+  .product-card__pairs-well-with__layout {
+    position: relative;
+    width: 100%;
+    margin: auto;
+    gap: 0;
+  }
+  .product-card__pairs-well-with {
+    cursor: pointer;
+  }
+  .product-card__pairs-well-with__card {
+    padding: 1.5rem 0;
+    transition: transform 0.3s ease;
+    border-bottom: 1px solid #ccc;
+  }
+  .product-card__pairs-well-with__card.last {
+    border: 0;
+  }
+  .product-card__pairs-well-with__card .product-card__container {
+    align-items: center;
+    background: inherit;
+    padding: 0;
+    margin: 0 auto;
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  }
+  .product-card__pairs-well-with__card .product-card__info {
+    gap: 0;
+    padding: 0;
+    width: 100%;
+  }
+  .product-card__pairs-well-with__card .product-card__title {
+    color: #132f1c;
+    font-size: 0.875rem;
+    font-weight: 700;
+    line-height: 1rem;
+    text-align: left;
+  }
+  .product-card__pairs-well-with__card .product-card__price {
+    font-size: 0.875rem;
+    font-weight: 400;
+    color: #111827;
+    text-align: left;
+  }
+  .product-card__pairs-well-with__card .product-card__media {
+    align-items: normal;
+  }
+  .product-card__pairs-well-with__card .product-card__media img {
+    border-radius: 0.5rem;
+    max-width: 100%;
+    height: auto;
+  }
+  .product-card__pairs-well-with__card .product-card__add-button {
+    background-color: #eff1ee;
+    color: #627059;
+    font-size: 0.875rem;
+    padding: 0.5rem 0.875rem;
+    width: 100%;
+  }
+  .product-card__pairs-well-with__card .product-card__add-button:hover {
+    color: #819177;
+    background: #f4f6f4;
+  }
+  /** You May Also Like Collection styles **/
+  .collection-layout {
+    background: #fff;
+    width: 100%;
+  }
+  .collection-container {
+    display: flex;
+    flex-direction: column;
+    padding: 2rem;
+    box-sizing: border-box;
+    max-width: 70rem;
+    min-width: 320px;
+    margin: 0 auto;
+  }
+  .collection-title {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+    align-items: center;
+  }
+  .collection-title h2 {
+    font-size: 1.5rem;
+    font-weight: 500;
+    line-height: 1.25rem;
+    width: 100%;
+  }
+  .collection__slider {
+    position: relative;
+    overflow: hidden;
+  }
+  .collection__slider-controls {
+    display: flex;
+    gap: 0.5rem;
+  }
+  .collection__slider-button {
+    background: inherit;
+    border: 1px solid #ccc;
+    color: #7d7d7d;
+    padding: 0.5rem 0.875rem;
+    cursor: pointer;
+    border-radius: 50px;
+    transition: opacity 0.3s ease;
+    justify-content: center;
+  }
+  .collection__slider-button:hover {
+    opacity: 0.8;
+    border: 1px solid #ccc;
+    background: #f3f3f3;
+    color: #627059;
+  }
+  .collection__slider-button:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+  .collection-grid {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+    padding: 1.5rem 0;
+    transition: transform 0.3s ease;
+    gap: 0.875rem;
+  }
+  .collection-grid__product {
+    background: inherit;
+    border: 0;
+    border-radius: 0;
+    flex: 0 0 calc(25% - 0.67rem);
+    max-width: calc(25% - 0.67rem);
+    position: relative;
+  }
+  @media (max-width: 800px) {
+    .collection-grid__product {
+      flex: 0 0 calc(33.33% - 0.67rem);
+      max-width: calc(33.33% - 0.67rem);
+    }
+  }
+  .collection-grid__product:hover {
+    border: 0;
+    background: inherit;
+  }
+  .collection-grid__product .product-card__info {
+    gap: 0;
+    margin-top: 1rem;
+  }
+  .collection-grid__product .product-card__info h3,
+  .collection-grid__product .product-card__info .product-card__price {
+    font-size: 0.875rem;
+    font-weight: 400;
+    text-align: left;
+    margin: 0;
+  }
+  .collection-grid__product .product-card__image-container {
+    aspect-ratio: 1;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    width: 100%;
+  }
+  .collection-grid__product .product-card__image-container img {
+    transition: transform 0.3s ease-in-out;
+    max-width: 100%;
+    height: auto;
+  }
+  .collection-grid__product .product-card__image-container img:hover {
+    transform: scale(1.1);
+    opacity: 0.75;
+  }
+  .collection-grid__product .product-card__image-container .product-card__hover-button {
+    position: absolute;
+    display: flex;
+    bottom: 25%;
+    right: -5%;
+    transform: translate(-50%, -50%) translateY(20px);
+    opacity: 0;
+    background-color: #627059;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 10;
+    border: none;
+    pointer-events: auto;
+    width: 47%;
+    justify-content: center;
+    padding: 0.5rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  }
+  .collection-grid__product .product-card__hover-button:hover {
+    background-color: #3e3937;
+    transform: translate(-50%, -50%) translateY(0) scale(1.05);
+  }
+  .collection-grid__product .product-card__hover-button span {
+    color: #fff;
+    font-size: 0.875rem;
+  }
+  .collection-grid__product .product-card__image-container:hover .product-card__hover-button {
+    opacity: 1;
+    transform: translate(-50%, -50%) translateY(0);
+  }
+  /** Product Modal styles **/
+  .product-modal {
+    padding: 0;
+    border-radius: 0.5rem;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    border: 0;
+    outline: 0;
+  }
+  @media (max-width: 768px) {
+    .product-modal {
+      width: 100%;
+    }
+  }
+  .product-modal::backdrop {
+    background-color: rgba(156, 163, 175, 0.5);
+  }
+  .product-modal__container {
+    position: relative;
+    overflow-x: hidden;
+    padding: 2rem;
+  }
+  .product-modal__close-container {
+    display: grid;
+    justify-items: end;
+    justify-content: end;
+    margin-left: 2rem;
+  }
+  .product-modal__close {
+    border-radius: 12px;
+    width: 32px;
+    height: 32px;
+    border: 0;
+    cursor: pointer;
+  }
+  .product-modal__content {
+    width: 100%;
+    max-width: 56rem;
+    background-color: white;
+    border-radius: 0.75rem;
+    margin-top: 1.25rem;
+  }
+
+  .product-modal__layout {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+  }
+  @media (min-width: 768px) {
+    .product-modal__layout {
+      flex-direction: row;
+    }
+  }
+  .product-modal__media {
+    background: #f3f3f3;
+    border-radius: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    min-width: 400px;
+  }
+  .product-modal__media img {
+    width: 100%;
+    height: auto;
+  }
+  .product-modal__details {
+    display: grid;
+    gap: 1.5rem;
+    padding: 0;
+    position: sticky;
+    top: 0;
+    width: 100%;
+  }
+  .product-modal__header {
+    display: grid;
+    gap: 0.5rem;
+  }
+  .product-modal__title {
+    color: 787473;
+    font-size: 2.5rem;
+    font-weight: 500;
+    line-height: 2.5rem;
+    margin: 0;
+  }
+  .product-modal__price-container {
+    color: #787473;
+    display: flex;
+    gap: 0.5rem;
+    font-weight: 500;
+    font-size: 1rem;
+    line-height: 1.75rem;
+  }
+  .product-modal__compare-price {
+    text-decoration: line-through;
+    opacity: 0.5;
+  }
+  .product-modal__buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .product-modal__description {
+    display: flex;
+    justify-content: space-between;
+  }
+  .product-modal__description p {
+    margin: 0.5rem 0;
+    font-weight: 400;
+    color: #717171;
+    font-size: 0.875rem;
+  }
+  /** Cart style **/
+  shopify-cart::part(dialog) {
+    border-radius: 0.5rem;
+  }
+  shopify-cart::part(primary-button) {
+    background-color: #627059;
+    border: 0;
+    border-radius: 0;
+    color: #ffffff;
+    font-family: 'Jost', sans-serif;
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+  shopify-cart::part(line-heading) {
+    font-size: 1rem;
+    font-weight: 500;
+    width: 100%;
+  }
+  shopify-cart::part(line-price) {
+    color: #787473;
+    font-size: 1rem;
+    font-weight: 500;
+  }
+  /** variant selector style **/
+  shopify-variant-selector::part(color-swatch-selected),
+  shopify-variant-selector::part(color-swatch) {
+    height: 28px;
+    width: 28px;
+    border-radius: 0.25rem;
+  }
+  shopify-variant-selector::part(color-swatch):hover {
+    border: 1px solid #ccc;
+  }
+  shopify-variant-selector::part(color-swatch):after {
+    border-radius: 0.25rem;
+    border: 1px solid #3e3937;
+  }
+  shopify-variant-selector::part(radio) {
+    background: none;
+    border: 1px solid #ccc;
+    color: #616161;
+    border-radius: 0.25rem;
+    padding: 8px 15px;
+    font-size: 0.875rem;
+    font-weight: 400;
+  }
+  shopify-variant-selector::part(radio):hover {
+    background: #eff1ee;
+    color: #627059;
+  }
+  shopify-variant-selector::part(radio-selected) {
+    border: 1px solid #3e3937;
+    background: #3e3937;
+    color: #fff;
+  }
+  shopify-variant-selector::part(radio-selected):hover {
+    background: #3e3937;
+    color: #fff;
+  }
+  shopify-variant-selector::part(form) {
+    display: flex;
+    flex-direction: column-reverse;
+    border-top: 1px solid #ccc;
+    border-bottom: 1px solid #ccc;
+    padding: 1rem 0 2rem 0;
+  }
+</style>
+
+<script>
+  /** Main Image Carousel **/
+  let currentImageIndex = 0;
+  function waitForElement(selector, callback) {
+    const observer = new MutationObserver((mutations, observer) => {
+      if (document.querySelector(selector)) {
+        observer.disconnect();
+        callback(document.querySelector(selector));
+      }
+    });
+    observer.observe(document.body, {childList: true, subtree: true});
+  }
+  waitForElement('.product-card__image-small img', () => {
+    const images = document.querySelectorAll('.product-card__image-small img');
+    if (images.length) {
+      images[0].parentElement.classList.add('selected');
+      currentImageIndex = 0;
+      slideToCurrentImage();
+    }
+  });
+  function updateSlider(event) {
+    const images = document.querySelectorAll('.product-card__image-small img');
+    images.forEach((image) => image.parentElement.classList.remove('selected'));
+    const selectedImage = event.target.closest('.product-card__image-small img');
+    if (selectedImage) {
+      selectedImage.parentElement.classList.add('selected');
+      currentImageIndex = Array.from(images).indexOf(selectedImage);
+      slideToCurrentImage();
+    }
+  }
+  function slideToCurrentImage() {
+    const imageGrid = document.getElementById('product-card__image-grid');
+    const slideAmount = currentImageIndex * -imageGrid.clientWidth;
+    imageGrid.style.transform = `translateX(${slideAmount}px)`;
+  }
+  window.addEventListener('resize', slideToCurrentImage);
+  /** Cart Quantity and Add to Cart **/
+  let cartQuantity = 1;
+  function decreaseValue() {
+    const countDisplay = document.querySelector('.product-card__count');
+    if (cartQuantity > 1) {
+      countDisplay.textContent = --cartQuantity;
+    }
+  }
+  function increaseValue() {
+    document.querySelector('.product-card__count').textContent = ++cartQuantity;
+  }
+  function addToCart() {
+    const count = document.getElementById('product-card__count').textContent;
+    const cart = document.getElementById('cart');
+    for (let i = 0; i < count; i++) {
+      cart.addLine(event);
+    }
+    cart.showModal();
+  }
+  /** Product Card Accordion **/
+  function toggleAccordion(event) {
+    const block = document.querySelector(event.currentTarget.dataset.toggle);
+    event.currentTarget.classList.toggle('active');
+    block.style.maxHeight = event.currentTarget.classList.contains('active') ? `${block.scrollHeight}px` : '';
+  }
+  /** Product Slider (You may also like section) **/
+  let currentSlideIndex = 0;
+  let slidesToShow = window.innerWidth <= 800 ? 3 : 4;
+  function updateSlidesToShow() {
+    slidesToShow = window.innerWidth <= 800 ? 3 : 4;
+  }
+  function moveSlider(direction) {
+    const slider = document.getElementById('collection__product-slider');
+    const items = slider.querySelectorAll('.collection-grid__product');
+    const maxSlides = Math.max(0, items.length - slidesToShow);
+    currentSlideIndex = Math.max(0, Math.min(currentSlideIndex + direction, maxSlides));
+    slider.style.transform = `translateX(${currentSlideIndex * (-100 / slidesToShow)}%)`;
+    document.querySelector('.collection__slider-button.prev').disabled = currentSlideIndex === 0;
+    document.querySelector('.collection__slider-button.next').disabled = currentSlideIndex === maxSlides;
+  }
+  window.addEventListener('resize', () => {
+    updateSlidesToShow();
+    moveSlider(0);
+  });
+</script>

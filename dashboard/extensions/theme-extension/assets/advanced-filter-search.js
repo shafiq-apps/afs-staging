@@ -20,9 +20,11 @@
 
   // Store SVG HTML content for inline use (allows CSS color control)
   const Icons = {
-    rightArrow: '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" fill="#000000" height="800px" width="800px" version="1.1" id="Layer_1" viewBox="0 0 512.005 512.005" xml:space="preserve"><g><g><path d="M388.418,240.923L153.751,6.256c-8.341-8.341-21.824-8.341-30.165,0s-8.341,21.824,0,30.165L343.17,256.005 L123.586,475.589c-8.341,8.341-8.341,21.824,0,30.165c4.16,4.16,9.621,6.251,15.083,6.251c5.461,0,10.923-2.091,15.083-6.251 l234.667-234.667C396.759,262.747,396.759,249.264,388.418,240.923z"/></g></g></svg>',
-    downArrow: '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" fill="#000000" height="800px" width="800px" version="1.1" id="Layer_1" viewBox="0 0 512.011 512.011" xml:space="preserve"><g><g><path d="M505.755,123.592c-8.341-8.341-21.824-8.341-30.165,0L256.005,343.176L36.421,123.592c-8.341-8.341-21.824-8.341-30.165,0 s-8.341,21.824,0,30.165l234.667,234.667c4.16,4.16,9.621,6.251,15.083,6.251c5.462,0,10.923-2.091,15.083-6.251l234.667-234.667 C514.096,145.416,514.096,131.933,505.755,123.592z"/></g></g></svg>',
-    eye: '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" fill="#000000" height="800px" width="800px" version="1.1" id="Layer_1" viewBox="0 0 24 24" enable-background="new 0 0 24 24" xml:space="preserve"><g id="view"><g><path d="M12,21c-5,0-8.8-2.8-11.8-8.5L0,12l0.2-0.5C3.2,5.8,7,3,12,3s8.8,2.8,11.8,8.5L24,12l-0.2,0.5C20.8,18.2,17,21,12,21z     M2.3,12c2.5,4.7,5.7,7,9.7,7s7.2-2.3,9.7-7C19.2,7.3,16,5,12,5S4.8,7.3,2.3,12z"/></g><g><path d="M12,17c-2.8,0-5-2.2-5-5s2.2-5,5-5s5,2.2,5,5S14.8,17,12,17z M12,9c-1.7,0-3,1.3-3,3s1.3,3,3,3s3-1.3,3-3S13.7,9,12,9z"/></g></g></svg>'
+    rightArrow: '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" fill="currentColor" height="34px" width="34px" version="1.1" id="Layer_1" viewBox="0 0 512.005 512.005" xml:space="preserve"><g><g><path d="M388.418,240.923L153.751,6.256c-8.341-8.341-21.824-8.341-30.165,0s-8.341,21.824,0,30.165L343.17,256.005 L123.586,475.589c-8.341,8.341-8.341,21.824,0,30.165c4.16,4.16,9.621,6.251,15.083,6.251c5.461,0,10.923-2.091,15.083-6.251 l234.667-234.667C396.759,262.747,396.759,249.264,388.418,240.923z"/></g></g></svg>',
+    downArrow: '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" fill="currentColor" height="34px" width="34px" version="1.1" id="Layer_1" viewBox="0 0 512.011 512.011" xml:space="preserve"><g><g><path d="M505.755,123.592c-8.341-8.341-21.824-8.341-30.165,0L256.005,343.176L36.421,123.592c-8.341-8.341-21.824-8.341-30.165,0 s-8.341,21.824,0,30.165l234.667,234.667c4.16,4.16,9.621,6.251,15.083,6.251c5.462,0,10.923-2.091,15.083-6.251l234.667-234.667 C514.096,145.416,514.096,131.933,505.755,123.592z"/></g></g></svg>',
+    eye: '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" fill="currentColor" height="34px" width="34px" version="1.1" id="Layer_1" viewBox="0 0 24 24" enable-background="new 0 0 24 24" xml:space="preserve"><g id="view"><g><path d="M12,21c-5,0-8.8-2.8-11.8-8.5L0,12l0.2-0.5C3.2,5.8,7,3,12,3s8.8,2.8,11.8,8.5L24,12l-0.2,0.5C20.8,18.2,17,21,12,21z M2.3,12c2.5,4.7,5.7,7,9.7,7s7.2-2.3,9.7-7C19.2,7.3,16,5,12,5S4.8,7.3,2.3,12z"/></g><g><path d="M12,17c-2.8,0-5-2.2-5-5s2.2-5,5-5s5,2.2,5,5S14.8,17,12,17z M12,9c-1.7,0-3,1.3-3,3s1.3,3,3,3s3-1.3,3-3S13.7,9,12,9z"/></g></g></svg>',
+    minus: '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" fill="currentColor" version="1.1" id="Capa_1" width="34px" height="34px" viewBox="0 0 33.668 33.668" xml:space="preserve"><g><path d="M33.668,16.834c0,1.934-1.566,3.5-3.5,3.5H3.5c-1.933,0-3.5-1.566-3.5-3.5c0-1.933,1.567-3.5,3.5-3.5h26.668 C32.102,13.334,33.668,14.9,33.668,16.834z"/></g></svg>',
+    plus: '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" fill="currentColor" version="1.1" id="Capa_1" width="34px" height="34px" viewBox="0 0 459.325 459.325" xml:space="preserve"><g><path d="M459.319,229.668c0,22.201-17.992,40.193-40.205,40.193H269.85v149.271c0,22.207-17.998,40.199-40.196,40.193 c-11.101,0-21.149-4.492-28.416-11.763c-7.276-7.281-11.774-17.324-11.769-28.419l-0.006-149.288H40.181 c-11.094,0-21.134-4.492-28.416-11.774c-7.264-7.264-11.759-17.312-11.759-28.413C0,207.471,17.992,189.475,40.202,189.475h149.267 V40.202C189.469,17.998,207.471,0,229.671,0c22.192,0.006,40.178,17.986,40.19,40.187v149.288h149.282 C441.339,189.487,459.308,207.471,459.319,229.668z"/></g></svg>'
   };
 
   // Excluded query parameter keys (not processed as filters)
@@ -80,50 +82,48 @@
 
     // Optimize Shopify image URL with transformations
     optimizeImageUrl: (url, options = {}) => {
-      if (!url || typeof url !== 'string') return '';
+      if (!url || typeof url !== "string") return "";
 
       const {
         width = 500,
-        format = 'webp',
+        height = width,
         quality = 80,
-        crop = null
+        format = "webp",
+        crop = null // "center", "top", etc.
       } = options;
 
-      // Check if URL is already a Shopify CDN URL
+      // Only modify Shopify CDN URLs
       const shopifyCdnPattern = /(cdn\.shopify\.com|shopifycdn\.com)/i;
-      if (!shopifyCdnPattern.test(url)) {
-        // Not a Shopify URL, return as-is
-        return url;
-      }
+      if (!shopifyCdnPattern.test(url)) return url;
 
-      // Parse the URL to extract base path
       try {
         const urlObj = new URL(url);
-        const pathname = urlObj.pathname;
+        const params = new URLSearchParams(urlObj.search);
 
-        // Remove existing size parameters if present
-        const cleanPath = pathname.replace(/_(?:small|medium|large|grande|compact|master|1024x1024|2048x2048)\.(jpg|jpeg|png|webp)/i, '');
+        // Remove any existing Shopify image params
+        params.delete("width");
+        params.delete("height");
+        params.delete("crop");
+        params.delete("format");
+        params.delete("quality");
 
-        // Extract file extension
-        const match = cleanPath.match(/\.(jpg|jpeg|png|webp|gif)$/i);
-        const ext = match ? match[1].toLowerCase() : 'jpg';
+        // Apply new optimization params
+        params.set("width", width);
+        params.set("height", height);
 
-        // Build optimized URL
-        // Format: /path/to/image_{width}x{width}_{format}.{ext}
-        const optimizedPath = cleanPath.replace(/\.(jpg|jpeg|png|webp|gif)$/i, `_${width}x${width}.${ext}`);
+        if (crop) params.set("crop", crop);
+        if (quality !== 100) params.set("quality", quality);
 
-        // Add quality parameter if supported (Shopify CDN supports ?quality=)
-        const searchParams = new URLSearchParams();
-        if (quality && quality !== 100) {
-          searchParams.set('quality', quality);
-        }
+        // Avoid format for GIF (Shopify does not convert animated GIFs)
+        const isGif = urlObj.pathname.toLowerCase().endsWith(".gif");
+        if (!isGif && format) params.set("format", format);
 
-        return `${urlObj.origin}${optimizedPath}${searchParams.toString() ? '?' + searchParams.toString() : ''}`;
-      } catch (e) {
-        // If URL parsing fails, return original
+        return `${urlObj.origin}${urlObj.pathname}?${params.toString()}`;
+      } catch (err) {
         return url;
       }
-    },
+    }
+    ,
 
     // Build responsive srcset for Shopify images
     buildImageSrcset: (baseUrl, sizes = [200, 300, 500]) => {
@@ -609,6 +609,11 @@
       this.filtersContainer = document.querySelector(filtersSel) || $.el('div', 'afs-filters-container');
       if (!this.filtersContainer.parentNode) main.appendChild(this.filtersContainer);
 
+      // Ensure filters are closed by default on mobile
+      if (window.innerWidth <= 767) {
+        this.filtersContainer.classList.remove('afs-filters-container--open');
+      }
+
       // Insert close button at the beginning of filters container
       if (this.mobileFilterClose && !this.mobileFilterClose.parentNode) {
         this.filtersContainer.insertBefore(this.mobileFilterClose, this.filtersContainer.firstChild);
@@ -672,7 +677,13 @@
     showFilters() {
       if (this.filtersContainer) {
         this.filtersContainer.style.display = '';
-        this.filtersContainer.classList.add('afs-filters-container--open');
+        // Only add open class on desktop/tablet, not on mobile
+        if (window.innerWidth > 767) {
+          this.filtersContainer.classList.add('afs-filters-container--open');
+        } else {
+          // On mobile, ensure it's closed by default
+          this.filtersContainer.classList.remove('afs-filters-container--open');
+        }
         Log.debug('Filters container shown');
       }
     },
@@ -685,10 +696,24 @@
 
       if (isOpen) {
         this.filtersContainer.classList.remove('afs-filters-container--open');
-        document.body.style.overflow = ''; // Restore body scroll
+        document.body.classList.remove('afs-filters-open');
+        document.body.style.overflow = '';
+        document.body.style.position = '';
+        document.body.style.width = '';
+        document.body.style.height = '';
+        document.body.style.removeProperty('overflow');
+        document.body.style.removeProperty('position');
+        document.body.style.removeProperty('width');
+        document.body.style.removeProperty('height');
       } else {
         this.filtersContainer.classList.add('afs-filters-container--open');
-        document.body.style.overflow = 'hidden'; // Prevent body scroll when filters are open
+        document.body.classList.add('afs-filters-open');
+        // Store current scroll position
+        const scrollY = window.scrollY;
+        document.body.style.position = 'fixed';
+        document.body.style.top = `-${scrollY}px`;
+        document.body.style.width = '100%';
+        document.body.style.overflow = 'hidden';
       }
 
       Log.debug('Mobile filters toggled', { isOpen: !isOpen });
@@ -1158,7 +1183,7 @@
         }
 
         imgContainer.appendChild(img);
-        
+
         // Add Quick Add button - bottom right corner with + icon
         const quickAddBtn = $.el('button', 'afs-product-card__quick-add', {
           'data-product-handle': p.handle || '',
@@ -1166,24 +1191,24 @@
           'aria-label': 'Quick add to cart',
           'type': 'button'
         });
-        
+
         // Add + icon
         const plusIcon = $.el('span', 'afs-product-card__quick-add-icon');
-        plusIcon.innerHTML = '+';
+        plusIcon.innerHTML = Icons.plus;
         quickAddBtn.appendChild(plusIcon);
-        
+
         // Add text that shows on hover
         const quickAddText = $.el('span', 'afs-product-card__quick-add-text');
         quickAddText.textContent = 'Quick Add';
         quickAddBtn.appendChild(quickAddText);
-        
+
         // Disable button if product is not available
         if (parseInt(p.totalInventory) <= 0 || (p.variants && !p.variants.some(v => v.availableForSale))) {
           quickAddBtn.disabled = true;
           quickAddBtn.classList.add('afs-product-card__quick-add--disabled');
           quickAddBtn.setAttribute('aria-label', 'Product unavailable');
         }
-        
+
         // Add Quick View button - opens Shopify web component modal
         const quickViewBtn = $.el('button', 'afs-product-card__quick-view', {
           'data-product-handle': p.handle || '',
@@ -1193,7 +1218,7 @@
         });
         const quickViewIcon = $.el('span', 'afs-product-card__quick-view-icon');
         quickViewIcon.innerHTML = Icons.eye;
-        quickViewBtn.appendChild(quickViewIcon);        
+        quickViewBtn.appendChild(quickViewIcon);
         imgContainer.appendChild(quickViewBtn);
         card.appendChild(imgContainer);
       }
@@ -1637,7 +1662,21 @@
 
       // Close mobile filters after applying filter (on mobile devices)
       if (window.innerWidth <= 768 && DOM.filtersContainer?.classList.contains('afs-filters-container--open')) {
-        DOM.toggleMobileFilters();
+        DOM.filtersContainer.classList.remove('afs-filters-container--open');
+        document.body.classList.remove('afs-filters-open');
+        document.body.style.overflow = '';
+        document.body.style.position = '';
+        document.body.style.width = '';
+        document.body.style.height = '';
+        document.body.style.removeProperty('overflow');
+        document.body.style.removeProperty('position');
+        document.body.style.removeProperty('width');
+        document.body.style.removeProperty('height');
+        // Restore scroll position
+        const scrollY = document.body.style.top;
+        if (scrollY) {
+          window.scrollTo(0, parseInt(scrollY || '0') * -1);
+        }
       }
 
       this.apply();
@@ -1819,7 +1858,7 @@
   // Create Shopify Web Component Modal
   function createShopifyWebComponentModal(handle, modalId) {
     const dialog = $.el('dialog', 'afs-product-modal', { 'id': modalId });
-    
+
     dialog.innerHTML = `
       <shopify-context id="${modalId}-context" type="product" handle="${handle}" wait-for-update>
         <template>
@@ -1827,10 +1866,32 @@
             <div class="afs-product-modal__close-container">
               <button class="afs-product-modal__close" onclick="getElementById('${modalId}').close();" type="button">&#10005;</button>
             </div>
-            <div class="afs-product-modal__content">
-              <div class="afs-product-modal__layout">
+              <div class="afs-product-modal__content">
+                <div class="afs-product-modal__layout">
                 <div class="afs-product-modal__media">
-                  <shopify-media max-images="1" width="400" height="500" query="product.selectedOrFirstAvailableVariant.image"></shopify-media>
+                  <div class="afs-product-modal__images">
+                    <shopify-list-context
+                      type="image"
+                      onclick="updateSlider(event)"
+                      query="product.selectedOrFirstAvailableVariant.product.images"
+                      first="50"
+                    >
+                      <template>
+                        <div class="afs-product-modal__image">
+                          <shopify-media class="afs-product-modal__image-small" width="130" height="130" query="image"></shopify-media>
+                        </div>
+                      </template>
+                    </shopify-list-context>
+                  </div>
+                  <div class="afs-product-modal__image-slider">
+                    <div class="afs-product-modal__image-grid" id="${modalId}-image-grid">
+                      <shopify-list-context type="image" query="product.selectedOrFirstAvailableVariant.product.images" first="50">
+                        <template>
+                          <shopify-media class="afs-product-modal__main-image-item" layout="fixed" width="420" height="420" query="image"></shopify-media>
+                        </template>
+                      </shopify-list-context>
+                    </div>
+                  </div>
                 </div>
                 <div class="afs-product-modal__details">
                   <div class="afs-product-modal__header">
@@ -1849,21 +1910,29 @@
                   </div>
                   <shopify-variant-selector></shopify-variant-selector>
                   <div class="afs-product-modal__buttons">
-                    <button
-                      class="afs-product-modal__add-button"
-                      onclick="getElementById('cart').addLine(event).showModal();getElementById('${modalId}').close();"
-                      shopify-attr--disabled="!product.selectedOrFirstAvailableVariant.availableForSale"
-                      type="button"
-                    >
-                      Add to cart
-                    </button>
+                    <div class="afs-product-modal__add-to-cart">
+                      <div class="afs-product-modal__incrementor">
+                        <button class="afs-product-modal__decrease" onclick="decreaseModalValue('${modalId}');">${Icons.minus}</button>
+                        <span class="afs-product-modal__count" id="${modalId}-count">1</span>
+                        <button class="afs-product-modal__increase" onclick="increaseModalValue('${modalId}');">${Icons.plus}</button>
+                      </div>
+                      <button
+                        class="afs-product-modal__add-button"
+                        onclick="addModalToCart('${modalId}');"
+                        shopify-attr--disabled="!product.selectedOrFirstAvailableVariant.availableForSale"
+                        type="button"
+                      >
+                        <shopify-money query="product.selectedOrFirstAvailableVariant.price"></shopify-money>
+                        · Add to cart
+                      </button>
+                    </div>
                     <button
                       class="afs-product-modal__buy-button"
                       onclick="document.querySelector('shopify-store').buyNow(event)"
                       shopify-attr--disabled="!product.selectedOrFirstAvailableVariant.availableForSale"
                       type="button"
                     >
-                      Buy now
+                      Buy it now
                     </button>
                   </div>
                   <div class="afs-product-modal__description">
@@ -1878,33 +1947,232 @@
         </template>
       </shopify-context>
     `;
-    
+
     // Close button handler
     const closeBtn = dialog.querySelector('.afs-product-modal__close');
-    
+
     const closeModal = () => {
+      // Restore body scroll immediately
+      document.body.style.overflow = '';
+      document.body.style.removeProperty('overflow');
+
       if (dialog.close) {
         dialog.close();
       } else {
         dialog.style.display = 'none';
       }
-      // Restore body scroll
-      document.body.style.overflow = '';
     };
-    
-    if (closeBtn) {
-      closeBtn.addEventListener('click', closeModal);
+
+    // Also listen for the dialog's close event to ensure overflow is restored
+    dialog.addEventListener('close', () => {
+      document.body.style.overflow = '';
+      document.body.style.removeProperty('overflow');
+    });
+
+    // Initialize image slider when modal is shown
+    const initializeSlider = () => {
+      // Initialize immediately and also after delays to catch late-loading images
+      initImageSlider(dialog);
+      setTimeout(() => {
+        initImageSlider(dialog);
+      }, 100);
+      setTimeout(() => {
+        initImageSlider(dialog);
+      }, 300);
+      setTimeout(() => {
+        initImageSlider(dialog);
+      }, 600);
+      setTimeout(() => {
+        initImageSlider(dialog);
+      }, 1000);
+    };
+
+    dialog.addEventListener('show', initializeSlider);
+
+    // Also initialize if modal is already open
+    if (dialog.open) {
+      initializeSlider();
     }
-    
+
+    // Also initialize when dialog is added to DOM
+    setTimeout(initializeSlider, 100);
+
+    if (closeBtn) {
+      closeBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        closeModal();
+      });
+    }
+
     // Handle ESC key and backdrop click
-    dialog.addEventListener('cancel', closeModal);
+    dialog.addEventListener('cancel', (e) => {
+      e.preventDefault();
+      closeModal();
+    });
+
     dialog.addEventListener('click', (e) => {
       if (e.target === dialog) {
         closeModal();
       }
     });
-    
+
     return dialog;
+  }
+  
+  // Quantity management functions for modal (based on example code)
+  if (typeof window.decreaseModalValue === 'undefined') {
+    window.decreaseModalValue = function(modalId) {
+      const countDisplay = document.getElementById(`${modalId}-count`);
+      if (!countDisplay) return;
+      const currentCount = parseInt(countDisplay.textContent, 10) || 1;
+      if (currentCount > 1) {
+        countDisplay.textContent = currentCount - 1;
+      }
+    };
+  }
+  
+  if (typeof window.increaseModalValue === 'undefined') {
+    window.increaseModalValue = function(modalId) {
+      const countDisplay = document.getElementById(`${modalId}-count`);
+      if (!countDisplay) return;
+      const currentCount = parseInt(countDisplay.textContent, 10) || 1;
+      countDisplay.textContent = currentCount + 1;
+    };
+  }
+  
+  if (typeof window.addModalToCart === 'undefined') {
+    window.addModalToCart = function(modalId) {
+      const countDisplay = document.getElementById(`${modalId}-count`);
+      const count = countDisplay ? parseInt(countDisplay.textContent, 10) || 1 : 1;
+      const cart = document.getElementById('cart');
+      const modal = document.getElementById(modalId);
+      
+      if (!cart) {
+        console.error('Cart element not found');
+        return;
+      }
+      
+      // Add items to cart based on quantity (like example code)
+      for (let i = 0; i < count; i++) {
+        cart.addLine(event);
+      }
+      
+      // Show cart modal and close product modal
+      cart.showModal();
+      if (modal && modal.close) {
+        modal.close();
+      }
+    };
+  }
+  
+  // Global updateSlider function for Shopify web components
+  // Based on example code - finds index dynamically instead of using Liquid template variables
+  if (typeof window.updateSlider === 'undefined') {
+    window.updateSlider = function (event) {
+      event.preventDefault();
+      event.stopPropagation();
+
+      const clickedThumbnail = event.target.closest('.afs-product-modal__image');
+      if (!clickedThumbnail) return;
+
+      const mediaContainer = clickedThumbnail.closest('.afs-product-modal__media');
+      if (!mediaContainer) return;
+
+      const imageGrid = mediaContainer.querySelector('.afs-product-modal__image-grid');
+      if (!imageGrid) return;
+
+      // Get all thumbnail images (like example code approach)
+      const thumbnailImages = mediaContainer.querySelectorAll('.afs-product-modal__image-small img');
+      if (thumbnailImages.length === 0) return;
+
+      // Get the clicked thumbnail image
+      const clickedThumbnailImg = clickedThumbnail.querySelector('.afs-product-modal__image-small img');
+      if (!clickedThumbnailImg) return;
+
+      // Find index by comparing with all thumbnails (like example code: Array.from(images).indexOf(selectedImage))
+      const foundIndex = Array.from(thumbnailImages).indexOf(clickedThumbnailImg);
+      if (foundIndex === -1) return;
+
+      // Get all main images
+      const mainImages = imageGrid.querySelectorAll('.afs-product-modal__main-image-item');
+      if (mainImages.length === 0) return;
+
+      // Hide all main images
+      mainImages.forEach((img) => {
+        img.style.setProperty('display', 'none', 'important');
+      });
+
+      // Show the selected image
+      if (foundIndex >= 0 && mainImages[foundIndex]) {
+        mainImages[foundIndex].style.setProperty('display', 'flex', 'important');
+      } else if (mainImages[0]) {
+        // Fallback to first image
+        mainImages[0].style.setProperty('display', 'flex', 'important');
+      }
+
+      // Update active thumbnail (remove active from all, add to clicked - like example code)
+      const thumbnails = mediaContainer.querySelectorAll('.afs-product-modal__image');
+      thumbnails.forEach((thumb) => {
+        thumb.classList.remove('afs-product-modal__image--active');
+      });
+      clickedThumbnail.classList.add('afs-product-modal__image--active');
+    };
+  }
+
+  // Initialize image slider when modal opens
+  function initImageSlider(modal) {
+    const imageGrid = modal.querySelector('.afs-product-modal__image-grid');
+    if (!imageGrid) return;
+
+    // Wait for images to load using MutationObserver (like reference code)
+    function waitForElement(selector, callback) {
+      const elements = imageGrid.querySelectorAll(selector);
+      if (elements.length > 0) {
+        callback(elements);
+        return;
+      }
+
+      const observer = new MutationObserver((mutations, obs) => {
+        const foundElements = imageGrid.querySelectorAll(selector);
+        if (foundElements.length > 0) {
+          obs.disconnect();
+          callback(foundElements);
+        }
+      });
+
+      observer.observe(imageGrid, {
+        childList: true,
+        subtree: true
+      });
+
+      // Timeout after 5 seconds
+      setTimeout(() => {
+        observer.disconnect();
+        const foundElements = imageGrid.querySelectorAll(selector);
+        if (foundElements.length > 0) {
+          callback(foundElements);
+        }
+      }, 5000);
+    }
+
+    waitForElement('.afs-product-modal__main-image-item', (mainImages) => {
+      // Show first image and hide all others
+      mainImages.forEach((img, index) => {
+        if (index === 0) {
+          img.style.setProperty('display', 'flex', 'important');
+        } else {
+          img.style.setProperty('display', 'none', 'important');
+        }
+      });
+
+      // Set active state on first thumbnail
+      waitForElement('.afs-product-modal__image', (thumbnails) => {
+        thumbnails.forEach((thumb, i) => {
+          thumb.classList.toggle('afs-product-modal__image--active', i === 0);
+        });
+      });
+    });
   }
 
   // Quick Add functionality
@@ -1914,21 +2182,21 @@
         // Fetch product to get first variant
         const productUrl = `/products/${handle}.json`;
         const response = await fetch(productUrl);
-        
+
         if (!response.ok) {
           throw new Error('Failed to load product');
         }
-        
+
         const data = await response.json();
         const product = data.product;
-        
+
         if (!product || !product.variants || product.variants.length === 0) {
           throw new Error('Product has no variants');
         }
-        
+
         // Use first available variant
         const variant = product.variants.find(v => v.available) || product.variants[0];
-        
+
         await this.addVariant(variant.id, 1);
       } catch (error) {
         Log.error('Quick add failed', { error: error.message, handle });
@@ -1941,7 +2209,7 @@
         const formData = new FormData(form);
         const variantId = formData.get('id');
         const quantity = parseInt(formData.get('quantity') || '1', 10);
-        
+
         if (!variantId) {
           // If no variant ID, need to find variant based on selected options
           const options = [];
@@ -1949,18 +2217,18 @@
             const option = formData.get(`option${i}`);
             if (option) options.push(option);
           }
-          
+
           // Fetch product to find matching variant
           const productUrl = `/products/${handle}.json`;
           const response = await fetch(productUrl);
           const data = await response.json();
           const product = data.product;
-          
+
           const variant = product.variants.find(v => {
-            return v.options.length === options.length && 
-                   v.options.every((opt, idx) => opt === options[idx]);
+            return v.options.length === options.length &&
+              v.options.every((opt, idx) => opt === options[idx]);
           });
-          
+
           if (variant) {
             await this.addVariant(variant.id, quantity);
           } else {
@@ -1987,20 +2255,20 @@
             quantity: quantity
           })
         });
-        
+
         if (!response.ok) {
           const error = await response.json();
           throw new Error(error.description || 'Failed to add to cart');
         }
-        
+
         const item = await response.json();
-        
+
         // Trigger cart update event
         document.dispatchEvent(new CustomEvent('cart:updated'));
-        
+
         // Show success message
         this.showSuccess();
-        
+
         // Close quick view if open
         QuickView.close();
       } catch (error) {
@@ -2016,10 +2284,10 @@
         message = $.el('div', 'afs-quick-add-success');
         document.body.appendChild(message);
       }
-      
+
       message.textContent = 'Added to cart!';
       message.classList.add('afs-quick-add-success--show');
-      
+
       setTimeout(() => {
         message.classList.remove('afs-quick-add-success--show');
       }, 3000);
@@ -2052,8 +2320,29 @@
           Filters.apply();
         }
         else if (action === 'toggle-filters' || action === 'close-filters') {
-          // Toggle mobile filters
-          DOM.toggleMobileFilters();
+          if (action === 'close-filters') {
+            // Explicitly close filters
+            if (DOM.filtersContainer) {
+              DOM.filtersContainer.classList.remove('afs-filters-container--open');
+              document.body.classList.remove('afs-filters-open');
+              document.body.style.overflow = '';
+              document.body.style.position = '';
+              document.body.style.width = '';
+              document.body.style.height = '';
+              document.body.style.removeProperty('overflow');
+              document.body.style.removeProperty('position');
+              document.body.style.removeProperty('width');
+              document.body.style.removeProperty('height');
+              // Restore scroll position
+              const scrollY = document.body.style.top;
+              if (scrollY) {
+                window.scrollTo(0, parseInt(scrollY || '0') * -1);
+              }
+            }
+          } else {
+            // Toggle mobile filters
+            DOM.toggleMobileFilters();
+          }
         }
         else if (e.target.closest('.afs-applied-filter-chip__remove')) {
           const chip = e.target.closest('.afs-applied-filter-chip');
@@ -2155,22 +2444,40 @@
               modal = createShopifyWebComponentModal(handle, modalId);
               document.body.appendChild(modal);
             }
-            
+
             // Update context if it exists
             const context = modal.querySelector(`#${modalId}-context`);
             if (context && context.update) {
               context.update({ target: btn });
             }
-            
+
             // Show modal
             if (modal.showModal) {
-              modal.showModal();
               // Prevent body scroll when modal is open
               document.body.style.overflow = 'hidden';
+              modal.showModal();
             } else {
-              modal.style.display = 'block';
               document.body.style.overflow = 'hidden';
+              modal.style.display = 'block';
             }
+
+            // Ensure overflow is restored when modal closes (backup)
+            const restoreScroll = () => {
+              document.body.style.overflow = '';
+              document.body.style.removeProperty('overflow');
+            };
+
+            // Listen for close event
+            modal.addEventListener('close', restoreScroll, { once: true });
+
+            // Also set up a MutationObserver as backup
+            const observer = new MutationObserver(() => {
+              if (!modal.open && !modal.hasAttribute('open')) {
+                restoreScroll();
+                observer.disconnect();
+              }
+            });
+            observer.observe(modal, { attributes: true, attributeFilter: ['open'] });
           }
         }
         else if (e.target.closest('.afs-quick-view-modal__close') || e.target.closest('.afs-quick-view-modal__overlay')) {
