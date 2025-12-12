@@ -1190,7 +1190,12 @@
           'aria-label': 'Quick view',
           'type': 'button'
         });
-        quickViewBtn.textContent = 'Quick View';
+        const quickViewIcon = $.el('span', 'afs-product-card__quick-view-icon');
+        quickViewIcon.innerHTML = '👁';
+        const quickViewText = $.el('span');
+        quickViewText.textContent = 'Quick View';
+        quickViewBtn.appendChild(quickViewIcon);
+        quickViewBtn.appendChild(quickViewText);
         
         imgContainer.appendChild(quickAddBtn);
         imgContainer.appendChild(quickViewBtn);
