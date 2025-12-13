@@ -2437,7 +2437,9 @@
             thumbnailsPosition: 'left', // Can be 'top', 'left', 'right', 'bottom'
             enableKeyboard: true,
             enableAutoHeight: false, // Disable auto height to prevent shrinking
-            maxHeight: 600 // Fixed max height in pixels
+            maxHeight: 600, // Fixed max height in pixels
+            enableMagnifier: true, // Enable image magnifier on hover
+            magnifierZoom: 2 // 2x zoom level for magnifier
           });
         }
       }, 100);
