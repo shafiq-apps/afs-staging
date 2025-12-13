@@ -41,7 +41,7 @@ Search and retrieve products with filtering, pagination, and sorting capabilitie
 | `variantPriceMin` | number | No | Minimum variant price | `15.00` |
 | `variantPriceMax` | number | No | Maximum variant price | `150.00` |
 | `variantSku` / `variantSkus` | string | No | Comma-separated SKUs | `SKU-001,SKU-002` |
-| `preserveFilter` / `preserveFilters` | string | No | Preserve filter aggregations | `Color,Size` |
+| `keep` | string | No | Keep filter aggregations (by handle) | `sd5d3s,dopd8i` |
 | `preserveOptionAggregations` | boolean | No | Preserve all option aggregations | `true` |
 | `page` | number | No | Page number (default: 1) | `1` |
 | `limit` | number | No | Items per page (max: 100, default: 20) | `20` |
@@ -132,7 +132,7 @@ Retrieve filter aggregations (facets) and filter configuration for storefront di
 | `variantPriceMin` | number | No | Minimum variant price | `15.00` |
 | `variantPriceMax` | number | No | Maximum variant price | `150.00` |
 | `variantSku` / `variantSkus` | string | No | Comma-separated SKUs | `SKU-001,SKU-002` |
-| `preserveFilter` / `preserveFilters` | string | No | Preserve filter aggregations | `Color,Size` |
+| `keep` | string | No | Keep filter aggregations (by handle) | `sd5d3s,dopd8i` |
 | `preserveOptionAggregations` | boolean | No | Preserve all option aggregations | `true` |
 
 **Example Request:**
@@ -669,7 +669,7 @@ GET /storefront/products?shop=shop.myshopify.com&priceMin=10&priceMax=100&varian
 To maintain filter counts even when a filter is applied:
 
 ```bash
-GET /storefront/products?shop=shop.myshopify.com&ef4gd=red&preserveFilter=Color
+GET /storefront/products?shop=shop.myshopify.com&ef4gd=red&keep=ef4gd
 ```
 
 Or preserve all option aggregations:

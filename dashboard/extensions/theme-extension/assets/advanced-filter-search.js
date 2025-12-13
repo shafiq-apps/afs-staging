@@ -29,8 +29,8 @@
   };
 
   // Excluded query parameter keys (not processed as filters)
-  // Note: preserveFilter/preserveFilters is excluded from filter processing but will be parsed separately
-  const EXCLUDED_QUERY_PARAMS = new Set(['shop', 'shop_domain', 'preserveFilter', 'preserveFilters', 'cpid']);
+  // Note: keep is excluded from filter processing but will be parsed separately
+  const EXCLUDED_QUERY_PARAMS = new Set(['shop', 'shop_domain', 'keep', 'cpid']);
 
   // ============================================================================
   // TINY REUSABLE UTILITIES (Smallest possible functions)
@@ -228,8 +228,8 @@
     availableFilters: [],
     // Metadata maps (for display only, not for state management)
     filterMetadata: new Map(), // handle -> { label, type, queryKey, optionKey }
-    // Preserve filter keys for maintaining filter aggregations
-    preserveFilters: null, // null, array of strings, or '__all__'
+    // Keep filter keys for maintaining filter aggregations
+    keep: null, // null, array of strings, or '__all__'
     // Fallback products from Liquid (to prevent blank screen when API fails)
     fallbackProducts: [],
     // Fallback pagination from Liquid (for proper pagination controls when API fails)
@@ -300,15 +300,15 @@
             params.sort = { field, order: order || 'desc' };
           }
         }
-        else if (key === 'preserveFilter' || key === 'preserveFilters') {
-          // Parse preserveFilter/preserveFilters - can be comma-separated string or '__all__'
-          const preserveValue = $.str(value);
-          if (preserveValue === '__all__') {
-            params.preserveFilters = '__all__';
+        else if (key === 'keep') {
+          // Parse keep - can be comma-separated string or '__all__'
+          const keepValue = $.str(value);
+          if (keepValue === '__all__') {
+            params.keep = '__all__';
           } else {
-            params.preserveFilters = $.split(value);
+            params.keep = $.split(value);
           }
-          Log.debug('Preserve filters parsed', { preserveFilters: params.preserveFilters });
+          Log.debug('Keep filters parsed', { keep: params.keep });
         }
         else {
           // Everything else is a handle (dynamic filter) - use directly, no conversion
@@ -364,14 +364,14 @@
         Log.debug('Sort URL param set', { field: sort.field, order: sort.order });
       }
 
-      // Update preserveFilters parameter
-      if (State.preserveFilters !== null && State.preserveFilters !== undefined) {
-        if (State.preserveFilters === '__all__') {
-          url.searchParams.set('preserveFilters', '__all__');
-        } else if (Array.isArray(State.preserveFilters) && State.preserveFilters.length > 0) {
-          url.searchParams.set('preserveFilters', State.preserveFilters.join(','));
+      // Update keep parameter
+      if (State.keep !== null && State.keep !== undefined) {
+        if (State.keep === '__all__') {
+          url.searchParams.set('keep', '__all__');
+        } else if (Array.isArray(State.keep) && State.keep.length > 0) {
+          url.searchParams.set('keep', State.keep.join(','));
         }
-        Log.debug('Preserve filters URL param set', { preserveFilters: State.preserveFilters });
+        Log.debug('Keep filters URL param set', { keep: State.keep });
       }
 
       const newUrl = url.toString();
@@ -496,14 +496,14 @@
         }
       }
 
-      // Add preserveFilters parameter if set
-      if (State.preserveFilters !== null && State.preserveFilters !== undefined) {
-        if (State.preserveFilters === '__all__') {
-          params.set('preserveFilters', '__all__');
-        } else if (Array.isArray(State.preserveFilters) && State.preserveFilters.length > 0) {
-          params.set('preserveFilters', State.preserveFilters.join(','));
+      // Add keep parameter if set
+      if (State.keep !== null && State.keep !== undefined) {
+        if (State.keep === '__all__') {
+          params.set('keep', '__all__');
+        } else if (Array.isArray(State.keep) && State.keep.length > 0) {
+          params.set('keep', State.keep.join(','));
         }
-        Log.debug('Preserve filters sent to products API', { preserveFilters: State.preserveFilters });
+        Log.debug('Keep filters sent to products API', { keep: State.keep });
       }
 
       const url = `${this.baseURL}/storefront/products?${params}`;
@@ -543,46 +543,46 @@
         params.set('cpid', State.selectedCollection.id);
       }
 
-      // Build filters for aggregation - exclude the filter in preserveFilters
+      // Build filters for aggregation - exclude the filter in keep
       // When calculating aggregations for a specific filter, that filter should be excluded
       // from the query so we get all possible values based on other active filters
       const filtersForAggregation = { ...filters };
-      let preserveFilterHandle = null;
+      let keepHandle = null;
 
-      if (State.preserveFilters !== null && State.preserveFilters !== undefined) {
-        if (State.preserveFilters === '__all__') {
+      if (State.keep !== null && State.keep !== undefined) {
+        if (State.keep === '__all__') {
           // If '__all__', exclude all filters from aggregation query
           Object.keys(filtersForAggregation).forEach(key => {
             delete filtersForAggregation[key];
           });
-          params.set('preserveFilters', '__all__');
-          Log.debug('Preserve filters: __all__ - excluded all filters from aggregation query');
+          params.set('keep', '__all__');
+          Log.debug('Keep filters: __all__ - excluded all filters from aggregation query');
         } else {
-          // preserveFilters will always have one value (single handle)
+          // keep will always have one value (single handle)
           // Get the handle to exclude
-          if (Array.isArray(State.preserveFilters) && State.preserveFilters.length > 0) {
-            preserveFilterHandle = State.preserveFilters[0];
-          } else if (typeof State.preserveFilters === 'string') {
-            preserveFilterHandle = State.preserveFilters;
+          if (Array.isArray(State.keep) && State.keep.length > 0) {
+            keepHandle = State.keep[0];
+          } else if (typeof State.keep === 'string') {
+            keepHandle = State.keep;
           }
 
-          // Exclude the preserveFilter handle from the aggregation query
-          if (preserveFilterHandle && filtersForAggregation.hasOwnProperty(preserveFilterHandle)) {
-            delete filtersForAggregation[preserveFilterHandle];
-            Log.debug('Excluded preserveFilter from aggregation query', { 
-              excludedHandle: preserveFilterHandle,
+          // Exclude the keep handle from the aggregation query
+          if (keepHandle && filtersForAggregation.hasOwnProperty(keepHandle)) {
+            delete filtersForAggregation[keepHandle];
+            Log.debug('Excluded keep filter from aggregation query', { 
+              excludedHandle: keepHandle,
               remainingFilters: Object.keys(filtersForAggregation)
             });
           }
 
-          // Still send preserveFilters parameter to API
-          if (Array.isArray(State.preserveFilters) && State.preserveFilters.length > 0) {
-            params.set('preserveFilters', State.preserveFilters.join(','));
-          } else if (typeof State.preserveFilters === 'string') {
-            params.set('preserveFilters', State.preserveFilters);
+          // Still send keep parameter to API
+          if (Array.isArray(State.keep) && State.keep.length > 0) {
+            params.set('keep', State.keep.join(','));
+          } else if (typeof State.keep === 'string') {
+            params.set('keep', State.keep);
           }
         }
-        Log.debug('Preserve filters sent to filters API', { preserveFilters: State.preserveFilters });
+        Log.debug('Keep filters sent to filters API', { keep: State.keep });
       }
 
       // Send only the filters that should be included in aggregation query
@@ -2690,14 +2690,14 @@
         const oldPage = State.pagination.page;
         const oldSort = JSON.stringify(State.sort);
 
-        // Set preserveFilters from URL params
-        if (params.preserveFilters !== undefined) {
-          if (params.preserveFilters === '__all__') {
-            State.preserveFilters = '__all__';
-          } else if (Array.isArray(params.preserveFilters) && params.preserveFilters.length > 0) {
-            State.preserveFilters = params.preserveFilters;
+        // Set keep from URL params
+        if (params.keep !== undefined) {
+          if (params.keep === '__all__') {
+            State.keep = '__all__';
+          } else if (Array.isArray(params.keep) && params.keep.length > 0) {
+            State.keep = params.keep;
           } else {
-            State.preserveFilters = null;
+            State.keep = null;
           }
         }
 
@@ -2712,7 +2712,7 @@
         };
         // Add all handle-based filters (everything that's not a standard filter)
         Object.keys(params).forEach(key => {
-          if (!['vendor', 'productType', 'tags', 'collections', 'search', 'priceRange', 'page', 'limit', 'sort', 'preserveFilters'].includes(key)) {
+          if (!['vendor', 'productType', 'tags', 'collections', 'search', 'priceRange', 'page', 'limit', 'sort', 'keep'].includes(key)) {
             if (Array.isArray(params[key])) {
               State.filters[key] = params[key];
             } else if (typeof params[key] === 'string') {
@@ -2816,18 +2816,18 @@
           });
         }
 
-        // Initialize preserveFilters from config if provided
-        if (config.preserveFilters !== undefined) {
-          if (config.preserveFilters === '__all__' || config.preserveFilters === '__ALL__') {
-            State.preserveFilters = '__all__';
-          } else if (Array.isArray(config.preserveFilters) && config.preserveFilters.length > 0) {
-            State.preserveFilters = config.preserveFilters;
-          } else if (typeof config.preserveFilters === 'string' && config.preserveFilters.trim()) {
-            State.preserveFilters = $.split(config.preserveFilters);
+        // Initialize keep from config if provided
+        if (config.keep !== undefined) {
+          if (config.keep === '__all__' || config.keep === '__ALL__') {
+            State.keep = '__all__';
+          } else if (Array.isArray(config.keep) && config.keep.length > 0) {
+            State.keep = config.keep;
+          } else if (typeof config.keep === 'string' && config.keep.trim()) {
+            State.keep = $.split(config.keep);
           } else {
-            State.preserveFilters = null;
+            State.keep = null;
           }
-          Log.info('Preserve filters set from config', { preserveFilters: State.preserveFilters });
+          Log.info('Keep filters set from config', { keep: State.keep });
         }
 
         Log.info('Shop set', { shop: State.shop });
@@ -2881,18 +2881,18 @@
         const urlParams = UrlManager.parse();
         Log.debug('Parsed URL params', { urlParams, availableFiltersCount: State.availableFilters.length });
 
-        // Set preserveFilters from URL params
-        if (urlParams.preserveFilters !== undefined) {
-          if (urlParams.preserveFilters === '__all__') {
-            State.preserveFilters = '__all__';
-          } else if (Array.isArray(urlParams.preserveFilters) && urlParams.preserveFilters.length > 0) {
-            State.preserveFilters = urlParams.preserveFilters;
+        // Set keep from URL params
+        if (urlParams.keep !== undefined) {
+          if (urlParams.keep === '__all__') {
+            State.keep = '__all__';
+          } else if (Array.isArray(urlParams.keep) && urlParams.keep.length > 0) {
+            State.keep = urlParams.keep;
           } else {
-            State.preserveFilters = null;
+            State.keep = null;
           }
-          Log.debug('Preserve filters set from URL', { preserveFilters: State.preserveFilters });
+          Log.debug('Keep filters set from URL', { keep: State.keep });
         } else {
-          State.preserveFilters = null;
+          State.keep = null;
         }
 
         // Rebuild filters from params (includes standard filters + handles)
@@ -2906,7 +2906,7 @@
         };
         // Add all handle-based filters (everything that's not a standard filter)
         Object.keys(urlParams).forEach(key => {
-          if (!['vendor', 'productType', 'tags', 'collections', 'search', 'priceRange', 'page', 'limit', 'sort', 'preserveFilters'].includes(key)) {
+          if (!['vendor', 'productType', 'tags', 'collections', 'search', 'priceRange', 'page', 'limit', 'sort', 'keep'].includes(key)) {
             if (Array.isArray(urlParams[key])) {
               State.filters[key] = urlParams[key];
             } else if (typeof urlParams[key] === 'string') {

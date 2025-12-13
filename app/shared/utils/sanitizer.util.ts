@@ -210,7 +210,7 @@ export function sanitizeFilterInput(input: {
   variantPriceMin?: number;
   variantPriceMax?: number;
   variantSkus?: string[];
-  preserveFilters?: string[];
+  keep?: string[];
 }): {
   search?: string;
   vendors?: string[];
@@ -224,7 +224,7 @@ export function sanitizeFilterInput(input: {
   variantPriceMin?: number;
   variantPriceMax?: number;
   variantSkus?: string[];
-  preserveFilters?: string[];
+  keep?: string[];
 } {
   const sanitized: typeof input = {};
 
@@ -293,8 +293,8 @@ export function sanitizeFilterInput(input: {
     sanitized.variantSkus = sanitizeTermsArray(input.variantSkus);
   }
 
-  if (input.preserveFilters) {
-    sanitized.preserveFilters = sanitizeTermsArray(input.preserveFilters);
+  if (input.keep) {
+    sanitized.keep = sanitizeTermsArray(input.keep);
   }
 
   return sanitized;

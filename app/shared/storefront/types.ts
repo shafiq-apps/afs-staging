@@ -52,8 +52,8 @@ export interface ProductFilterInput {
   variantPriceMax?: number;
   // Variant SKU filter
   variantSkus?: string[];
-  // Preserve specific filter aggregations (by query key/handle)
-  preserveFilters?: string[];
+  // Keep specific filter aggregations (by query key/handle)
+  keep?: string[];
   // Collection page ID - filters products to only show those from the collection the user is viewing
   cpid?: string;
 }
@@ -131,8 +131,8 @@ export interface ProductSearchInput {
   fields?: string | string[];
   // Filter settings from filter configuration
   hideOutOfStockItems?: boolean;
-  // Preserve specific filter aggregations (by query key/handle)
-  preserveFilters?: string[];
+  // Keep specific filter aggregations (by query key/handle)
+  keep?: string[];
   // Collection page ID - filters products to only show those from the collection the user is viewing
   cpid?: string;
 }

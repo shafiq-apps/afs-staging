@@ -33,38 +33,37 @@ export function hasAnyFilters(filters?: ProductFilterInput): boolean {
 export function buildFilterInput(query: Record<string, unknown>): ProductFilterInput | undefined {
   const filters: ProductFilterInput = {};
 
-  // Parse preserveFilters first, so we can exclude it from filters
-  const preserveFilterValues = parseCommaSeparated(
-    query.preserveFilter ||
-      query.preserveFilters ||
-      query.preserve_filter ||
-      query.preserve_filters
+  // Parse keep first, so we can exclude it from filters
+  const keepValues = parseCommaSeparated(
+    query.keep ||
+      query.keepFilter ||
+      query.keep_filters
   );
-  const preserveFilterSet = new Set(
-    preserveFilterValues.length > 0 
-      ? preserveFilterValues.map(v => v.toLowerCase())
+  const keepSet = new Set(
+    keepValues.length > 0 
+      ? keepValues.map(v => v.toLowerCase())
       : (query.preserveOptionAggregations === 'true' || query.preserveOptionAggregations === '1' ? ['__all__'] : [])
   );
-  const preserveAll = preserveFilterSet.has('__all__');
+  const keepAll = keepSet.has('__all__');
 
-  // Parse standard filters, but exclude if in preserveFilters
+  // Parse standard filters, but exclude if in keep
   const vendorValues = parseCommaSeparated(query.vendor || query.vendors);
-  if (vendorValues.length && !preserveAll && !preserveFilterSet.has('vendors')) {
+  if (vendorValues.length && !keepAll && !keepSet.has('vendors')) {
     filters.vendors = vendorValues;
   }
 
   const productTypeValues = parseCommaSeparated(query.productType || query.productTypes);
-  if (productTypeValues.length && !preserveAll && !preserveFilterSet.has('producttypes') && !preserveFilterSet.has('product_type')) {
+  if (productTypeValues.length && !keepAll && !keepSet.has('producttypes') && !keepSet.has('product_type')) {
     filters.productTypes = productTypeValues;
   }
 
   const tagValues = parseCommaSeparated(query.tag || query.tags);
-  if (tagValues.length && !preserveAll && !preserveFilterSet.has('tags')) {
+  if (tagValues.length && !keepAll && !keepSet.has('tags')) {
     filters.tags = tagValues;
   }
 
   const collectionValues = parseCommaSeparated(query.collection || query.collections);
-  if (collectionValues.length && !preserveAll && !preserveFilterSet.has('collections')) {
+  if (collectionValues.length && !keepAll && !keepSet.has('collections')) {
     filters.collections = collectionValues;
   }
 
@@ -83,28 +82,28 @@ export function buildFilterInput(query: Record<string, unknown>): ProductFilterI
     filters.collections = [collectionId];
   }
 
-  // Set preserveFilters in filters object
-  if (preserveFilterValues.length) {
-    filters.preserveFilters = preserveFilterValues;
+  // Set keep in filters object
+  if (keepValues.length) {
+    filters.keep = keepValues;
   } else if (query.preserveOptionAggregations === 'true' || query.preserveOptionAggregations === '1') {
-    filters.preserveFilters = ['__all__'];
+    filters.keep = ['__all__'];
   }
 
-  // Parse option filters, but exclude the preserveFilter handle from the aggregation query
+  // Parse option filters, but exclude the keep handle from the aggregation query
   // When calculating aggregations for a specific filter, that filter should be excluded
   // from the query so we get all possible values based on other active filters
   const optionFilters = parseOptionFilters(query);
   if (Object.keys(optionFilters).length) {
-    // If preserveFilters is set, exclude that handle from optionFilters
-    if (filters.preserveFilters && filters.preserveFilters.length > 0) {
-      // preserveFilters will always have one value (single handle)
-      const preserveFilterHandle = filters.preserveFilters[0];
-      if (preserveFilterHandle && preserveFilterHandle !== '__all__') {
-        // Exclude the preserveFilter handle from optionFilters
-        if (optionFilters[preserveFilterHandle]) {
-          delete optionFilters[preserveFilterHandle];
+    // If keep is set, exclude that handle from optionFilters
+    if (filters.keep && filters.keep.length > 0) {
+      // keep will always have one value (single handle)
+      const keepHandle = filters.keep[0];
+      if (keepHandle && keepHandle !== '__all__') {
+        // Exclude the keep handle from optionFilters
+        if (optionFilters[keepHandle]) {
+          delete optionFilters[keepHandle];
         }
-      } else if (preserveFilterHandle === '__all__') {
+      } else if (keepHandle === '__all__') {
         // If '__all__', exclude all option filters from aggregation query
         Object.keys(optionFilters).forEach(key => {
           delete optionFilters[key];
@@ -150,7 +149,7 @@ export function buildFilterInput(query: Record<string, unknown>): ProductFilterI
   if (variantSkuValues.length) filters.variantSkus = variantSkuValues;
 
   const hasFilters = hasAnyFilters(filters);
-  if (hasFilters || (filters.preserveFilters && filters.preserveFilters.length > 0)) {
+  if (hasFilters || (filters.keep && filters.keep.length > 0)) {
     return filters;
   }
 
@@ -208,16 +207,15 @@ export function buildSearchInput(query: Record<string, unknown>): ProductSearchI
   const searchQuery = typeof query.search === 'string' ? query.search.trim() : undefined;
   if (searchQuery) filters.search = searchQuery;
 
-  const preserveFilterValues = parseCommaSeparated(
-    query.preserveFilter ||
-      query.preserveFilters ||
-      query.preserve_filter ||
-      query.preserve_filters
+  const keepValues = parseCommaSeparated(
+    query.keep ||
+      query.keepFilter ||
+      query.keep_filters
   );
-  if (preserveFilterValues.length) {
-    filters.preserveFilters = preserveFilterValues;
+  if (keepValues.length) {
+    filters.keep = keepValues;
   } else if (query.preserveOptionAggregations === 'true' || query.preserveOptionAggregations === '1') {
-    filters.preserveFilters = ['__all__'];
+    filters.keep = ['__all__'];
   }
 
   // Price range filters (product-level: minPrice/maxPrice)

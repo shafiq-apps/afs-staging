@@ -241,32 +241,32 @@ export class StorefrontSearchRepository {
     const mustQueries: any[] = [];
     const postFilterQueries: any[] = [];
 
-    /** Preserve Filters Logic */
-    // preserveFilters now contains handles (e.g., "pr_a3k9x", "sd5d3s") instead of option names
-    const preserveFilters = new Set(
-      (sanitizedFilters?.preserveFilters || []).map((k) => k.toLowerCase())
+    /** Keep Filters Logic */
+    // keep now contains handles (e.g., "pr_a3k9x", "sd5d3s") instead of option names
+    const keep = new Set(
+      (sanitizedFilters?.keep || []).map((k) => k.toLowerCase())
     );
-    const preserveAll = preserveFilters.has('__all__');
+    const keepAll = keep.has('__all__');
     
-    // Helper to check if a filter should be preserved
+    // Helper to check if a filter should be kept
     // For standard filters, check by key directly
     // For option filters, map option name back to handle and check
-    const shouldPreserve = (key: string, isOptionFilter: boolean = false) => {
-      if (preserveAll) return true;
+    const shouldKeep = (key: string, isOptionFilter: boolean = false) => {
+      if (keepAll) return true;
       
       const lowerKey = key.toLowerCase();
       
       // For standard filters, check directly
       if (!isOptionFilter) {
-        return preserveFilters.has(lowerKey);
+        return keep.has(lowerKey);
       }
       
       // For option filters, we need to map option name back to handle
-      // because preserveFilters contains handles, but key is the option name
+      // because keep contains handles, but key is the option name
       if (filterConfig) {
         const handle = mapOptionNameToHandle(filterConfig, key);
         if (handle) {
-          return preserveFilters.has(handle.toLowerCase());
+          return keep.has(handle.toLowerCase());
         }
       }
       
@@ -309,7 +309,7 @@ export class StorefrontSearchRepository {
       const { field, values } = simpleFilters[key];
       if (hasValues(values)) {
         const clause = { terms: { [field]: values! } };
-        (shouldPreserve(key) ? postFilterQueries : mustQueries).push(clause);
+        (shouldKeep(key) ? postFilterQueries : mustQueries).push(clause);
       }
     }
 
@@ -336,7 +336,7 @@ export class StorefrontSearchRepository {
           terms: { 'optionPairs': encodedValues },
         };
 
-        (shouldPreserve(optionName, true) ? postFilterQueries : mustQueries).push(clause);
+        (shouldKeep(optionName, true) ? postFilterQueries : mustQueries).push(clause);
       }
     }
 
@@ -638,31 +638,31 @@ export class StorefrontSearchRepository {
 
     const mustQueries: any[] = [];
     const postFilterQueries: any[] = [];
-    // preserveFilters now contains handles (e.g., "pr_a3k9x", "sd5d3s") instead of option names
-    const preserveFilters = new Set(
-      (sanitizedFilters?.preserveFilters || []).map((key) => key.toLowerCase())
+    // keep now contains handles (e.g., "pr_a3k9x", "sd5d3s") instead of option names
+    const keep = new Set(
+      (sanitizedFilters?.keep || []).map((key) => key.toLowerCase())
     );
-    const preserveAll = preserveFilters.has('__all__');
+    const keepAll = keep.has('__all__');
     
-    // Helper to check if a filter should be preserved
+    // Helper to check if a filter should be kept
     // For standard filters, check by key directly
     // For option filters, map option name back to handle and check
-    const shouldPreserve = (key: string, isOptionFilter: boolean = false) => {
-      if (preserveAll) return true;
+    const shouldKeep = (key: string, isOptionFilter: boolean = false) => {
+      if (keepAll) return true;
       
       const lowerKey = key.toLowerCase();
       
       // For standard filters, check directly
       if (!isOptionFilter) {
-        return preserveFilters.has(lowerKey);
+        return keep.has(lowerKey);
       }
       
       // For option filters, we need to map option name back to handle
-      // because preserveFilters contains handles, but key is the option name
+      // because keep contains handles, but key is the option name
       if (filterConfig) {
         const handle = mapOptionNameToHandle(filterConfig, key);
         if (handle) {
-          return preserveFilters.has(handle.toLowerCase());
+          return keep.has(handle.toLowerCase());
         }
       }
       
@@ -682,7 +682,7 @@ export class StorefrontSearchRepository {
 
     if (hasValues(sanitizedFilters?.vendors)) {
       const clause = { terms: { 'vendor.keyword': sanitizedFilters!.vendors } };
-      if (shouldPreserve('vendors')) {
+      if (shouldKeep('vendors')) {
         postFilterQueries.push(clause);
       } else {
         mustQueries.push(clause);
@@ -691,7 +691,7 @@ export class StorefrontSearchRepository {
 
     if (hasValues(sanitizedFilters?.productTypes)) {
       const clause = { terms: { 'productType.keyword': sanitizedFilters!.productTypes } };
-      if (shouldPreserve('productTypes')) {
+      if (shouldKeep('productTypes')) {
         postFilterQueries.push(clause);
       } else {
         mustQueries.push(clause);
@@ -701,7 +701,7 @@ export class StorefrontSearchRepository {
     if (hasValues(sanitizedFilters?.tags)) {
       // Tags is an array field, use directly (not .keyword)
       const clause = { terms: { 'tags': sanitizedFilters!.tags } };
-      if (shouldPreserve('tags')) {
+      if (shouldKeep('tags')) {
         postFilterQueries.push(clause);
       } else {
         mustQueries.push(clause);
@@ -713,7 +713,7 @@ export class StorefrontSearchRepository {
       // For array fields in ES, use the field name directly (not .keyword)
       // The terms query will match any value in the array
       const clause = { terms: { 'collections': sanitizedFilters!.collections } };
-      if (shouldPreserve('collections')) {
+      if (shouldKeep('collections')) {
         postFilterQueries.push(clause);
       } else {
         mustQueries.push(clause);
@@ -753,7 +753,7 @@ export class StorefrontSearchRepository {
         // For filters endpoint, we want to preserve option aggregations even when filtering
         // This allows users to see available filter values even when current filters match 0 products
         // Use post_filter for option filters to preserve aggregations
-        if (shouldPreserve(optionName, true) || preserveAll) {
+        if (shouldKeep(optionName, true) || keepAll) {
           postFilterQueries.push(termsQuery);
           logger.debug('Option filter added to post_filter (preserve aggregations)', {
             optionName,

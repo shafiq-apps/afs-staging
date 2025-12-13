@@ -289,7 +289,7 @@ export function mapOptionKeyToName(filterConfig: Filter | null, optionKey: strin
 
 /**
  * Map option names back to handles using filter configuration
- * This is used to check preserveFilters (which use handles) against option names (from mapped filters)
+ * This is used to check keep (which use handles) against option names (from mapped filters)
  * 
  * @param filterConfig - The filter configuration containing option mappings
  * @param optionName - The option name (e.g., "Size", "Color")
@@ -528,37 +528,37 @@ export function applyFilterConfigToInput(
     }
   }
 
-  // Keep preserveFilters as handles (don't map to option names)
-  // This allows preserveFilters to work with handles like "pr_a3k9x", "sd5d3s" etc.
+  // Keep keep as handles (don't map to option names)
+  // This allows keep to work with handles like "pr_a3k9x", "sd5d3s" etc.
   // Standard filters (vendors, productTypes, tags, collections) are still mapped for consistency
-  if (result.preserveFilters && result.preserveFilters.length > 0) {
-    const mappedPreserve = new Set<string>();
-    for (const rawKey of result.preserveFilters) {
+  if (result.keep && result.keep.length > 0) {
+    const mappedKeep = new Set<string>();
+    for (const rawKey of result.keep) {
       const key = rawKey?.trim();
       if (!key) continue;
 
       const lowerKey = key.toLowerCase();
       if (lowerKey === '__all__') {
-        mappedPreserve.add('__all__');
+        mappedKeep.add('__all__');
         break;
       }
 
       // Map standard filter names (vendors, productTypes, etc.) for consistency
       const standardField = STANDARD_FILTER_MAPPING[lowerKey];
       if (standardField) {
-        mappedPreserve.add(standardField.toLowerCase());
+        mappedKeep.add(standardField.toLowerCase());
         continue;
       }
 
       // For option filters, keep the handle as-is (don't map to option name)
-      // This allows preserveFilters to work with handles like "pr_a3k9x", "sd5d3s"
+      // This allows keep to work with handles like "pr_a3k9x", "sd5d3s"
       // Just validate that it's a valid option handle
       if (isOptionKey(filterConfig, key)) {
-        mappedPreserve.add(key.toLowerCase());
+        mappedKeep.add(key.toLowerCase());
       }
     }
 
-    result.preserveFilters = Array.from(mappedPreserve);
+    result.keep = Array.from(mappedKeep);
   }
 
   return result;
