@@ -1795,23 +1795,27 @@
                                   handle === 'collections');
       
       if (isCollectionFilter && State.selectedCollection?.id) {
+        // Store original cpid value before any modifications
+        const originalCpid = State.selectedCollection.id;
+        
         // If unchecking (removing) and the value matches cpid, clear cpid
-        if (isActive && String(normalized) === String(State.selectedCollection.id)) {
+        if (isActive && String(normalized) === String(originalCpid)) {
           State.selectedCollection.id = null;
           Log.debug('Collection filter unchecked (was cpid), cleared cpid', { 
             handle, 
             value: normalized, 
-            cpid: State.selectedCollection.id 
+            cpid: originalCpid 
           });
         }
         // Also check if cpid is no longer in the filter values after toggle
-        else if (!filterValues.some(v => String(v) === String(State.selectedCollection.id))) {
+        else if (!filterValues.some(v => String(v) === String(originalCpid))) {
           State.selectedCollection.id = null;
           Log.debug('Collection filter toggled, cpid no longer in values, cleared cpid', { 
             handle, 
             value: normalized, 
             filterValues,
-            wasCpid: String(normalized) === String(State.selectedCollection.id)
+            wasCpid: String(normalized) === String(originalCpid),
+            originalCpid
           });
         }
       }
