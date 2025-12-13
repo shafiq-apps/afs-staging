@@ -1150,7 +1150,7 @@
 [data-afs-container] .afs-mobile-filter-close {
   display: none;
   /* Hidden on desktop */
-  position: fixed;
+  position: absolute;
   top: 16px;
   right: 16px;
   width: 40px;
@@ -1163,7 +1163,7 @@
   line-height: 1;
   color: var(--afs-text-color);
   cursor: pointer;
-  z-index: 10001;
+  z-index: 1000000;
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
@@ -1199,7 +1199,7 @@
   background: var(--afs-bg-color);
   border-top: 1px solid var(--afs-border-color);
   box-shadow: 0 -2px 8px var(--afs-shadow-color);
-  z-index: 10000;
+  z-index: 999999;
   box-sizing: border-box;
 }
 
@@ -1368,6 +1368,22 @@
   padding: 0;
   overflow: hidden;
   box-shadow: 0 2px 8px var(--afs-shadow-color);
+}
+
+/* Show quick view button by default on touch devices (no hover capability) */
+@media (hover: none) and (pointer: coarse) {
+  [data-afs-container] .afs-product-card__quick-view {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Show quick view button by default on mobile devices */
+@media (max-width: 767px) {
+  [data-afs-container] .afs-product-card__quick-view {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 [data-afs-container] .afs-product-card__quick-view-icon {
@@ -1852,6 +1868,7 @@ shopify-list-context[type="image"] {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
+  user-select: none;
 }
 
 .afs-product-modal__add-button:disabled {
@@ -1910,6 +1927,7 @@ shopify-list-context[type="image"] {
   font-weight: 500;
   color: var(--afs-text-color);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  user-select: none;
 }
 
 .afs-product-modal__option-values {
@@ -1929,11 +1947,13 @@ shopify-list-context[type="image"] {
   font-weight: 500;
   transition: all 0.2s ease;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  user-select: none;
 }
 
 .afs-product-modal__option-value:hover:not(:disabled) {
-  background: var(--afs-bg-secondary);
-  color: var(--afs-text-color);
+  background: var(--afs-accent-color);
+  color: var(--afs-text-color-inverse);
+  opacity: 0.8;
 }
 
 .afs-product-modal__option-value--selected {
@@ -2005,75 +2025,72 @@ shopify-list-context[type="image"] {
     margin-bottom: 16px;
   }
 
-  /* --- Filters Modal --- */
+  /* --- Filters Drawer (Left Side) --- */
   /* Hide filters by default on mobile */
   [data-afs-container] .afs-filters-container {
     display: none !important;
     position: fixed;
     top: 0;
     left: 0;
-    right: 0;
     bottom: 0;
-    width: 100vw;
+    width: 85%;
+    max-width: 400px;
     height: 100vh;
-    max-width: 100vw;
     max-height: 100vh;
     background: var(--afs-bg-color);
-    z-index: 99999;
-    overflow: hidden;
+    z-index: 999999;
+    overflow-y: auto;
+    overflow-x: hidden;
     flex-direction: column;
     flex: none;
     margin: 0;
-    padding: 0;
+    padding: 16px;
+    padding-top: 60px;
+    padding-bottom: 80px;
     box-sizing: border-box;
-    touch-action: none;
+    touch-action: pan-y;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease-in-out;
+    box-shadow: 2px 0 10px var(--afs-shadow-color-strong);
+    -webkit-overflow-scrolling: touch;
   }
 
-  /* Modal backdrop */
-  [data-afs-container] .afs-filters-container::before {
-    content: '';
+  /* Drawer backdrop overlay - separate element for click handling */
+  [data-afs-container] .afs-mobile-filter-backdrop {
+    display: none !important;
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
     background: var(--afs-overlay-color);
-    z-index: -1;
+    z-index: 999998;
     opacity: 0;
     transition: opacity 0.3s ease;
+    pointer-events: none;
   }
 
-  [data-afs-container] .afs-filters-container--open::before {
+  /* Show backdrop when drawer is open */
+  [data-afs-container] .afs-mobile-filter-backdrop[style*="block"] {
+    display: block !important;
     opacity: 1;
+    pointer-events: auto;
   }
 
-  /* Filters content wrapper - scrollable area */
-  [data-afs-container] .afs-filters-container__content {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    max-height: 100vh;
-    overflow-y: auto;
-    overflow-x: hidden;
-    padding: 60px 16px 80px;
-    box-sizing: border-box;
-    -webkit-overflow-scrolling: touch;
-    position: relative;
-    z-index: 1;
-  }
 
-  /* Show filters when open class is added */
+  /* Show filters drawer when open class is added */
   [data-afs-container] .afs-filters-container--open {
     display: flex !important;
     flex-direction: column;
     position: fixed !important;
     top: 0 !important;
     left: 0 !important;
-    right: 0 !important;
     bottom: 0 !important;
-    width: 100vw !important;
+    width: 85% !important;
+    max-width: 400px !important;
     height: 100vh !important;
-    z-index: 99999 !important;
+    z-index: 999999 !important;
+    transform: translateX(0) !important;
   }
 
   /* Prevent body scroll when filters are open */
@@ -2084,15 +2101,16 @@ shopify-list-context[type="image"] {
     height: 100% !important;
   }
 
-  /* Show close button when filters are open */
+  /* Show close button when filters drawer is open */
   [data-afs-container] .afs-filters-container--open .afs-mobile-filter-close {
     display: flex !important;
   }
 
-  /* Show apply button when filters are open */
+  /* Show apply button when filters drawer is open */
   [data-afs-container] .afs-filters-container--open .afs-mobile-filter-apply {
     display: block !important;
   }
+
 
   /* Filter groups in mobile modal */
   [data-afs-container] .afs-filter-group {
@@ -2134,6 +2152,12 @@ shopify-list-context[type="image"] {
 
   [data-afs-container] .afs-product-card__image {
     margin-bottom: 8px;
+  }
+
+  /* Show quick view button by default on mobile (no hover available) */
+  [data-afs-container] .afs-product-card__quick-view {
+    opacity: 1 !important;
+    transform: translateY(0) !important;
   }
 
   [data-afs-container] .afs-product-card__title {

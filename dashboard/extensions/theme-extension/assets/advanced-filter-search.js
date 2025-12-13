@@ -712,6 +712,22 @@
         this.filtersContainer.insertBefore(this.mobileFilterClose, this.filtersContainer.firstChild);
       }
 
+      // Create backdrop overlay for mobile drawer (click outside to close)
+      // Check if backdrop already exists
+      this.mobileFilterBackdrop = this.container.querySelector('.afs-mobile-filter-backdrop');
+      if (!this.mobileFilterBackdrop) {
+        this.mobileFilterBackdrop = $.el('div', 'afs-mobile-filter-backdrop', {
+          'data-afs-action': 'close-filters'
+        });
+        this.mobileFilterBackdrop.style.display = 'none';
+        // Insert before main content so it appears behind drawer
+        if (main.parentNode) {
+          main.parentNode.insertBefore(this.mobileFilterBackdrop, main);
+        } else {
+          this.container.appendChild(this.mobileFilterBackdrop);
+        }
+      }
+
       this.productsContainer = document.querySelector(productsSel) || $.el('div', 'afs-products-container');
       if (!this.productsContainer.parentNode) main.appendChild(this.productsContainer);
 
@@ -781,27 +797,49 @@
       }
     },
 
-    // Toggle mobile filters
+    // Toggle mobile filters drawer
     toggleMobileFilters() {
       if (!this.filtersContainer) return;
 
       const isOpen = this.filtersContainer.classList.contains('afs-filters-container--open');
 
       if (isOpen) {
+        // Close drawer
         this.filtersContainer.classList.remove('afs-filters-container--open');
         document.body.classList.remove('afs-filters-open');
+        
+        // Hide backdrop
+        if (this.mobileFilterBackdrop) {
+          this.mobileFilterBackdrop.style.display = 'none';
+        }
+        
+        // Restore scroll position
+        const scrollY = document.body.style.top;
         document.body.style.overflow = '';
         document.body.style.position = '';
         document.body.style.width = '';
         document.body.style.height = '';
+        document.body.style.top = '';
         document.body.style.removeProperty('overflow');
         document.body.style.removeProperty('position');
         document.body.style.removeProperty('width');
         document.body.style.removeProperty('height');
+        document.body.style.removeProperty('top');
+        
+        if (scrollY) {
+          window.scrollTo(0, parseInt(scrollY || '0') * -1);
+        }
       } else {
+        // Open drawer
         this.filtersContainer.classList.add('afs-filters-container--open');
         document.body.classList.add('afs-filters-open');
-        // Store current scroll position
+        
+        // Show backdrop
+        if (this.mobileFilterBackdrop) {
+          this.mobileFilterBackdrop.style.display = 'block';
+        }
+        
+        // Store current scroll position and prevent body scroll
         const scrollY = window.scrollY;
         document.body.style.position = 'fixed';
         document.body.style.top = `-${scrollY}px`;
@@ -809,7 +847,7 @@
         document.body.style.overflow = 'hidden';
       }
 
-      Log.debug('Mobile filters toggled', { isOpen: !isOpen });
+      Log.debug('Mobile filters drawer toggled', { isOpen: !isOpen });
     },
 
     // Fastest filter rendering (batched)
@@ -2397,11 +2435,6 @@
         if (sliderContainer && window.AFSSlider) {
           dialog._slider = new window.AFSSlider(sliderContainer, {
             thumbnailsPosition: 'left', // Can be 'top', 'left', 'right', 'bottom'
-            enableZoom: true,
-            enableClickToZoom: true, // Enable click to zoom
-            enableMagnifier: true, // Enable cursor-following magnifier
-            magnifierZoom: 3, // 2x zoom for magnifier
-            magnifierSize: 350, // 200px magnifier size
             enableKeyboard: true,
             enableAutoHeight: false, // Disable auto height to prevent shrinking
             maxHeight: 600 // Fixed max height in pixels
@@ -2809,26 +2842,10 @@
         }
         else if (action === 'toggle-filters' || action === 'close-filters') {
           if (action === 'close-filters') {
-            // Explicitly close filters
-            if (DOM.filtersContainer) {
-              DOM.filtersContainer.classList.remove('afs-filters-container--open');
-              document.body.classList.remove('afs-filters-open');
-              document.body.style.overflow = '';
-              document.body.style.position = '';
-              document.body.style.width = '';
-              document.body.style.height = '';
-              document.body.style.removeProperty('overflow');
-              document.body.style.removeProperty('position');
-              document.body.style.removeProperty('width');
-              document.body.style.removeProperty('height');
-              // Restore scroll position
-              const scrollY = document.body.style.top;
-              if (scrollY) {
-                window.scrollTo(0, parseInt(scrollY || '0') * -1);
-              }
-            }
+            // Explicitly close filters drawer
+            DOM.toggleMobileFilters();
           } else {
-            // Toggle mobile filters
+            // Toggle mobile filters drawer
             DOM.toggleMobileFilters();
           }
         }
