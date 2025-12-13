@@ -431,6 +431,35 @@
       }
     },
 
+    /**
+     * Check if cpid should be sent to API
+     * Since clearCpidIfFiltersPresent() already clears cpid when filters are present,
+     * we only need to check if cpid exists and if it's not already in collection filter handle
+     */
+    shouldSendCpid(filters) {
+      if (!State.selectedCollection?.id) {
+        return false; // No cpid to send
+      }
+
+      // Check if cpid collection ID is already in collection filter handle
+      const hasCollectionFilterWithCpid = Object.keys(filters || {}).some(key => {
+        const metadata = State.filterMetadata.get(key);
+        const isCollectionFilter = (metadata?.type === 'collection' || 
+                                    metadata?.optionType === 'Collection' || 
+                                    key === 'collections');
+        if (isCollectionFilter && Array.isArray(filters[key]) && filters[key].length > 0) {
+          // Check if cpid collection ID is in the collection filter values
+          return filters[key].some(v => String(v) === String(State.selectedCollection.id));
+        }
+        return false;
+      });
+
+      // Don't send cpid if it's already in collection filter
+      // If cpid exists and filters are present, clearCpidIfFiltersPresent() would have cleared it
+      // So if we reach here and cpid exists, it means no filters are present (clean page)
+      return !hasCollectionFilterWithCpid;
+    },
+
     async products(filters, pagination, sort) {
       if (!this.baseURL) throw new Error('API baseURL not set. Call AFS.init({ apiBaseUrl: "..." })');
       if (!State.shop) throw new Error('Shop not set');
@@ -451,20 +480,16 @@
       const params = new URLSearchParams();
       params.set('shop', State.shop);
 
-      // Only send cpid if collection filter handle is not in filters
-      // If collection filter handle exists, it means cpid was converted to a collection filter
-      const hasCollectionFilter = Object.keys(filters).some(key => {
-        const metadata = State.filterMetadata.get(key);
-        return (metadata?.type === 'collection' || 
-                metadata?.optionType === 'Collection' || 
-                key === 'collections') &&
-               Array.isArray(filters[key]) && 
-               filters[key].length > 0;
-      });
-      
-      // Only send cpid if no collection filter is active
-      if (State.selectedCollection.id && !hasCollectionFilter) {
+      // Only send cpid if conditions are met (clean page or only sort/page/limit, and not in collection filter)
+      if (this.shouldSendCpid(filters)) {
         params.set('cpid', State.selectedCollection.id);
+        Log.debug('cpid sent to products API', { cpid: State.selectedCollection.id, filters });
+      } else {
+        Log.debug('cpid not sent to products API', { 
+          hasCpid: !!State.selectedCollection?.id, 
+          filters,
+          reason: 'filters present or cpid already in collection filter'
+        });
       }
       // Send ALL filters as direct query parameters using handles as keys
       // URL format: ?handle1=value1&handle2=value2
@@ -549,19 +574,16 @@
       const params = new URLSearchParams();
       params.set('shop', State.shop);
       
-      // Only send cpid if collection filter handle is not in filters
-      const hasCollectionFilter = Object.keys(filters).some(key => {
-        const metadata = State.filterMetadata.get(key);
-        return (metadata?.type === 'collection' || 
-                metadata?.optionType === 'Collection' || 
-                key === 'collections') &&
-               Array.isArray(filters[key]) && 
-               filters[key].length > 0;
-      });
-      
-      // Only send cpid if no collection filter is active
-      if (State.selectedCollection.id && !hasCollectionFilter) {
+      // Only send cpid if conditions are met (clean page or only sort/page/limit, and not in collection filter)
+      if (this.shouldSendCpid(filters)) {
         params.set('cpid', State.selectedCollection.id);
+        Log.debug('cpid sent to filters API', { cpid: State.selectedCollection.id, filters });
+      } else {
+        Log.debug('cpid not sent to filters API', { 
+          hasCpid: !!State.selectedCollection?.id, 
+          filters,
+          reason: 'filters present or cpid already in collection filter'
+        });
       }
 
       // Build filters for aggregation - exclude the filter in keep
@@ -1550,6 +1572,9 @@
     },
 
     scrollToProducts() {
+      if (Log.enabled) {
+        return; // stop on debugging mode
+      }
       // Scroll to products section when filters are applied
       if (this.productsContainer) {
         this.productsContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1773,6 +1798,36 @@
   // FILTER MANAGER (Optimized)
   // ============================================================================
 
+  /**
+   * Check if filters are present (other than page, sort, size, limit)
+   * If filters are present, clear cpid so it won't be sent automatically
+   */
+  const clearCpidIfFiltersPresent = (filters) => {
+    if (!State.selectedCollection?.id) {
+      return; // No cpid to clear
+    }
+
+    // Check if there are any filters other than page, sort, size, limit
+    const hasFilters = Object.keys(filters || {}).some(key => {
+      const value = filters[key];
+      // Skip empty values
+      if ($.empty(value)) return false;
+      // Skip pagination/sort params (these don't count as filters)
+      if (key === 'page' || key === 'limit' || key === 'sort' || key === 'size') return false;
+      // Skip priceRange if it's null or empty
+      if (key === 'priceRange' && (!value || (typeof value === 'object' && !value.min && !value.max))) return false;
+      // Skip search if empty
+      if (key === 'search' && (!value || typeof value !== 'string' || !value.trim())) return false;
+      // All other keys are considered filters
+      return true;
+    });
+
+    if (hasFilters) {
+      State.selectedCollection.id = null;
+      Log.debug('Filters present, cleared cpid', { filters });
+    }
+  };
+
   const Filters = {
     // Toggle standard filter (vendor, productType, tags, collections) or handle-based filter
     toggle(handle, value) {
@@ -1826,6 +1881,9 @@
         State.filters[handle] = filterValues;
       }
 
+      // Clear cpid if filters are present (other than page, sort, size, limit)
+      clearCpidIfFiltersPresent(State.filters);
+
       State.pagination.page = 1;
 
       Log.debug('Filter toggled', { handle, value: normalized, wasActive: isActive, isActive: !isActive, filterValues });
@@ -1876,6 +1934,9 @@
       } else {
         State.filters.priceRange = { min, max };
       }
+
+      // Clear cpid if filters are present (other than page, sort, size, limit)
+      clearCpidIfFiltersPresent(State.filters);
 
       State.pagination.page = 1;
 
@@ -2514,6 +2575,11 @@
         if (action === 'clear-all') {
           // Reset to initial state (standard filters only, handles will be removed dynamically)
           State.filters = { vendor: [], productType: [], tags: [], collections: [], search: '', priceRange: null };
+          // Clear cpid when clearing all filters
+          if (State.selectedCollection?.id) {
+            State.selectedCollection.id = null;
+            Log.debug('Clear All: cleared cpid');
+          }
           State.pagination.page = 1;
           UrlManager.update(State.filters, State.pagination, State.sort);
           // Scroll to top when clearing all filters
@@ -2609,10 +2675,31 @@
           const handle = clearBtn.getAttribute('data-afs-filter-handle');
           if (!handle) return;
           
+          // Check if this is a collection filter and if cpid should be cleared
+          const metadata = State.filterMetadata.get(handle);
+          const isCollectionFilter = (metadata?.type === 'collection' || 
+                                      metadata?.optionType === 'Collection' || 
+                                      handle === 'collections');
+          
           // Remove the filter from State.filters
           if (State.filters[handle]) {
+            // If clearing collection filter and cpid exists, check if cpid was in the filter values
+            if (isCollectionFilter && State.selectedCollection?.id) {
+              const filterValues = State.filters[handle];
+              const originalCpid = State.selectedCollection.id;
+              const cpidInValues = Array.isArray(filterValues) && 
+                                  filterValues.some(v => String(v) === String(originalCpid));
+              if (cpidInValues) {
+                State.selectedCollection.id = null;
+                Log.debug('Collection filter cleared (contained cpid), cleared cpid', { 
+                  handle, 
+                  cpid: originalCpid 
+                });
+              }
+            }
+            
             delete State.filters[handle];
-            Log.debug('Filter cleared', { handle });
+            Log.debug('Filter cleared', { handle, isCollectionFilter });
             
             // Update URL
             UrlManager.update(State.filters, State.pagination, State.sort);
@@ -2996,6 +3083,34 @@
       // Loading skeleton is already shown in init(), but ensure it's visible
       DOM.showLoading();
       try {
+        // Parse URL params FIRST before loading filters, so filters endpoint gets the correct filters
+        const urlParams = UrlManager.parse();
+        Log.debug('Parsed URL params on load', { urlParams });
+        
+        // Rebuild filters from URL params BEFORE calling API.filters()
+        // This ensures filters endpoint receives the correct filters from URL
+        State.filters = {
+          vendor: urlParams.vendor || [],
+          productType: urlParams.productType || [],
+          tags: urlParams.tags || [],
+          collections: urlParams.collections || [],
+          search: urlParams.search || '',
+          priceRange: urlParams.priceRange || null
+        };
+        // Add all handle-based filters (everything that's not a standard filter)
+        Object.keys(urlParams).forEach(key => {
+          if (!['vendor', 'productType', 'tags', 'collections', 'search', 'priceRange', 'page', 'limit', 'sort', 'keep', 'cpid'].includes(key)) {
+            if (Array.isArray(urlParams[key])) {
+              State.filters[key] = urlParams[key];
+            } else if (typeof urlParams[key] === 'string') {
+              State.filters[key] = [urlParams[key]];
+            }
+          }
+        });
+        
+        // Clear cpid if filters are present (other than page, sort, size, limit)
+        clearCpidIfFiltersPresent(State.filters);
+        
         Log.info('Loading filters...', { shop: State.shop, filters: State.filters });
         let filtersData;
         try {
@@ -3017,10 +3132,7 @@
         State.availableFilters = filtersData.filters || [];
         State.filterMetadata = Metadata.buildFilterMetadata(State.availableFilters);
 
-        // Parse URL params - handles are parsed directly, no conversion needed
-        const urlParams = UrlManager.parse();
-        Log.debug('Parsed URL params', { urlParams, availableFiltersCount: State.availableFilters.length });
-
+        // After filters are loaded, update State.filters with cpid conversion if needed
         // Convert cpid to collection filter handle if collection filter exists
         if (State.selectedCollection?.id) {
           const collectionFilter = State.availableFilters.find(f => 
@@ -3032,14 +3144,14 @@
           
           if (collectionFilter) {
             const collectionHandle = collectionFilter.handle || collectionFilter.queryKey || 'collections';
-            // Check if collection filter already has this ID in URL params
-            const existingCollectionValues = urlParams[collectionHandle] || [];
+            // Check if collection filter already has this ID in State.filters
+            const existingCollectionValues = State.filters[collectionHandle] || [];
             if (!existingCollectionValues.includes(String(State.selectedCollection.id))) {
-              // Add cpid as collection filter to URL params
-              if (!urlParams[collectionHandle]) {
-                urlParams[collectionHandle] = [];
+              // Add cpid as collection filter
+              if (!State.filters[collectionHandle]) {
+                State.filters[collectionHandle] = [];
               }
-              urlParams[collectionHandle].push(String(State.selectedCollection.id));
+              State.filters[collectionHandle].push(String(State.selectedCollection.id));
               Log.debug('Converted cpid to collection filter', { 
                 cpid: State.selectedCollection.id, 
                 handle: collectionHandle 
@@ -3062,25 +3174,6 @@
           State.keep = null;
         }
 
-        // Rebuild filters from params (includes standard filters + handles)
-        State.filters = {
-          vendor: urlParams.vendor || [],
-          productType: urlParams.productType || [],
-          tags: urlParams.tags || [],
-          collections: urlParams.collections || [],
-          search: urlParams.search || '',
-          priceRange: urlParams.priceRange || null
-        };
-        // Add all handle-based filters (everything that's not a standard filter)
-        Object.keys(urlParams).forEach(key => {
-          if (!['vendor', 'productType', 'tags', 'collections', 'search', 'priceRange', 'page', 'limit', 'sort', 'keep', 'cpid'].includes(key)) {
-            if (Array.isArray(urlParams[key])) {
-              State.filters[key] = urlParams[key];
-            } else if (typeof urlParams[key] === 'string') {
-              State.filters[key] = [urlParams[key]];
-            }
-          }
-        });
         Log.info('Filters set from URL', { filters: State.filters });
         // Read page from URL params (important for fallback mode)
         if (urlParams.page) {
