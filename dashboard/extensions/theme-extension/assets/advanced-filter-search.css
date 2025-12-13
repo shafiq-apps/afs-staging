@@ -260,6 +260,9 @@
 }
 
 [data-afs-container] .afs-filter-group__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin-bottom: 12px;
 }
 
@@ -317,6 +320,35 @@
   text-transform: capitalize;
   cursor: pointer;
   user-select: none;
+}
+
+[data-afs-container] .afs-filter-group__clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  margin-left: auto;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--afs-text-color);
+  opacity: 0.6;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+[data-afs-container] .afs-filter-group__clear:hover {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+[data-afs-container] .afs-filter-group__clear svg {
+  width: 14px;
+  height: 14px;
+  display: block;
+  fill: currentColor;
 }
 
 [data-afs-container] .afs-filter-group__content {

@@ -24,7 +24,8 @@
     downArrow: '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" fill="currentColor" height="34px" width="34px" version="1.1" id="Layer_1" viewBox="0 0 512.011 512.011" xml:space="preserve"><g><g><path d="M505.755,123.592c-8.341-8.341-21.824-8.341-30.165,0L256.005,343.176L36.421,123.592c-8.341-8.341-21.824-8.341-30.165,0 s-8.341,21.824,0,30.165l234.667,234.667c4.16,4.16,9.621,6.251,15.083,6.251c5.462,0,10.923-2.091,15.083-6.251l234.667-234.667 C514.096,145.416,514.096,131.933,505.755,123.592z"/></g></g></svg>',
     eye: '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" fill="currentColor" height="34px" width="34px" version="1.1" id="Layer_1" viewBox="0 0 24 24" enable-background="new 0 0 24 24" xml:space="preserve"><g id="view"><g><path d="M12,21c-5,0-8.8-2.8-11.8-8.5L0,12l0.2-0.5C3.2,5.8,7,3,12,3s8.8,2.8,11.8,8.5L24,12l-0.2,0.5C20.8,18.2,17,21,12,21z M2.3,12c2.5,4.7,5.7,7,9.7,7s7.2-2.3,9.7-7C19.2,7.3,16,5,12,5S4.8,7.3,2.3,12z"/></g><g><path d="M12,17c-2.8,0-5-2.2-5-5s2.2-5,5-5s5,2.2,5,5S14.8,17,12,17z M12,9c-1.7,0-3,1.3-3,3s1.3,3,3,3s3-1.3,3-3S13.7,9,12,9z"/></g></g></svg>',
     minus: '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" fill="currentColor" version="1.1" id="Capa_1" width="34px" height="34px" viewBox="0 0 33.668 33.668" xml:space="preserve"><g><path d="M33.668,16.834c0,1.934-1.566,3.5-3.5,3.5H3.5c-1.933,0-3.5-1.566-3.5-3.5c0-1.933,1.567-3.5,3.5-3.5h26.668 C32.102,13.334,33.668,14.9,33.668,16.834z"/></g></svg>',
-    plus: '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" fill="currentColor" version="1.1" id="Capa_1" width="34px" height="34px" viewBox="0 0 459.325 459.325" xml:space="preserve"><g><path d="M459.319,229.668c0,22.201-17.992,40.193-40.205,40.193H269.85v149.271c0,22.207-17.998,40.199-40.196,40.193 c-11.101,0-21.149-4.492-28.416-11.763c-7.276-7.281-11.774-17.324-11.769-28.419l-0.006-149.288H40.181 c-11.094,0-21.134-4.492-28.416-11.774c-7.264-7.264-11.759-17.312-11.759-28.413C0,207.471,17.992,189.475,40.202,189.475h149.267 V40.202C189.469,17.998,207.471,0,229.671,0c22.192,0.006,40.178,17.986,40.19,40.187v149.288h149.282 C441.339,189.487,459.308,207.471,459.319,229.668z"/></g></svg>'
+    plus: '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" fill="currentColor" version="1.1" id="Capa_1" width="34px" height="34px" viewBox="0 0 459.325 459.325" xml:space="preserve"><g><path d="M459.319,229.668c0,22.201-17.992,40.193-40.205,40.193H269.85v149.271c0,22.207-17.998,40.199-40.196,40.193 c-11.101,0-21.149-4.492-28.416-11.763c-7.276-7.281-11.774-17.324-11.769-28.419l-0.006-149.288H40.181 c-11.094,0-21.134-4.492-28.416-11.774c-7.264-7.264-11.759-17.312-11.759-28.413C0,207.471,17.992,189.475,40.202,189.475h149.267 V40.202C189.469,17.998,207.471,0,229.671,0c22.192,0.006,40.178,17.986,40.19,40.187v149.288h149.282 C441.339,189.487,459.308,207.471,459.319,229.668z"/></g></svg>',
+    close: '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" fill="currentColor" height="16px" width="16px" version="1.1" id="Layer_1" viewBox="0 0 512 512" xml:space="preserve"><g><path d="M256,0C114.6,0,0,114.6,0,256s114.6,256,256,256s256-114.6,256-256S397.4,0,256,0z M364.3,332.7c8.3,8.3,8.3,21.8,0,30.1 c-4.2,4.2-9.7,6.2-15.1,6.2c-5.4,0-10.9-2.1-15.1-6.2L256,286.1l-78.1,78.7c-4.2,4.2-9.7,6.2-15.1,6.2c-5.4,0-10.9-2.1-15.1-6.2 c-8.3-8.3-8.3-21.8,0-30.1L225.9,256l-78.1-78.7c-8.3-8.3-8.3-21.8,0-30.1c8.3-8.3,21.8-8.3,30.1,0L256,225.9l78.1-78.7 c8.3-8.3,21.8-8.3,30.1,0c8.3,8.3,8.3,21.8,0,30.1L286.1,256L364.3,332.7z"/></g></svg>'
   };
 
   // Excluded query parameter keys (not processed as filters)
@@ -541,20 +542,54 @@
       if (State.selectedCollection.id) {
         params.set('cpid', State.selectedCollection.id);
       }
-      Object.keys(filters).forEach(k => {
-        const v = filters[k];
-        if (!$.empty(v) && Array.isArray(v)) params.set(k, v.join(','));
-      });
 
-      // Add preserveFilters parameter if set
+      // Build filters for aggregation - exclude the filter in preserveFilters
+      // When calculating aggregations for a specific filter, that filter should be excluded
+      // from the query so we get all possible values based on other active filters
+      const filtersForAggregation = { ...filters };
+      let preserveFilterHandle = null;
+
       if (State.preserveFilters !== null && State.preserveFilters !== undefined) {
         if (State.preserveFilters === '__all__') {
+          // If '__all__', exclude all filters from aggregation query
+          Object.keys(filtersForAggregation).forEach(key => {
+            delete filtersForAggregation[key];
+          });
           params.set('preserveFilters', '__all__');
-        } else if (Array.isArray(State.preserveFilters) && State.preserveFilters.length > 0) {
-          params.set('preserveFilters', State.preserveFilters.join(','));
+          Log.debug('Preserve filters: __all__ - excluded all filters from aggregation query');
+        } else {
+          // preserveFilters will always have one value (single handle)
+          // Get the handle to exclude
+          if (Array.isArray(State.preserveFilters) && State.preserveFilters.length > 0) {
+            preserveFilterHandle = State.preserveFilters[0];
+          } else if (typeof State.preserveFilters === 'string') {
+            preserveFilterHandle = State.preserveFilters;
+          }
+
+          // Exclude the preserveFilter handle from the aggregation query
+          if (preserveFilterHandle && filtersForAggregation.hasOwnProperty(preserveFilterHandle)) {
+            delete filtersForAggregation[preserveFilterHandle];
+            Log.debug('Excluded preserveFilter from aggregation query', { 
+              excludedHandle: preserveFilterHandle,
+              remainingFilters: Object.keys(filtersForAggregation)
+            });
+          }
+
+          // Still send preserveFilters parameter to API
+          if (Array.isArray(State.preserveFilters) && State.preserveFilters.length > 0) {
+            params.set('preserveFilters', State.preserveFilters.join(','));
+          } else if (typeof State.preserveFilters === 'string') {
+            params.set('preserveFilters', State.preserveFilters);
+          }
         }
         Log.debug('Preserve filters sent to filters API', { preserveFilters: State.preserveFilters });
       }
+
+      // Send only the filters that should be included in aggregation query
+      Object.keys(filtersForAggregation).forEach(k => {
+        const v = filtersForAggregation[k];
+        if (!$.empty(v) && Array.isArray(v)) params.set(k, v.join(','));
+      });
 
       const url = `${this.baseURL}/storefront/filters?${params}`;
       Log.info('Fetching filters', { url, shop: State.shop });
@@ -829,6 +864,24 @@
         toggle.appendChild(icon);
         toggle.appendChild($.txt($.el('label', 'afs-filter-group__label', { 'for': 'afs-filter-group__label' }), filter.label || handle));
         header.appendChild(toggle);
+        
+        // Add clear button next to the label (only show if filter has active values)
+        const hasActiveValues = State.filters[handle] && (
+          Array.isArray(State.filters[handle]) ? State.filters[handle].length > 0 :
+          typeof State.filters[handle] === 'object' ? Object.keys(State.filters[handle]).length > 0 :
+          Boolean(State.filters[handle])
+        );
+        if (hasActiveValues) {
+          const clearBtn = $.el('button', 'afs-filter-group__clear', {
+            type: 'button',
+            'aria-label': `Clear ${filter.label || handle} filters`,
+            'data-afs-filter-handle': handle
+          });
+          clearBtn.innerHTML = Icons.close || '×';
+          clearBtn.title = `Clear ${filter.label || handle} filters`;
+          header.appendChild(clearBtn);
+        }
+        
         group.appendChild(header);
 
         // Content
@@ -968,6 +1021,21 @@
       toggle.appendChild(icon);
       toggle.appendChild($.txt($.el('label', 'afs-filter-group__label', { 'for': 'afs-filter-group__label' }), filter.label || 'Price'));
       header.appendChild(toggle);
+      
+      // Add clear button for price range (only show if price range is active and not at default)
+      const isPriceRangeActive = State.filters.priceRange && 
+        (State.filters.priceRange.min !== minRange || State.filters.priceRange.max !== maxRange);
+      if (isPriceRangeActive) {
+        const clearBtn = $.el('button', 'afs-filter-group__clear', {
+          type: 'button',
+          'aria-label': `Clear ${filter.label || 'Price'} filter`,
+          'data-afs-filter-handle': 'priceRange'
+        });
+        clearBtn.innerHTML = Icons.close || '×';
+        clearBtn.title = `Clear ${filter.label || 'Price'} filter`;
+        header.appendChild(clearBtn);
+      }
+      
       group.appendChild(header);
 
       // Content
@@ -2390,6 +2458,31 @@
             DOM.showLoading();
             // Only fetch products, not filters (filters haven't changed)
             Filters.applyProductsOnly();
+          }
+        }
+        else if (e.target.closest('.afs-filter-group__clear')) {
+          e.preventDefault();
+          e.stopPropagation();
+          const clearBtn = e.target.closest('.afs-filter-group__clear');
+          if (!clearBtn) return;
+          
+          const handle = clearBtn.getAttribute('data-afs-filter-handle');
+          if (!handle) return;
+          
+          // Remove the filter from State.filters
+          if (State.filters[handle]) {
+            delete State.filters[handle];
+            Log.debug('Filter cleared', { handle });
+            
+            // Update URL
+            UrlManager.update(State.filters, State.pagination, State.sort);
+            
+            // Scroll to top and show loading
+            DOM.scrollToProducts();
+            DOM.showLoading();
+            
+            // Apply filters to refresh products and filters
+            Filters.apply();
           }
         }
         else if (e.target.closest('.afs-filter-group__toggle')) {
