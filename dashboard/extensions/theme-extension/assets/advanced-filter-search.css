@@ -327,12 +327,13 @@
   justify-content: center;
   width: 20px;
   height: 20px;
+  border-radius: 50px;
   padding: 0;
   margin-left: auto;
-  background: transparent;
+  background: var(--afs-accent-color);
   border: none;
   cursor: pointer;
-  color: var(--afs-text-color);
+  color: var(--afs-text-color-inverse);
   opacity: 0.6;
   transition: opacity 0.2s ease, transform 0.2s ease;
   flex-shrink: 0;
@@ -341,7 +342,7 @@
 
 [data-afs-container] .afs-filter-group__clear:hover {
   opacity: 1;
-  transform: scale(1.25);
+  transform: scale(1.15);
 }
 
 [data-afs-container] .afs-filter-group__clear svg {
@@ -1913,12 +1914,12 @@ shopify-list-context[type="image"] {
 
 .afs-product-modal__option-values {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.8rem;
   flex-wrap: wrap;
 }
 
 .afs-product-modal__option-value {
-  padding: 0.5rem 1rem;
+  padding: 0.8rem 1.2rem;
   border: 1px solid var(--afs-accent-color);
   background: var(--afs-bg-color);
   color: var(--afs-text-color);
@@ -1932,6 +1933,7 @@ shopify-list-context[type="image"] {
 
 .afs-product-modal__option-value:hover:not(:disabled) {
   background: var(--afs-bg-secondary);
+  color: var(--afs-text-color);
 }
 
 .afs-product-modal__option-value--selected {

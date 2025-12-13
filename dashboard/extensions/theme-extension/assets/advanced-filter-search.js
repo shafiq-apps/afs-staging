@@ -2142,7 +2142,7 @@
     `;
 
     // Get locale-aware URL using Shopify routes
-    const routesRoot = (window.Shopify && window.Shopify.routes && window.Shopify.routes.root) || '';
+    const routesRoot = (window.Shopify && window.Shopify.routes && window.Shopify.routes.root) || '/';
     const productUrl = `${routesRoot}products/${handle}.js`;
 
     try {
@@ -2165,6 +2165,13 @@
 
       // Build variant selector HTML
       const buildVariantSelector = () => {
+        // Don't render variant selector if product has only one variant with "Default Title"
+        // This is Shopify's default single variant (not a real variant)
+        if (productData.variants.length === 1 && 
+            productData.variants[0].title === 'Default Title') {
+          return '';
+        }
+        
         if (!productData.options || productData.options.length === 0) return '';
         
         let html = '<div class="afs-product-modal__variant-selector">';
@@ -2205,7 +2212,7 @@
         return html;
       };
 
-      // Build images HTML using slider structure
+      // Build images HTML using slider structure with full optimization
       const buildImagesHTML = () => {
         if (!productData.images || productData.images.length === 0) {
           // Return empty structure if no images
@@ -2215,23 +2222,83 @@
           };
         }
         
-        // Build thumbnails
+        // Build thumbnails with optimized/cropped images and srcset
         let thumbnailsHTML = '<div class="afs-slider__thumbnails">';
         productData.images.forEach((image, index) => {
           const isActive = index === 0 ? 'afs-slider__thumbnail--active' : '';
+          
+          // Optimize thumbnail: small square cropped image
+          const thumbnailUrl = $.optimizeImageUrl(image, {
+            width: 100,
+            height: 100,
+            crop: 'center',
+            format: 'webp',
+            quality: 75
+          });
+          
+          // Build srcset for thumbnails (responsive sizes with crop)
+          const thumbnailSizes = [80, 100, 120];
+          const thumbnailSrcset = thumbnailSizes.map(size => {
+            const optimized = $.optimizeImageUrl(image, {
+              width: size,
+              height: size,
+              crop: 'center',
+              format: 'webp',
+              quality: 75
+            });
+            return `${optimized} ${size}w`;
+          }).join(', ');
+          
           thumbnailsHTML += `
             <div class="afs-slider__thumbnail ${isActive}" data-slide-index="${index}">
-              <img src="${image}" alt="${productData.title} - Thumbnail ${index + 1}" loading="lazy" />
+              <img 
+                src="${thumbnailUrl}" 
+                srcset="${thumbnailSrcset}"
+                sizes="100px"
+                alt="${productData.title} - Thumbnail ${index + 1}" 
+                loading="lazy"
+                width="100"
+                height="100"
+              />
             </div>
           `;
         });
         thumbnailsHTML += '</div>';
         
-        // Build main images
+        // Build main images with optimized full images (no cropping) and srcset
         let mainImagesHTML = '<div class="afs-slider__main">';
         productData.images.forEach((image, index) => {
+          // Optimize main image: larger size, no cropping, maintain aspect ratio
+          const mainImageUrl = $.optimizeImageUrl(image, {
+            width: 800,
+            height: 800, // Max height, will maintain aspect ratio
+            format: 'webp',
+            quality: 85
+            // No crop parameter = maintains aspect ratio
+          });
+          
+          // Build srcset for main images (responsive sizes for different screen sizes, no crop)
+          const mainImageSizes = [400, 600, 800, 1000, 1200];
+          const mainImageSrcset = mainImageSizes.map(size => {
+            const optimized = $.optimizeImageUrl(image, {
+              width: size,
+              height: size,
+              format: 'webp',
+              quality: size <= 600 ? 80 : 85
+              // No crop = maintains aspect ratio
+            });
+            return `${optimized} ${size}w`;
+          }).join(', ');
+          
           mainImagesHTML += `
-            <img class="afs-slider__image" src="${image}" alt="${productData.title} - Image ${index + 1}" loading="lazy" />
+            <img 
+              class="afs-slider__image" 
+              src="${mainImageUrl}" 
+              srcset="${mainImageSrcset}"
+              sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 600px"
+              alt="${productData.title} - Image ${index + 1}" 
+              loading="${index === 0 ? 'eager' : 'lazy'}"
+            />
           `;
         });
         mainImagesHTML += '</div>';
@@ -2296,7 +2363,7 @@
                       ${!currentVariant.available ? 'disabled' : ''}
                       type="button"
                     >
-                      ${priceHTML} · Add to cart
+                      Add to cart
                     </button>
                   </div>
                   <button
@@ -2332,6 +2399,9 @@
             thumbnailsPosition: 'left', // Can be 'top', 'left', 'right', 'bottom'
             enableZoom: true,
             enableClickToZoom: true, // Enable click to zoom
+            enableMagnifier: true, // Enable cursor-following magnifier
+            magnifierZoom: 3, // 2x zoom for magnifier
+            magnifierSize: 350, // 200px magnifier size
             enableKeyboard: true,
             enableAutoHeight: false, // Disable auto height to prevent shrinking
             maxHeight: 600 // Fixed max height in pixels
@@ -2496,10 +2566,9 @@
         const variantId = buyButton.dataset.variantId;
         
         try {
-          // Add to cart first
-          await QuickAdd.addVariant(parseInt(variantId), quantity);
+          const routesRoot = (window.Shopify && window.Shopify.routes && window.Shopify.routes.root) || '/';
           // Redirect to checkout
-          window.location.href = '/checkout';
+          window.location.href = `${routesRoot}cart/${variantId}:${quantity}?checkout`;
         } catch (error) {
           Log.error('Failed to buy now', { error: error.message });
           alert('Failed to proceed to checkout. Please try again.');
@@ -2531,8 +2600,7 @@
     if (addButton) {
       addButton.dataset.variantId = variant.id;
       addButton.disabled = !variant.available;
-      const priceHTML = formatPrice(variant.price);
-      addButton.innerHTML = `${priceHTML} · Add to cart`;
+      addButton.innerHTML = `Add to cart`;
     }
 
     // Update buy now button
