@@ -558,12 +558,20 @@
           params.set('keep', '__all__');
           Log.debug('Keep filters: __all__ - excluded all filters from aggregation query');
         } else {
-          // keep will always have one value (single handle)
-          // Get the handle to exclude
+          // keep can be an array of handles or a single string handle
+          // Get the handle to exclude (use first one if array)
           if (Array.isArray(State.keep) && State.keep.length > 0) {
             keepHandle = State.keep[0];
-          } else if (typeof State.keep === 'string') {
-            keepHandle = State.keep;
+            // Add keep parameter with all handles joined
+            params.set('keep', State.keep.join(','));
+            Log.debug('Keep parameter set (array)', { keep: State.keep.join(','), keepHandle });
+          } else if (typeof State.keep === 'string' && State.keep.trim()) {
+            keepHandle = State.keep.trim();
+            // Add keep parameter with the single handle
+            params.set('keep', keepHandle);
+            Log.debug('Keep parameter set (string)', { keep: keepHandle, keepHandle });
+          } else {
+            Log.warn('Keep has invalid value, not adding to params', { StateKeep: State.keep });
           }
 
           // Exclude the keep handle from the aggregation query
@@ -574,15 +582,10 @@
               remainingFilters: Object.keys(filtersForAggregation)
             });
           }
-
-          // Still send keep parameter to API
-          if (Array.isArray(State.keep) && State.keep.length > 0) {
-            params.set('keep', State.keep.join(','));
-          } else if (typeof State.keep === 'string') {
-            params.set('keep', State.keep);
-          }
         }
-        Log.debug('Keep filters sent to filters API', { keep: State.keep });
+        Log.debug('Keep filters sent to filters API', { keep: State.keep, params: params.toString() });
+      } else {
+        Log.debug('Keep filters not set, skipping keep parameter', { StateKeep: State.keep });
       }
 
       // Send only the filters that should be included in aggregation query
@@ -591,8 +594,20 @@
         if (!$.empty(v) && Array.isArray(v)) params.set(k, v.join(','));
       });
 
+      // Debug: Log all params before constructing URL
+      const allParams = {};
+      params.forEach((value, key) => {
+        allParams[key] = value;
+      });
+      Log.debug('All params for filters endpoint', { 
+        params: allParams, 
+        hasKeep: params.has('keep'),
+        keepValue: params.get('keep'),
+        StateKeep: State.keep
+      });
+
       const url = `${this.baseURL}/storefront/filters?${params}`;
-      Log.info('Fetching filters', { url, shop: State.shop });
+      Log.info('Fetching filters', { url, shop: State.shop, hasKeepParam: params.has('keep') });
 
       const res = await this.fetch(url);
       if (!res.success || !res.data) {
