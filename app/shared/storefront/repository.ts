@@ -238,243 +238,250 @@ export class StorefrontSearchRepository {
       vendors: sanitizedFilters?.vendors,
     });
 
-    const mustQueries: any[] = [];
-    const postFilterQueries: any[] = [];
+    /**
+     * Build base filter queries (common to all aggregations)
+     * These filters are always included in aggregation queries
+     */
+    const buildBaseMustQueries = (excludeFilterType?: string): any[] => {
+      const baseMustQueries: any[] = [];
 
-    /** Keep Filters Logic */
-    // keep now contains handles (e.g., "pr_a3k9x", "sd5d3s") instead of option names
-    const keep = new Set(
-      (sanitizedFilters?.keep || []).map((k) => k.toLowerCase())
-    );
-    const keepAll = keep.has('__all__');
-    
-    // Helper to check if a filter should be kept
-    // For standard filters, check by key directly
-    // For option filters, map option name back to handle and check
-    const shouldKeep = (key: string, isOptionFilter: boolean = false) => {
-      if (keepAll) return true;
-      
-      const lowerKey = key.toLowerCase();
-      
-      // For standard filters, check directly
-      if (!isOptionFilter) {
-        return keep.has(lowerKey);
+      /** Search */
+      if (sanitizedFilters?.search) {
+        baseMustQueries.push({
+          multi_match: {
+            query: sanitizedFilters.search,
+            fields: ['title^3', 'vendor^2', 'productType', 'tags'],
+            type: 'best_fields',
+            operator: 'and',
+          },
+        });
       }
-      
-      // For option filters, we need to map option name back to handle
-      // because keep contains handles, but key is the option name
-      if (filterConfig) {
-        const handle = mapOptionNameToHandle(filterConfig, key);
-        if (handle) {
-          return keep.has(handle.toLowerCase());
+
+      /** Simple terms filters - exclude the filter type being aggregated */
+      const simpleFilters: Record<string, { field: string; values?: any[] }> = {
+        vendors: { field: 'vendor.keyword', values: sanitizedFilters?.vendors },
+        productTypes: {
+          field: 'productType.keyword',
+          values: sanitizedFilters?.productTypes,
+        },
+        tags: { field: 'tags', values: sanitizedFilters?.tags },
+        collections: {
+          field: 'collections',
+          values: sanitizedFilters?.collections,
+        },
+      };
+
+      for (const key in simpleFilters) {
+        // Skip if this is the filter type being aggregated
+        if (excludeFilterType === key) continue;
+        
+        const { field, values } = simpleFilters[key];
+        if (hasValues(values)) {
+          baseMustQueries.push({ terms: { [field]: values! } });
         }
       }
-      
-      return false;
+
+      /** Variant Options - exclude the option being aggregated */
+      if (sanitizedFilters?.options) {
+        for (const [optionKey, values] of Object.entries(sanitizedFilters.options)) {
+          // Check if this option should be excluded
+          // excludeFilterType might be optionType (e.g., "Color"), but optionKey might be a handle
+          let shouldExclude = false;
+          if (excludeFilterType === optionKey) {
+            shouldExclude = true;
+          } else if (excludeFilterType && filterConfig) {
+            // Check if optionKey (handle) maps to excludeFilterType (optionType)
+            const option = filterConfig.options?.find(opt => opt.handle === optionKey);
+            if (option && option.optionType?.toLowerCase() === excludeFilterType.toLowerCase()) {
+              shouldExclude = true;
+            }
+          }
+          
+          if (shouldExclude) continue;
+          
+          if (!hasValues(values)) continue;
+
+          const encodedValues = (values as string[])
+            .filter((v) => v && typeof v === 'string')
+            .map((v) => `${optionKey}${PRODUCT_OPTION_PAIR_SEPARATOR}${v}`);
+
+          if (!encodedValues.length) continue;
+
+          baseMustQueries.push({
+            terms: { 'optionPairs': encodedValues },
+          });
+        }
+      }
+
+      /** Variant Option Keys */
+      if (hasValues(sanitizedFilters?.variantOptionKeys)) {
+        baseMustQueries.push({
+          terms: {
+            'variantOptionKeys.keyword': sanitizedFilters.variantOptionKeys!,
+          },
+        });
+      }
+
+      /** Product-level Price Range */
+      if (
+        sanitizedFilters?.priceMin !== undefined ||
+        sanitizedFilters?.priceMax !== undefined
+      ) {
+        const rangeMust: any[] = [];
+        if (sanitizedFilters.priceMin !== undefined) {
+          rangeMust.push({
+            range: { maxPrice: { gte: sanitizedFilters.priceMin } },
+          });
+        }
+        if (sanitizedFilters.priceMax !== undefined) {
+          rangeMust.push({
+            range: { minPrice: { lte: sanitizedFilters.priceMax } },
+          });
+        }
+        if (rangeMust.length > 0) {
+          baseMustQueries.push({ bool: { must: rangeMust } });
+        }
+      }
+
+      /** Variant Price Range */
+      if (
+        sanitizedFilters?.variantPriceMin !== undefined ||
+        sanitizedFilters?.variantPriceMax !== undefined
+      ) {
+        const range: any = {};
+        if (sanitizedFilters.variantPriceMin !== undefined)
+          range.gte = sanitizedFilters.variantPriceMin;
+        if (sanitizedFilters.variantPriceMax !== undefined)
+          range.lte = sanitizedFilters.variantPriceMax;
+
+        baseMustQueries.push({
+          nested: {
+            path: 'variants',
+            query: {
+              range: { 'variants.price.numeric': range },
+            },
+          },
+        });
+      }
+
+      /** Variant SKU Match */
+      if (hasValues(sanitizedFilters?.variantSkus)) {
+        baseMustQueries.push({
+          nested: {
+            path: 'variants',
+            query: {
+              terms: { 'variants.sku': sanitizedFilters.variantSkus! },
+            },
+          },
+        });
+      }
+
+      // Always include these filters
+      baseMustQueries.push({ term: { 'status': 'ACTIVE' } });
+      baseMustQueries.push({ term: { 'documentType': 'product' } });
+
+      return baseMustQueries;
+    };
+
+    /**
+     * Build post_filter for a specific filter type (to exclude it from aggregations)
+     */
+    const buildPostFilter = (filterType: string): any[] | undefined => {
+      const postFilterQueries: any[] = [];
+
+      // Handle standard filters
+      const simpleFilters: Record<string, { field: string; values?: any[] }> = {
+        vendors: { field: 'vendor.keyword', values: sanitizedFilters?.vendors },
+        productTypes: {
+          field: 'productType.keyword',
+          values: sanitizedFilters?.productTypes,
+        },
+        tags: { field: 'tags', values: sanitizedFilters?.tags },
+        collections: {
+          field: 'collections',
+          values: sanitizedFilters?.collections,
+        },
+      };
+
+      if (simpleFilters[filterType] && hasValues(simpleFilters[filterType].values)) {
+        const { field, values } = simpleFilters[filterType];
+        postFilterQueries.push({ terms: { [field]: values! } });
+      }
+
+      // Handle option filters - need to match by optionType
+      // filterType here is the optionType (e.g., "Color", "Size")
+      // but options in sanitizedFilters are keyed by option name (which might be handle or optionType)
+      if (sanitizedFilters?.options) {
+        for (const [optionKey, values] of Object.entries(sanitizedFilters.options)) {
+          // Check if this option matches the filterType (optionType)
+          // We need to check if optionKey (which might be a handle) maps to this optionType
+          let matches = false;
+          if (optionKey === filterType) {
+            matches = true;
+          } else if (filterConfig) {
+            // Try to find the option by handle and check if optionType matches
+            const option = filterConfig.options?.find(opt => opt.handle === optionKey);
+            if (option && option.optionType?.toLowerCase() === filterType.toLowerCase()) {
+              matches = true;
+            }
+          }
+
+          if (matches && hasValues(values)) {
+            const encodedValues = (values as string[])
+              .filter((v) => v && typeof v === 'string')
+              .map((v) => `${optionKey}${PRODUCT_OPTION_PAIR_SEPARATOR}${v}`);
+            if (encodedValues.length > 0) {
+              postFilterQueries.push({ terms: { 'optionPairs': encodedValues } });
+            }
+          }
+        }
+      }
+
+      return postFilterQueries.length > 0 ? postFilterQueries : undefined;
     };
 
     //
     // -----------------------
-    //   FILTER QUERIES
-    // -----------------------
-    //
-
-    /** Search */
-    if (sanitizedFilters?.search) {
-      mustQueries.push({
-        multi_match: {
-          query: sanitizedFilters.search,
-          fields: ['title^3', 'vendor^2', 'productType', 'tags'],
-          type: 'best_fields',
-          operator: 'and',
-        },
-      });
-    }
-
-    /** Simple terms filters with optional "preserve" routing */
-    const simpleFilters: Record<string, { field: string; values?: any[] }> = {
-      vendors: { field: 'vendor.keyword', values: sanitizedFilters?.vendors },
-      productTypes: {
-        field: 'productType.keyword',
-        values: sanitizedFilters?.productTypes,
-      },
-      tags: { field: 'tags', values: sanitizedFilters?.tags }, // Tags is an array field
-      collections: {
-        field: 'collections', // Collections is an array field, use directly (not .keyword)
-        values: sanitizedFilters?.collections,
-      },
-    };
-
-    for (const key in simpleFilters) {
-      const { field, values } = simpleFilters[key];
-      if (hasValues(values)) {
-        const clause = { terms: { [field]: values! } };
-        (shouldKeep(key) ? postFilterQueries : mustQueries).push(clause);
-      }
-    }
-
-    //
-    // Variant Options (optionPairs)
-    //
-    if (sanitizedFilters?.options) {
-      for (const [optionName, values] of Object.entries(
-        sanitizedFilters.options
-      )) {
-        if (!hasValues(values)) continue;
-
-        const encodedValues = (values as string[])
-          .filter((v) => v && typeof v === 'string')
-          .map(
-            (v) => `${optionName}${PRODUCT_OPTION_PAIR_SEPARATOR}${v}`
-          );
-
-        if (!encodedValues.length) continue;
-
-        // optionPairs is an array field (type: keyword), use directly (not .keyword)
-        // For array fields in ES, use the field name directly (like tags/collections)
-        const clause = {
-          terms: { 'optionPairs': encodedValues },
-        };
-
-        (shouldKeep(optionName, true) ? postFilterQueries : mustQueries).push(clause);
-      }
-    }
-
-    //
-    // Variant Option Keys
-    //
-    if (hasValues(sanitizedFilters?.variantOptionKeys)) {
-      mustQueries.push({
-        terms: {
-          'variantOptionKeys.keyword': sanitizedFilters.variantOptionKeys!,
-        },
-      });
-    }
-
-    //
-    // Product-level Price Range
-    //
-    if (
-      sanitizedFilters?.priceMin !== undefined ||
-      sanitizedFilters?.priceMax !== undefined
-    ) {
-      const rangeMust: any[] = [];
-
-      if (sanitizedFilters.priceMin !== undefined) {
-        rangeMust.push({
-          range: { maxPrice: { gte: sanitizedFilters.priceMin } },
-        });
-      }
-
-      if (sanitizedFilters.priceMax !== undefined) {
-        rangeMust.push({
-          range: { minPrice: { lte: sanitizedFilters.priceMax } },
-        });
-      }
-
-      mustQueries.push({ bool: { must: rangeMust } });
-    }
-
-    //
-    // Variant Price Range (nested)
-    //
-    if (
-      sanitizedFilters?.variantPriceMin !== undefined ||
-      sanitizedFilters?.variantPriceMax !== undefined
-    ) {
-      const range: any = {};
-      if (sanitizedFilters.variantPriceMin !== undefined)
-        range.gte = sanitizedFilters.variantPriceMin;
-      if (sanitizedFilters.variantPriceMax !== undefined)
-        range.lte = sanitizedFilters.variantPriceMax;
-
-      mustQueries.push({
-        nested: {
-          path: 'variants',
-          query: {
-            range: { 'variants.price.numeric': range },
-          },
-        },
-      });
-    }
-
-    //
-    // Variant SKU Match (nested)
-    //
-    if (hasValues(sanitizedFilters?.variantSkus)) {
-      mustQueries.push({
-        nested: {
-          path: 'variants',
-          query: {
-            terms: { 'variants.sku': sanitizedFilters.variantSkus! },
-          },
-        },
-      });
-    }
-
-    // Filter for ACTIVE products only
-    mustQueries.push({
-      term: { 'status': 'ACTIVE' },
-    });
-
-    // Filter for product documentType only
-    mustQueries.push({
-      term: { 'documentType': 'product' },
-    });
-
-    //
-    // Final Search Query
-    //
-    const query =
-      mustQueries.length > 0 ? { bool: { must: mustQueries } } : { match_all: {} };
-
-    //
-    // -----------------------
-    //   AGGREGATIONS
+    //   AGGREGATIONS (Auto-Exclude Approach)
     // -----------------------
     //
 
     const enabledAggregations = getEnabledAggregations(filterConfig, includeAllOptions);
-    const aggs: Record<string, any> = {};
+    const allAggregations: Record<string, any> = {};
 
-    const addTermsAgg = (name: string, field: string, sizeMult = 1) => {
-      aggs[name] = {
-        terms: {
-          field,
-          size: DEFAULT_BUCKET_SIZE * sizeMult,
-          order: { _count: 'desc' as const },
-        },
-      };
-    };
-
-    if (enabledAggregations.standard.has('vendors'))
-      addTermsAgg('vendors', 'vendor.keyword');
-
-    if (enabledAggregations.standard.has('productTypes'))
-      addTermsAgg('productTypes', 'productType.keyword');
-
-    if (enabledAggregations.standard.has('tags'))
-      addTermsAgg('tags', 'tags', 2); // Tags is an array field, use 'tags' not 'tags.keyword'
-
-    if (enabledAggregations.standard.has('collections'))
-      addTermsAgg('collections', 'collections', 2);
-
-    //
-    // Variant Option Aggregations
-    //
-    if (enabledAggregations.variantOptions.size > 0) {
-      for (const [aggName, optionType] of enabledAggregations.variantOptions) {
-        // optionPairs is a keyword array field, use directly (not .keyword)
-        aggs[aggName] = {
+    /**
+     * Build aggregation query for a specific filter type
+     * Excludes that filter type from must queries, includes it in post_filter
+     */
+    const buildAggregationQuery = (filterType: string, aggConfig: { name: string; field: string; sizeMult?: number; type?: 'terms' | 'stats' | 'option' }) => {
+      const mustQueries = buildBaseMustQueries(filterType);
+      const query = mustQueries.length > 0 ? { bool: { must: mustQueries } } : { match_all: {} };
+      const postFilterQueries = buildPostFilter(filterType);
+      
+      const aggs: Record<string, any> = {};
+      
+      if (aggConfig.type === 'terms') {
+        aggs[aggConfig.name] = {
+          terms: {
+            field: aggConfig.field,
+            size: DEFAULT_BUCKET_SIZE * (aggConfig.sizeMult || 1),
+            order: { _count: 'desc' as const },
+          },
+        };
+      } else if (aggConfig.type === 'stats') {
+        aggs[aggConfig.name] = { stats: { field: aggConfig.field } };
+      } else if (aggConfig.type === 'option') {
+        // Option aggregation with prefix filter
+        aggs[aggConfig.name] = {
           filter: {
             prefix: {
-              'optionPairs': `${optionType}${PRODUCT_OPTION_PAIR_SEPARATOR}`,
+              'optionPairs': `${aggConfig.field}${PRODUCT_OPTION_PAIR_SEPARATOR}`,
             },
           },
           aggs: {
             values: {
               terms: {
-                field: 'optionPairs', // Array field, use directly
+                field: 'optionPairs',
                 size: DEFAULT_BUCKET_SIZE * 2,
                 order: { _count: 'desc' as const },
               },
@@ -482,25 +489,101 @@ export class StorefrontSearchRepository {
           },
         };
       }
-    } else {
-      aggs.optionPairs = {
+
+      return {
+        index,
+        size: 0,
+        track_total_hits: false,
+        query,
+        post_filter: postFilterQueries ? { bool: { must: postFilterQueries } } : undefined,
+        aggs,
+      };
+    };
+
+    // Build queries for each aggregation type
+    const aggregationQueries: Array<{ filterType: string; query: any }> = [];
+
+    // Standard aggregations
+    if (enabledAggregations.standard.has('vendors')) {
+      aggregationQueries.push({
+        filterType: 'vendors',
+        query: buildAggregationQuery('vendors', { name: 'vendors', field: 'vendor.keyword', type: 'terms' }),
+      });
+    }
+
+    if (enabledAggregations.standard.has('productTypes')) {
+      aggregationQueries.push({
+        filterType: 'productTypes',
+        query: buildAggregationQuery('productTypes', { name: 'productTypes', field: 'productType.keyword', type: 'terms' }),
+      });
+    }
+
+    if (enabledAggregations.standard.has('tags')) {
+      aggregationQueries.push({
+        filterType: 'tags',
+        query: buildAggregationQuery('tags', { name: 'tags', field: 'tags', sizeMult: 2, type: 'terms' }),
+      });
+    }
+
+    if (enabledAggregations.standard.has('collections')) {
+      aggregationQueries.push({
+        filterType: 'collections',
+        query: buildAggregationQuery('collections', { name: 'collections', field: 'collections', sizeMult: 2, type: 'terms' }),
+      });
+    }
+
+    // Variant option aggregations
+    if (enabledAggregations.variantOptions.size > 0) {
+      for (const [aggName, optionType] of enabledAggregations.variantOptions) {
+        aggregationQueries.push({
+          filterType: optionType, // Use optionType as the filter type to exclude
+          query: buildAggregationQuery(optionType, { name: aggName, field: optionType, type: 'option' }),
+        });
+      }
+    } else if (!filterConfig || includeAllOptions) {
+      // Fallback: aggregate all optionPairs if no config
+      const mustQueries = buildBaseMustQueries();
+      const query = mustQueries.length > 0 ? { bool: { must: mustQueries } } : { match_all: {} };
+      allAggregations.optionPairs = {
         terms: {
-          field: 'optionPairs', // optionPairs is an array field, use directly (like tags/collections)
+          field: 'optionPairs',
           size: DEFAULT_BUCKET_SIZE * 5,
           order: { _count: 'desc' as const },
         },
       };
+      aggregationQueries.push({
+        filterType: 'optionPairs',
+        query: {
+          index,
+          size: 0,
+          track_total_hits: false,
+          query,
+          aggs: { optionPairs: allAggregations.optionPairs },
+        },
+      });
     }
 
-    //
-    // Price Range Stats Aggregations
-    //
+    // Price range aggregations (these don't need auto-exclude as they're stats)
     if (enabledAggregations.standard.has('priceRange')) {
-      aggs.priceRange = { stats: { field: 'minPrice' } };
+      const mustQueries = buildBaseMustQueries();
+      const query = mustQueries.length > 0 ? { bool: { must: mustQueries } } : { match_all: {} };
+      allAggregations.priceRange = { stats: { field: 'minPrice' } };
+      aggregationQueries.push({
+        filterType: 'priceRange',
+        query: {
+          index,
+          size: 0,
+          track_total_hits: false,
+          query,
+          aggs: { priceRange: allAggregations.priceRange },
+        },
+      });
     }
 
     if (enabledAggregations.standard.has('variantPriceRange')) {
-      aggs.variantPriceRange = {
+      const mustQueries = buildBaseMustQueries();
+      const query = mustQueries.length > 0 ? { bool: { must: mustQueries } } : { match_all: {} };
+      allAggregations.variantPriceRange = {
         nested: { path: 'variants' },
         aggs: {
           priceStats: {
@@ -508,41 +591,75 @@ export class StorefrontSearchRepository {
           },
         },
       };
+      aggregationQueries.push({
+        filterType: 'variantPriceRange',
+        query: {
+          index,
+          size: 0,
+          track_total_hits: false,
+          query,
+          aggs: { variantPriceRange: allAggregations.variantPriceRange },
+        },
+      });
     }
 
-    //
-    // Execute Query
-    //
-    logger.debug('Executing ES query', {
+    // Execute all aggregation queries in parallel using msearch
+    logger.debug('Executing aggregation queries with auto-exclude', {
       shop: shopDomain,
       index,
-      mustQueriesCount: mustQueries.length,
-      postFilterQueriesCount: postFilterQueries.length,
-      hasQuery: !!query,
-      aggregationsCount: Object.keys(aggs).length,
-      mustQueries: mustQueries.length > 0 ? JSON.stringify(mustQueries, null, 2) : 'none',
-      postFilterQueries: postFilterQueries.length > 0 ? JSON.stringify(postFilterQueries, null, 2) : 'none',
+      aggregationQueriesCount: aggregationQueries.length,
+      enabledAggregations: {
+        standard: Array.from(enabledAggregations.standard),
+        variantOptions: Array.from(enabledAggregations.variantOptions.keys()),
+      },
     });
 
-    const response = await this.esClient.search<unknown, FacetAggregations>({
-      index,
-      size: 0,
-      track_total_hits: false,
-      request_cache: true,
-      query,
-      post_filter:
-        postFilterQueries.length > 0
-          ? { bool: { must: postFilterQueries } }
-          : undefined,
-      aggs,
-    });
+    // Build msearch body (alternating header and body)
+    const msearchBody: any[] = [];
+    for (const { query } of aggregationQueries) {
+      // Header: index and request_cache (if supported)
+      const header: any = { index: query.index };
+      // Note: request_cache is not supported in msearch body, only in regular search
+      msearchBody.push(header);
+      
+      // Body: search request
+      const body: any = {
+        size: query.size,
+        track_total_hits: query.track_total_hits,
+        query: query.query,
+        aggs: query.aggs,
+      };
+      if (query.post_filter) {
+        body.post_filter = query.post_filter;
+      }
+      msearchBody.push(body);
+    }
 
-    logger.debug('ES query response', {
+    // Execute msearch
+    const msearchResponse = msearchBody.length > 0
+      ? await this.esClient.msearch<unknown, FacetAggregations>({ body: msearchBody })
+      : { responses: [] };
+
+    // Merge aggregation results
+    const mergedAggregations: Record<string, any> = {};
+    for (let i = 0; i < aggregationQueries.length; i++) {
+      const response = msearchResponse.responses[i];
+      if (response && !response.error && response.aggregations) {
+        Object.assign(mergedAggregations, response.aggregations);
+      }
+    }
+
+    logger.debug('Aggregation queries completed', {
       shop: shopDomain,
-      totalHits: response.hits.total,
-      aggregationsKeys: Object.keys(response.aggregations || {}),
-      optionPairsBuckets: (response.aggregations as any)?.optionPairs?.buckets?.length || 0,
+      mergedAggregationsKeys: Object.keys(mergedAggregations),
+      responsesCount: msearchResponse.responses.length,
     });
+
+    // Use merged aggregations for processing
+    const response = {
+      aggregations: mergedAggregations,
+      hits: { total: 0 },
+    } as any;
 
     //
     // Process Aggregations
