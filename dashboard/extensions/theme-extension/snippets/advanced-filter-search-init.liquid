@@ -3,14 +3,7 @@
 {% assign liquid_total_pages = 1 %}
 {% assign liquid_total_products = 0 %}
 
-<!-- Shopify Storefront Web Components -->
-<script type="module" src="https://cdn.shopify.com/storefront/web-components.js"></script>
-
-<!-- Shopify Store Component -->
-<shopify-store store-domain="{{ shop.permanent_domain }}" country="US" language="en"></shopify-store>
-
-<!-- Shopify Cart Component -->
-<shopify-cart id="cart"></shopify-cart>
+<!-- Web Components removed - using Ajax API instead -->
 
 <script>
   (function() {

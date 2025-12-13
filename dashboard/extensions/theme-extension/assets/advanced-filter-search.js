@@ -25,7 +25,7 @@
     eye: '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" fill="currentColor" height="34px" width="34px" version="1.1" id="Layer_1" viewBox="0 0 24 24" enable-background="new 0 0 24 24" xml:space="preserve"><g id="view"><g><path d="M12,21c-5,0-8.8-2.8-11.8-8.5L0,12l0.2-0.5C3.2,5.8,7,3,12,3s8.8,2.8,11.8,8.5L24,12l-0.2,0.5C20.8,18.2,17,21,12,21z M2.3,12c2.5,4.7,5.7,7,9.7,7s7.2-2.3,9.7-7C19.2,7.3,16,5,12,5S4.8,7.3,2.3,12z"/></g><g><path d="M12,17c-2.8,0-5-2.2-5-5s2.2-5,5-5s5,2.2,5,5S14.8,17,12,17z M12,9c-1.7,0-3,1.3-3,3s1.3,3,3,3s3-1.3,3-3S13.7,9,12,9z"/></g></g></svg>',
     minus: '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" fill="currentColor" version="1.1" id="Capa_1" width="34px" height="34px" viewBox="0 0 33.668 33.668" xml:space="preserve"><g><path d="M33.668,16.834c0,1.934-1.566,3.5-3.5,3.5H3.5c-1.933,0-3.5-1.566-3.5-3.5c0-1.933,1.567-3.5,3.5-3.5h26.668 C32.102,13.334,33.668,14.9,33.668,16.834z"/></g></svg>',
     plus: '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" fill="currentColor" version="1.1" id="Capa_1" width="34px" height="34px" viewBox="0 0 459.325 459.325" xml:space="preserve"><g><path d="M459.319,229.668c0,22.201-17.992,40.193-40.205,40.193H269.85v149.271c0,22.207-17.998,40.199-40.196,40.193 c-11.101,0-21.149-4.492-28.416-11.763c-7.276-7.281-11.774-17.324-11.769-28.419l-0.006-149.288H40.181 c-11.094,0-21.134-4.492-28.416-11.774c-7.264-7.264-11.759-17.312-11.759-28.413C0,207.471,17.992,189.475,40.202,189.475h149.267 V40.202C189.469,17.998,207.471,0,229.671,0c22.192,0.006,40.178,17.986,40.19,40.187v149.288h149.282 C441.339,189.487,459.308,207.471,459.319,229.668z"/></g></svg>',
-    close: '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" fill="currentColor" height="16px" width="16px" version="1.1" id="Layer_1" viewBox="0 0 512 512" xml:space="preserve"><g><path d="M256,0C114.6,0,0,114.6,0,256s114.6,256,256,256s256-114.6,256-256S397.4,0,256,0z M364.3,332.7c8.3,8.3,8.3,21.8,0,30.1 c-4.2,4.2-9.7,6.2-15.1,6.2c-5.4,0-10.9-2.1-15.1-6.2L256,286.1l-78.1,78.7c-4.2,4.2-9.7,6.2-15.1,6.2c-5.4,0-10.9-2.1-15.1-6.2 c-8.3-8.3-8.3-21.8,0-30.1L225.9,256l-78.1-78.7c-8.3-8.3-8.3-21.8,0-30.1c8.3-8.3,21.8-8.3,30.1,0L256,225.9l78.1-78.7 c8.3-8.3,21.8-8.3,30.1,0c8.3,8.3,8.3,21.8,0,30.1L286.1,256L364.3,332.7z"/></g></svg>'
+    close: '<svg xmlns="http://www.w3.org/2000/svg" width="34px" height="34px" viewBox="0 0 24 24" fill="currentColor"><path d="M19 5L4.99998 19M5.00001 5L19 19" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>'
   };
 
   // Excluded query parameter keys (not processed as filters)
@@ -2121,107 +2121,230 @@
     }, C.DEBOUNCE)
   };
 
-  // Create Shopify Web Component Modal
-  function createShopifyWebComponentModal(handle, modalId) {
+  // Create Product Modal using Ajax API
+  async function createProductModal(handle, modalId) {
     const dialog = $.el('dialog', 'afs-product-modal', { 'id': modalId });
-
+    
+    // Show loading state
     dialog.innerHTML = `
-      <shopify-context id="${modalId}-context" type="product" handle="${handle}" wait-for-update>
-        <template>
-          <div class="afs-product-modal__container">
-            <div class="afs-product-modal__close-container">
-              <button class="afs-product-modal__close" onclick="getElementById('${modalId}').close();" type="button">&#10005;</button>
+      <div class="afs-product-modal__container">
+        <div class="afs-product-modal__close-container">
+          <button class="afs-product-modal__close" type="button">${Icons.close}</button>
+        </div>
+        <div class="afs-product-modal__content">
+          <div class="afs-product-modal__loading" style="padding: 2rem; text-align: center;">
+            Loading product...
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Get locale-aware URL using Shopify routes
+    const routesRoot = (window.Shopify && window.Shopify.routes && window.Shopify.routes.root) || '';
+    const productUrl = `${routesRoot}products/${handle}.js`;
+
+    try {
+      // Fetch product data using Ajax API
+      const response = await fetch(productUrl);
+      if (!response.ok) {
+        throw new Error('Failed to load product');
+      }
+      const productData = await response.json();
+      
+      // Ajax API returns product directly (not wrapped in {product: ...})
+      // Verify it has the expected structure
+      if (!productData.variants || !Array.isArray(productData.variants)) {
+        throw new Error('Invalid product data structure');
+      }
+
+      // Find first available variant or first variant
+      const selectedVariant = productData.variants.find(v => v.available) || productData.variants[0];
+      let currentVariantId = selectedVariant ? selectedVariant.id : null;
+
+      // Build variant selector HTML
+      const buildVariantSelector = () => {
+        if (!productData.options || productData.options.length === 0) return '';
+        
+        let html = '<div class="afs-product-modal__variant-selector">';
+        productData.options.forEach((option, optionIndex) => {
+          html += `<div class="afs-product-modal__option-group">`;
+          html += `<label class="afs-product-modal__option-label">${option.name}</label>`;
+          html += `<div class="afs-product-modal__option-values">`;
+          
+          // Get unique values for this option
+          const uniqueValues = [...new Set(productData.variants.map(v => {
+            if (optionIndex === 0) return v.option1;
+            if (optionIndex === 1) return v.option2;
+            return v.option3;
+          }).filter(Boolean))];
+          
+          uniqueValues.forEach(value => {
+            const variant = productData.variants.find(v => {
+              if (optionIndex === 0) return v.option1 === value;
+              if (optionIndex === 1) return v.option2 === value;
+              return v.option3 === value;
+            });
+            const isAvailable = variant && variant.available;
+            const isSelected = variant && variant.id === currentVariantId;
+            
+            html += `<button 
+              class="afs-product-modal__option-value ${isSelected ? 'afs-product-modal__option-value--selected' : ''} ${!isAvailable ? 'afs-product-modal__option-value--unavailable' : ''}"
+              data-option-index="${optionIndex}"
+              data-option-value="${value}"
+              data-variant-id="${variant ? variant.id : ''}"
+              ${!isAvailable ? 'disabled' : ''}
+              type="button"
+            >${value}</button>`;
+          });
+          
+          html += `</div></div>`;
+        });
+        html += '</div>';
+        return html;
+      };
+
+      // Build images HTML
+      const buildImagesHTML = () => {
+        if (!productData.images || productData.images.length === 0) return '';
+        
+        let thumbnailsHTML = '<div class="afs-product-modal__images">';
+        let mainImagesHTML = '<div class="afs-product-modal__image-grid" id="' + modalId + '-image-grid">';
+        
+        productData.images.forEach((image, index) => {
+          const isActive = index === 0 ? 'afs-product-modal__image--active' : '';
+          thumbnailsHTML += `
+            <div class="afs-product-modal__image ${isActive}" data-image-index="${index}">
+              <img class="afs-product-modal__image-small" src="${image}" alt="${productData.title}" loading="lazy" />
             </div>
-              <div class="afs-product-modal__content">
-                <div class="afs-product-modal__layout">
-                <div class="afs-product-modal__media">
-                  <div class="afs-product-modal__images">
-                    <shopify-list-context
-                      type="image"
-                      onclick="updateSlider(event)"
-                      query="product.selectedOrFirstAvailableVariant.product.images"
-                      first="50"
-                    >
-                      <template>
-                        <div class="afs-product-modal__image">
-                          <shopify-media class="afs-product-modal__image-small" width="130" height="130" query="image"></shopify-media>
-                        </div>
-                      </template>
-                    </shopify-list-context>
+          `;
+          
+          const displayStyle = index === 0 ? 'flex' : 'none';
+          mainImagesHTML += `
+            <img class="afs-product-modal__main-image-item" src="${image}" alt="${productData.title}" style="display: ${displayStyle};" loading="lazy" />
+          `;
+        });
+        
+        thumbnailsHTML += '</div>';
+        mainImagesHTML += '</div>';
+        
+        return {
+          thumbnails: thumbnailsHTML,
+          mainImages: mainImagesHTML
+        };
+      };
+
+      const imagesHTML = buildImagesHTML();
+      const variantSelectorHTML = buildVariantSelector();
+      
+      // Format price
+      const formatPrice = (price) => {
+        return $.formatMoney(price, State.moneyFormat || '{{amount}}', State.currency || '');
+      };
+
+      const currentVariant = productData.variants.find(v => v.id === currentVariantId) || selectedVariant;
+      const priceHTML = formatPrice(currentVariant.price);
+      const comparePriceHTML = currentVariant.compare_at_price && currentVariant.compare_at_price > currentVariant.price 
+        ? `<span class="afs-product-modal__compare-price">${formatPrice(currentVariant.compare_at_price)}</span>` 
+        : '';
+
+      // Build full modal HTML
+      dialog.innerHTML = `
+        <div class="afs-product-modal__container">
+          <div class="afs-product-modal__close-container">
+            <button class="afs-product-modal__close" type="button">${Icons.close}</button>
+          </div>
+          <div class="afs-product-modal__content">
+            <div class="afs-product-modal__layout">
+              <div class="afs-product-modal__media">
+                ${imagesHTML.thumbnails}
+                <div class="afs-product-modal__image-slider">
+                  ${imagesHTML.mainImages}
+                </div>
+              </div>
+              <div class="afs-product-modal__details">
+                <div class="afs-product-modal__header">
+                  <div>
+                    <span class="afs-product-modal__vendor">${productData.vendor || ''}</span>
                   </div>
-                  <div class="afs-product-modal__image-slider">
-                    <div class="afs-product-modal__image-grid" id="${modalId}-image-grid">
-                      <shopify-list-context type="image" query="product.selectedOrFirstAvailableVariant.product.images" first="50">
-                        <template>
-                          <shopify-media class="afs-product-modal__main-image-item" layout="fixed" width="420" height="420" query="image"></shopify-media>
-                        </template>
-                      </shopify-list-context>
-                    </div>
+                  <h1 class="afs-product-modal__title">${productData.title || ''}</h1>
+                  <div class="afs-product-modal__price-container">
+                    <span class="afs-product-modal__price">${priceHTML}</span>
+                    ${comparePriceHTML}
                   </div>
                 </div>
-                <div class="afs-product-modal__details">
-                  <div class="afs-product-modal__header">
-                    <div>
-                      <span class="afs-product-modal__vendor">
-                        <shopify-data query="product.vendor"></shopify-data>
-                      </span>
-                    </div>
-                    <h1 class="afs-product-modal__title">
-                      <shopify-data query="product.title"></shopify-data>
-                    </h1>
-                    <div class="afs-product-modal__price-container">
-                      <shopify-money query="product.selectedOrFirstAvailableVariant.price"></shopify-money>
-                      <shopify-money class="afs-product-modal__compare-price" query="product.selectedOrFirstAvailableVariant.compareAtPrice"></shopify-money>
-                    </div>
-                  </div>
-                  <shopify-variant-selector></shopify-variant-selector>
-                  <div class="afs-product-modal__buttons">
-                    <div class="afs-product-modal__add-to-cart">
-                      <div class="afs-product-modal__incrementor">
-                        <button class="afs-product-modal__decrease" onclick="decreaseModalValue('${modalId}');">${Icons.minus}</button>
-                        <span class="afs-product-modal__count" id="${modalId}-count">1</span>
-                        <button class="afs-product-modal__increase" onclick="increaseModalValue('${modalId}');">${Icons.plus}</button>
-                      </div>
-                      <button
-                        class="afs-product-modal__add-button"
-                        onclick="addModalToCart('${modalId}');"
-                        shopify-attr--disabled="!product.selectedOrFirstAvailableVariant.availableForSale"
-                        type="button"
-                      >
-                        <shopify-money query="product.selectedOrFirstAvailableVariant.price"></shopify-money>
-                        · Add to cart
-                      </button>
+                ${variantSelectorHTML}
+                <div class="afs-product-modal__buttons">
+                  <div class="afs-product-modal__add-to-cart">
+                    <div class="afs-product-modal__incrementor">
+                      <button class="afs-product-modal__decrease" type="button">${Icons.minus}</button>
+                      <span class="afs-product-modal__count" id="${modalId}-count">1</span>
+                      <button class="afs-product-modal__increase" type="button">${Icons.plus}</button>
                     </div>
                     <button
-                      class="afs-product-modal__buy-button"
-                      onclick="document.querySelector('shopify-store').buyNow(event)"
-                      shopify-attr--disabled="!product.selectedOrFirstAvailableVariant.availableForSale"
+                      class="afs-product-modal__add-button"
+                      id="${modalId}-add-button"
+                      data-variant-id="${currentVariantId}"
+                      ${!currentVariant.available ? 'disabled' : ''}
                       type="button"
                     >
-                      Buy it now
+                      ${priceHTML} · Add to cart
                     </button>
                   </div>
-                  <div class="afs-product-modal__description">
-                    <span class="afs-product-modal__description-text">
-                      <shopify-data query="product.descriptionHtml"></shopify-data>
-                    </span>
-                  </div>
+                  <button
+                    class="afs-product-modal__buy-button"
+                    id="${modalId}-buy-button"
+                    data-variant-id="${currentVariantId}"
+                    ${!currentVariant.available ? 'disabled' : ''}
+                    type="button"
+                  >
+                    Buy it now
+                  </button>
+                </div>
+                <div class="afs-product-modal__description">
+                  <span class="afs-product-modal__description-text">
+                    ${productData.description || ''}
+                  </span>
                 </div>
               </div>
             </div>
           </div>
-        </template>
-      </shopify-context>
-    `;
+        </div>
+      `;
 
-    // Close button handler
+      // Store product data on dialog element
+      dialog._productData = productData;
+      dialog._currentVariantId = currentVariantId;
+
+      // Setup event handlers
+      setupModalHandlers(dialog, modalId, productData, formatPrice);
+
+    } catch (error) {
+      Log.error('Failed to load product for modal', { error: error.message, handle });
+      dialog.innerHTML = `
+        <div class="afs-product-modal__container">
+          <div class="afs-product-modal__close-container">
+            <button class="afs-product-modal__close" type="button">${Icons.close}</button>
+          </div>
+          <div class="afs-product-modal__content">
+            <div style="padding: 2rem; text-align: center;">
+              <p>Failed to load product. Please try again.</p>
+            </div>
+          </div>
+        </div>
+      `;
+      setupCloseHandler(dialog);
+    }
+
+    return dialog;
+  }
+
+  // Setup modal event handlers
+  function setupModalHandlers(dialog, modalId, product, formatPrice) {
     const closeBtn = dialog.querySelector('.afs-product-modal__close');
-
+    
     const closeModal = () => {
-      // Restore body scroll immediately
       document.body.style.overflow = '';
       document.body.style.removeProperty('overflow');
-
       if (dialog.close) {
         dialog.close();
       } else {
@@ -2229,40 +2352,7 @@
       }
     };
 
-    // Also listen for the dialog's close event to ensure overflow is restored
-    dialog.addEventListener('close', () => {
-      document.body.style.overflow = '';
-      document.body.style.removeProperty('overflow');
-    });
-
-    // Initialize image slider when modal is shown
-    const initializeSlider = () => {
-      // Initialize immediately and also after delays to catch late-loading images
-      initImageSlider(dialog);
-      setTimeout(() => {
-        initImageSlider(dialog);
-      }, 100);
-      setTimeout(() => {
-        initImageSlider(dialog);
-      }, 300);
-      setTimeout(() => {
-        initImageSlider(dialog);
-      }, 600);
-      setTimeout(() => {
-        initImageSlider(dialog);
-      }, 1000);
-    };
-
-    dialog.addEventListener('show', initializeSlider);
-
-    // Also initialize if modal is already open
-    if (dialog.open) {
-      initializeSlider();
-    }
-
-    // Also initialize when dialog is added to DOM
-    setTimeout(initializeSlider, 100);
-
+    // Close button
     if (closeBtn) {
       closeBtn.addEventListener('click', (e) => {
         e.preventDefault();
@@ -2271,7 +2361,7 @@
       });
     }
 
-    // Handle ESC key and backdrop click
+    // ESC key and backdrop click
     dialog.addEventListener('cancel', (e) => {
       e.preventDefault();
       closeModal();
@@ -2283,163 +2373,211 @@
       }
     });
 
-    return dialog;
-  }
-  
-  // Quantity management functions for modal (based on example code)
-  if (typeof window.decreaseModalValue === 'undefined') {
-    window.decreaseModalValue = function(modalId) {
-      const countDisplay = document.getElementById(`${modalId}-count`);
-      if (!countDisplay) return;
-      const currentCount = parseInt(countDisplay.textContent, 10) || 1;
-      if (currentCount > 1) {
-        countDisplay.textContent = currentCount - 1;
-      }
-    };
-  }
-  
-  if (typeof window.increaseModalValue === 'undefined') {
-    window.increaseModalValue = function(modalId) {
-      const countDisplay = document.getElementById(`${modalId}-count`);
-      if (!countDisplay) return;
-      const currentCount = parseInt(countDisplay.textContent, 10) || 1;
-      countDisplay.textContent = currentCount + 1;
-    };
-  }
-  
-  if (typeof window.addModalToCart === 'undefined') {
-    window.addModalToCart = function(modalId) {
-      const countDisplay = document.getElementById(`${modalId}-count`);
-      const count = countDisplay ? parseInt(countDisplay.textContent, 10) || 1 : 1;
-      const cart = document.getElementById('cart');
-      const modal = document.getElementById(modalId);
-      
-      if (!cart) {
-        console.error('Cart element not found');
-        return;
-      }
-      
-      // Add items to cart based on quantity (like example code)
-      for (let i = 0; i < count; i++) {
-        cart.addLine(event);
-      }
-      
-      // Show cart modal and close product modal
-      cart.showModal();
-      if (modal && modal.close) {
-        modal.close();
-      }
-    };
-  }
-  
-  // Global updateSlider function for Shopify web components
-  // Based on example code - finds index dynamically instead of using Liquid template variables
-  if (typeof window.updateSlider === 'undefined') {
-    window.updateSlider = function (event) {
-      event.preventDefault();
-      event.stopPropagation();
+    // Quantity controls
+    const decreaseBtn = dialog.querySelector('.afs-product-modal__decrease');
+    const increaseBtn = dialog.querySelector('.afs-product-modal__increase');
+    const countDisplay = dialog.querySelector(`#${modalId}-count`);
 
-      const clickedThumbnail = event.target.closest('.afs-product-modal__image');
-      if (!clickedThumbnail) return;
-
-      const mediaContainer = clickedThumbnail.closest('.afs-product-modal__media');
-      if (!mediaContainer) return;
-
-      const imageGrid = mediaContainer.querySelector('.afs-product-modal__image-grid');
-      if (!imageGrid) return;
-
-      // Get all thumbnail images (like example code approach)
-      const thumbnailImages = mediaContainer.querySelectorAll('.afs-product-modal__image-small img');
-      if (thumbnailImages.length === 0) return;
-
-      // Get the clicked thumbnail image
-      const clickedThumbnailImg = clickedThumbnail.querySelector('.afs-product-modal__image-small img');
-      if (!clickedThumbnailImg) return;
-
-      // Find index by comparing with all thumbnails (like example code: Array.from(images).indexOf(selectedImage))
-      const foundIndex = Array.from(thumbnailImages).indexOf(clickedThumbnailImg);
-      if (foundIndex === -1) return;
-
-      // Get all main images
-      const mainImages = imageGrid.querySelectorAll('.afs-product-modal__main-image-item');
-      if (mainImages.length === 0) return;
-
-      // Hide all main images
-      mainImages.forEach((img) => {
-        img.style.setProperty('display', 'none', 'important');
-      });
-
-      // Show the selected image
-      if (foundIndex >= 0 && mainImages[foundIndex]) {
-        mainImages[foundIndex].style.setProperty('display', 'flex', 'important');
-      } else if (mainImages[0]) {
-        // Fallback to first image
-        mainImages[0].style.setProperty('display', 'flex', 'important');
-      }
-
-      // Update active thumbnail (remove active from all, add to clicked - like example code)
-      const thumbnails = mediaContainer.querySelectorAll('.afs-product-modal__image');
-      thumbnails.forEach((thumb) => {
-        thumb.classList.remove('afs-product-modal__image--active');
-      });
-      clickedThumbnail.classList.add('afs-product-modal__image--active');
-    };
-  }
-
-  // Initialize image slider when modal opens
-  function initImageSlider(modal) {
-    const imageGrid = modal.querySelector('.afs-product-modal__image-grid');
-    if (!imageGrid) return;
-
-    // Wait for images to load using MutationObserver (like reference code)
-    function waitForElement(selector, callback) {
-      const elements = imageGrid.querySelectorAll(selector);
-      if (elements.length > 0) {
-        callback(elements);
-        return;
-      }
-
-      const observer = new MutationObserver((mutations, obs) => {
-        const foundElements = imageGrid.querySelectorAll(selector);
-        if (foundElements.length > 0) {
-          obs.disconnect();
-          callback(foundElements);
+    if (decreaseBtn && countDisplay) {
+      decreaseBtn.addEventListener('click', () => {
+        const currentCount = parseInt(countDisplay.textContent, 10) || 1;
+        if (currentCount > 1) {
+          countDisplay.textContent = currentCount - 1;
         }
       });
-
-      observer.observe(imageGrid, {
-        childList: true,
-        subtree: true
-      });
-
-      // Timeout after 5 seconds
-      setTimeout(() => {
-        observer.disconnect();
-        const foundElements = imageGrid.querySelectorAll(selector);
-        if (foundElements.length > 0) {
-          callback(foundElements);
-        }
-      }, 5000);
     }
 
-    waitForElement('.afs-product-modal__main-image-item', (mainImages) => {
-      // Show first image and hide all others
-      mainImages.forEach((img, index) => {
-        if (index === 0) {
-          img.style.setProperty('display', 'flex', 'important');
-        } else {
-          img.style.setProperty('display', 'none', 'important');
-        }
+    if (increaseBtn && countDisplay) {
+      increaseBtn.addEventListener('click', () => {
+        const currentCount = parseInt(countDisplay.textContent, 10) || 1;
+        countDisplay.textContent = currentCount + 1;
       });
+    }
 
-      // Set active state on first thumbnail
-      waitForElement('.afs-product-modal__image', (thumbnails) => {
-        thumbnails.forEach((thumb, i) => {
-          thumb.classList.toggle('afs-product-modal__image--active', i === 0);
+    // Image slider
+    const thumbnailImages = dialog.querySelectorAll('.afs-product-modal__image');
+    const mainImages = dialog.querySelectorAll('.afs-product-modal__main-image-item');
+
+    thumbnailImages.forEach((thumb, index) => {
+      thumb.addEventListener('click', () => {
+        // Update active thumbnail
+        thumbnailImages.forEach(t => t.classList.remove('afs-product-modal__image--active'));
+        thumb.classList.add('afs-product-modal__image--active');
+
+        // Update main image
+        mainImages.forEach((img, i) => {
+          img.style.display = i === index ? 'flex' : 'none';
         });
       });
     });
+
+    // Variant selector
+    const variantButtons = dialog.querySelectorAll('.afs-product-modal__option-value');
+    variantButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (btn.disabled) return;
+
+        // Get selected values for all options
+        const selectedValues = [];
+        product.options.forEach((option, optionIndex) => {
+          const selectedBtn = dialog.querySelector(
+            `.afs-product-modal__option-value[data-option-index="${optionIndex}"].afs-product-modal__option-value--selected`
+          );
+          if (selectedBtn) {
+            selectedValues[optionIndex] = selectedBtn.dataset.optionValue;
+          }
+        });
+
+        // Update clicked option
+        const optionIndex = parseInt(btn.dataset.optionIndex);
+        selectedValues[optionIndex] = btn.dataset.optionValue;
+
+        // Remove selected from all options in this group
+        dialog.querySelectorAll(`.afs-product-modal__option-value[data-option-index="${optionIndex}"]`).forEach(b => {
+          b.classList.remove('afs-product-modal__option-value--selected');
+        });
+        btn.classList.add('afs-product-modal__option-value--selected');
+
+        // Find matching variant
+        const matchingVariant = product.variants.find(v => {
+          return product.options.every((option, idx) => {
+            if (idx === 0) return v.option1 === selectedValues[idx];
+            if (idx === 1) return v.option2 === selectedValues[idx];
+            return v.option3 === selectedValues[idx];
+          });
+        });
+
+        if (matchingVariant) {
+          updateVariantInModal(dialog, modalId, matchingVariant, formatPrice);
+        }
+      });
+    });
+
+    // Add to cart button
+    const addButton = dialog.querySelector(`#${modalId}-add-button`);
+    if (addButton) {
+      addButton.addEventListener('click', async () => {
+        if (addButton.disabled) return;
+        const quantity = parseInt(countDisplay.textContent, 10) || 1;
+        const variantId = addButton.dataset.variantId;
+        
+        try {
+          await QuickAdd.addVariant(parseInt(variantId), quantity);
+          closeModal();
+        } catch (error) {
+          Log.error('Failed to add to cart from modal', { error: error.message });
+          alert('Failed to add product to cart. Please try again.');
+        }
+      });
+    }
+
+    // Buy now button
+    const buyButton = dialog.querySelector(`#${modalId}-buy-button`);
+    if (buyButton) {
+      buyButton.addEventListener('click', async () => {
+        if (buyButton.disabled) return;
+        const quantity = parseInt(countDisplay.textContent, 10) || 1;
+        const variantId = buyButton.dataset.variantId;
+        
+        try {
+          // Add to cart first
+          await QuickAdd.addVariant(parseInt(variantId), quantity);
+          // Redirect to checkout
+          window.location.href = '/checkout';
+        } catch (error) {
+          Log.error('Failed to buy now', { error: error.message });
+          alert('Failed to proceed to checkout. Please try again.');
+        }
+      });
+    }
   }
+
+  // Update variant in modal (price, images, availability)
+  function updateVariantInModal(dialog, modalId, variant, formatPrice) {
+    // Update variant ID
+    dialog._currentVariantId = variant.id;
+
+    // Update price
+    const priceContainer = dialog.querySelector('.afs-product-modal__price-container');
+    if (priceContainer) {
+      const priceHTML = formatPrice(variant.price);
+      const comparePriceHTML = variant.compare_at_price && variant.compare_at_price > variant.price 
+        ? `<span class="afs-product-modal__compare-price">${formatPrice(variant.compare_at_price)}</span>` 
+        : '';
+      priceContainer.innerHTML = `
+        <span class="afs-product-modal__price">${priceHTML}</span>
+        ${comparePriceHTML}
+      `;
+    }
+
+    // Update add to cart button
+    const addButton = dialog.querySelector(`#${modalId}-add-button`);
+    if (addButton) {
+      addButton.dataset.variantId = variant.id;
+      addButton.disabled = !variant.available;
+      const priceHTML = formatPrice(variant.price);
+      addButton.innerHTML = `${priceHTML} · Add to cart`;
+    }
+
+    // Update buy now button
+    const buyButton = dialog.querySelector(`#${modalId}-buy-button`);
+    if (buyButton) {
+      buyButton.dataset.variantId = variant.id;
+      buyButton.disabled = !variant.available;
+    }
+
+    // Update images if variant has specific image
+    // Find variant image index
+    const product = dialog._productData;
+    if (product.images && variant.featured_image) {
+      // featured_image might be a full URL, try to match by comparing URLs
+      const variantImageIndex = product.images.findIndex(img => {
+        // Compare image URLs (handle both full URLs and relative paths)
+        const imgUrl = img.replace(/^\/\//, 'https://').split('?')[0];
+        const variantImgUrl = variant.featured_image.replace(/^\/\//, 'https://').split('?')[0];
+        return imgUrl === variantImgUrl || img === variant.featured_image;
+      });
+      
+      if (variantImageIndex !== -1) {
+        const thumbnailImages = dialog.querySelectorAll('.afs-product-modal__image');
+        const mainImages = dialog.querySelectorAll('.afs-product-modal__main-image-item');
+        
+        // Update thumbnails
+        thumbnailImages.forEach((thumb, index) => {
+          thumb.classList.toggle('afs-product-modal__image--active', index === variantImageIndex);
+        });
+
+        // Update main images
+        mainImages.forEach((img, index) => {
+          img.style.display = index === variantImageIndex ? 'flex' : 'none';
+        });
+      }
+    }
+  }
+
+  // Setup close handler only
+  function setupCloseHandler(dialog) {
+    const closeBtn = dialog.querySelector('.afs-product-modal__close');
+    const closeModal = () => {
+      document.body.style.overflow = '';
+      document.body.style.removeProperty('overflow');
+      if (dialog.close) {
+        dialog.close();
+      } else {
+        dialog.style.display = 'none';
+      }
+    };
+
+    if (closeBtn) {
+      closeBtn.addEventListener('click', closeModal);
+    }
+    dialog.addEventListener('cancel', closeModal);
+    dialog.addEventListener('click', (e) => {
+      if (e.target === dialog) closeModal();
+    });
+  }
+  
+  // Old web component helper functions removed - now handled in setupModalHandlers
 
   // Quick Add functionality
   const QuickAdd = {
@@ -2535,8 +2673,7 @@
         // Show success message
         this.showSuccess();
 
-        // Close quick view if open
-        QuickView.close();
+        // Quick view close removed (handled by modal close handlers)
       } catch (error) {
         Log.error('Add variant failed', { error: error.message, variantId });
         throw error;
@@ -2759,53 +2896,50 @@
           const btn = e.target.closest('.afs-product-card__quick-view');
           const handle = btn.getAttribute('data-product-handle');
           if (handle) {
-            // Open Shopify web component modal
+            // Open product modal using Ajax API
             const modalId = `product-modal-${handle}`;
             let modal = document.getElementById(modalId);
-            if (!modal) {
-              modal = createShopifyWebComponentModal(handle, modalId);
-              document.body.appendChild(modal);
-            }
+            
+            const openModal = async () => {
+              if (!modal) {
+                // Create modal (async - fetches product data)
+                modal = await createProductModal(handle, modalId);
+                document.body.appendChild(modal);
+              }
 
-            // Update context if it exists
-            const context = modal.querySelector(`#${modalId}-context`);
-            if (context && context.update) {
-              context.update({ target: btn });
-            }
+              // Show modal
+              if (modal.showModal) {
+                document.body.style.overflow = 'hidden';
+                modal.showModal();
+              } else {
+                document.body.style.overflow = 'hidden';
+                modal.style.display = 'block';
+              }
 
-            // Show modal
-            if (modal.showModal) {
-              // Prevent body scroll when modal is open
-              document.body.style.overflow = 'hidden';
-              modal.showModal();
-            } else {
-              document.body.style.overflow = 'hidden';
-              modal.style.display = 'block';
-            }
+              // Ensure overflow is restored when modal closes
+              const restoreScroll = () => {
+                document.body.style.overflow = '';
+                document.body.style.removeProperty('overflow');
+              };
 
-            // Ensure overflow is restored when modal closes (backup)
-            const restoreScroll = () => {
-              document.body.style.overflow = '';
-              document.body.style.removeProperty('overflow');
+              modal.addEventListener('close', restoreScroll, { once: true });
+
+              const observer = new MutationObserver(() => {
+                if (!modal.open && !modal.hasAttribute('open')) {
+                  restoreScroll();
+                  observer.disconnect();
+                }
+              });
+              observer.observe(modal, { attributes: true, attributeFilter: ['open'] });
             };
 
-            // Listen for close event
-            modal.addEventListener('close', restoreScroll, { once: true });
-
-            // Also set up a MutationObserver as backup
-            const observer = new MutationObserver(() => {
-              if (!modal.open && !modal.hasAttribute('open')) {
-                restoreScroll();
-                observer.disconnect();
-              }
+            openModal().catch(error => {
+              Log.error('Failed to open product modal', { error: error.message, handle });
+              alert('Failed to load product. Please try again.');
             });
-            observer.observe(modal, { attributes: true, attributeFilter: ['open'] });
           }
         }
-        else if (e.target.closest('.afs-quick-view-modal__close') || e.target.closest('.afs-quick-view-modal__overlay')) {
-          e.preventDefault();
-          QuickView.close();
-        }
+        // Old quick view close handler removed - now handled by dialog close events
       });
 
       // Search input
@@ -3322,4 +3456,5 @@
   else if (typeof global !== 'undefined') global.AFS = AFS;
 
 })(typeof window !== 'undefined' ? window : this);
+
 
