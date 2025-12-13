@@ -1492,6 +1492,7 @@
           value.forEach(v => {
             const metadata = State.filterMetadata.get(key);
             let label = metadata?.label || key;
+            let displayValue = v; // Default to the value itself
             
             // For collection filters, use collection title from State.collections
             const isCollectionFilter = (metadata?.type === 'collection' || 
@@ -1503,11 +1504,12 @@
                 return cId && String(cId) === String(v);
               });
               if (collection) {
-                label = collection.title || collection.label || collection.name || label;
+                // Use collection name instead of ID for display
+                displayValue = collection.title || collection.label || collection.name || v;
               }
             }
             
-            activeFilters.push({ handle: key, label: `${label}: ${v}`, value: v });
+            activeFilters.push({ handle: key, label: `${label}: ${displayValue}`, value: v });
           });
         }
       });
@@ -1532,7 +1534,7 @@
           const collectionName = collection?.title || collection?.label || collection?.name || 'Collection';
           activeFilters.push({ 
             handle: 'cpid', 
-            label: `${collectionName}: ${State.selectedCollection.id}`, 
+            label: `Collection: ${collectionName}`, 
             value: State.selectedCollection.id 
           });
         }
