@@ -1550,6 +1550,9 @@
   max-width: 50%;
   width: 100%;
   gap: 1rem;
+  height: 600px; /* Fixed height to prevent modal shrinking */
+  max-height: 600px; /* Fixed max height */
+  min-height: 600px; /* Fixed min height */
 }
 
 /* Image gallery with slider */
@@ -1787,7 +1790,7 @@ shopify-list-context[type="image"] {
 .afs-product-modal__buttons {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 1.4rem;
 }
 
 /* Quantity Incrementor (based on example code) */
@@ -2210,14 +2213,17 @@ shopify-list-context[type="image"] {
     min-height: 0;
   }
 
-  .afs-product-modal__media {
-    min-width: auto;
-    max-width: 100%;
-    width: 100%;
-    padding: 0.5rem;
-    flex-shrink: 0;
-    flex-direction: column;
-  }
+.afs-product-modal__media {
+  min-width: auto;
+  max-width: 100%;
+  width: 100%;
+  padding: 0.5rem;
+  flex-shrink: 0;
+  flex-direction: column;
+  height: 600px; /* Fixed height to prevent modal shrinking */
+  max-height: 600px; /* Fixed max height */
+  min-height: 600px; /* Fixed min height */
+}
 
   .afs-product-modal__images {
     flex-direction: row;
@@ -2360,6 +2366,9 @@ shopify-list-context[type="image"] {
   .afs-product-modal__media {
     min-width: 300px;
     max-width: 50%;
+    height: 600px; /* Fixed height */
+    max-height: 600px; /* Fixed max height */
+    min-height: 600px; /* Fixed min height */
   }
 
   .afs-product-modal__image-grid shopify-media img {
@@ -2458,6 +2467,9 @@ shopify-list-context[type="image"] {
   .afs-product-modal__media {
     min-width: 400px;
     max-width: 50%;
+    height: 600px; /* Fixed height */
+    max-height: 600px; /* Fixed max height */
+    min-height: 600px; /* Fixed min height */
   }
 
   .afs-product-modal__image-grid shopify-media img {

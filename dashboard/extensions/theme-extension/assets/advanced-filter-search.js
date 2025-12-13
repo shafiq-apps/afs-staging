@@ -1445,6 +1445,7 @@
 
       // Previous button
       const prevBtn = $.el('button', 'afs-pagination__button', {
+        type: 'button',
         'data-afs-page': pagination.page - 1,
         'aria-label': 'Previous page'
       });
@@ -1459,6 +1460,7 @@
 
       // Next button
       const nextBtn = $.el('button', 'afs-pagination__button', {
+        type: 'button',
         'data-afs-page': pagination.page + 1,
         'aria-label': 'Next page'
       });
@@ -2203,28 +2205,35 @@
         return html;
       };
 
-      // Build images HTML
+      // Build images HTML using slider structure
       const buildImagesHTML = () => {
-        if (!productData.images || productData.images.length === 0) return '';
+        if (!productData.images || productData.images.length === 0) {
+          // Return empty structure if no images
+          return {
+            thumbnails: '',
+            mainImages: '<div class="afs-slider__main"><div style="padding: 2rem; text-align: center;">No images available</div></div>'
+          };
+        }
         
-        let thumbnailsHTML = '<div class="afs-product-modal__images">';
-        let mainImagesHTML = '<div class="afs-product-modal__image-grid" id="' + modalId + '-image-grid">';
-        
+        // Build thumbnails
+        let thumbnailsHTML = '<div class="afs-slider__thumbnails">';
         productData.images.forEach((image, index) => {
-          const isActive = index === 0 ? 'afs-product-modal__image--active' : '';
+          const isActive = index === 0 ? 'afs-slider__thumbnail--active' : '';
           thumbnailsHTML += `
-            <div class="afs-product-modal__image ${isActive}" data-image-index="${index}">
-              <img class="afs-product-modal__image-small" src="${image}" alt="${productData.title}" loading="lazy" />
+            <div class="afs-slider__thumbnail ${isActive}" data-slide-index="${index}">
+              <img src="${image}" alt="${productData.title} - Thumbnail ${index + 1}" loading="lazy" />
             </div>
           `;
-          
-          const displayStyle = index === 0 ? 'flex' : 'none';
+        });
+        thumbnailsHTML += '</div>';
+        
+        // Build main images
+        let mainImagesHTML = '<div class="afs-slider__main">';
+        productData.images.forEach((image, index) => {
           mainImagesHTML += `
-            <img class="afs-product-modal__main-image-item" src="${image}" alt="${productData.title}" style="display: ${displayStyle};" loading="lazy" />
+            <img class="afs-slider__image" src="${image}" alt="${productData.title} - Image ${index + 1}" loading="lazy" />
           `;
         });
-        
-        thumbnailsHTML += '</div>';
         mainImagesHTML += '</div>';
         
         return {
@@ -2256,9 +2265,9 @@
           <div class="afs-product-modal__content">
             <div class="afs-product-modal__layout">
               <div class="afs-product-modal__media">
-                ${imagesHTML.thumbnails}
-                <div class="afs-product-modal__image-slider">
+                <div class="afs-slider" id="${modalId}-slider">
                   ${imagesHTML.mainImages}
+                  ${imagesHTML.thumbnails}
                 </div>
               </div>
               <div class="afs-product-modal__details">
@@ -2315,6 +2324,21 @@
       dialog._productData = productData;
       dialog._currentVariantId = currentVariantId;
 
+      // Initialize slider after DOM is ready
+      setTimeout(() => {
+        const sliderContainer = dialog.querySelector(`#${modalId}-slider`);
+        if (sliderContainer && window.AFSSlider) {
+          dialog._slider = new window.AFSSlider(sliderContainer, {
+            thumbnailsPosition: 'left', // Can be 'top', 'left', 'right', 'bottom'
+            enableZoom: true,
+            enableClickToZoom: true, // Enable click to zoom
+            enableKeyboard: true,
+            enableAutoHeight: false, // Disable auto height to prevent shrinking
+            maxHeight: 600 // Fixed max height in pixels
+          });
+        }
+      }, 100);
+
       // Setup event handlers
       setupModalHandlers(dialog, modalId, productData, formatPrice);
 
@@ -2343,6 +2367,12 @@
     const closeBtn = dialog.querySelector('.afs-product-modal__close');
     
     const closeModal = () => {
+      // Destroy slider if it exists
+      if (dialog._slider && typeof dialog._slider.destroy === 'function') {
+        dialog._slider.destroy();
+        dialog._slider = null;
+      }
+      
       document.body.style.overflow = '';
       document.body.style.removeProperty('overflow');
       if (dialog.close) {
@@ -2394,22 +2424,8 @@
       });
     }
 
-    // Image slider
-    const thumbnailImages = dialog.querySelectorAll('.afs-product-modal__image');
-    const mainImages = dialog.querySelectorAll('.afs-product-modal__main-image-item');
-
-    thumbnailImages.forEach((thumb, index) => {
-      thumb.addEventListener('click', () => {
-        // Update active thumbnail
-        thumbnailImages.forEach(t => t.classList.remove('afs-product-modal__image--active'));
-        thumb.classList.add('afs-product-modal__image--active');
-
-        // Update main image
-        mainImages.forEach((img, i) => {
-          img.style.display = i === index ? 'flex' : 'none';
-        });
-      });
-    });
+    // Image slider is now handled by AFSSlider class
+    // No manual event handlers needed
 
     // Variant selector
     const variantButtons = dialog.querySelectorAll('.afs-product-modal__option-value');
@@ -2529,7 +2545,7 @@
     // Update images if variant has specific image
     // Find variant image index
     const product = dialog._productData;
-    if (product.images && variant.featured_image) {
+    if (product.images && variant.featured_image && dialog._slider) {
       // featured_image might be a full URL, try to match by comparing URLs
       const variantImageIndex = product.images.findIndex(img => {
         // Compare image URLs (handle both full URLs and relative paths)
@@ -2539,18 +2555,8 @@
       });
       
       if (variantImageIndex !== -1) {
-        const thumbnailImages = dialog.querySelectorAll('.afs-product-modal__image');
-        const mainImages = dialog.querySelectorAll('.afs-product-modal__main-image-item');
-        
-        // Update thumbnails
-        thumbnailImages.forEach((thumb, index) => {
-          thumb.classList.toggle('afs-product-modal__image--active', index === variantImageIndex);
-        });
-
-        // Update main images
-        mainImages.forEach((img, index) => {
-          img.style.display = index === variantImageIndex ? 'flex' : 'none';
-        });
+        // Use slider's goToSlide method
+        dialog._slider.goToSlide(variantImageIndex);
       }
     }
   }
@@ -2559,6 +2565,12 @@
   function setupCloseHandler(dialog) {
     const closeBtn = dialog.querySelector('.afs-product-modal__close');
     const closeModal = () => {
+      // Destroy slider if it exists
+      if (dialog._slider && typeof dialog._slider.destroy === 'function') {
+        dialog._slider.destroy();
+        dialog._slider = null;
+      }
+      
       document.body.style.overflow = '';
       document.body.style.removeProperty('overflow');
       if (dialog.close) {

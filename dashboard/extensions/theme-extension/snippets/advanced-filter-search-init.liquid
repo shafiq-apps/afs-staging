@@ -5,6 +5,10 @@
 
 <!-- Web Components removed - using Ajax API instead -->
 
+<!-- AFS Slider CSS and JS -->
+{{ 'afs-slider.css' | asset_url | stylesheet_tag }}
+<script src="{{ 'afs-slider.js' | asset_url }}" defer></script>
+
 <script>
   (function() {
     // Extract products from Liquid collection as fallback
