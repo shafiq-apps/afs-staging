@@ -48,20 +48,17 @@
   cursor: zoom-in;
 }
 
-.afs-slider__viewport.is-zoomed {
-  cursor: zoom-out;
-}
 
 .afs-slider__image {
   display: none;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.15s ease-out, opacity 0.3s ease;
+  transform-origin: top left;
+  transition: transform 0.05s ease-out;
   position: relative;
   user-select: none;
   -webkit-user-drag: none;
-  transform-origin: center center;
   will-change: transform;
 }
 
@@ -232,16 +229,6 @@
   margin-right: 8px;
 }
 
-/* Modern pan-zoom magnifier */
-.afs-slider__viewport.is-zoomed {
-  cursor: zoom-out;
-}
-
-.afs-slider__image {
-  transition: transform 0.15s ease-out;
-  transform-origin: 0 0;
-  will-change: transform;
-}
 
 /* Responsive Adjustments */
 

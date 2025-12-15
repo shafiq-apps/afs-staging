@@ -28,8 +28,7 @@
       this.thumbnails = [];
       this.isInitialized = false;
       this.magnifierEnabled = options.enableMagnifier !== false; // Enable by default
-      this.magnifierZoom = options.magnifierZoom || 2; // Default 2x zoom
-      this.isZoomed = false;
+      this.magnifierZoom = options.magnifierZoom || 3; // Default 3x zoom
       this.isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
       this.init();
@@ -177,9 +176,12 @@
               this.nextSlide();
               break;
             case 'Escape':
-              if (this.isZoomed) {
-                e.preventDefault();
-                this.handleZoomLeave();
+              // Reset zoom on escape
+              const activeImage = this.images[this.currentIndex];
+              const viewport = this.mainContainer.querySelector('.afs-slider__viewport');
+              if (activeImage && viewport) {
+                activeImage.style.transform = 'scale(1) translate(0, 0)';
+                activeImage.style.transition = 'transform 0.2s ease-out';
               }
               break;
           }
@@ -244,132 +246,46 @@
       // Add zoom class to viewport for cursor styling
       viewport.classList.add('afs-slider__viewport--zoomable');
 
-      // Mouse enter: zoom in
-      viewport.addEventListener('mouseenter', (e) => {
-        this.handleZoomEnter(e);
-      });
+      const SCALE = this.magnifierZoom || 3; // Use magnifierZoom option or default to 3
 
       // Mouse move: pan image
       viewport.addEventListener('mousemove', (e) => {
-        if (this.isZoomed) {
-          this.handlePan(e);
+        const activeImage = this.images[this.currentIndex];
+        if (!activeImage) return;
+
+        const rect = viewport.getBoundingClientRect();
+
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        const xPercent = x / rect.width;
+        const yPercent = y / rect.height;
+
+        const translateX = -xPercent * (activeImage.offsetWidth * SCALE - rect.width);
+        const translateY = -yPercent * (activeImage.offsetHeight * SCALE - rect.height);
+
+        activeImage.style.transform = `
+          scale(${SCALE})
+          translate(${translateX / SCALE}px, ${translateY / SCALE}px)
+        `;
+      });
+
+      // Mouse enter: enable smooth transition
+      viewport.addEventListener('mouseenter', () => {
+        const activeImage = this.images[this.currentIndex];
+        if (activeImage) {
+          activeImage.style.transition = 'transform 0.05s ease-out';
         }
       });
 
       // Mouse leave: reset zoom
       viewport.addEventListener('mouseleave', () => {
-        this.handleZoomLeave();
-      });
-    }
-
-    handleZoomEnter(e) {
-      const activeImage = this.images[this.currentIndex];
-      if (!activeImage) return;
-
-      const viewport = this.mainContainer.querySelector('.afs-slider__viewport');
-      if (!viewport) return;
-
-      // Wait for image to load if needed
-      const checkAndZoom = () => {
-        const imgRect = activeImage.getBoundingClientRect();
-        const naturalWidth = activeImage.naturalWidth || activeImage.offsetWidth;
-        const naturalHeight = activeImage.naturalHeight || activeImage.offsetHeight;
-
-        // Only zoom if image is larger than viewport (has zoom potential)
-        if (naturalWidth > 0 && naturalHeight > 0 && 
-            (naturalWidth > imgRect.width || naturalHeight > imgRect.height)) {
-          this.isZoomed = true;
-          viewport.classList.add('is-zoomed');
-          
-          // Apply initial zoom centered on cursor position
-          this.handlePan(e);
+        const activeImage = this.images[this.currentIndex];
+        if (activeImage) {
+          activeImage.style.transform = 'scale(1) translate(0, 0)';
+          activeImage.style.transition = 'transform 0.2s ease-out';
         }
-      };
-
-      if (activeImage.complete) {
-        checkAndZoom();
-      } else {
-        activeImage.addEventListener('load', () => checkAndZoom(), { once: true });
-      }
-    }
-
-    handlePan(e) {
-      if (!this.isZoomed) return;
-
-      const activeImage = this.images[this.currentIndex];
-      if (!activeImage) return;
-
-      const viewport = this.mainContainer.querySelector('.afs-slider__viewport');
-      if (!viewport) return;
-
-      // Get viewport dimensions
-      const viewportRect = viewport.getBoundingClientRect();
-      const viewportWidth = viewportRect.width;
-      const viewportHeight = viewportRect.height;
-
-      // Calculate cursor position as percentage (0-1) relative to viewport
-      const cursorX = (e.clientX - viewportRect.left) / viewportWidth;
-      const cursorY = (e.clientY - viewportRect.top) / viewportHeight;
-
-      // Clamp cursor position between 0 and 1
-      const clampedX = Math.max(0, Math.min(1, cursorX));
-      const clampedY = Math.max(0, Math.min(1, cursorY));
-
-      // Get image dimensions
-      const naturalWidth = activeImage.naturalWidth || activeImage.offsetWidth;
-      const naturalHeight = activeImage.naturalHeight || activeImage.offsetHeight;
-      
-      // With object-fit: cover, image fills viewport completely
-      // Calculate displayed dimensions (image covers viewport)
-      const viewportAspect = viewportWidth / viewportHeight;
-      const imageAspect = naturalWidth / naturalHeight;
-      
-      let displayedWidth, displayedHeight;
-      if (imageAspect > viewportAspect) {
-        // Image is wider - height fits, width extends beyond
-        displayedHeight = viewportHeight;
-        displayedWidth = displayedHeight * imageAspect;
-      } else {
-        // Image is taller - width fits, height extends beyond
-        displayedWidth = viewportWidth;
-        displayedHeight = displayedWidth / imageAspect;
-      }
-
-      // Calculate zoomed dimensions
-      const zoom = this.magnifierZoom;
-      const zoomedWidth = displayedWidth * zoom;
-      const zoomedHeight = displayedHeight * zoom;
-
-      // Calculate how much the image extends beyond viewport when zoomed
-      const overflowX = (zoomedWidth - viewportWidth) / 2;
-      const overflowY = (zoomedHeight - viewportHeight) / 2;
-
-      // Map cursor position (0-1) to translation range
-      // Cursor at 0 (left/top) = translate to show left/top edge
-      // Cursor at 1 (right/bottom) = translate to show right/bottom edge
-      // Cursor at 0.5 (center) = no translation (centered)
-      const translateX = overflowX * (1 - clampedX * 2);
-      const translateY = overflowY * (1 - clampedY * 2);
-
-      // Apply transform: scale first, then translate
-      // Translate values are in the scaled coordinate space, so divide by zoom
-      activeImage.style.transform = `scale(${zoom}) translate(${-translateX / zoom}px, ${-translateY / zoom}px)`;
-    }
-
-    handleZoomLeave() {
-      if (!this.isZoomed) return;
-
-      const activeImage = this.images[this.currentIndex];
-      if (!activeImage) return;
-
-      const viewport = this.mainContainer.querySelector('.afs-slider__viewport');
-      if (!viewport) return;
-
-      this.isZoomed = false;
-      viewport.classList.remove('is-zoomed');
-
-      // Reset transform smoothly
-      activeImage.style.transform = 'scale(1) translate(0, 0)';
+      });
     }
 
     goToSlide(index) {
@@ -389,8 +305,10 @@
       });
 
       // Reset zoom when slide changes
-      if (this.isZoomed) {
-        this.handleZoomLeave();
+      const activeImage = this.images[this.currentIndex];
+      if (activeImage) {
+        activeImage.style.transform = 'scale(1) translate(0, 0)';
+        activeImage.style.transition = 'transform 0.2s ease-out';
       }
 
       // Update thumbnails
@@ -466,9 +384,10 @@
       }
 
       // Reset zoom state
-      if (this.isZoomed) {
-        this.handleZoomLeave();
-      }
+      this.images.forEach(img => {
+        img.style.transform = 'scale(1) translate(0, 0)';
+        img.style.transition = 'transform 0.2s ease-out';
+      });
 
       this.isInitialized = false;
     }
