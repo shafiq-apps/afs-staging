@@ -1464,8 +1464,8 @@ export class ProductBulkIndexer {
     }
     
     // Final validation summary
-    const totalOrphanedImages = Array.from(orphanedImages.values()).reduce((sum, arr) => sum + arr.length, 0);
-    const totalOrphanedVariants = Array.from(orphanedVariants.values()).reduce((sum, arr) => sum + arr.length, 0);
+    const totalOrphanedImages = Array.from(orphanedImages.values()).reduce((sum: number, arr: any[]) => sum + arr.length, 0);
+    const totalOrphanedVariants = Array.from(orphanedVariants.values()).reduce((sum: number, arr: any[]) => sum + arr.length, 0);
     const totalProductsWithCollections = Object.keys(productCollections).filter(pid => {
       const collections = productCollections[pid];
       return collections && collections.size > 0;
