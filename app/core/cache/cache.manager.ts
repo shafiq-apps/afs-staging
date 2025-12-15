@@ -5,7 +5,10 @@
 
 import { createModuleLogger } from '@shared/utils/logger.util';
 
-const logger = createModuleLogger('cache', {disabled: true});
+// Enable cache logging for cleanup operations (can be disabled via env var)
+const logger = createModuleLogger('cache', {
+  disabled: process.env.CACHE_LOG_DISABLED === 'true'
+});
 
 export interface CacheOptions {
   ttl?: number; // Time to live in milliseconds (default: 5 minutes)
@@ -27,11 +30,14 @@ export class CacheManager<T = any> {
   private readonly maxSize: number;
   private cleanupInterval: NodeJS.Timeout | null = null;
   private readonly checkInterval: number;
+  private cleanupLogCounter: number = 0;
 
   constructor(options: CacheOptions = {}) {
     this.defaultTTL = options.ttl || 5 * 60 * 1000; // 5 minutes default
     this.maxSize = options.maxSize || 1000; // 1000 entries default
-    this.checkInterval = options.checkInterval || 60 * 1000; // 1 minute cleanup interval
+    // Ensure checkInterval is valid (must be > 0)
+    const requestedInterval = options.checkInterval || 60 * 1000; // 1 minute default
+    this.checkInterval = requestedInterval > 0 ? requestedInterval : 60 * 1000;
 
     this.startCleanup();
     logger.info('Cache manager initialized', {
@@ -193,25 +199,68 @@ export class CacheManager<T = any> {
     if (this.cleanupInterval) {
       clearInterval(this.cleanupInterval);
       this.cleanupInterval = null;
+      logger.info('Cache cleanup stopped');
     }
+  }
+
+  /**
+   * Manually trigger cleanup (for debugging/testing)
+   */
+  forceCleanup(): number {
+    const beforeSize = this.store.size;
+    this.cleanup();
+    const afterSize = this.store.size;
+    const cleaned = beforeSize - afterSize;
+    logger.info('Manual cache cleanup triggered', { 
+      beforeSize, 
+      afterSize, 
+      cleaned 
+    });
+    return cleaned;
   }
 
   /**
    * Clean up expired entries
    */
   private cleanup(): void {
-    const now = Date.now();
-    let cleaned = 0;
+    try {
+      const now = Date.now();
+      let cleaned = 0;
+      const totalEntries = this.store.size;
 
-    for (const [key, entry] of this.store.entries()) {
-      if (now > entry.expiresAt) {
-        this.store.delete(key);
-        cleaned++;
+      for (const [key, entry] of this.store.entries()) {
+        if (now > entry.expiresAt) {
+          this.store.delete(key);
+          cleaned++;
+        }
       }
-    }
 
-    if (cleaned > 0) {
-      logger.info('Cache cleanup completed', { entriesRemoved: cleaned });
+      if (cleaned > 0) {
+        logger.info('Cache cleanup completed', { 
+          entriesRemoved: cleaned,
+          totalEntries,
+          remainingEntries: this.store.size
+        });
+      } else if (totalEntries > 0) {
+        // Log periodically even when no cleanup is needed (every 10th run)
+        if (!this.cleanupLogCounter) {
+          this.cleanupLogCounter = 0;
+        }
+        this.cleanupLogCounter++;
+        if (this.cleanupLogCounter >= 10) {
+          logger.info('Cache cleanup check completed (no expired entries)', { 
+            totalEntries,
+            checkInterval: this.checkInterval
+          });
+          this.cleanupLogCounter = 0;
+        }
+      }
+    } catch (error: any) {
+      // Log error but don't stop the cleanup interval
+      logger.error('Error during cache cleanup', {
+        error: error?.message || error,
+        stack: error?.stack,
+      });
     }
   }
 

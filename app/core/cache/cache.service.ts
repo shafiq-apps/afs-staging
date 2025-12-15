@@ -9,7 +9,10 @@ import { ProductSearchInput, ProductSearchResult, FacetAggregations, ProductFilt
 import { createModuleLogger } from '@shared/utils/logger.util';
 import { Filter } from '@shared/filters/types';
 
-const logger = createModuleLogger('cache-service', {disabled: true});
+// Enable cache service logging (can be disabled via env var)
+const logger = createModuleLogger('cache-service', {
+  disabled: process.env.CACHE_LOG_DISABLED === 'true'
+});
 
 export interface CacheServiceOptions extends CacheOptions {
   searchTTL?: number; // TTL for search results (default: 5 minutes)
