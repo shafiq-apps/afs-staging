@@ -29,6 +29,8 @@
       this.isInitialized = false;
       this.magnifierEnabled = options.enableMagnifier !== false; // Enable by default
       this.magnifierZoom = options.magnifierZoom || 2; // Default 2x zoom
+      this.isZoomed = false;
+      this.isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
       this.init();
     }
@@ -77,12 +79,12 @@
         // Continue anyway - basic functionality should still work
       }
 
-      // Setup magnifier if enabled
-      if (this.magnifierEnabled) {
+      // Setup pan-zoom magnifier if enabled and not touch device
+      if (this.magnifierEnabled && !this.isTouchDevice) {
         try {
-          this.setupMagnifier();
+          this.setupPanZoom();
         } catch (e) {
-          console.error('AFSSlider: Error setting up magnifier', e);
+          console.error('AFSSlider: Error setting up pan-zoom', e);
           // Continue anyway - magnifier is optional
         }
       }
@@ -177,7 +179,7 @@
             case 'Escape':
               if (this.isZoomed) {
                 e.preventDefault();
-                this.resetZoom();
+                this.handleZoomLeave();
               }
               break;
           }
@@ -235,129 +237,64 @@
       }, { passive: true });
     }
 
-    setupMagnifier() {
+    setupPanZoom() {
       const viewport = this.mainContainer.querySelector('.afs-slider__viewport');
       if (!viewport) return;
 
-      // Create magnifier container
-      const magnifier = document.createElement('div');
-      magnifier.className = 'afs-slider__magnifier';
-      magnifier.style.display = 'none';
-      this.mainContainer.appendChild(magnifier);
-      this.magnifier = magnifier;
+      // Add zoom class to viewport for cursor styling
+      viewport.classList.add('afs-slider__viewport--zoomable');
 
-      // Create magnified image container
-      const magnifiedImage = document.createElement('div');
-      magnifiedImage.className = 'afs-slider__magnified-image';
-      magnifier.appendChild(magnifiedImage);
-      this.magnifiedImage = magnifiedImage;
+      // Mouse enter: zoom in
+      viewport.addEventListener('mouseenter', (e) => {
+        this.handleZoomEnter(e);
+      });
 
-      // Add mouse move handler to viewport
+      // Mouse move: pan image
       viewport.addEventListener('mousemove', (e) => {
-        this.handleMagnifierMove(e);
-      });
-
-      viewport.addEventListener('mouseenter', () => {
-        this.showMagnifier();
-      });
-
-      viewport.addEventListener('mouseleave', () => {
-        this.hideMagnifier();
-      });
-
-      // Also handle on the active image itself
-      this.images.forEach(img => {
-        img.addEventListener('mousemove', (e) => {
-          if (img.classList.contains('afs-slider__image--active')) {
-            this.handleMagnifierMove(e);
-          }
-        });
-
-        // Update magnifier when image loads
-        if (img.complete) {
-          // Image already loaded
-        } else {
-          img.addEventListener('load', () => {
-            if (img.classList.contains('afs-slider__image--active') && 
-                this.magnifier && this.magnifier.style.display !== 'none') {
-              this.updateMagnifiedImage();
-            }
-          }, { once: true });
+        if (this.isZoomed) {
+          this.handlePan(e);
         }
+      });
+
+      // Mouse leave: reset zoom
+      viewport.addEventListener('mouseleave', () => {
+        this.handleZoomLeave();
       });
     }
 
-    showMagnifier() {
+    handleZoomEnter(e) {
       const activeImage = this.images[this.currentIndex];
-      if (!activeImage || !this.magnifier) return;
+      if (!activeImage) return;
+
+      const viewport = this.mainContainer.querySelector('.afs-slider__viewport');
+      if (!viewport) return;
 
       // Wait for image to load if needed
-      const checkAndShow = () => {
+      const checkAndZoom = () => {
         const imgRect = activeImage.getBoundingClientRect();
         const naturalWidth = activeImage.naturalWidth || activeImage.offsetWidth;
         const naturalHeight = activeImage.naturalHeight || activeImage.offsetHeight;
 
-        // Only show magnifier if image is larger than viewport (has zoom potential)
-        // Also check if natural dimensions are valid
+        // Only zoom if image is larger than viewport (has zoom potential)
         if (naturalWidth > 0 && naturalHeight > 0 && 
             (naturalWidth > imgRect.width || naturalHeight > imgRect.height)) {
-          this.magnifier.style.display = 'block';
-          this.updateMagnifiedImage();
+          this.isZoomed = true;
+          viewport.classList.add('is-zoomed');
+          
+          // Apply initial zoom centered on cursor position
+          this.handlePan(e);
         }
       };
 
       if (activeImage.complete) {
-        checkAndShow();
+        checkAndZoom();
       } else {
-        activeImage.addEventListener('load', checkAndShow, { once: true });
+        activeImage.addEventListener('load', () => checkAndZoom(), { once: true });
       }
     }
 
-    hideMagnifier() {
-      if (this.magnifier) {
-        this.magnifier.style.display = 'none';
-      }
-    }
-
-    updateMagnifiedImage() {
-      const activeImage = this.images[this.currentIndex];
-      if (!activeImage || !this.magnifiedImage) return;
-
-      // Get the best available image source
-      let imgSrc = activeImage.src;
-      
-      // Try to get high-res version from srcset
-      const srcset = activeImage.getAttribute('srcset');
-      if (srcset) {
-        // Extract the highest resolution image from srcset
-        const sources = srcset.split(',').map(s => s.trim());
-        const highestRes = sources.reduce((prev, curr) => {
-          const prevWidth = parseInt(prev.match(/\d+/)?.[0] || '0');
-          const currWidth = parseInt(curr.match(/\d+/)?.[0] || '0');
-          return currWidth > prevWidth ? curr : prev;
-        });
-        if (highestRes) {
-          imgSrc = highestRes.split(' ')[0]; // Get URL part
-        }
-      }
-      
-      // Fallback to data-src if available
-      if (!imgSrc) {
-        imgSrc = activeImage.getAttribute('data-src');
-      }
-      
-      // Fallback to current src
-      if (!imgSrc) {
-        imgSrc = activeImage.src;
-      }
-
-      if (imgSrc) {
-        this.magnifiedImage.style.backgroundImage = `url(${imgSrc})`;
-      }
-    }
-
-    handleMagnifierMove(e) {
-      if (!this.magnifier || this.magnifier.style.display === 'none') return;
+    handlePan(e) {
+      if (!this.isZoomed) return;
 
       const activeImage = this.images[this.currentIndex];
       if (!activeImage) return;
@@ -365,94 +302,74 @@
       const viewport = this.mainContainer.querySelector('.afs-slider__viewport');
       if (!viewport) return;
 
-      // Get positions relative to viewport
+      // Get viewport dimensions
       const viewportRect = viewport.getBoundingClientRect();
-      const imgRect = activeImage.getBoundingClientRect();
+      const viewportWidth = viewportRect.width;
+      const viewportHeight = viewportRect.height;
+
+      // Calculate cursor position as percentage (0-1) relative to viewport
+      const cursorX = (e.clientX - viewportRect.left) / viewportWidth;
+      const cursorY = (e.clientY - viewportRect.top) / viewportHeight;
+
+      // Clamp cursor position between 0 and 1
+      const clampedX = Math.max(0, Math.min(1, cursorX));
+      const clampedY = Math.max(0, Math.min(1, cursorY));
 
       // Get image dimensions
-      const imgWidth = imgRect.width;
-      const imgHeight = imgRect.height;
-      const naturalWidth = activeImage.naturalWidth || imgWidth;
-      const naturalHeight = activeImage.naturalHeight || imgHeight;
-
-      // Account for object-fit: contain - calculate actual displayed image area
-      const imgAspectRatio = naturalWidth / naturalHeight;
-      const containerAspectRatio = imgWidth / imgHeight;
+      const naturalWidth = activeImage.naturalWidth || activeImage.offsetWidth;
+      const naturalHeight = activeImage.naturalHeight || activeImage.offsetHeight;
       
-      let displayedWidth = imgWidth;
-      let displayedHeight = imgHeight;
-      let offsetX = 0;
-      let offsetY = 0;
-
-      if (imgAspectRatio > containerAspectRatio) {
-        // Image is wider - height fits, width is constrained
-        displayedWidth = imgHeight * imgAspectRatio;
-        offsetX = (imgWidth - displayedWidth) / 2;
+      // With object-fit: cover, image fills viewport completely
+      // Calculate displayed dimensions (image covers viewport)
+      const viewportAspect = viewportWidth / viewportHeight;
+      const imageAspect = naturalWidth / naturalHeight;
+      
+      let displayedWidth, displayedHeight;
+      if (imageAspect > viewportAspect) {
+        // Image is wider - height fits, width extends beyond
+        displayedHeight = viewportHeight;
+        displayedWidth = displayedHeight * imageAspect;
       } else {
-        // Image is taller - width fits, height is constrained
-        displayedHeight = imgWidth / imgAspectRatio;
-        offsetY = (imgHeight - displayedHeight) / 2;
+        // Image is taller - width fits, height extends beyond
+        displayedWidth = viewportWidth;
+        displayedHeight = displayedWidth / imageAspect;
       }
 
-      // Calculate mouse position relative to the image container
-      const mouseX = e.clientX - imgRect.left;
-      const mouseY = e.clientY - imgRect.top;
-
-      // Adjust for object-fit offset
-      const adjustedMouseX = mouseX - offsetX;
-      const adjustedMouseY = mouseY - offsetY;
-
-      // Check if mouse is over the actual image (not the empty space)
-      if (adjustedMouseX < 0 || adjustedMouseX > displayedWidth ||
-          adjustedMouseY < 0 || adjustedMouseY > displayedHeight) {
-        // Mouse is outside the image, hide magnifier
-        this.hideMagnifier();
-        return;
-      }
-
-      // Calculate percentage position on the displayed image
-      const percentX = (adjustedMouseX / displayedWidth) * 100;
-      const percentY = (adjustedMouseY / displayedHeight) * 100;
-
-      // Clamp values between 0 and 100
-      const clampedX = Math.max(0, Math.min(100, percentX));
-      const clampedY = Math.max(0, Math.min(100, percentY));
-
-      // Calculate magnifier position (centered on cursor)
-      const magnifierSize = 200; // Size of magnifier viewport
-      // Position relative to viewport (transform: translate(-50%, -50%) centers it)
-      const magnifierX = e.clientX - viewportRect.left;
-      const magnifierY = e.clientY - viewportRect.top;
-
-      // Keep magnifier within viewport bounds (accounting for centering transform)
-      const halfSize = magnifierSize / 2;
-      const maxX = viewportRect.width - halfSize;
-      const maxY = viewportRect.height - halfSize;
-      const finalX = Math.max(halfSize, Math.min(maxX, magnifierX));
-      const finalY = Math.max(halfSize, Math.min(maxY, magnifierY));
-
-      // Position the magnifier (transform will center it)
-      this.magnifier.style.left = `${finalX}px`;
-      this.magnifier.style.top = `${finalY}px`;
-
-      // Calculate background position for magnified image
+      // Calculate zoomed dimensions
       const zoom = this.magnifierZoom;
-      
-      // Map the cursor position to the natural image coordinates
-      const naturalX = (clampedX / 100) * naturalWidth;
-      const naturalY = (clampedY / 100) * naturalHeight;
-      
-      // Calculate background size (zoomed natural image dimensions)
-      const bgWidth = naturalWidth * zoom;
-      const bgHeight = naturalHeight * zoom;
-      
-      // Calculate background position to center the cursor point in magnifier
-      const bgX = (naturalX * zoom) - (magnifierSize / 2);
-      const bgY = (naturalY * zoom) - (magnifierSize / 2);
+      const zoomedWidth = displayedWidth * zoom;
+      const zoomedHeight = displayedHeight * zoom;
 
-      // Set background position and size
-      this.magnifiedImage.style.backgroundPosition = `${-bgX}px ${-bgY}px`;
-      this.magnifiedImage.style.backgroundSize = `${bgWidth}px ${bgHeight}px`;
+      // Calculate how much the image extends beyond viewport when zoomed
+      const overflowX = (zoomedWidth - viewportWidth) / 2;
+      const overflowY = (zoomedHeight - viewportHeight) / 2;
+
+      // Map cursor position (0-1) to translation range
+      // Cursor at 0 (left/top) = translate to show left/top edge
+      // Cursor at 1 (right/bottom) = translate to show right/bottom edge
+      // Cursor at 0.5 (center) = no translation (centered)
+      const translateX = overflowX * (1 - clampedX * 2);
+      const translateY = overflowY * (1 - clampedY * 2);
+
+      // Apply transform: scale first, then translate
+      // Translate values are in the scaled coordinate space, so divide by zoom
+      activeImage.style.transform = `scale(${zoom}) translate(${-translateX / zoom}px, ${-translateY / zoom}px)`;
+    }
+
+    handleZoomLeave() {
+      if (!this.isZoomed) return;
+
+      const activeImage = this.images[this.currentIndex];
+      if (!activeImage) return;
+
+      const viewport = this.mainContainer.querySelector('.afs-slider__viewport');
+      if (!viewport) return;
+
+      this.isZoomed = false;
+      viewport.classList.remove('is-zoomed');
+
+      // Reset transform smoothly
+      activeImage.style.transform = 'scale(1) translate(0, 0)';
     }
 
     goToSlide(index) {
@@ -471,9 +388,9 @@
         }
       });
 
-      // Update magnified image when slide changes
-      if (this.magnifierEnabled && this.magnifier && this.magnifier.style.display !== 'none') {
-        this.updateMagnifiedImage();
+      // Reset zoom when slide changes
+      if (this.isZoomed) {
+        this.handleZoomLeave();
       }
 
       // Update thumbnails
@@ -548,9 +465,9 @@
         document.removeEventListener('keydown', this.keyboardHandler);
       }
 
-      // Remove magnifier
-      if (this.magnifier && this.magnifier.parentNode) {
-        this.magnifier.parentNode.removeChild(this.magnifier);
+      // Reset zoom state
+      if (this.isZoomed) {
+        this.handleZoomLeave();
       }
 
       this.isInitialized = false;

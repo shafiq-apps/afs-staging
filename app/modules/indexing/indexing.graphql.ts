@@ -1,6 +1,6 @@
 /**
  * GraphQL Queries and Mutations for Bulk Indexing
- */
+*/
 
 export const BULK_PRODUCTS_MUTATION = `
 mutation {
@@ -25,10 +25,7 @@ mutation {
             status
             templateSuffix
             totalInventory
-            variantsCount {
-              count
-              precision
-            }
+            tracksInventory
             priceRangeV2 {
               maxVariantPrice {
                 amount
@@ -84,26 +81,7 @@ mutation {
                 }
               }
             }
-          }
-        }
-      }
-
-      collections {
-        edges {
-          node {
-            id
-            title
-            handle
-            updatedAt
-            sortOrder
-
-            image {
-              id
-              url
-              altText
-            }
-
-            products {
+            collections {
               edges {
                 node {
                   id

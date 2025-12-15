@@ -16,7 +16,7 @@ import {
   sleep,
   detectType
 } from './indexing.helper';
-import { normalizeShopifyId } from '@shared/utils/shopify-id.util';
+import { normalizeShopifyId, extractShopifyResourceType } from '@shared/utils/shopify-id.util';
 import { BULK_PRODUCTS_MUTATION, POLL_QUERY } from './indexing.graphql';
 import { ShopifyGraphQLRepository } from './indexing.graphql.repository';
 import { ShopifyShopName } from '@shared/utils/shopify-shop.util';
@@ -801,6 +801,12 @@ export class ProductBulkIndexer {
     const collections: Record<string, any> = {};
     const productCollections: Record<string, Set<string>> = {};
     
+    // Track the current product being collected (new JSONL pattern: all data comes before next Product row)
+    let currentProductId: string | null = null;
+    
+    // Track complete products that are ready to flush (we've seen the next Product row)
+    const completeProducts: Set<string> = new Set();
+    
     // Memory monitoring and cleanup thresholds
     const MEMORY_CHECK_INTERVAL = 50; // Check memory every 50 batches
     const MAX_PRODUCTS_IN_MEMORY = 1000; // Flush if we have more than 1000 products in memory
@@ -821,20 +827,29 @@ export class ProductBulkIndexer {
 
     /**
      * Force flush products if memory structures are getting too large
+     * Only flush complete products (not the current one being collected)
      */
     const flushIfNeeded = async () => {
       const productsInMemory = Object.keys(products).length;
       if (productsInMemory > MAX_PRODUCTS_IN_MEMORY) {
-        LOGGER.log(`Memory threshold reached (${productsInMemory} products in memory), flushing oldest products...`);
-        // Flush products in order (oldest first based on insertion order)
-        const productIds = Object.keys(products);
-        const toFlush = productIds.slice(0, Math.floor(productsInMemory / 2)); // Flush half
+        LOGGER.log(`Memory threshold reached (${productsInMemory} products in memory), flushing complete products...`);
         
-        for (const pid of toFlush) {
-          await flushProduct(pid);
+        // Get complete products (excluding current product being collected)
+        const toFlush = Array.from(completeProducts).filter(pid => pid !== currentProductId);
+        
+        if (toFlush.length === 0) {
+          LOGGER.warn(`⚠️ Memory threshold reached but no complete products to flush. Current product: ${currentProductId}`);
+          return;
         }
         
-        LOGGER.log(`Flushed ${toFlush.length} products, ${Object.keys(products).length} remaining in memory`);
+        // Flush complete products (up to half)
+        const flushCount = Math.min(Math.floor(productsInMemory / 2), toFlush.length);
+        for (let i = 0; i < flushCount; i++) {
+          await flushProduct(toFlush[i]);
+          completeProducts.delete(toFlush[i]);
+        }
+        
+        LOGGER.log(`Flushed ${flushCount} complete products, ${Object.keys(products).length} remaining in memory`);
       }
     };
 
@@ -845,42 +860,82 @@ export class ProductBulkIndexer {
 
       // Always set collections array - check both GID and normalized formats
       const normalizedProductId = normalizeShopifyId(productId);
-      let collectionsSet = productCollections[productId] || productCollections[normalizedProductId] || null;
       
-      // Debug: Log all available keys to see what's in productCollections
-      const availableKeys = Object.keys(productCollections);
-      const matchingKeys = availableKeys.filter(k => k === productId || k === normalizedProductId || normalizeShopifyId(k) === normalizedProductId);
+      // Try multiple key formats to find collections
+      // IMPORTANT: productCollections uses GID format as keys (from __parentId)
+      let collectionsSet = 
+        productCollections[productId] || 
+        productCollections[normalizedProductId] ||
+        (data.id ? productCollections[data.id] : null) ||
+        (data.id ? productCollections[normalizeShopifyId(data.id)] : null) ||
+        null;
+      
+      // Debug: Log collection lookup for first few products
+      const collectionLookupCount = ((this as any)._collectionLookupCount || 0) + 1;
+      (this as any)._collectionLookupCount = collectionLookupCount;
+      if (collectionLookupCount <= 10) {
+        const availableKeys = Object.keys(productCollections);
+        const matchingKeys = availableKeys.filter(k => {
+          const normalizedK = normalizeShopifyId(k);
+          return k === productId || k === normalizedProductId || 
+                 normalizedK === normalizedProductId || normalizedK === normalizeShopifyId(productId) ||
+                 k === data.id || normalizedK === normalizeShopifyId(data.id);
+        });
+        LOGGER.log(`🔍 Collection lookup for product ${productId}:`, {
+          productId,
+          normalizedProductId,
+          dataId: data.id,
+          foundCollections: collectionsSet ? collectionsSet.size : 0,
+          availableKeysCount: availableKeys.length,
+          matchingKeys: matchingKeys.slice(0, 5),
+          matchingKeysCollections: matchingKeys.slice(0, 3).map(k => ({
+            key: k,
+            count: productCollections[k]?.size || 0
+          }))
+        });
+      }
+      
+      // Also check if product already has collections from Product row
+      const productRowCollections = Array.isArray(data.collections) ? data.collections : [];
       
       if (collectionsSet && collectionsSet.size > 0) {
-        data.collections = Array.from(collectionsSet);
+        // Merge collections from productCollections map with collections from Product row
+        const mapCollections = Array.from(collectionsSet);
+        const allCollections = [...new Set([...productRowCollections, ...mapCollections])];
+        data.collections = allCollections;
+        
         const debugCount = ((this as any)._collectionDebugCount || 0) + 1;
         (this as any)._collectionDebugCount = debugCount;
         if (debugCount <= 5) {
-          LOGGER.log(`✅ Product ${productId} has ${data.collections.length} collections:`, {
+          LOGGER.log(`✅ Product ${productId} has ${data.collections.length} collections (${mapCollections.length} from map, ${productRowCollections.length} from row):`, {
             collections: data.collections,
             productId,
             normalizedProductId,
-            foundIn: collectionsSet === productCollections[productId] ? 'productId' : 'normalizedProductId',
-            totalProductCollections: availableKeys.length,
-            matchingKeys
           });
         }
+      } else if (productRowCollections.length > 0) {
+        // Use collections from Product row if available
+        data.collections = productRowCollections;
       } else {
         data.collections = [];
         // Log warning if product has no collections (only for first few to avoid spam)
         const noCollectionCount = ((this as any)._noCollectionCount || 0) + 1;
         (this as any)._noCollectionCount = noCollectionCount;
         if (noCollectionCount <= 10) {
+          // Debug: Log available keys to help diagnose
+          const availableKeys = Object.keys(productCollections);
+          const matchingKeys = availableKeys.filter(k => {
+            const normalizedK = normalizeShopifyId(k);
+            return k === productId || k === normalizedProductId || 
+                   normalizedK === normalizedProductId || normalizedK === normalizeShopifyId(productId);
+          });
+          
           LOGGER.warn(`⚠️ Product ${productId} (normalized: ${normalizedProductId}) has NO collections.`, {
             productId,
             normalizedProductId,
             totalProductCollections: availableKeys.length,
-            availableKeys: availableKeys.slice(0, 10),
-            matchingKeys,
-            sampleProductCollection: availableKeys.length > 0 ? {
-              key: availableKeys[0],
-              collections: Array.from(productCollections[availableKeys[0]] || [])
-            } : null
+            matchingKeys: matchingKeys.slice(0, 5),
+            hasProductRowCollections: productRowCollections.length > 0,
           });
         }
       }
@@ -948,6 +1003,10 @@ export class ProductBulkIndexer {
 
       batch.push(doc);
 
+      // Mark product as flushed
+      completeProducts.delete(productId);
+      delete products[productId];
+
       if (batch.length >= this.batchSize) {
         const indexed = await this.indexBatch(batch, lineNum);
         const currentCheckpoint = this.checkpointService.getCheckpoint();
@@ -977,8 +1036,6 @@ export class ProductBulkIndexer {
         }
         batch = [];
       }
-
-      delete products[productId];
       // DON'T delete from productCollections - CollectionProduct rows might come AFTER products are flushed
       // We'll use productCollections at the end to update products that got collections after being flushed
       // delete productCollections[productId];
@@ -1016,8 +1073,19 @@ export class ProductBulkIndexer {
       if (type === "Product") {
         const pid = row.id;
 
+        // NEW JSONL PATTERN: When we see a new Product row, the previous product is complete
+        // Flush the previous product (if any) because all its data has been collected
+        if (currentProductId && products[currentProductId]) {
+          // Previous product is complete - flush it
+          await flushProduct(currentProductId);
+          completeProducts.delete(currentProductId);
+        }
+
+        // Handle duplicate product (shouldn't happen in new format, but handle it)
         if (products[pid]) {
+          LOGGER.warn(`⚠️ Duplicate Product row for ${pid} at line ${lineNum} - flushing existing product`);
           await flushProduct(pid);
+          completeProducts.delete(pid);
         }
 
         // Check if we need to flush products due to memory pressure
@@ -1025,11 +1093,34 @@ export class ProductBulkIndexer {
           await flushIfNeeded();
         }
 
+        // Start collecting data for the new product
+        currentProductId = pid;
+
         // Preserve options and collections from Product row if they exist (JSONL format may include them)
         // Initialize arrays for child rows that will be collected separately
-        const rowCollections = Array.isArray(row.collections) 
-          ? row.collections.map((c: any) => normalizeShopifyId(c?.id || c)).filter((id: any) => id && typeof id === 'string')
-          : [];
+        let rowCollections: string[] = [];
+        
+        // Handle collections from Product row (if Shopify includes them)
+        if (row.collections) {
+          if (Array.isArray(row.collections)) {
+            // Direct array format
+            rowCollections = row.collections.map((c: any) => normalizeShopifyId(c?.id || c)).filter((id: any) => id && typeof id === 'string');
+          } else if (row.collections.edges && Array.isArray(row.collections.edges)) {
+            // GraphQL edges format: collections.edges[].node.id
+            rowCollections = row.collections.edges
+              .map((edge: any) => edge?.node?.id || edge?.node)
+              .filter(Boolean)
+              .map((id: any) => normalizeShopifyId(id))
+              .filter((id: any) => id && typeof id === 'string');
+          } else if (row.collections.nodes && Array.isArray(row.collections.nodes)) {
+            // GraphQL nodes format: collections.nodes[].id
+            rowCollections = row.collections.nodes
+              .map((node: any) => node?.id || node)
+              .filter(Boolean)
+              .map((id: any) => normalizeShopifyId(id))
+              .filter((id: any) => id && typeof id === 'string');
+          }
+        }
         
         products[pid] = {
           ...row,
@@ -1040,8 +1131,6 @@ export class ProductBulkIndexer {
         };
         
         // Initialize productCollections map with collections from Product row
-        // IMPORTANT: Don't overwrite existing Set if CollectionProduct rows already added collections
-        // Merge collections from Product row with any existing collections
         if (!productCollections[pid]) {
           productCollections[pid] = new Set();
         }
@@ -1055,14 +1144,20 @@ export class ProductBulkIndexer {
 
       /* ------------------ ProductOption ------------------ */
       if (type === "ProductOption") {
-        const parent = products[row.__parentId];
-        if (parent) parent.options.push(row);
+        const parentId = row.__parentId;
+        const parent = products[parentId];
+        if (parent) {
+          parent.options.push(row);
+        } else {
+          LOGGER.warn(`⚠️ ProductOption row at line ${lineNum} - parent product ${parentId} not found in memory`);
+        }
         continue;
       }
 
       /* ------------------ MediaImage ------------------ */
       if (type === "MediaImage") {
-        const parent = products[row.__parentId];
+        const parentId = row.__parentId;
+        const parent = products[parentId];
         if (parent) {
           // Always push MediaImage row - it has full data structure
           // The row contains: id, alt, preview.image.url, status, __parentId
@@ -1072,61 +1167,70 @@ export class ProductBulkIndexer {
           const mediaImageCount = ((this as any)._mediaImageCount || 0) + 1;
           (this as any)._mediaImageCount = mediaImageCount;
           if (mediaImageCount <= 5) {
-            LOGGER.log(`📷 MediaImage: productId=${row.__parentId}, hasPreview=${!!row.preview?.image?.url}, hasUrl=${!!row.url}, rowKeys=${Object.keys(row).join(',')}`);
+            LOGGER.log(`📷 MediaImage: productId=${parentId}, hasPreview=${!!row.preview?.image?.url}, hasUrl=${!!row.url}`);
           }
         } else {
-          // Debug: MediaImage row came before Product row
-          const orphanMediaCount = ((this as any)._orphanMediaCount || 0) + 1;
-          (this as any)._orphanMediaCount = orphanMediaCount;
-          if (orphanMediaCount <= 3) {
-            LOGGER.warn(`⚠️ MediaImage row for product ${row.__parentId} came before Product row - will be lost`);
+          // MediaImage row for product not in memory - this shouldn't happen in new format
+          // But handle it for safety (might be orphaned from previous run)
+          LOGGER.warn(`⚠️ MediaImage row at line ${lineNum} - parent product ${parentId} not found in memory`);
+          
+          // Store for post-processing
+          if (!(this as any)._orphanedImages) {
+            (this as any)._orphanedImages = new Map();
           }
+          const orphanedImages = (this as any)._orphanedImages;
+          const key = parentId || normalizeShopifyId(parentId);
+          if (!orphanedImages.has(key)) {
+            orphanedImages.set(key, []);
+          }
+          orphanedImages.get(key).push(row);
         }
         continue;
       }
 
       /* ------------------ ProductVariant ------------------ */
       if (type === "ProductVariant") {
-        const parent = products[row.__parentId];
-        if (parent) parent.variants.push(row);
+        const parentId = row.__parentId;
+        const parent = products[parentId];
+        if (parent) {
+          parent.variants.push(row);
+        } else {
+          // Variant row for product not in memory - this shouldn't happen in new format
+          LOGGER.warn(`⚠️ ProductVariant row at line ${lineNum} - parent product ${parentId} not found in memory`);
+          
+          // Store for post-processing
+          if (!(this as any)._orphanedVariants) {
+            (this as any)._orphanedVariants = new Map();
+          }
+          const orphanedVariants = (this as any)._orphanedVariants;
+          const key = parentId || normalizeShopifyId(parentId);
+          if (!orphanedVariants.has(key)) {
+            orphanedVariants.set(key, []);
+          }
+          orphanedVariants.get(key).push(row);
+        }
         continue;
       }
 
-      /* ======================================================
-       *                     COLLECTION ROOT
-       * ====================================================== */
+      /* ------------------ Collection (CollectionProduct relationship) ------------------ */
+      // In new JSONL format: Collection rows with __parentId point to products
+      // This represents a product-to-collection relationship
       if (type === "Collection") {
-        // Extract products from collection if they're embedded in the row
-        // GraphQL bulk operation might embed products in collections.products.edges
-        const embeddedProducts: string[] = [];
-        if (row.products?.edges && Array.isArray(row.products.edges)) {
-          embeddedProducts.push(...row.products.edges.map((edge: any) => edge?.node?.id).filter(Boolean));
-        } else if (Array.isArray(row.products)) {
-          embeddedProducts.push(...row.products.map((p: any) => p?.id || p).filter(Boolean));
-        }
-        
-        // Debug: Log collection structure to see what we have
-        const collectionDebugCount = ((this as any)._collectionDebugCount || 0) + 1;
-        (this as any)._collectionDebugCount = collectionDebugCount;
-        if (collectionDebugCount <= 3) {
-          LOGGER.log(`📚 Collection row: id=${row.id}, hasProductsField=${!!row.products}, hasProductsEdges=${!!row.products?.edges}, embeddedProductsCount=${embeddedProducts.length}, rowKeys=${Object.keys(row).join(',')}`);
-        }
-        
-        collections[row.id] = {
-          ...row,
-          products: embeddedProducts
-        };
-        
-        // Process embedded products as CollectionProduct relationships
-        const collectionId = normalizeShopifyId(row.id);
-        for (const productId of embeddedProducts) {
-          if (productId && collectionId) {
+        // Check if this is a CollectionProduct relationship (has __parentId pointing to a Product)
+        const parentId = row.__parentId;
+        if (parentId && extractShopifyResourceType(parentId) === "Product") {
+          // This is a product-to-collection relationship
+          const productId = parentId;
+          const collectionId = normalizeShopifyId(row.id);
+          
+          if (collectionId && productId) {
+            // Add collection to product's collections set
             if (!productCollections[productId]) {
               productCollections[productId] = new Set();
             }
             productCollections[productId].add(collectionId);
             
-            // Also add to normalized key
+            // Also add to normalized key if different
             const normalizedProductId = normalizeShopifyId(productId);
             if (normalizedProductId && normalizedProductId !== productId) {
               if (!productCollections[normalizedProductId]) {
@@ -1134,65 +1238,21 @@ export class ProductBulkIndexer {
               }
               productCollections[normalizedProductId].add(collectionId);
             }
-          }
-        }
-        
-        if (embeddedProducts.length > 0) {
-          const embeddedCount = ((this as any)._embeddedProductsCount || 0) + 1;
-          (this as any)._embeddedProductsCount = embeddedCount;
-          if (embeddedCount <= 5) {
-            LOGGER.log(`📚 Collection ${row.id} has ${embeddedProducts.length} embedded products`);
-          }
-        }
-        
-        continue;
-      }
-
-      /* ------------------ Collection Product Mapping ------------------ */
-      if (type === "CollectionProduct") {
-        // CollectionProduct rows link products to collections
-        // row.__parentId = collection GID
-        // row.id = product GID
-        const parent = collections[row.__parentId];
-        if (parent) parent.products.push(row.id);
-        
-        // Debug: Log first few to verify they're being processed
-        const collectionProductDebugCount = ((this as any)._collectionProductDebugCount || 0) + 1;
-        (this as any)._collectionProductDebugCount = collectionProductDebugCount;
-        if (collectionProductDebugCount <= 5) {
-          LOGGER.log(`🔗 CollectionProduct row detected: __parentId=${row.__parentId}, productId=${row.id}, parentExists=${!!parent}`);
-        }
-
-        // Extract numeric collection ID (collections are stored as numeric strings in ES)
-        const collectionId = normalizeShopifyId(row.__parentId);
-        // Use row.id directly as key (products map uses row.id as key, which is GID format)
-        const productId = row.id;
-        const normalizedProductId = normalizeShopifyId(productId);
-        
-        if (collectionId && productId) {
-          // Always add to productCollections with the productId (GID format) as key
-          // This matches the key format used in products map
-          if (!productCollections[productId]) {
-            productCollections[productId] = new Set();
-          }
-          productCollections[productId].add(collectionId);
-          
-          // Also add to normalized key if different (for products that might use normalized keys)
-          if (normalizedProductId && normalizedProductId !== productId) {
-            if (!productCollections[normalizedProductId]) {
-              productCollections[normalizedProductId] = new Set();
+            
+            // Debug logging for first few collection relationships
+            const collectionCount = ((this as any)._collectionCount || 0) + 1;
+            (this as any)._collectionCount = collectionCount;
+            if (collectionCount <= 20) {
+              LOGGER.log(`📦 Collection relationship: productId=${productId}, collectionId=${collectionId}, productExists=${!!products[productId]}, totalCollectionsForProduct=${productCollections[productId]?.size || 0}`);
             }
-            productCollections[normalizedProductId].add(collectionId);
           }
-          
-          // Debug logging for first few CollectionProduct rows
-          const collectionProductCount = ((this as any)._collectionProductCount || 0) + 1;
-          (this as any)._collectionProductCount = collectionProductCount;
-          if (collectionProductCount <= 10) {
-            LOGGER.log(`📦 CollectionProduct: productId=${productId}, collectionId=${collectionId}, productExists=${!!products[productId]}, productCollectionsKeys=${Object.keys(productCollections).length}`);
-          }
+        } else {
+          // This is a Collection root row (not a relationship)
+          collections[row.id] = {
+            ...row,
+            products: []
+          };
         }
-
         continue;
       }
 
@@ -1202,61 +1262,221 @@ export class ProductBulkIndexer {
         if (parent) parent.image = row;
         continue;
       }
+      
     }
 
     /* ===========================================================
      *        Flush any remaining unprocessed products
      * =========================================================== */
-    for (const pid of Object.keys(products)) {
-      await flushProduct(pid);
+    // Flush the current product being collected (end of file - all data collected)
+    if (currentProductId && products[currentProductId]) {
+      LOGGER.log(`Flushing final product ${currentProductId} at end of file`);
+      await flushProduct(currentProductId);
+    }
+    
+    // Flush any other remaining products (shouldn't happen in new format, but handle it)
+    const remainingProducts = Object.keys(products);
+    if (remainingProducts.length > 0) {
+      LOGGER.log(`Flushing ${remainingProducts.length} remaining products at end of file`);
+      for (const pid of remainingProducts) {
+        await flushProduct(pid);
+      }
     }
 
     /* ===========================================================
-     *        Update products that got collections after being flushed
+     *        Post-processing: Update products with data that arrived after flush
      * =========================================================== */
-    // CollectionProduct rows might come AFTER products are flushed
-    // So we need to update products in ES that have collections in productCollections
-    // but were already indexed without them
-    const productsToUpdate = Object.keys(productCollections).filter(pid => {
+    // This handles:
+    // 1. Collections that arrived after products were flushed
+    // 2. Variants that arrived after products were flushed
+    // 3. Images that arrived after products were flushed
+    
+    const orphanedImages = (this as any)._orphanedImages || new Map();
+    const orphanedVariants = (this as any)._orphanedVariants || new Map();
+    
+    // Find all products that need updates
+    const productsToUpdate = new Set<string>();
+    
+    // Products with collections that arrived after flush
+    Object.keys(productCollections).forEach(pid => {
       const collections = productCollections[pid];
-      return collections && collections.size > 0 && !products[pid]; // Product was flushed but has collections
+      if (collections && collections.size > 0 && !products[pid]) {
+        productsToUpdate.add(pid);
+      }
+    });
+    
+    // Products with orphaned variants
+    orphanedVariants.forEach((variants: any[], productId: string) => {
+      if (variants.length > 0) {
+        productsToUpdate.add(productId);
+      }
+    });
+    
+    // Products with orphaned images
+    orphanedImages.forEach((images: any[], productId: string) => {
+      if (images.length > 0) {
+        productsToUpdate.add(productId);
+      }
     });
 
-    if (productsToUpdate.length > 0) {
-      LOGGER.log(`Updating ${productsToUpdate.length} products with collections that were added after flush`);
+    if (productsToUpdate.size > 0) {
+      LOGGER.log(`Post-processing: Updating ${productsToUpdate.size} products with data that arrived after flush`);
       const updateBatch: any[] = [];
+      let updateCount = 0;
       
       for (const productId of productsToUpdate) {
-        const collections = Array.from(productCollections[productId]);
+        const normalizedProductId = normalizeShopifyId(productId);
+        const updateDoc: any = {};
+        let needsUpdate = false;
         
-        // Update the product in ES with collections
-        updateBatch.push({
-          update: {
-            _index: this.indexName,
-            _id: productId,
+        // Check for collections
+        const collections = productCollections[productId] || productCollections[normalizedProductId];
+        if (collections && collections.size > 0) {
+          updateDoc.collections = Array.from(collections);
+          needsUpdate = true;
+        }
+        
+        // Check for orphaned variants
+        const variants = orphanedVariants.get(productId) || orphanedVariants.get(normalizedProductId);
+        if (variants && variants.length > 0) {
+          // For variants, we need to fetch the current product, merge variants, and update
+          // This is more complex, so we'll log it and handle it separately if needed
+          LOGGER.warn(`⚠️ Product ${productId} has ${variants.length} orphaned variants - variants update requires full document reindex`);
+          // Note: Variants update would require fetching current doc, merging, and reindexing
+          // For now, we'll focus on collections and images which are simpler to update
+        }
+        
+        // Check for orphaned images
+        const images = orphanedImages.get(productId) || orphanedImages.get(normalizedProductId);
+        if (images && images.length > 0) {
+          // Extract image URLs from orphaned images
+          const imageUrls = images
+            .map((img: any) => img.preview?.image?.url || img.url || img.image?.url)
+            .filter((url: any) => url);
+          
+          if (imageUrls.length > 0) {
+            // Update imagesUrls field
+            updateDoc.imagesUrls = imageUrls;
+            updateDoc.imageUrl = imageUrls[0] || null;
+            needsUpdate = true;
           }
-        });
-        updateBatch.push({
-          doc: {
-            collections: collections
+        }
+        
+        if (needsUpdate) {
+          // Try multiple ID formats for ES document _id
+          // ES documents might use normalized ID or GID format
+          const possibleIds = [
+            normalizedProductId,
+            productId,
+            normalizeShopifyId(productId),
+          ].filter((id, index, arr) => id && arr.indexOf(id) === index); // Remove duplicates
+          
+          // Try each possible ID format
+          for (const esId of possibleIds) {
+            updateBatch.push({
+              update: {
+                _index: this.indexName,
+                _id: esId,
+              }
+            });
+            updateBatch.push({
+              doc: updateDoc,
+              doc_as_upsert: false, // Don't create if doesn't exist
+            });
+            updateCount++;
+            break; // Only try first ID format per product to avoid duplicates
           }
-        });
+        }
       }
 
       if (updateBatch.length > 0) {
         try {
-          const response = await this.esClient.bulk({ body: updateBatch });
+          LOGGER.log(`Executing bulk update for ${updateCount} products`);
+          const response = await this.esClient.bulk({ 
+            refresh: false,
+            operations: updateBatch 
+          });
+          
           if (response.errors) {
             const errors = response.items.filter((item: any) => item.update?.error);
-            LOGGER.warn(`Some collection updates failed: ${errors.length} errors`);
+            const successful = response.items.length - errors.length;
+            LOGGER.warn(`Post-processing update: ${successful} succeeded, ${errors.length} failed`);
+            
+            // Log first few errors for debugging
+            if (errors.length > 0) {
+              const sampleErrors = errors.slice(0, 5);
+              sampleErrors.forEach((errorItem: any) => {
+                const error = errorItem.update?.error;
+                if (error) {
+                  LOGGER.warn(`Update error: ${error.reason || JSON.stringify(error)}`);
+                }
+              });
+            }
           } else {
-            LOGGER.log(`Successfully updated ${updateBatch.length / 2} products with collections`);
+            LOGGER.log(`✅ Successfully updated ${updateCount} products with post-processing data`);
           }
-        } catch (err) {
-          LOGGER.error('Error updating products with collections', err);
+          
+          // Validation: Check if updates were successful
+          if (response.items) {
+            const failedUpdates = response.items.filter((item: any) => item.update?.error);
+            const successfulUpdates = response.items.filter((item: any) => 
+              item.update?.result === 'updated' || item.update?.result === 'noop'
+            );
+            
+            LOGGER.log(`Post-processing validation: ${successfulUpdates.length} succeeded, ${failedUpdates.length} failed`);
+            
+            if (failedUpdates.length > 0) {
+              // Log summary of failures
+              const notFound = failedUpdates.filter((item: any) => 
+                item.update?.error?.type === 'document_missing_exception' ||
+                item.update?.error?.type === 'index_not_found_exception'
+              );
+              const otherErrors = failedUpdates.length - notFound.length;
+              
+              LOGGER.warn(`Post-processing failures: ${notFound.length} products not found in ES, ${otherErrors} other errors`);
+              
+              // This is expected for some products (they may have been deleted or never indexed)
+              if (notFound.length < failedUpdates.length) {
+                // Some real errors occurred
+                const sampleErrors = failedUpdates
+                  .filter((item: any) => !notFound.includes(item))
+                  .slice(0, 3);
+                sampleErrors.forEach((errorItem: any) => {
+                  const error = errorItem.update?.error;
+                  if (error) {
+                    LOGGER.warn(`Post-processing error sample: ${error.reason || JSON.stringify(error)}`);
+                  }
+                });
+              }
+            }
+          }
+        } catch (err: any) {
+          LOGGER.error('Error in post-processing update', {
+            error: err?.message || err,
+            stack: err?.stack,
+          });
         }
+      } else {
+        LOGGER.log('No products needed post-processing updates');
       }
+    } else {
+      LOGGER.log('No products needed post-processing updates');
     }
+    
+    // Final validation summary
+    const totalOrphanedImages = Array.from(orphanedImages.values()).reduce((sum, arr) => sum + arr.length, 0);
+    const totalOrphanedVariants = Array.from(orphanedVariants.values()).reduce((sum, arr) => sum + arr.length, 0);
+    const totalProductsWithCollections = Object.keys(productCollections).filter(pid => {
+      const collections = productCollections[pid];
+      return collections && collections.size > 0;
+    }).length;
+    
+    LOGGER.log(`Post-processing summary:`, {
+      productsWithCollections: totalProductsWithCollections,
+      orphanedImages: totalOrphanedImages,
+      orphanedVariants: totalOrphanedVariants,
+      productsUpdated: productsToUpdate.size,
+    });
 
     /* ------------------ Final batch flush ------------------ */
     if (batch.length) {

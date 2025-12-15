@@ -302,6 +302,7 @@ export function detectType(row: any): string | null {
     if (resourceType === "ProductOption") return "ProductOption";
     if (resourceType === "ProductVariant") return "ProductVariant";
     if (resourceType === "MediaImage") return "MediaImage";
+    if (resourceType === "Collection") return "Collection"; // Collection with Product parent = product-to-collection relationship
     // Fallback for legacy detection
     if (row.values) return "ProductOption";
     if (row.price || row.sku) return "ProductVariant";
