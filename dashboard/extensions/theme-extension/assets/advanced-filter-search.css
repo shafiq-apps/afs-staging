@@ -1814,15 +1814,15 @@ shopify-list-context[type="image"] {
 .afs-product-modal__add-to-cart {
   display: flex;
   flex-direction: row;
+  gap: 1.4rem;
 }
 
 .afs-product-modal__incrementor {
   border: 1px solid var(--afs-border-color);
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 1.4rem;
   border-radius: 0.25rem;
-  margin-right: 0.5rem;
   width: fit-content;
 }
 
