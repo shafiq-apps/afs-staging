@@ -1398,6 +1398,11 @@
   height: 100%;
 }
 
+[data-afs-container] .afs-product-card__quick-view-icon svg {
+  width: 26px;
+  height: 26px;
+}
+
 [data-afs-container] .afs-product-card__quick-view span:not(.afs-product-card__quick-view-icon) {
   font-size: 13px;
   font-weight: 500;

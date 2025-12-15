@@ -53,7 +53,7 @@ export enum TextTransform {
 
 export enum DeploymentChannel {
   APP = "APP",
-  API = "API",
+  THEME = "THEME",
   ADMIN = "ADMIN",
 }
 
