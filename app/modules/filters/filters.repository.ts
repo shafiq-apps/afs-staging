@@ -403,27 +403,18 @@ export class FiltersRepository {
         document: filter, // Store directly in camelCase
       });
 
-      // Invalidate cache only if the filter is published (active)
-      // This avoids unnecessary cache invalidation for draft/inactive filters
-      // Note: status === 'published' is the single source of truth for active filters
-      if (filter.status === 'PUBLISHED') {
-        try {
-          const cacheService = getCacheService();
-          cacheService.invalidateShop(shop);
-          logger.info('Filter created and cache invalidated', { shop, id, title: filter.title });
-        } catch (cacheError: any) {
-          // Log cache invalidation error but don't fail the filter creation
-          logger.warn('Failed to invalidate cache after filter creation', {
-            shop,
-            id,
-            error: cacheError?.message || cacheError,
-          });
-        }
-      } else {
-        logger.debug('Filter created but cache not invalidated (filter is not published)', {
+      // Invalidate cache instantly when filter is created
+      // This ensures filter list and filter results cache are always up-to-date
+      try {
+        const cacheService = getCacheService();
+        cacheService.invalidateShop(shop);
+        logger.info('Filter created and cache invalidated', { shop, id, title: filter.title, status: filter.status });
+      } catch (cacheError: any) {
+        // Log cache invalidation error but don't fail the filter creation
+        logger.warn('Failed to invalidate cache after filter creation', {
           shop,
           id,
-          status: filter.status,
+          error: cacheError?.message || cacheError,
         });
       }
 
@@ -476,33 +467,25 @@ export class FiltersRepository {
         document: updated, // Store directly in camelCase
       });
 
-      // Invalidate cache only if the filter is published (active)
-      // This avoids unnecessary cache invalidation for draft/inactive filters
-      // Note: status === 'published' is the single source of truth for active filters
-      if (updated.status === 'PUBLISHED') {
-        try {
-          const cacheService = getCacheService();
-          cacheService.invalidateShop(shop);
-          logger.info('Filter updated and cache invalidated', { 
-            shop, 
-            id, 
-            title: updated.title,
-            version: updated.version,
-            updatedAt: updated.updatedAt,
-          });
-        } catch (cacheError: any) {
-          // Log cache invalidation error but don't fail the filter update
-          logger.warn('Failed to invalidate cache after filter update', {
-            shop,
-            id,
-            error: cacheError?.message || cacheError,
-          });
-        }
-      } else {
-        logger.debug('Filter updated but cache not invalidated (filter is not published)', {
+      // Invalidate cache instantly when filter is updated
+      // This ensures filter list and filter results cache are always up-to-date
+      try {
+        const cacheService = getCacheService();
+        cacheService.invalidateShop(shop);
+        logger.info('Filter updated and cache invalidated', { 
+          shop, 
+          id, 
+          title: updated.title,
+          status: updated.status,
+          version: updated.version,
+          updatedAt: updated.updatedAt,
+        });
+      } catch (cacheError: any) {
+        // Log cache invalidation error but don't fail the filter update
+        logger.warn('Failed to invalidate cache after filter update', {
           shop,
           id,
-          status: updated.status,
+          error: cacheError?.message || cacheError,
         });
       }
 
