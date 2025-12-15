@@ -50,7 +50,7 @@
     split: (v) => v ? (Array.isArray(v) ? v : v.split(',').map(s => s.trim()).filter(Boolean)) : [],
 
     // Fast ID getter
-    id: (p = {}) => (p.productId || p.id || p.gid).split('/').pop(),
+    id: (p) => (p?.productId || p?.id || p?.gid) ? String(p.productId || p.id || p.gid).split('/').pop() : null,
 
     // Fast string check
     str: (v) => String(v || '').trim(),

@@ -356,7 +356,12 @@ export function applyFilterConfigToInput(
       // If a specific collection is requested, check if it's allowed
       if (!allowedCollectionIds.includes(currentCollection)) {
         // Collection not allowed, return empty result by filtering to non-existent collection
-        result.collections = ['__none__'];
+        if (result.cpid) {
+          result.collections = [result.cpid];
+        }
+        else {
+          result.collections = ['__none__'];
+        }
       }
     } else if (!result.collections || result.collections.length === 0) {
       // No collection specified, but filter is scoped - apply allowed collections
