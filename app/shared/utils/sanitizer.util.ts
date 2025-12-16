@@ -297,6 +297,11 @@ export function sanitizeFilterInput(input: {
     sanitized.keep = sanitizeTermsArray(input.keep);
   }
 
+  // Preserve handle mapping metadata for AND/OR logic
+  if ((input as any).__handleMapping) {
+    (sanitized as any).__handleMapping = (input as any).__handleMapping;
+  }
+
   return sanitized;
 }
 

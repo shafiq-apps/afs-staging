@@ -361,7 +361,15 @@ export function formatFilters(
 
     if (standardFilterMapping) {
       // Process as standard filter
-      const aggregation = aggregations[standardFilterMapping.aggregationKey];
+      // Check if there's a handle-specific aggregation for this option (for contextual counts)
+      const handleSpecificAggregations = (aggregations as any).__handleSpecificAggregations || {};
+      let aggregation = handleSpecificAggregations[option.handle];
+      
+      // Fall back to standard aggregation if no handle-specific one exists
+      if (!aggregation) {
+        aggregation = aggregations[standardFilterMapping.aggregationKey];
+      }
+      
       // Type guard: standard filters are TermsAggregation (have buckets property)
       if (!aggregation || !('buckets' in aggregation)) continue;
 

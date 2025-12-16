@@ -31,6 +31,12 @@
    Container & Layout
    ============================================================================ */
 
+[data-block-handle="advanced-filter-search"] {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
 [data-afs-container] {
   display: flex;
   flex-direction: column;

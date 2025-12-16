@@ -33,7 +33,7 @@ export class CacheManager<T = any> {
   private cleanupLogCounter: number = 0;
 
   constructor(options: CacheOptions = {}) {
-    this.defaultTTL = options.ttl || 5 * 60 * 1000; // 5 minutes default
+    this.defaultTTL = options.ttl || 1 * 60 * 1000; // 5 minutes default
     this.maxSize = options.maxSize || 1000; // 1000 entries default
     // Ensure checkInterval is valid (must be > 0)
     const requestedInterval = options.checkInterval || 60 * 1000; // 1 minute default

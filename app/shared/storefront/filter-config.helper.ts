@@ -375,8 +375,16 @@ export function applyFilterConfigToInput(
   // Map option handles/IDs to actual option names
   // Query parameters may use handles/IDs (e.g., "pr_a3k9x", "ti7u71") instead of option names (e.g., "Size")
   // Also filter out any keys that don't match actual options in the filter config
+  // IMPORTANT: Track handles by base field to apply correct AND/OR logic:
+  // - Same handle with multiple values = OR (merge into array)
+  // - Different handles mapping to same base field = AND (keep separate)
   if (result.options) {
     const mappedOptions: Record<string, string[]> = {};
+    // Track which handles map to which base fields for AND logic
+    const handleToBaseField: Record<string, string> = {};
+    const baseFieldToHandles: Record<string, string[]> = {};
+    // Track which values came from which handle (for contextual aggregations)
+    const handleToValues: Record<string, string[]> = {};
     
     for (const [queryKey, values] of Object.entries(result.options)) {
       // Check if this key (handle or option name) matches an actual option in the filter config
@@ -386,17 +394,51 @@ export function applyFilterConfigToInput(
         // Key matches filter config - map handle/ID to actual option name
         const optionName = mapOptionKeyToName(filterConfig, queryKey);
         
+        // Find the base field this option maps to
+        let baseField: string | null = null;
+        if (filterConfig.options) {
+          const option = filterConfig.options.find(opt => {
+            if (!isPublishedStatus(opt.status)) return false;
+            const derivedVariantOptionKey = deriveVariantOptionKey(opt);
+            const mappedName = derivedVariantOptionKey || opt.optionType?.trim() || opt.handle;
+            return mappedName === optionName || opt.handle === queryKey;
+          });
+          
+          if (option?.optionSettings?.baseOptionType) {
+            baseField = option.optionSettings.baseOptionType.trim().toUpperCase();
+          }
+        }
+        
         logger.debug('Mapping option key to name', {
           queryKey,
           optionName,
           values,
+          baseField,
           matchesFilterConfig,
         });
         
         if (optionName && optionName !== queryKey) {
           // This was a handle that got mapped to an option name
-          // Merge values if the option name already exists (can happen with different handles mapping to same name)
+          // Track handle-to-baseField mapping
+          if (baseField) {
+            handleToBaseField[queryKey] = baseField;
+            if (!baseFieldToHandles[baseField]) {
+              baseFieldToHandles[baseField] = [];
+            }
+            if (!baseFieldToHandles[baseField].includes(queryKey)) {
+              baseFieldToHandles[baseField].push(queryKey);
+            }
+          }
+          
+          // Track which values came from this handle (for contextual aggregations)
+          handleToValues[queryKey] = values;
+          
+          // For same handle: merge values (OR logic)
+          // For different handles mapping to same base field: keep separate (AND logic will be applied in repository)
           if (mappedOptions[optionName]) {
+            // Check if this is the same handle or different handle mapping to same option name
+            // If same handle, merge (OR). If different handle, we need to track separately.
+            // For now, we'll merge but mark that AND logic is needed if multiple handles map to same base field
             mappedOptions[optionName] = [...new Set([...mappedOptions[optionName], ...values])];
           } else {
             mappedOptions[optionName] = values;
@@ -414,6 +456,14 @@ export function applyFilterConfigToInput(
       // Strict enforcement: If option doesn't match filter config, skip it
       // This ensures only configured options can be used for filtering
     }
+    
+    // Store handle mapping info for repository to use AND logic and contextual aggregations
+    // We'll use a special structure: add metadata to track which handles contributed to which fields
+    (result as any).__handleMapping = {
+      handleToBaseField,
+      baseFieldToHandles,
+      handleToValues, // Track which values came from which handle
+    };
     
     result.options = mappedOptions;
   }
@@ -452,6 +502,57 @@ export function applyFilterConfigToInput(
             });
             // Still remove from options since it's a standard filter
           } else {
+            // Track which handles contributed to this standard field
+            const handleMapping = (result as any).__handleMapping || {};
+            const handleToBaseField = handleMapping.handleToBaseField || {};
+            
+            // Find which handles map to this option name and base field
+            const contributingHandles: string[] = [];
+            if (filterConfig.options) {
+              for (const option of filterConfig.options) {
+                if (!isPublishedStatus(option.status)) continue;
+                const derivedVariantOptionKey = deriveVariantOptionKey(option);
+                const mappedName = derivedVariantOptionKey || option.optionType?.trim() || option.handle;
+                if (mappedName === optionName) {
+                  const baseField = option.optionSettings?.baseOptionType?.trim().toUpperCase();
+                  // Check if this handle's base field matches the standard field
+                  const standardFieldUpper = standardField.toUpperCase();
+                  if (baseField === 'TAGS' && standardField === 'tags') {
+                    contributingHandles.push(option.handle);
+                  } else if (baseField === 'VENDOR' && standardField === 'vendors') {
+                    contributingHandles.push(option.handle);
+                  } else if (baseField === 'PRODUCT_TYPE' && standardField === 'productTypes') {
+                    contributingHandles.push(option.handle);
+                  } else if (baseField === 'COLLECTION' && standardField === 'collections') {
+                    contributingHandles.push(option.handle);
+                  }
+                }
+              }
+            }
+            
+            // Track handles for AND logic
+            if (contributingHandles.length > 0) {
+              if (!handleMapping.standardFieldToHandles) {
+                handleMapping.standardFieldToHandles = {};
+              }
+              const baseFieldKey = standardField === 'tags' ? 'TAGS' :
+                                  standardField === 'vendors' ? 'VENDOR' :
+                                  standardField === 'productTypes' ? 'PRODUCT_TYPE' :
+                                  standardField === 'collections' ? 'COLLECTION' : null;
+              if (baseFieldKey) {
+                if (!handleMapping.standardFieldToHandles[baseFieldKey]) {
+                  handleMapping.standardFieldToHandles[baseFieldKey] = [];
+                }
+                // Add handles that aren't already tracked
+                for (const handle of contributingHandles) {
+                  if (!handleMapping.standardFieldToHandles[baseFieldKey].includes(handle)) {
+                    handleMapping.standardFieldToHandles[baseFieldKey].push(handle);
+                  }
+                }
+                (result as any).__handleMapping = handleMapping;
+              }
+            }
+            
             const existing = result[standardField] || [];
             result[standardField] = [...new Set([...existing, ...values])];
             
@@ -459,6 +560,7 @@ export function applyFilterConfigToInput(
               optionName,
               standardField,
               values,
+              contributingHandles,
               existingCount: existing.length,
               newCount: result[standardField].length,
             });

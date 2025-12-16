@@ -242,8 +242,10 @@ export class StorefrontSearchRepository {
      * Build base filter queries (common to all aggregations)
      * These filters are always included in aggregation queries
      */
-    const buildBaseMustQueries = (excludeFilterType?: string): any[] => {
+    const buildBaseMustQueries = (excludeFilterType?: string, excludeHandle?: string): any[] => {
       const baseMustQueries: any[] = [];
+      const handleMapping = (sanitizedFilters as any).__handleMapping;
+      const handleToValues = handleMapping?.handleToValues || {};
 
       /** Search */
       if (sanitizedFilters?.search) {
@@ -257,27 +259,101 @@ export class StorefrontSearchRepository {
         });
       }
 
-      /** Simple terms filters - exclude the filter type being aggregated */
-      const simpleFilters: Record<string, { field: string; values?: any[] }> = {
-        vendors: { field: 'vendor.keyword', values: sanitizedFilters?.vendors },
+      const simpleFilters: Record<string, { field: string; values?: any[]; baseFieldKey: string }> = {
+        vendors: { field: 'vendor.keyword', values: sanitizedFilters?.vendors, baseFieldKey: 'VENDOR' },
         productTypes: {
           field: 'productType.keyword',
           values: sanitizedFilters?.productTypes,
+          baseFieldKey: 'PRODUCT_TYPE',
         },
-        tags: { field: 'tags', values: sanitizedFilters?.tags },
+        tags: { field: 'tags', values: sanitizedFilters?.tags, baseFieldKey: 'TAGS' },
         collections: {
           field: 'collections',
           values: sanitizedFilters?.collections,
+          baseFieldKey: 'COLLECTION',
         },
       };
 
       for (const key in simpleFilters) {
         // Skip if this is the filter type being aggregated
-        if (excludeFilterType === key) continue;
+        if (excludeFilterType === key) {
+          // If excluding a specific handle, include values from other handles
+          if (excludeHandle) {
+            const { field, baseFieldKey } = simpleFilters[key];
+            const baseFieldToHandles = handleMapping?.baseFieldToHandles || {};
+            const handlesForField = baseFieldToHandles[baseFieldKey] || [];
+            
+            // Get values from other handles (not the excluded one)
+            const otherHandlesValues: string[] = [];
+            for (const handle of handlesForField) {
+              if (handle !== excludeHandle && handleToValues[handle]) {
+                otherHandlesValues.push(...handleToValues[handle]);
+              }
+            }
+            
+            logger.debug(`[getFacets] Processing ${key} filter exclusion`, {
+              excludeFilterType,
+              excludeHandle,
+              handlesForField,
+              handleToValues,
+              otherHandlesValues,
+            });
+            
+            if (otherHandlesValues.length > 0) {
+              // Use AND logic for other handles' values
+              const clause = {
+                bool: {
+                  must: [...new Set(otherHandlesValues)].map((value: string) => ({
+                    term: { [field]: value }
+                  }))
+                }
+              };
+              baseMustQueries.push(clause);
+              logger.debug(`[getFacets] Including other handles' values for ${key} (excluding handle ${excludeHandle})`, {
+                otherHandlesValues,
+                excludedHandle: excludeHandle,
+                clause,
+              });
+            } else {
+              logger.debug(`[getFacets] No other handles' values for ${key} (excluding handle ${excludeHandle})`, {
+                excludeHandle,
+                handlesForField,
+              });
+            }
+          }
+          continue;
+        }
         
-        const { field, values } = simpleFilters[key];
+        const { field, values, baseFieldKey } = simpleFilters[key];
         if (hasValues(values)) {
-          baseMustQueries.push({ terms: { [field]: values! } });
+          // Check if multiple handles contributed to this field (AND logic)
+          const standardFieldToHandles = handleMapping?.standardFieldToHandles?.[baseFieldKey] || [];
+          const hasMultipleHandles = standardFieldToHandles.length > 1;
+          
+          let clause: any;
+          if (hasMultipleHandles && values!.length > 1) {
+            // Different handles = AND logic: each value must be present
+            clause = {
+              bool: {
+                must: values!.map((value: string) => ({
+                  term: { [field]: value }
+                }))
+              }
+            };
+            logger.debug(`[getFacets] ${key} filter using AND logic (multiple handles)`, {
+              values,
+              handles: standardFieldToHandles,
+            });
+          } else {
+            // Same handle or single value = OR logic: any value can match
+            clause = { terms: { [field]: values! } };
+            logger.debug(`[getFacets] ${key} filter using OR logic (same handle or single value)`, {
+              values,
+              handles: standardFieldToHandles,
+            });
+          }
+          
+          baseMustQueries.push(clause);
         }
       }
 
@@ -385,27 +461,44 @@ export class StorefrontSearchRepository {
 
     /**
      * Build post_filter for a specific filter type (to exclude it from aggregations)
+     * If excludeHandle is provided, exclude that handle's values but include other handles' values
      */
-    const buildPostFilter = (filterType: string): any[] | undefined => {
+    const buildPostFilter = (filterType: string, excludeHandle?: string): any[] | undefined => {
       const postFilterQueries: any[] = [];
+      const handleMapping = (sanitizedFilters as any).__handleMapping;
+      const handleToValues = handleMapping?.handleToValues || {};
 
       // Handle standard filters
-      const simpleFilters: Record<string, { field: string; values?: any[] }> = {
-        vendors: { field: 'vendor.keyword', values: sanitizedFilters?.vendors },
+      const simpleFilters: Record<string, { field: string; values?: any[]; baseFieldKey: string }> = {
+        vendors: { field: 'vendor.keyword', values: sanitizedFilters?.vendors, baseFieldKey: 'VENDOR' },
         productTypes: {
           field: 'productType.keyword',
           values: sanitizedFilters?.productTypes,
+          baseFieldKey: 'PRODUCT_TYPE',
         },
-        tags: { field: 'tags', values: sanitizedFilters?.tags },
+        tags: { field: 'tags', values: sanitizedFilters?.tags, baseFieldKey: 'TAGS' },
         collections: {
           field: 'collections',
           values: sanitizedFilters?.collections,
+          baseFieldKey: 'COLLECTION',
         },
       };
 
-      if (simpleFilters[filterType] && hasValues(simpleFilters[filterType].values)) {
-        const { field, values } = simpleFilters[filterType];
-        postFilterQueries.push({ terms: { [field]: values! } });
+      if (simpleFilters[filterType]) {
+        const { field, values, baseFieldKey } = simpleFilters[filterType];
+        
+        if (excludeHandle && handleToValues[excludeHandle]) {
+          // Excluding a specific handle - include all values except this handle's
+          const excludedValues = handleToValues[excludeHandle];
+          const otherValues = values ? values.filter(v => !excludedValues.includes(v)) : [];
+          
+          if (otherValues.length > 0) {
+            postFilterQueries.push({ terms: { [field]: otherValues } });
+          }
+        } else if (hasValues(values)) {
+          // Standard case - include all values
+          postFilterQueries.push({ terms: { [field]: values! } });
+        }
       }
 
       // Handle option filters - need to match by optionType
@@ -452,11 +545,12 @@ export class StorefrontSearchRepository {
     /**
      * Build aggregation query for a specific filter type
      * Excludes that filter type from must queries, includes it in post_filter
+     * If excludeHandle is provided, excludes that handle's values but includes other handles' values
      */
-    const buildAggregationQuery = (filterType: string, aggConfig: { name: string; field: string; sizeMult?: number; type?: 'terms' | 'stats' | 'option' }) => {
-      const mustQueries = buildBaseMustQueries(filterType);
+    const buildAggregationQuery = (filterType: string, aggConfig: { name: string; field: string; sizeMult?: number; type?: 'terms' | 'stats' | 'option' }, excludeHandle?: string) => {
+      const mustQueries = buildBaseMustQueries(filterType, excludeHandle);
       const query = mustQueries.length > 0 ? { bool: { must: mustQueries } } : { match_all: {} };
-      const postFilterQueries = buildPostFilter(filterType);
+      const postFilterQueries = buildPostFilter(filterType, excludeHandle);
       
       const aggs: Record<string, any> = {};
       
@@ -501,7 +595,7 @@ export class StorefrontSearchRepository {
     };
 
     // Build queries for each aggregation type
-    const aggregationQueries: Array<{ filterType: string; query: any }> = [];
+    const aggregationQueries: Array<{ filterType: string; query: any; handle?: string }> = [];
 
     // Standard aggregations
     if (enabledAggregations.standard.has('vendors')) {
@@ -519,10 +613,76 @@ export class StorefrontSearchRepository {
     }
 
     if (enabledAggregations.standard.has('tags')) {
-      aggregationQueries.push({
-        filterType: 'tags',
-        query: buildAggregationQuery('tags', { name: 'tags', field: 'tags', sizeMult: 2, type: 'terms' }),
-      });
+      // Check if multiple handles map to tags field (need separate aggregations per handle)
+      const handleMapping = (sanitizedFilters as any).__handleMapping;
+      const tagsHandles = handleMapping?.baseFieldToHandles?.['TAGS'] || [];
+      const handleToValues = handleMapping?.handleToValues || {};
+      
+      if (tagsHandles.length > 1 && filterConfig) {
+        // Multiple handles map to tags - build separate aggregation for each handle
+        // This allows contextual counts (excluding current handle's values, including other handles' values)
+        for (const handle of tagsHandles) {
+          const option = filterConfig.options?.find(opt => opt.handle === handle && isPublishedStatus(opt.status));
+          if (!option) continue;
+          
+          // Build aggregation query that excludes this handle's values but includes other handles' values
+          const excludeHandle = handle;
+          const otherHandlesValues: string[] = [];
+          for (const otherHandle of tagsHandles) {
+            if (otherHandle !== excludeHandle && handleToValues[otherHandle]) {
+              otherHandlesValues.push(...handleToValues[otherHandle]);
+            }
+          }
+          
+          // Create modified filters for this handle's aggregation
+          const handleSpecificFilters = { ...sanitizedFilters };
+          if (otherHandlesValues.length > 0) {
+            handleSpecificFilters.tags = [...new Set(otherHandlesValues)];
+          } else {
+            handleSpecificFilters.tags = undefined;
+          }
+          
+          // Build aggregation excluding this handle (but including other handles' values)
+          // The query should filter by other handles' values, not use post_filter
+          // (post_filter doesn't affect aggregation buckets, only final results)
+          const mustQueries = buildBaseMustQueries('tags', excludeHandle);
+          const query = mustQueries.length > 0 ? { bool: { must: mustQueries } } : { match_all: {} };
+          
+          logger.debug(`[getFacets] Building handle-specific aggregation for ${handle}`, {
+            excludeHandle,
+            otherHandlesValues,
+            mustQueriesCount: mustQueries.length,
+            queryType: mustQueries.length > 0 ? 'bool.must' : 'match_all',
+          });
+          
+          aggregationQueries.push({
+            filterType: `tags:${handle}`, // Use handle-specific filter type for mapping
+            query: {
+              index,
+              size: 0,
+              track_total_hits: false,
+              query,
+              // No post_filter needed - the query already filters correctly
+              aggs: {
+                tags: { // Use standard aggregation name 'tags' so it maps correctly
+                  terms: {
+                    field: 'tags',
+                    size: DEFAULT_BUCKET_SIZE * 2,
+                    order: { _count: 'desc' as const },
+                  },
+                },
+              },
+            },
+            handle, // Store handle for mapping results back to correct filter group
+          });
+        }
+      } else {
+        // Single handle or no handles - use standard aggregation
+        aggregationQueries.push({
+          filterType: 'tags',
+          query: buildAggregationQuery('tags', { name: 'tags', field: 'tags', sizeMult: 2, type: 'terms' }),
+        });
+      }
     }
 
     if (enabledAggregations.standard.has('collections')) {
@@ -636,17 +796,40 @@ export class StorefrontSearchRepository {
     }
 
     // Execute msearch
-    const msearchResponse = msearchBody.length > 0
-      ? await this.esClient.msearch<unknown, FacetAggregations>({ body: msearchBody })
-      : { responses: [] };
+    let msearchResponse: { responses: any[] };
+    if (msearchBody.length > 0) {
+      msearchResponse = await this.esClient.msearch<unknown, FacetAggregations>({ body: msearchBody });
+    } else {
+      msearchResponse = { responses: [] };
+    }
 
     // Merge aggregation results
+    // For handle-specific aggregations, store them separately to map back to correct filter groups
     const mergedAggregations: Record<string, any> = {};
+    const handleSpecificAggregations: Record<string, any> = {}; // handle -> aggregation result
     for (let i = 0; i < aggregationQueries.length; i++) {
+      const { filterType, handle } = aggregationQueries[i];
       const response = msearchResponse.responses[i];
       if (response && !response.error && response.aggregations) {
-        Object.assign(mergedAggregations, response.aggregations);
+        if (handle) {
+          // This is a handle-specific aggregation - store it separately
+          // Extract the aggregation result (should be 'tags' key)
+          handleSpecificAggregations[handle] = response.aggregations.tags || response.aggregations[filterType];
+          logger.debug('Stored handle-specific aggregation', {
+            handle,
+            filterType,
+            hasAggregation: !!handleSpecificAggregations[handle],
+          });
+        } else {
+          // Standard aggregation - merge normally
+          Object.assign(mergedAggregations, response.aggregations);
+        }
       }
+    }
+    
+    // Store handle-specific aggregations in a special key for formatFilters to use
+    if (Object.keys(handleSpecificAggregations).length > 0) {
+      (mergedAggregations as any).__handleSpecificAggregations = handleSpecificAggregations;
     }
 
     logger.debug('Aggregation queries completed', {
@@ -798,7 +981,34 @@ export class StorefrontSearchRepository {
     }
 
     if (hasValues(sanitizedFilters?.vendors)) {
-      const clause = { terms: { 'vendor.keyword': sanitizedFilters!.vendors } };
+      // Check if values came from different handles (AND logic) or same handle (OR logic)
+      const handleMapping = (sanitizedFilters as any).__handleMapping;
+      const standardFieldToHandles = handleMapping?.standardFieldToHandles?.['VENDOR'] || [];
+      const hasMultipleHandles = standardFieldToHandles.length > 1;
+      
+      let clause: any;
+      if (hasMultipleHandles && sanitizedFilters!.vendors.length > 1) {
+        // Different handles = AND logic: each value must be present
+        clause = {
+          bool: {
+            must: sanitizedFilters!.vendors.map((vendor: string) => ({
+              term: { 'vendor.keyword': vendor }
+            }))
+          }
+        };
+        logger.debug('Vendors filter using AND logic (multiple handles)', {
+          vendors: sanitizedFilters!.vendors,
+          handles: standardFieldToHandles,
+        });
+      } else {
+        // Same handle or single value = OR logic: any value can match
+        clause = { terms: { 'vendor.keyword': sanitizedFilters!.vendors } };
+        logger.debug('Vendors filter using OR logic (same handle or single value)', {
+          vendors: sanitizedFilters!.vendors,
+          handles: standardFieldToHandles,
+        });
+      }
+      
       if (shouldKeep('vendors')) {
         postFilterQueries.push(clause);
       } else {
@@ -807,7 +1017,34 @@ export class StorefrontSearchRepository {
     }
 
     if (hasValues(sanitizedFilters?.productTypes)) {
-      const clause = { terms: { 'productType.keyword': sanitizedFilters!.productTypes } };
+      // Check if values came from different handles (AND logic) or same handle (OR logic)
+      const handleMapping = (sanitizedFilters as any).__handleMapping;
+      const standardFieldToHandles = handleMapping?.standardFieldToHandles?.['PRODUCT_TYPE'] || [];
+      const hasMultipleHandles = standardFieldToHandles.length > 1;
+      
+      let clause: any;
+      if (hasMultipleHandles && sanitizedFilters!.productTypes.length > 1) {
+        // Different handles = AND logic: each value must be present
+        clause = {
+          bool: {
+            must: sanitizedFilters!.productTypes.map((productType: string) => ({
+              term: { 'productType.keyword': productType }
+            }))
+          }
+        };
+        logger.debug('ProductTypes filter using AND logic (multiple handles)', {
+          productTypes: sanitizedFilters!.productTypes,
+          handles: standardFieldToHandles,
+        });
+      } else {
+        // Same handle or single value = OR logic: any value can match
+        clause = { terms: { 'productType.keyword': sanitizedFilters!.productTypes } };
+        logger.debug('ProductTypes filter using OR logic (same handle or single value)', {
+          productTypes: sanitizedFilters!.productTypes,
+          handles: standardFieldToHandles,
+        });
+      }
+      
       if (shouldKeep('productTypes')) {
         postFilterQueries.push(clause);
       } else {
@@ -817,7 +1054,43 @@ export class StorefrontSearchRepository {
 
     if (hasValues(sanitizedFilters?.tags)) {
       // Tags is an array field, use directly (not .keyword)
-      const clause = { terms: { 'tags': sanitizedFilters!.tags } };
+      // Check if values came from different handles (AND logic) or same handle (OR logic)
+      const handleMapping = (sanitizedFilters as any).__handleMapping;
+      const standardFieldToHandles = handleMapping?.standardFieldToHandles?.['TAGS'] || [];
+      const hasMultipleHandles = standardFieldToHandles.length > 1;
+      
+      logger.debug('Tags filter handle mapping check', {
+        tags: sanitizedFilters!.tags,
+        handleMapping: handleMapping ? 'present' : 'missing',
+        standardFieldToHandles,
+        hasMultipleHandles,
+        handleMappingFull: handleMapping,
+      });
+      
+      let clause: any;
+      if (hasMultipleHandles && sanitizedFilters!.tags.length > 1) {
+        // Different handles = AND logic: each value must be present
+        // Use multiple term queries in bool.must for AND logic
+        clause = {
+          bool: {
+            must: sanitizedFilters!.tags.map((tag: string) => ({
+              term: { 'tags': tag }
+            }))
+          }
+        };
+        logger.debug('Tags filter using AND logic (multiple handles)', {
+          tags: sanitizedFilters!.tags,
+          handles: standardFieldToHandles,
+        });
+      } else {
+        // Same handle or single value = OR logic: any value can match
+        clause = { terms: { 'tags': sanitizedFilters!.tags } };
+        logger.debug('Tags filter using OR logic (same handle or single value)', {
+          tags: sanitizedFilters!.tags,
+          handles: standardFieldToHandles,
+        });
+      }
+      
       if (shouldKeep('tags')) {
         postFilterQueries.push(clause);
       } else {
@@ -828,8 +1101,35 @@ export class StorefrontSearchRepository {
     if (hasValues(sanitizedFilters?.collections)) {
       // Collections are stored as an array of strings (numeric collection IDs)
       // For array fields in ES, use the field name directly (not .keyword)
-      // The terms query will match any value in the array
-      const clause = { terms: { 'collections': sanitizedFilters!.collections } };
+      // Check if values came from different handles (AND logic) or same handle (OR logic)
+      const handleMapping = (sanitizedFilters as any).__handleMapping;
+      const standardFieldToHandles = handleMapping?.standardFieldToHandles?.['COLLECTION'] || [];
+      const hasMultipleHandles = standardFieldToHandles.length > 1;
+      
+      let clause: any;
+      if (hasMultipleHandles && sanitizedFilters!.collections.length > 1) {
+        // Different handles = AND logic: each value must be present
+        clause = {
+          bool: {
+            must: sanitizedFilters!.collections.map((collection: string) => ({
+              term: { 'collections': collection }
+            }))
+          }
+        };
+        logger.debug('Collections filter using AND logic (multiple handles)', {
+          collections: sanitizedFilters!.collections,
+          handles: standardFieldToHandles,
+        });
+      } else {
+        // Same handle or single value = OR logic: any value can match
+        // The terms query will match any value in the array
+        clause = { terms: { 'collections': sanitizedFilters!.collections } };
+        logger.debug('Collections filter using OR logic (same handle or single value)', {
+          collections: sanitizedFilters!.collections,
+          handles: standardFieldToHandles,
+        });
+      }
+      
       if (shouldKeep('collections')) {
         postFilterQueries.push(clause);
       } else {
