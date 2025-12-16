@@ -36,7 +36,7 @@
                 alt: {{ product.featured_image.alt | json }}
               }{% else %}null{% endif %},
               minPrice: {{ product.price_min | divided_by: 100.0 | json }},
-              minPrice: {{ product.price_max | divided_by: 100.0 | json }},
+              maxPrice: {{ product.price_max | divided_by: 100.0 | json }},
               currencyCode: {{ cart.currency.iso_code | default: shop.currency | json }}
             }{% unless forloop.last %},{% endunless %}
           {% endfor %}

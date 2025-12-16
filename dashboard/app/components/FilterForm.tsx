@@ -927,10 +927,14 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
         // Create mode without auto-population - set empty initial state
         const createInitState: FilterState = {
           title: "",
+          description: "",
           status: DEFAULT_FILTER.status,
+          filterType: "",
           targetScope: DEFAULT_FILTER.targetScope,
           selectedCollections: [],
           filterOptions: [],
+          deploymentChannel: DeploymentChannel.APP,
+          tags: [],
           filterOrientation: DEFAULT_FILTER.filterOrientation,
           defaultView: DEFAULT_FILTER.defaultView,
           showFilterCount: true,
