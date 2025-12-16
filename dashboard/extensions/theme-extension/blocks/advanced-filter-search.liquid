@@ -1,8 +1,3 @@
-{% comment %}
-  Advanced Filter Search Block
-  Add your block content here
-{% endcomment %}
-
 {{ 'advanced-filter-search.css' | asset_url | stylesheet_tag }}
 
 {% comment %} Generate CSS Variables from Block Settings {% endcomment %}
@@ -28,23 +23,23 @@
     --afs-shadow-color-strong: {{ block.settings.shadow_color_strong | default: 'rgba(0, 0, 0, 0.25)' }};
     
     {% comment %} Overlay Colors {% endcomment %}
-    --afs-overlay-color: {{ block.settings.overlay_color | default: 'rgba(0, 0, 0, 0.5)' }};
-    --afs-overlay-color-strong: {{ block.settings.overlay_color_strong | default: 'rgba(0, 0, 0, 0.75)' }};
+    --afs-overlay-color: rgba(0, 0, 0, 0.5);
+    --afs-overlay-color-strong: rgba(0, 0, 0, 0.75);
     
     {% comment %} Skeleton Loader Colors {% endcomment %}
-    --afs-skeleton-color-light: {{ block.settings.skeleton_color_light | default: '#f0f0f0' }};
-    --afs-skeleton-color-dark: {{ block.settings.skeleton_color_dark | default: '#e0e0e0' }};
+    --afs-skeleton-color-light: #f0f0f0;
+    --afs-skeleton-color-dark: #e0e0e0;
     
     {% comment %} Scrollbar Colors {% endcomment %}
-    --afs-scrollbar-track: {{ block.settings.scrollbar_track | default: '#f1f1f1' }};
-    --afs-scrollbar-thumb: {{ block.settings.scrollbar_thumb | default: '#888888' }};
-    --afs-scrollbar-thumb-hover: {{ block.settings.scrollbar_thumb_hover | default: '#555555' }};
+    --afs-scrollbar-track: #f1f1f1;
+    --afs-scrollbar-thumb: #888888;
+    --afs-scrollbar-thumb-hover: #555555;
     
     {% comment %} Default Font Variables {% endcomment %}
     --afs-font-family: {{ block.settings.font_family | default: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }};
-    --afs-font-weight: {{ block.settings.font_weight | default: 400 }};
-    --afs-font-weight-bold: {{ block.settings.font_weight_bold | default: 600 }};
-    --afs-font-style: {{ block.settings.font_style | default: 'normal' }};
+    --afs-font-weight: 400;
+    --afs-font-weight-bold: 600;
+    --afs-font-style: 'normal';
   }
 </style>
 
@@ -56,7 +51,7 @@
 
 {% render 'advanced-filter-search-init', block: block %}
 
-{% schema %}
+{% comment %}
 {
   "name": "Advanced Filter Search",
   "target": "section",
@@ -182,5 +177,4 @@
     }
   ]
 }
-{% endschema %}
-
+{% endcomment %}

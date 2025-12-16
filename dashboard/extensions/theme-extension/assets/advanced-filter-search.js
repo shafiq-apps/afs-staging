@@ -2646,20 +2646,136 @@
     }
 
     // Update images if variant has specific image
-    // Find variant image index
+    // Use slider's updateVariantImage method if available, otherwise fall back to manual matching
     const product = dialog._productData;
-    if (product.images && variant.featured_image && dialog._slider) {
-      // featured_image might be a full URL, try to match by comparing URLs
-      const variantImageIndex = product.images.findIndex(img => {
-        // Compare image URLs (handle both full URLs and relative paths)
-        const imgUrl = img.replace(/^\/\//, 'https://').split('?')[0];
-        const variantImgUrl = variant.featured_image.replace(/^\/\//, 'https://').split('?')[0];
-        return imgUrl === variantImgUrl || img === variant.featured_image;
-      });
+    if (product.images && dialog._slider && product.variants) {
+      // OPTIMIZATION: Quick check using variant_ids array
+      // Find which image is assigned to this variant by checking variant_ids
+      const currentVariantId = variant.id;
+      let targetImageIndex = null;
       
-      if (variantImageIndex !== -1) {
-        // Use slider's goToSlide method
-        dialog._slider.goToSlide(variantImageIndex);
+      // Check if current variant has featured_image with variant_ids
+      if (variant.featured_image && typeof variant.featured_image === 'object' && variant.featured_image.variant_ids) {
+        // This variant is assigned to an image - check if it's different from current
+        const variantImagePosition = variant.featured_image.position;
+        if (variantImagePosition !== null && variantImagePosition !== undefined) {
+          const positionIndex = variantImagePosition - 1; // Convert from 1-based to 0-based
+          if (positionIndex >= 0 && positionIndex < product.images.length) {
+            // Check if current slide is different from this variant's image
+            const currentSlideIndex = dialog._slider.currentIndex || 0;
+            if (currentSlideIndex !== positionIndex) {
+              targetImageIndex = positionIndex;
+            }
+          }
+        }
+      } else {
+        // Variant doesn't have featured_image, but check if any other variant's image is assigned to this variant
+        // Iterate through all variants to find which image has this variant in its variant_ids
+        for (const v of product.variants) {
+          if (v.featured_image && typeof v.featured_image === 'object' && v.featured_image.variant_ids) {
+            // Check if current variant ID is in this image's variant_ids array
+            if (v.featured_image.variant_ids.includes(currentVariantId)) {
+              const variantImagePosition = v.featured_image.position;
+              if (variantImagePosition !== null && variantImagePosition !== undefined) {
+                const positionIndex = variantImagePosition - 1; // Convert from 1-based to 0-based
+                if (positionIndex >= 0 && positionIndex < product.images.length) {
+                  const currentSlideIndex = dialog._slider.currentIndex || 0;
+                  if (currentSlideIndex !== positionIndex) {
+                    targetImageIndex = positionIndex;
+                    break; // Found the image, exit loop
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      
+      // If we found a target image index using variant_ids, use it
+      if (targetImageIndex !== null) {
+        dialog._slider.goToSlide(targetImageIndex);
+        return; // Successfully updated using variant_ids optimization
+      }
+      
+      // Try using the slider's built-in method (fallback, pass variants for optimization)
+      if (typeof dialog._slider.updateVariantImage === 'function') {
+        const updated = dialog._slider.updateVariantImage(variant, product.images, product.variants);
+        if (updated) return; // Successfully updated, exit early
+      }
+      
+      // Fallback: manual image matching (for backwards compatibility)
+      // Extract variant image URL from various possible structures
+      let variantImageUrl = null;
+      let variantImagePosition = null;
+      
+      // Handle featured_image as object (Shopify format: { src: "...", position: 5, ... })
+      if (variant.featured_image) {
+        if (typeof variant.featured_image === 'object') {
+          variantImageUrl = variant.featured_image.src || variant.featured_image.url;
+          variantImagePosition = variant.featured_image.position;
+        } else if (typeof variant.featured_image === 'string') {
+          variantImageUrl = variant.featured_image;
+        }
+      }
+      
+      // Fallback to other image properties
+      if (!variantImageUrl) {
+        variantImageUrl = variant.image || 
+                         variant.imageUrl || 
+                         (variant.image && typeof variant.image === 'object' ? variant.image.url || variant.image.src : null) ||
+                         (variant.featuredImage && typeof variant.featuredImage === 'object' ? variant.featuredImage.url || variant.featuredImage.src : null);
+      }
+      
+      if (variantImageUrl) {
+        // Normalize image URL for comparison (remove protocol, query params, etc.)
+        const normalizeUrl = (url) => {
+          if (!url) return '';
+          // Handle both string URLs and object URLs
+          const urlString = typeof url === 'string' ? url : (url.url || url.src || '');
+          // Remove protocol, normalize to https, remove query params
+          return urlString
+            .replace(/^https?:\/\//, '')
+            .replace(/^\/\//, '')
+            .split('?')[0]
+            .toLowerCase()
+            .trim();
+        };
+        
+        // First, try to use position if available (1-based, convert to 0-based index)
+        if (variantImagePosition !== null && variantImagePosition !== undefined) {
+          const positionIndex = variantImagePosition - 1; // Convert from 1-based to 0-based
+          if (positionIndex >= 0 && positionIndex < product.images.length) {
+            dialog._slider.goToSlide(positionIndex);
+            return;
+          }
+        }
+        
+        const normalizedVariantImage = normalizeUrl(variantImageUrl);
+        
+        // Find matching image in product images array
+        const variantImageIndex = product.images.findIndex(img => {
+          const normalizedImg = normalizeUrl(img);
+          // Compare normalized URLs
+          return normalizedImg === normalizedVariantImage || 
+                 normalizedImg.includes(normalizedVariantImage) || 
+                 normalizedVariantImage.includes(normalizedImg);
+        });
+        
+        if (variantImageIndex !== -1) {
+          // Use slider's goToSlide method to change to variant's image
+          dialog._slider.goToSlide(variantImageIndex);
+        } else {
+          // If exact match not found, try to find by filename
+          const variantImageFilename = normalizedVariantImage.split('/').pop();
+          const filenameMatchIndex = product.images.findIndex(img => {
+            const imgFilename = normalizeUrl(img).split('/').pop();
+            return imgFilename === variantImageFilename;
+          });
+          
+          if (filenameMatchIndex !== -1) {
+            dialog._slider.goToSlide(filenameMatchIndex);
+          }
+        }
       }
     }
   }

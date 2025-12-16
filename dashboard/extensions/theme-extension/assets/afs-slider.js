@@ -377,6 +377,147 @@
       viewport.style.height = `${calculatedHeight}px`;
       viewport.style.minHeight = `${calculatedHeight}px`;
     }
+
+    /**
+     * Update slider to show variant's image
+     * @param {Object} variant - Variant object with image property
+     * @param {Array} productImages - Array of product image URLs
+     * @param {Array} allVariants - Optional: Array of all product variants for variant_ids optimization
+     * @returns {boolean} - Returns true if image was found and updated, false otherwise
+     */
+    updateVariantImage(variant, productImages, allVariants) {
+      if (!variant || !productImages || !Array.isArray(productImages) || productImages.length === 0) {
+        return false;
+      }
+
+      const currentVariantId = variant.id;
+      
+      // OPTIMIZATION: Quick check using variant_ids array if allVariants is provided
+      if (allVariants && Array.isArray(allVariants)) {
+        // Check if current variant has featured_image with variant_ids
+        if (variant.featured_image && typeof variant.featured_image === 'object' && variant.featured_image.variant_ids) {
+          const variantImagePosition = variant.featured_image.position;
+          if (variantImagePosition !== null && variantImagePosition !== undefined) {
+            const positionIndex = variantImagePosition - 1; // Convert from 1-based to 0-based
+            if (positionIndex >= 0 && positionIndex < this.images.length && positionIndex < productImages.length) {
+              // Check if current slide is different from this variant's image
+              if (this.currentIndex !== positionIndex) {
+                this.goToSlide(positionIndex);
+                return true;
+              }
+              // Already on correct image
+              return true;
+            }
+          }
+        }
+        
+        // Variant doesn't have featured_image, but check if any other variant's image is assigned to this variant
+        for (const v of allVariants) {
+          if (v.featured_image && typeof v.featured_image === 'object' && v.featured_image.variant_ids) {
+            // Check if current variant ID is in this image's variant_ids array
+            if (v.featured_image.variant_ids.includes(currentVariantId)) {
+              const variantImagePosition = v.featured_image.position;
+              if (variantImagePosition !== null && variantImagePosition !== undefined) {
+                const positionIndex = variantImagePosition - 1; // Convert from 1-based to 0-based
+                if (positionIndex >= 0 && positionIndex < this.images.length && positionIndex < productImages.length) {
+                  // Check if current slide is different from this variant's image
+                  if (this.currentIndex !== positionIndex) {
+                    this.goToSlide(positionIndex);
+                    return true;
+                  }
+                  // Already on correct image
+                  return true;
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // Fallback: Extract variant image URL from various possible structures
+      let variantImageUrl = null;
+      let variantImagePosition = null;
+      
+      // Handle featured_image as object (Shopify format: { src: "...", position: 5, ... })
+      if (variant.featured_image) {
+        if (typeof variant.featured_image === 'object') {
+          variantImageUrl = variant.featured_image.src || variant.featured_image.url;
+          variantImagePosition = variant.featured_image.position;
+        } else if (typeof variant.featured_image === 'string') {
+          variantImageUrl = variant.featured_image;
+        }
+      }
+      
+      // Fallback to other image properties
+      if (!variantImageUrl) {
+        variantImageUrl = variant.image || 
+                         variant.imageUrl || 
+                         (variant.image && typeof variant.image === 'object' ? variant.image.url || variant.image.src : null) ||
+                         (variant.featuredImage && typeof variant.featuredImage === 'object' ? variant.featuredImage.url || variant.featuredImage.src : null);
+      }
+      
+      if (!variantImageUrl) {
+        return false;
+      }
+
+      // Normalize image URL for comparison (remove protocol, query params, etc.)
+      const normalizeUrl = (url) => {
+        if (!url) return '';
+        // Handle both string URLs and object URLs
+        const urlString = typeof url === 'string' ? url : (url.url || url.src || '');
+        // Remove protocol, normalize to https, remove query params
+        return urlString
+          .replace(/^https?:\/\//, '')
+          .replace(/^\/\//, '')
+          .split('?')[0]
+          .toLowerCase()
+          .trim();
+      };
+      
+      const normalizedVariantImage = normalizeUrl(variantImageUrl);
+      
+      // First, try to use position if available (1-based, convert to 0-based index)
+      if (variantImagePosition !== null && variantImagePosition !== undefined) {
+        const positionIndex = variantImagePosition - 1; // Convert from 1-based to 0-based
+        if (positionIndex >= 0 && positionIndex < this.images.length && positionIndex < productImages.length) {
+          // Check if current slide is different
+          if (this.currentIndex !== positionIndex) {
+            this.goToSlide(positionIndex);
+            return true;
+          }
+          return true;
+        }
+      }
+      
+      // Find matching image in product images array by URL
+      let variantImageIndex = productImages.findIndex(img => {
+        const normalizedImg = normalizeUrl(img);
+        // Compare normalized URLs
+        return normalizedImg === normalizedVariantImage || 
+               normalizedImg.includes(normalizedVariantImage) || 
+               normalizedVariantImage.includes(normalizedImg);
+      });
+      
+      // If exact match not found, try to find by filename
+      if (variantImageIndex === -1) {
+        const variantImageFilename = normalizedVariantImage.split('/').pop();
+        variantImageIndex = productImages.findIndex(img => {
+          const imgFilename = normalizeUrl(img).split('/').pop();
+          return imgFilename === variantImageFilename;
+        });
+      }
+      
+      if (variantImageIndex !== -1 && variantImageIndex < this.images.length) {
+        // Check if current slide is different
+        if (this.currentIndex !== variantImageIndex) {
+          this.goToSlide(variantImageIndex);
+          return true;
+        }
+        return true;
+      }
+      
+      return false;
+    }
     destroy() {
       // Remove keyboard listener
       if (this.keyboardHandler) {
