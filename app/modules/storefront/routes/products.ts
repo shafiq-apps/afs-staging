@@ -12,8 +12,7 @@ import { buildSearchInput } from '@modules/storefront/products.helper';
 import { formatFilters } from '@shared/storefront/filter-format.helper';
 import {
   getActiveFilterConfig,
-  applyFilterConfigToInput,
-  formatFilterConfigForStorefront,
+  applyFilterConfigToInput
 } from '@shared/storefront/filter-config.helper';
 
 export const middleware = [validateShopDomain(), rateLimit()];
@@ -49,7 +48,7 @@ export const GET = handler(async (req: HttpRequest) => {
   const formattedFilters = result.filters ? formatFilters(result.filters, filterConfig) : [];
 
   // Remove empty values from appliedFilters
-  const cleanedAppliedFilters = Object.keys(searchInput || {}).length > 0 ? searchInput : undefined;
+  // const cleanedAppliedFilters = Object.keys(searchInput || {}).length > 0 ? searchInput : undefined;
 
   const responseBody: any = {
     success: true,
@@ -61,7 +60,7 @@ export const GET = handler(async (req: HttpRequest) => {
         limit: result.limit,
         totalPages: result.totalPages,
       },
-      appliedFilters: cleanedAppliedFilters,
+      // appliedFilters: cleanedAppliedFilters,
     },
   };
 

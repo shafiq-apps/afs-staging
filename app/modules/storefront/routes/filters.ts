@@ -120,7 +120,13 @@ export const GET = handler(async (req: HttpRequest) => {
 
   // Return response with filter configuration (for storefront script)
   // Remove empty values from appliedFilters as well
-  const cleanedAppliedFilters = Object.keys(filterInput || {}).length > 0 ? filterInput : undefined;
+  // Also remove internal __handleMapping metadata (not needed by frontend)
+  let cleanedAppliedFilters: any = undefined;
+  if (filterInput && Object.keys(filterInput).length > 0) {
+    cleanedAppliedFilters = { ...filterInput };
+    // Remove internal metadata that shouldn't be sent to frontend
+    delete (cleanedAppliedFilters as any).__handleMapping;
+  }
 
   return {
     success: true,

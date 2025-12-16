@@ -377,6 +377,16 @@ export function applyFilterConfigToInput(
   // Also filter out any keys that don't match actual options in the filter config
   // IMPORTANT: Track handles by base field to apply correct AND/OR logic:
   // - Same handle with multiple values = OR (merge into array)
+  // Initialize __handleMapping to ensure it always exists (prevents undefined errors)
+  if (!(result as any).__handleMapping) {
+    (result as any).__handleMapping = {
+      handleToBaseField: {},
+      baseFieldToHandles: {},
+      handleToValues: {},
+      standardFieldToHandles: {},
+    };
+  }
+
   // - Different handles mapping to same base field = AND (keep separate)
   if (result.options) {
     const mappedOptions: Record<string, string[]> = {};
@@ -459,10 +469,15 @@ export function applyFilterConfigToInput(
     
     // Store handle mapping info for repository to use AND logic and contextual aggregations
     // We'll use a special structure: add metadata to track which handles contributed to which fields
+    // Merge with existing __handleMapping if it exists (from earlier initialization)
+    const existingMapping = (result as any).__handleMapping || {};
     (result as any).__handleMapping = {
-      handleToBaseField,
-      baseFieldToHandles,
-      handleToValues, // Track which values came from which handle
+      ...existingMapping,
+      handleToBaseField: { ...existingMapping.handleToBaseField, ...handleToBaseField },
+      baseFieldToHandles: { ...existingMapping.baseFieldToHandles, ...baseFieldToHandles },
+      handleToValues: { ...existingMapping.handleToValues, ...handleToValues },
+      // Preserve standardFieldToHandles if it exists
+      standardFieldToHandles: existingMapping.standardFieldToHandles || {},
     };
     
     result.options = mappedOptions;
@@ -549,7 +564,17 @@ export function applyFilterConfigToInput(
                     handleMapping.standardFieldToHandles[baseFieldKey].push(handle);
                   }
                 }
-                (result as any).__handleMapping = handleMapping;
+                // Merge back into result, preserving existing properties
+                const existingMapping = (result as any).__handleMapping || {};
+                (result as any).__handleMapping = {
+                  ...existingMapping,
+                  ...handleMapping,
+                  // Preserve nested objects
+                  handleToBaseField: { ...existingMapping.handleToBaseField, ...handleMapping.handleToBaseField },
+                  baseFieldToHandles: { ...existingMapping.baseFieldToHandles, ...handleMapping.baseFieldToHandles },
+                  handleToValues: { ...existingMapping.handleToValues, ...handleMapping.handleToValues },
+                  standardFieldToHandles: { ...existingMapping.standardFieldToHandles, ...handleMapping.standardFieldToHandles },
+                };
               }
             }
             

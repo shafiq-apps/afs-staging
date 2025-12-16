@@ -246,7 +246,7 @@ export class StorefrontSearchRepository {
      */
     const buildBaseMustQueries = (excludeFilterType?: string, excludeHandle?: string): any[] => {
       const baseMustQueries: any[] = [];
-      const handleMapping = (sanitizedFilters as any).__handleMapping;
+      const handleMapping = sanitizedFilters ? (sanitizedFilters as any).__handleMapping : undefined;
       const handleToValues = handleMapping?.handleToValues || {};
 
       /** Search */
@@ -467,7 +467,7 @@ export class StorefrontSearchRepository {
      */
     const buildPostFilter = (filterType: string, excludeHandle?: string): any[] | undefined => {
       const postFilterQueries: any[] = [];
-      const handleMapping = (sanitizedFilters as any).__handleMapping;
+      const handleMapping = sanitizedFilters ? (sanitizedFilters as any).__handleMapping : undefined;
       const handleToValues = handleMapping?.handleToValues || {};
 
       // Handle standard filters
@@ -616,7 +616,7 @@ export class StorefrontSearchRepository {
 
     if (enabledAggregations.standard.has('tags')) {
       // Check if multiple handles map to tags field (need separate aggregations per handle)
-      const handleMapping = (sanitizedFilters as any).__handleMapping;
+      const handleMapping = sanitizedFilters ? (sanitizedFilters as any).__handleMapping : undefined;
       const tagsHandles = handleMapping?.baseFieldToHandles?.['TAGS'] || [];
       const handleToValues = handleMapping?.handleToValues || {};
       
@@ -984,7 +984,7 @@ export class StorefrontSearchRepository {
 
     if (hasValues(sanitizedFilters?.vendors)) {
       // Check if values came from different handles (AND logic) or same handle (OR logic)
-      const handleMapping = (sanitizedFilters as any).__handleMapping;
+      const handleMapping = sanitizedFilters ? (sanitizedFilters as any).__handleMapping : undefined;
       const standardFieldToHandles = handleMapping?.standardFieldToHandles?.['VENDOR'] || [];
       const hasMultipleHandles = standardFieldToHandles.length > 1;
       
@@ -1020,7 +1020,7 @@ export class StorefrontSearchRepository {
 
     if (hasValues(sanitizedFilters?.productTypes)) {
       // Check if values came from different handles (AND logic) or same handle (OR logic)
-      const handleMapping = (sanitizedFilters as any).__handleMapping;
+      const handleMapping = sanitizedFilters ? (sanitizedFilters as any).__handleMapping : undefined;
       const standardFieldToHandles = handleMapping?.standardFieldToHandles?.['PRODUCT_TYPE'] || [];
       const hasMultipleHandles = standardFieldToHandles.length > 1;
       
@@ -1057,7 +1057,7 @@ export class StorefrontSearchRepository {
     if (hasValues(sanitizedFilters?.tags)) {
       // Tags is an array field, use directly (not .keyword)
       // Check if values came from different handles (AND logic) or same handle (OR logic)
-      const handleMapping = (sanitizedFilters as any).__handleMapping;
+      const handleMapping = sanitizedFilters ? (sanitizedFilters as any).__handleMapping : undefined;
       const standardFieldToHandles = handleMapping?.standardFieldToHandles?.['TAGS'] || [];
       const hasMultipleHandles = standardFieldToHandles.length > 1;
       
@@ -1104,7 +1104,7 @@ export class StorefrontSearchRepository {
       // Collections are stored as an array of strings (numeric collection IDs)
       // For array fields in ES, use the field name directly (not .keyword)
       // Check if values came from different handles (AND logic) or same handle (OR logic)
-      const handleMapping = (sanitizedFilters as any).__handleMapping;
+      const handleMapping = sanitizedFilters ? (sanitizedFilters as any).__handleMapping : undefined;
       const standardFieldToHandles = handleMapping?.standardFieldToHandles?.['COLLECTION'] || [];
       const hasMultipleHandles = standardFieldToHandles.length > 1;
       
