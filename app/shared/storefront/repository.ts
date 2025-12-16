@@ -25,6 +25,8 @@ import { mapOptionNameToHandle } from './filter-config.helper';
 const DEFAULT_BUCKET_SIZE = 500;
 
 const hasValues = (arr?: string[]) => Array.isArray(arr) && arr.length > 0;
+const normalizeStatus = (status?: string | null) => (status || '').toUpperCase();
+const isPublishedStatus = (status?: string | null) => normalizeStatus(status) === 'PUBLISHED';
 
 /**
  * Aggregation mapping result
