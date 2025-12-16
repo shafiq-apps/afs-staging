@@ -15,6 +15,7 @@ import { loadRoutes } from '@core/router/router';
 import { defaultSecurity } from '@core/security/default-security.middleware';
 import { errorHandler } from '@core/http/http.errors';
 import { configureStaticFiles } from '@core/http/static.middleware';
+import cors from "cors";
 
 const logger = createModuleLogger('bootstrap');
 
@@ -30,6 +31,9 @@ export async function bootstrap() {
   // Remove X-Powered-By header
   app.disable('x-powered-by');
 
+  if (process.env.NODE_ENV !== "production") {
+    app.use(cors());
+  }
   // Apply default security middleware globally
   app.use(defaultSecurity);
 
