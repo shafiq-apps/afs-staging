@@ -274,7 +274,7 @@
 [data-afs-container] .afs-filter-group__toggle {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
   width: 100%;
   padding: 0;
   background: transparent;
@@ -305,8 +305,8 @@
 }
 
 [data-afs-container] .afs-filter-group__icon svg {
-  width: 12px;
-  height: 12px;
+  width: 20px;
+  height: 20px;
   display: block;
   fill: currentColor;
 }
@@ -331,31 +331,22 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
-  border-radius: 50px;
-  padding: 0;
+  padding: 0px 6px;
+  background: transparent;
+  border: 1px solid var(--afs-border-color);
+  border-radius: 20px;
+  font-size: 14px;
+  color: var(--afs-text-color);
+  font-family: var(--afs-font-family);
+  opacity: 0.7;
   margin-left: auto;
-  background: var(--afs-accent-color);
-  border: none;
   cursor: pointer;
-  color: var(--afs-text-color-inverse);
-  opacity: 0.6;
   transition: opacity 0.2s ease, transform 0.2s ease;
   flex-shrink: 0;
-  transform: scale(1);
 }
 
-[data-afs-container] .afs-filter-group__clear:hover {
+[data-afs-container] .afs-filter-group__clear {
   opacity: 1;
-  transform: scale(1.15);
-}
-
-[data-afs-container] .afs-filter-group__clear svg {
-  width: 14px;
-  height: 14px;
-  display: block;
-  fill: currentColor;
 }
 
 [data-afs-container] .afs-filter-group__content {

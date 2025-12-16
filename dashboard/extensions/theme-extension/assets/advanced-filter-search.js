@@ -973,7 +973,7 @@
             'aria-label': `Clear ${filter.label || handle} filters`,
             'data-afs-filter-handle': handle
           });
-          clearBtn.innerHTML = Icons.close || '×';
+          clearBtn.textContent = 'Clear';
           clearBtn.title = `Clear ${filter.label || handle} filters`;
           header.appendChild(clearBtn);
         }
@@ -1124,11 +1124,11 @@
       if (isPriceRangeActive) {
         const clearBtn = $.el('button', 'afs-filter-group__clear', {
           type: 'button',
-          'aria-label': `Clear ${filter.label || 'Price'} filter`,
+          'aria-label': `Clear ${filter.label} filter`,
           'data-afs-filter-handle': 'priceRange'
         });
-        clearBtn.innerHTML = Icons.close || '×';
-        clearBtn.title = `Clear ${filter.label || 'Price'} filter`;
+        clearBtn.textContent = 'Clear';
+        clearBtn.title = `Clear ${filter.label} filter`;
         header.appendChild(clearBtn);
       }
       
