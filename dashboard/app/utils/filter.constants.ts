@@ -40,15 +40,15 @@ export interface StorefrontFilterData {
  * Default filter option values
  */
 export const DEFAULT_FILTER_OPTION = {
-  displayType: DisplayType.LIST,
+  displayType: DisplayType.CHECKBOX,
   selectionType: SelectionType.MULTIPLE,
   status: FilterOptionStatus.PUBLISHED,
-  sortBy: SortOrder.ASCENDING,
+  sortBy: SortOrder.COUNT,
   textTransform: TextTransform.NONE,
-  paginationType: PaginationType.SCROLL,
+  paginationType: PaginationType.PAGES,
   groupBySimilarValues: false,
   collapsed: false,
-  searchable: false,
+  searchable: true,
   showTooltip: false,
   showCount: true,
   showMenu: false,
@@ -103,9 +103,34 @@ export const SELECTION_TYPE_MAPPINGS: Record<string, SelectionType[]> = {
  * Display type mappings by option type
  */
 export const DISPLAY_TYPE_MAPPINGS: Record<string, DisplayType[]> = {
-  list: [DisplayType.LIST, DisplayType.DROPDOWN, DisplayType.GRID],
+  list: [
+    DisplayType.LIST,
+    DisplayType.CHECKBOX,
+    DisplayType.RADIO,
+    // DisplayType.SWATCH,
+    // DisplayType.COLOR_SWATCH,
+    // DisplayType.GRID
+  ],
   price: [DisplayType.RANGE],
 } as const;
+/**
+ * Display type mappings by option type
+ */
+
+export const SORT_TYPES_MAPPINGS: Record<string, string>[] = [
+  {
+    label: "Count",
+    value: SortOrder.COUNT,
+  },
+  {
+    label: "Ascending (A-Z)",
+    value: SortOrder.ASCENDING,
+  },
+  {
+    label: "Descending (Z-A)",
+    value: SortOrder.DESCENDING,
+  }
+] as const;
 
 /**
  * Available option types

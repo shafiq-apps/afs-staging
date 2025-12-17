@@ -26,6 +26,7 @@ export const filtersSchema = `
   }
 
   enum SortOrder {
+    COUNT
     ASCENDING
     DESCENDING
     MANUAL

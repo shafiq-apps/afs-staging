@@ -46,6 +46,14 @@
       };
     },
 
+    toLowerCase: (s) => String(s || '').toLowerCase(),
+
+    inputDisplayType: (option) => {
+      return $.toLowerCase(option?.displayType) === 'radio' ? 'radio' : 'checkbox';
+    },
+
+    isMultiSelect: (option) => $.toLowerCase(option?.selectionType) === "multiple" || option?.selectionType === 'MULTIPLE',
+
     // Fast array split
     split: (v) => v ? (Array.isArray(v) ? v : v.split(',').map(s => s.trim()).filter(Boolean)) : [],
 
@@ -199,7 +207,6 @@
           // Store metadata for rendering (label, type, etc.)
           m.set(f.handle, {
             label: f.label || f.queryKey || f.optionKey || f.handle,
-            type: f.type,
             queryKey: f.queryKey,
             optionKey: f.optionKey,
             optionType: f.optionType
@@ -239,7 +246,8 @@
     // Money formatting from Shopify
     moneyFormat: null,
     moneyWithCurrencyFormat: null,
-    currency: null
+    currency: null,
+    scrollToProductsOnFilter: false
   };
 
   // ============================================================================
@@ -444,9 +452,7 @@
       // Check if cpid collection ID is already in collection filter handle
       const hasCollectionFilterWithCpid = Object.keys(filters || {}).some(key => {
         const metadata = State.filterMetadata.get(key);
-        const isCollectionFilter = (metadata?.type === 'collection' || 
-                                    metadata?.optionType === 'Collection' || 
-                                    key === 'collections');
+        const isCollectionFilter = (metadata?.optionType === 'Collection' || key === 'collections');
         if (isCollectionFilter && Array.isArray(filters[key]) && filters[key].length > 0) {
           // Check if cpid collection ID is in the collection filter values
           return filters[key].some(v => String(v) === String(State.selectedCollection.id));
@@ -872,7 +878,7 @@
 
       const validFilters = filters.filter(f => {
         if (!f) return false;
-        if (f.type === 'priceRange' || f.type === 'variantPriceRange') {
+        if (f.optionType === 'priceRange' || f.optionType === 'variantPriceRange') {
           return f.range && typeof f.range.min === 'number' && typeof f.range.max === 'number' && f.range.max > f.range.min;
         }
         return f.values?.length > 0;
@@ -953,12 +959,18 @@
 
         // Header
         const header = $.el('div', 'afs-filter-group__header');
-        const toggle = $.el('button', 'afs-filter-group__toggle', { type: 'button', 'aria-expanded': !collapsed ? 'true' : 'false' });
+        const toggle = $.el('button', 'afs-filter-group__toggle', {
+          type: 'button',
+          'aria-expanded': !collapsed ? 'true' : 'false',
+          'title': filter.tooltipContent || `Toggle ${filter.label || handle} filter`,
+        });
         const icon = $.el('span', 'afs-filter-group__icon');
         // Use inline SVG HTML for better CSS control
         icon.innerHTML = collapsed ? (Icons.rightArrow || '') : (Icons.downArrow || '');
         toggle.appendChild(icon);
-        toggle.appendChild($.txt($.el('label', 'afs-filter-group__label', { 'for': 'afs-filter-group__label' }), filter.label || handle));
+        toggle.appendChild($.txt($.el('label', 'afs-filter-group__label', {
+          'for': 'afs-filter-group__label'
+        }), filter.label || filter.optionType));
         header.appendChild(toggle);
         
         // Add clear button next to the label (only show if filter has active values)
@@ -982,19 +994,16 @@
 
         // Content
         const content = $.el('div', 'afs-filter-group__content');
-        // Check searchable: check for true, 'true', 1, or any truthy value that indicates searchable
-        const isSearchable = filter.searchable === true ||
-          filter.searchable === 'true' ||
-          filter.searchable === 1 ||
-          filter.searchable === '1' ||
-          (typeof filter.searchable === 'string' && filter.searchable.toLowerCase() === 'true');
+        // Check searchable: check for true, any truthy value that indicates searchable
+        const isSearchable = filter.searchable === true || (typeof filter.searchable === 'string' && filter.searchable.toLowerCase() === 'true');
 
         if (isSearchable) {
           const searchContainer = $.el('div', 'afs-filter-group__search');
           const search = $.el('input', 'afs-filter-group__search-input', {
-            type: 'text',
-            placeholder: filter.searchPlaceholder || 'Search...',
-            'aria-label': `Search ${filter.label || handle}`
+            'type': 'text',
+            'placeholder': filter.searchPlaceholder || 'Search...',
+            'aria-label': `Search ${filter.label || handle}`,
+            'name': `afs-search-${handle}`
           });
           if (saved?.search) search.value = saved.search;
           searchContainer.appendChild(search);
@@ -1002,7 +1011,11 @@
           Log.debug('Search input added', { handle, label: filter.label, searchable: filter.searchable });
         }
 
-        const items = $.el('div', 'afs-filter-group__items');
+        const items = $.el('div', 'afs-filter-group__items', {
+          'data-afs-filter-handle': handle,
+          'data-afs-filter-multiselect': $.isMultiSelect(filter) ? '1' : '0',
+          'data-afs-filter-display-type': $.toLowerCase(filter.displayType || 'CHECKBOX'),
+        });
         items._items = filter.values; // Store directly, no JSON
 
         // Create items fragment
@@ -1045,7 +1058,7 @@
 
       // If this is a Collection filter, map collection ID to collection label from State.collections
       // Check both optionType and type to handle different filter configurations
-      const isCollectionFilter = (config?.optionType === 'Collection' || config?.type === 'collection' || handle === 'collections');
+      const isCollectionFilter = (config?.optionType === 'Collection' || handle === 'collections');
       if (isCollectionFilter && State.collections && Array.isArray(State.collections)) {
         // Collection IDs are already numeric strings, just convert to string for comparison
         const collection = State.collections.find(c => {
@@ -1064,18 +1077,20 @@
       // Check if this filter is currently active (use handle directly)
       const currentValues = State.filters[handle] || [];
       const isChecked = currentValues.includes(value);
+      const inputType = $.inputDisplayType(config);
+      const htmlFor = inputType === 'radio'? handle : handle + '-' + value.replace(/\s+/g, '-').toLowerCase();
 
       const label = $.el('label', 'afs-filter-item', {
-        'data-afs-filter-handle': handle, // Store handle for filtering
-        'data-afs-filter-value': value,     // Store original value for filtering
-        'for': 'afs-filter-item'
+        'data-afs-filter-handle': handle, 
+        'data-afs-filter-value': value, 
+        'for': htmlFor
       });
       if (isChecked) label.classList.add('afs-filter-item--active');
 
-      const cb = $.el('input', 'afs-filter-item__checkbox', { type: 'checkbox' });
+      const cb = $.el('input', 'afs-filter-item__checkbox', { type: inputType });
       cb.checked = isChecked;
-      cb.setAttribute('data-afs-filter-handle', handle);
       cb.setAttribute('data-afs-filter-value', value);
+      cb.setAttribute('name', htmlFor);
 
       label.appendChild(cb);
       label.appendChild($.txt($.el('span', 'afs-filter-item__label'), displayLabel));
@@ -1533,11 +1548,9 @@
             const metadata = State.filterMetadata.get(key);
             let label = metadata?.label || key;
             let displayValue = v; // Default to the value itself
-            
+
             // For collection filters, use collection title from State.collections
-            const isCollectionFilter = (metadata?.type === 'collection' || 
-                                       metadata?.optionType === 'Collection' || 
-                                       key === 'collections');
+            const isCollectionFilter = (metadata?.optionType === 'Collection' || key === 'collections');
             if (isCollectionFilter && State.collections && Array.isArray(State.collections)) {
               const collection = State.collections.find(c => {
                 const cId = String(c.id || c.gid || c.collectionId || '');
@@ -1558,9 +1571,7 @@
       if (State.selectedCollection?.id) {
         const hasCollectionFilter = Object.keys(filters).some(key => {
           const metadata = State.filterMetadata.get(key);
-          return (metadata?.type === 'collection' || 
-                  metadata?.optionType === 'Collection' || 
-                  key === 'collections') &&
+          return (metadata?.optionType === 'Collection' || key === 'collections') &&
                  Array.isArray(filters[key]) && 
                  filters[key].includes(String(State.selectedCollection.id));
         });
@@ -1614,7 +1625,7 @@
     },
 
     scrollToProducts() {
-      if (Log.enabled) {
+      if (State.scrollToProductsOnFilter === false) {
         return; // stop on debugging mode
       }
       // Scroll to products section when filters are applied
@@ -1887,9 +1898,7 @@
 
       // Check if this is a collection filter and if cpid should be cleared
       const metadata = State.filterMetadata.get(handle);
-      const isCollectionFilter = (metadata?.type === 'collection' || 
-                                  metadata?.optionType === 'Collection' || 
-                                  handle === 'collections');
+      const isCollectionFilter = (metadata?.optionType === 'Collection' || handle === 'collections');
       
       if (isCollectionFilter && State.selectedCollection?.id) {
         // Store original cpid value before any modifications
@@ -1966,7 +1975,7 @@
       }
 
       // Check if range matches the full range (no filter applied)
-      const priceFilter = State.availableFilters.find(f => f.type === 'priceRange' || f.type === 'variantPriceRange');
+      const priceFilter = State.availableFilters.find(f => f.optionType === 'priceRange' || f.optionType === 'variantPriceRange');
       if (priceFilter && priceFilter.range) {
         if (min === priceFilter.range.min && max === priceFilter.range.max) {
           State.filters.priceRange = null;
@@ -2086,7 +2095,6 @@
             if (State.selectedCollection?.id) {
               // Find collection filter handle from available filters
               const collectionFilter = State.availableFilters.find(f => 
-                f.type === 'collection' || 
                 f.optionType === 'Collection' || 
                 f.queryKey === 'collections' ||
                 f.handle === 'collections'
@@ -2939,7 +2947,7 @@
       DOM.container.addEventListener('click', (e) => {
         const action = e.target.closest('[data-afs-action]')?.dataset.afsAction;
         const item = e.target.closest('.afs-filter-item');
-        const checkbox = e.target.type === 'checkbox' ? e.target : item?.querySelector('.afs-filter-item__checkbox');
+        const checkbox = e.target.type === 'checkbox' || e.target.type === 'radio' ? e.target : item?.querySelector('.afs-filter-item__checkbox');
         const pagination = e.target.closest('.afs-pagination__button');
 
         if (action === 'clear-all') {
@@ -2986,8 +2994,9 @@
           e.stopPropagation(); // Stop event bubbling
 
           // Get handle from data attribute (handle is stored directly)
-          const handle = item.getAttribute('data-afs-filter-handle') || item.getAttribute('data-afs-filter-type');
+          const handle = item.getAttribute('data-afs-filter-handle') || item.parentNode.getAttribute('data-afs-filter-handle');
           const value = item.getAttribute('data-afs-filter-value');
+          const allowMultiselect = item.getAttribute('data-afs-filter-multiselect') || item.parentNode.getAttribute('data-afs-filter-multiselect')
 
           if (!handle || !value) {
             Log.warn('Invalid filter item clicked', { handle, value });
@@ -2995,6 +3004,11 @@
           }
 
           Log.debug('Filter toggle', { handle, value, currentChecked: checkbox.checked });
+
+          // remove other selections if multiselect not allowed
+          if (allowMultiselect === '0' || allowMultiselect === 'false') {
+            State.filters[handle] = [];
+          }
           Filters.toggle(handle, value);
         }
         else if (pagination && !pagination.disabled) {
@@ -3031,9 +3045,7 @@
           
           // Check if this is a collection filter and if cpid should be cleared
           const metadata = State.filterMetadata.get(handle);
-          const isCollectionFilter = (metadata?.type === 'collection' || 
-                                      metadata?.optionType === 'Collection' || 
-                                      handle === 'collections');
+          const isCollectionFilter = (metadata?.optionType === 'Collection' || handle === 'collections');
           
           // Remove the filter from State.filters
           if (State.filters[handle]) {
@@ -3154,7 +3166,6 @@
             });
           }
         }
-        // Old quick view close handler removed - now handled by dialog close events
       });
 
       // Search input
@@ -3352,7 +3363,7 @@
   const AFS = {
     init(config = {}) {
       try {
-        Log.enabled = config.enableLogging;
+        Log.enabled = config.enableLogging !== false;
         Log.info('Initializing AFS', config);
 
         if (config.apiBaseUrl) {
@@ -3367,6 +3378,7 @@
         State.shop = config.shop;
         State.collections = config.collections;
         State.selectedCollection = config.selectedCollection;
+        State.scrollToProductsOnFilter = config.scrollToProductsOnFilter !== false;
 
         // Store money format from Shopify
         if (config.moneyFormat) {
@@ -3487,7 +3499,6 @@
         // Convert cpid to collection filter handle if collection filter exists
         if (State.selectedCollection?.id) {
           const collectionFilter = State.availableFilters.find(f => 
-            f.type === 'collection' || 
             f.optionType === 'Collection' || 
             f.queryKey === 'collections' ||
             f.handle === 'collections'
@@ -3665,6 +3676,7 @@
   window.DOM = DOM;
   window.AFS_State = State;
   window.AFS_API = API;
+  window.AFS_LOG = Log;
 
   // Export
   if (typeof window !== 'undefined') window.AFS = AFS;

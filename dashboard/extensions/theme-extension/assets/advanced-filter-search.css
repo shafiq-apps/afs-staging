@@ -581,10 +581,6 @@
   box-sizing: border-box;
 }
 
-[data-afs-container] .afs-filter-item:hover {
-  color: var(--afs-accent-color);
-}
-
 [data-afs-container] .afs-filter-item__checkbox {
   flex-shrink: 0;
   width: 18px;
@@ -597,8 +593,18 @@
   transition: all 0.2s ease;
 }
 
+[data-afs-container] .afs-filter-group__items[data-afs-filter-display-type="list"] input.afs-filter-item__checkbox {
+  width: 0px;
+  height: 0px;
+  opacity: 0;
+}
+
 [data-afs-container] .afs-filter-item__checkbox:hover {
   border-color: var(--afs-accent-color);
+}
+
+[data-afs-container] .afs-filter-group__items[data-afs-filter-display-type="list"] .afs-filter-item:hover .afs-filter-item__label {
+  font-weight: var(--afs-font-weight-bold, 600);
 }
 
 [data-afs-container] .afs-filter-item__checkbox:checked {

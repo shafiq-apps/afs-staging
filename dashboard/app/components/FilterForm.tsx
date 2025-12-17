@@ -36,6 +36,7 @@ import {
   getAvailableSelectionTypes,
   getAvailableDisplayTypes,
   type StorefrontFilterData,
+  SORT_TYPES_MAPPINGS,
 } from "../utils/filter.constants";
 
 interface FilterOption {
@@ -1141,7 +1142,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                 updated.selectionType = SelectionType.MULTIPLE;
               }
               if (toDisplayType(updated.displayType) === DisplayType.RANGE) {
-                updated.displayType = DisplayType.LIST;
+                updated.displayType = DisplayType.CHECKBOX;
               }
             }
             
@@ -1161,6 +1162,13 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
               // Variant options: store optionType as variantOptionKey (keep original case)
               // Backend does case-insensitive matching but ES stores in original case
               updated.variantOptionKey = (value as string).trim();
+            }
+          }
+
+          if (field === "selectionType") {
+            // If changing selectionType or displayType from/to RANGE, ensure consistency
+            if (opt.selectionType === SelectionType.SINGLE && opt.displayType === DisplayType.RADIO) {
+              updated.displayType = DisplayType.CHECKBOX;
             }
           }
           
@@ -1555,9 +1563,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
           
           if (onSave) {
             onSave();
-          } else {
-            // Navigate to filters page - use replace: false to ensure loader runs
-            // The filters page will revalidate on mount to get fresh data
+          } else if (mode === "create") {
             navigate("/app/filters");
           }
         }, 100);
@@ -1711,10 +1717,471 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
         </s-section>
 
         {/* Filter Options */}
-        <s-section>
+        <s-section heading="Filter Options">
           <s-stack direction="block" gap="base">
+            {optionsError && (
+              <s-banner tone="critical">
+                <s-text>{optionsError}</s-text>
+              </s-banner>
+            )}
+
+            {filterOptions.length === 0 ? (
+              <s-box padding="base" borderWidth="base" borderRadius="base" background="subdued">
+                <s-stack direction="block" gap="small">
+                  <s-text tone="auto">No filter options yet. Add your first filter option to get started.</s-text>
+                </s-stack>
+              </s-box>
+            ) : (
+              <s-stack direction="block" gap="base">
+                {filterOptions.map((option, index) => {
+                  const isExpanded = expandedOptions.has(option.handle);
+                  const availableValues = getAvailableValues(option.optionType);
+                  const selectionTypes = getSelectionTypes(option.optionType);
+                  const displayTypes = getDisplayTypes(option.optionType);
+                  const isDragging = draggedIndex === index;
+                  const isDragOver = dragOverIndex === index;
+                  const dropPosition = getDropIndicatorPosition();
+                  const showDropAbove = isDragOver && dropPosition === 'above';
+                  const showDropBelow = isDragOver && dropPosition === 'below';
+
+                  return (
+                    <div key={option.handle} style={{ position: 'relative' }}>
+                      {/* Drop Indicator Above */}
+                      {showDropAbove && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: '-2px',
+                            left: 0,
+                            right: 0,
+                            height: '3px',
+                            backgroundColor: 'var(--p-color-border-info)',
+                            zIndex: 10,
+                          }}
+                        />
+                      )}
+                      
+                      <div
+                        draggable
+                        onDragStart={() => handleDragStart(index)}
+                        onDragOver={(e: any) => handleDragOver(e, index)}
+                        onDragLeave={handleDragLeave}
+                        onDrop={(e: any) => handleDrop(e, index)}
+                        onDragEnd={handleDragEnd}
+                        style={{
+                          opacity: isDragging ? 0.7 : 1,
+                          cursor: isDragging ? 'grabbing' : 'grab',
+                          transition: isDragging ? 'none' : 'all 0.2s ease',
+                          position: 'relative',
+                          zIndex: isDragging ? 1000 : 1,
+                          border: isDragging ? '2px solid var(--p-color-border-info)' : 'none',
+                          backgroundColor: isDragging ? 'var(--p-color-bg-surface-selected)' : 'transparent',
+                        }}
+                      >
+                        <s-box
+                          padding="base"
+                          borderWidth={isDragOver ? "large" : isDragging ? "large" : "base"}
+                          borderRadius="base"
+                          background="subdued"
+                        >
+                          <s-stack direction="block" gap="base">
+                            {/* Option Header - Single Row */}
+                            <div 
+                              style={{ 
+                                display: "flex", 
+                                alignItems: "center", 
+                                gap: "12px",
+                                cursor: isDragging ? 'grabbing' : 'grab',
+                                userSelect: 'none',
+                              }}
+                              onMouseDown={(e) => e.stopPropagation()}
+                            >
+                              <s-icon 
+                                type="drag-handle" 
+                                color="subdued"
+                                size="small"
+                              />
+                              <div style={{ flex: 1 }}>
+                                <s-text-field
+                                  value={option.label}
+                                  onChange={(e: any) => handleUpdateOption(option.handle, "label", e.target.value)}
+                                  placeholder="Filter label"
+                                />
+                              </div>
+                              <div style={{ flex: 1, minWidth: "200px" }}>
+                                <s-select
+                                  value={option.optionType}
+                                  onChange={(e: any) => handleUpdateOption(option.handle, "optionType", e.target.value)}
+                                >
+                                  {getFilterTypes().map((type) => (
+                                    <s-option key={type} value={type}>
+                                      {type}
+                                    </s-option>
+                                  ))}
+                                </s-select>
+                              </div>
+                              <s-badge tone={toFilterOptionStatus(option.status) === FilterOptionStatus.PUBLISHED ? "success" : "warning"}>
+                                {toFilterOptionStatus(option.status) === FilterOptionStatus.PUBLISHED ? "Active" : "Draft"}
+                              </s-badge>
+                              <s-button
+                                variant="tertiary"
+                                onClick={() => handleToggleExpand(option.handle)}
+                                icon={isExpanded ? "chevron-up" : "chevron-down"}
+                              >
+                                {isExpanded ? "Hide settings" : "Show settings"}
+                              </s-button>
+                              <s-button
+                                variant="tertiary"
+                                tone="critical"
+                                onClick={() => handleDeleteOption(option.handle)}
+                                icon="delete"
+                              />
+                            </div>
+
+                            {/* Settings - Expandable */}
+                            {isExpanded && (
+                              <s-box padding="base" borderWidth="base" borderRadius="base" background="base">
+                                <s-stack direction="block" gap="base">
+                                  {/* Section 1: Basic Settings */}
+                                  <s-box padding="base" borderWidth="base" borderRadius="base" background="subdued">
+                                    <s-stack direction="block" gap="base">
+                                      <s-heading>Basic Settings</s-heading>
+                                      <s-stack direction="block" gap="base">
+                                        {!isPriceFilter(option.optionType) && (
+                                          <>
+                                          <s-choice-list
+                                              label="Selection Type"
+                                              values={[option.selectionType]}
+                                              onChange={(e: any) => {
+                                                const value = e.currentTarget?.values?.[0];
+                                                if (value) handleUpdateOption(option.handle, "selectionType", value);
+                                              }}
+                                              name="selectionType"
+                                            >
+                                              {selectionTypes.map((type: string) => (
+                                                <s-choice 
+                                                  key={type} 
+                                                  value={type} 
+                                                  selected={option.selectionType === type}
+                                                >
+                                                  { type.charAt(0).toUpperCase() + type.slice(1).toLowerCase() }
+                                                </s-choice>
+                                              ))}
+                                            </s-choice-list>
+
+                                            <s-choice-list
+                                              label="Display Style"
+                                              values={[option.displayType]}
+                                              onChange={(e: any) => {
+                                                const value = e.currentTarget?.values?.[0];
+                                                if (value) handleUpdateOption(option.handle, "displayType", value);
+                                              }}
+                                              name="displayType"
+                                            >
+                                              {displayTypes.map((type: string) => (
+                                                <s-choice 
+                                                  key={type} 
+                                                  value={type} 
+                                                  selected={option.displayType === type}
+                                                  disabled={option.selectionType !== SelectionType.SINGLE && DisplayType.RADIO === type}
+                                                >
+                                                  { type.charAt(0).toUpperCase() + type.slice(1).toLowerCase().replace('_', ' ') }
+                                                </s-choice>
+                                              ))}
+                                            </s-choice-list>
+                                          </>
+                                        )}
+
+                                        {isPriceFilter(option.optionType) && (
+                                          <>
+                                            <s-select
+                                              label="Display Style"
+                                              value="range"
+                                              disabled
+                                            >
+                                              <s-option value="range">Range (Price Slider)</s-option>
+                                            </s-select>
+                                            <span style={{ fontSize: '12px', color: 'var(--p-color-text-subdued)' }}>
+                                              Price filters use a range slider. Display style is automatically set to "Range".
+                                            </span>
+                                          </>
+                                        )}
+
+                                      </s-stack>
+                                    </s-stack>
+                                  </s-box>
+
+                                  {/* Section 2: Display & Behavior */}
+                                  <s-box padding="base" borderWidth="base" borderRadius="base" background="subdued">
+                                    <s-stack direction="block" gap="base">
+                                      <s-heading>Display & Behavior</s-heading>
+                                      <s-stack direction="block" gap="base">
+                                        <s-switch
+                                          label="Enable this filter"
+                                          checked={toFilterOptionStatus(option.status) === FilterOptionStatus.PUBLISHED}
+                                          onChange={() => handleToggleVisibility(option.handle)}
+                                        />
+                                        <s-switch
+                                          label="Start collapsed"
+                                          checked={option.collapsed}
+                                          onChange={(e: any) => handleUpdateOption(option.handle, "collapsed", e.target.checked)}
+                                        />
+                                        {!isPriceFilter(option.optionType) && (
+                                          <>
+                                            <s-switch
+                                              label="Enable search bar"
+                                              checked={option.searchable}
+                                              onChange={(e: any) => handleUpdateOption(option.handle, "searchable", e.target.checked)}
+                                            />
+                                            <s-switch
+                                              label="Group similar values together"
+                                              checked={option.groupBySimilarValues}
+                                              onChange={(e: any) => handleUpdateOption(option.handle, "groupBySimilarValues", e.target.checked)}
+                                            />
+                                            {/* <s-switch
+                                              label="Show as hierarchical menu"
+                                              checked={option.showMenu}
+                                              onChange={(e: any) => handleUpdateOption(option.handle, "showMenu", e.target.checked)}
+                                            /> */}
+                                          </>
+                                        )}
+                                        {isPriceFilter(option.optionType) && (
+                                          <span style={{ fontSize: '12px', color: 'var(--p-color-text-subdued)' }}>
+                                            Price filters display as a range slider. Search, grouping, and menu options are not applicable.
+                                          </span>
+                                        )}
+                                      </s-stack>
+                                    </s-stack>
+                                  </s-box>
+
+                                  {/* Section 3: Value Selection & Filtering */}
+                                  {!isPriceFilter(option.optionType) && availableValues.length > 0 && (
+                                    <s-box padding="base" borderWidth="base" borderRadius="base" background="subdued">
+                                      <s-stack direction="block" gap="base">
+                                        <s-heading>Value Selection & Filtering</s-heading>
+                                        <s-stack direction="block" gap="base">
+                                          <AllowedOptionsSelector
+                                            value={option.allowedOptions}
+                                            onChange={(values) => handleUpdateOption(option.handle, "allowedOptions", values)}
+                                            availableValues={availableValues}
+                                          />
+                                          <span style={{ fontSize: '12px', color: 'var(--p-color-text-subdued)' }}>
+                                            {option.allowedOptions.length === 0 
+                                              ? "All values will be shown" 
+                                              : `Only ${option.allowedOptions.length} selected value(s) will be shown`}
+                                          </span>
+                                        </s-stack>
+                                      </s-stack>
+                                    </s-box>
+                                  )}
+
+                                  {/* Section 4: Sorting & Organization - Only for non-price filters */}
+                                  {!isPriceFilter(option.optionType) && (
+                                    <s-box padding="base" borderWidth="base" borderRadius="base" background="subdued">
+                                      <s-stack direction="block" gap="base">
+                                        <s-heading>Sorting & Organization</s-heading>
+                                        <s-stack direction="block" gap="base">
+                                          <s-choice-list
+                                            label="Sort Order By"
+                                            values={[option.sortBy]}
+                                            onChange={(e: any) => {
+                                              const value = e.currentTarget?.values?.[0];
+                                              if (value) handleUpdateOption(option.handle, "sortBy", value);
+                                            }}
+                                            name="sortBy"
+                                          >
+                                            {SORT_TYPES_MAPPINGS.map((type: any) => (
+                                              <s-choice 
+                                                key={type.value} 
+                                                value={type.value} 
+                                                selected={option.sortBy === type.value}
+                                              >
+                                                { type.label }
+                                              </s-choice>
+                                            ))}
+                                          </s-choice-list>
+                                        </s-stack>
+                                      </s-stack>
+                                    </s-box>
+                                  )}
+
+                                  {/* Section 5: Text Formatting - Only for non-price filters */}
+                                  {!isPriceFilter(option.optionType) && (
+                                    <s-box padding="base" borderWidth="base" borderRadius="base" background="subdued">
+                                      <s-stack direction="block" gap="base">
+                                        <s-heading>Text Formatting</s-heading>
+                                        <s-stack direction="block" gap="base">
+                                          <s-select
+                                            label="Text Case"
+                                            value={option.textTransform}
+                                            onChange={(e: any) => handleUpdateOption(option.handle, "textTransform", e.target.value)}
+                                          >
+                                            <s-option value="none">Normal (No change)</s-option>
+                                            <s-option value="uppercase">UPPERCASE</s-option>
+                                            <s-option value="lowercase">lowercase</s-option>
+                                            <s-option value="capitalize">Capitalize First Letter</s-option>
+                                          </s-select>
+                                          <s-switch
+                                            label="Show tooltip"
+                                            checked={option.showTooltip ?? false}
+                                            onChange={(e: any) => handleUpdateOption(option.handle, "showTooltip", e.target.checked)}
+                                          />
+                                          {option.showTooltip && (
+                                            <s-text-field
+                                              label="Tooltip Content"
+                                              value={option.tooltipContent}
+                                              onChange={(e: any) => handleUpdateOption(option.handle, "tooltipContent", e.target.value)}
+                                              placeholder="Help text shown when users hover over this filter"
+                                            />
+                                          )}
+                                        </s-stack>
+                                      </s-stack>
+                                    </s-box>
+                                  )}
+
+                                  {/* Section 6: Advanced Options - Only for non-price filters */}
+                                  {!isPriceFilter(option.optionType) && (
+                                    <s-box padding="base" borderWidth="base" borderRadius="base" background="subdued">
+                                      <s-stack direction="block" gap="base">
+                                        <s-heading>Advanced Options</s-heading>
+                                        <s-stack direction="block" gap="base">
+                                          {option.showMenu && (
+                                            <MenuTreeBuilder
+                                              value={option.menus}
+                                              onChange={(values) => handleUpdateOption(option.handle, "menus", values)}
+                                              availableValues={availableValues}
+                                            />
+                                          )}
+
+                                          <s-text-field
+                                            label="Filter by Prefix (Show only values starting with)"
+                                            value={option.filterByPrefix.join(', ')}
+                                            onChange={(e: any) => {
+                                              const values = e.target.value.split(',').map((v: string) => v.trim()).filter((v: string) => v);
+                                              handleUpdateOption(option.handle, "filterByPrefix", values);
+                                            }}
+                                            placeholder="e.g., Size-, Color- (comma-separated)"
+                                          />
+                                          <s-text-field
+                                            label="Remove Prefix from Display"
+                                            value={option.removePrefix.join(', ')}
+                                            onChange={(e: any) => {
+                                              const values = e.target.value.split(',').map((v: string) => v.trim()).filter((v: string) => v);
+                                              handleUpdateOption(option.handle, "removePrefix", values);
+                                            }}
+                                            placeholder="e.g., Size-, Color- (comma-separated)"
+                                          />
+                                          <span style={{ fontSize: '12px', color: 'var(--p-color-text-subdued)' }}>
+                                            Note: Original values are preserved for filtering. Only display text is modified.
+                                          </span>
+                                        </s-stack>
+                                      </s-stack>
+                                    </s-box>
+                                  )}
+
+                                  {/* Section 7: Data Preview */}
+                                  {!isPriceFilter(option.optionType) && availableValues.length > 0 && (
+                                    <s-box padding="base" borderWidth="base" borderRadius="base" background="subdued">
+                                      <s-stack direction="block" gap="base">
+                                        <s-heading>Available Values Preview</s-heading>
+                                        <s-stack direction="block" gap="small">
+                                          <s-text tone="auto">
+                                            Total available values: <strong>{availableValues.length.toLocaleString()}</strong>
+                                          </s-text>
+                                          <div 
+                                            style={{ 
+                                              display: "flex", 
+                                              flexWrap: "wrap", 
+                                              gap: "6px", 
+                                              padding: "12px",
+                                              border: "1px solid var(--p-color-border-subdued)",
+                                              borderRadius: "4px",
+                                              backgroundColor: "var(--p-color-bg-surface)",
+                                              maxHeight: "200px",
+                                              overflowY: "auto"
+                                            }}
+                                          >
+                                            {availableValues.slice(0, 10).map((item, idx) => (
+                                              <s-badge key={idx} tone="info">
+                                                {item.value} <span style={{ opacity: 0.7 }}>({item.count})</span>
+                                              </s-badge>
+                                            ))}
+                                            {availableValues.length > 10 && (
+                                              <s-badge tone="neutral">
+                                                +{availableValues.length - 10} more
+                                              </s-badge>
+                                            )}
+                                          </div>
+                                        </s-stack>
+                                      </s-stack>
+                                    </s-box>
+                                  )}
+
+                                  {/* Price Range - Only for price filters */}
+                                  {isPriceFilter(option.optionType) && storefrontFilters?.priceRange && (
+                                    <s-box padding="base" borderWidth="base" borderRadius="base" background="subdued">
+                                      <s-stack direction="block" gap="base">
+                                        <s-heading>Price Range Information</s-heading>
+                                        <s-stack direction="block" gap="small">
+                                          <s-text tone="auto">
+                                            The price filter will display as a range slider with the following price range:
+                                          </s-text>
+                                          <s-box padding="base" borderWidth="base" borderRadius="base" background="base">
+                                            <div style={{ fontSize: '18px', fontWeight: '600' }}>
+                                              ${storefrontFilters.priceRange.min.toLocaleString()} - ${storefrontFilters.priceRange.max.toLocaleString()}
+                                            </div>
+                                          </s-box>
+                                          <span style={{ fontSize: '12px', color: 'var(--p-color-text-subdued)' }}>
+                                            Customers can drag the slider handles to select their desired price range.
+                                          </span>
+                                        </s-stack>
+                                      </s-stack>
+                                    </s-box>
+                                  )}
+
+                                  {/* Section 8: System Information */}
+                                  <s-box padding="base" borderWidth="base" borderRadius="base" background="subdued">
+                                    <s-stack direction="block" gap="base">
+                                      <s-stack direction="block" gap="base">
+                                        <s-text-field
+                                          label="Handle (URL identifier)"
+                                          value={option.handle}
+                                          disabled
+                                        />
+                                        <span style={{ fontSize: '12px', color: 'var(--p-color-text-subdued)' }}>
+                                          These fields are automatically generated and used for system identification. They cannot be modified.
+                                        </span>
+                                      </s-stack>
+                                    </s-stack>
+                                  </s-box>
+                                </s-stack>
+                                </s-box>
+                            )}
+                          </s-stack>
+                        </s-box>
+                      </div>
+                      
+                      {/* Drop Indicator Below */}
+                      {showDropBelow && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            bottom: '-2px',
+                            left: 0,
+                            right: 0,
+                            height: '3px',
+                            backgroundColor: 'var(--p-color-border-info)',
+                            zIndex: 10,
+                          }}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+              </s-stack>
+            )}
+
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <s-heading>Filter Options</s-heading>
               <s-button
                 variant="primary"
                 onClick={handleAddFilterOption}
@@ -1723,474 +2190,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                 Add filter option
               </s-button>
             </div>
-            {optionsError && (
-              <s-banner tone="critical">
-                <s-text>{optionsError}</s-text>
-              </s-banner>
-            )}
           </s-stack>
-
-          {filterOptions.length === 0 ? (
-            <s-box padding="base" borderWidth="base" borderRadius="base" background="subdued">
-              <s-stack direction="block" gap="small">
-                <s-text tone="auto">No filter options yet. Add your first filter option to get started.</s-text>
-              </s-stack>
-            </s-box>
-          ) : (
-            <s-stack direction="block" gap="base">
-              {filterOptions.map((option, index) => {
-                const isExpanded = expandedOptions.has(option.handle);
-                const availableValues = getAvailableValues(option.optionType);
-                const selectionTypes = getSelectionTypes(option.optionType);
-                const displayTypes = getDisplayTypes(option.optionType);
-                const isDragging = draggedIndex === index;
-                const isDragOver = dragOverIndex === index;
-                const dropPosition = getDropIndicatorPosition();
-                const showDropAbove = isDragOver && dropPosition === 'above';
-                const showDropBelow = isDragOver && dropPosition === 'below';
-
-                return (
-                  <div key={option.handle} style={{ position: 'relative' }}>
-                    {/* Drop Indicator Above */}
-                    {showDropAbove && (
-                      <div
-                        style={{
-                          position: 'absolute',
-                          top: '-2px',
-                          left: 0,
-                          right: 0,
-                          height: '3px',
-                          backgroundColor: 'var(--p-color-border-info)',
-                          zIndex: 10,
-                        }}
-                      />
-                    )}
-                    
-                    <div
-                      draggable
-                      onDragStart={() => handleDragStart(index)}
-                      onDragOver={(e: any) => handleDragOver(e, index)}
-                      onDragLeave={handleDragLeave}
-                      onDrop={(e: any) => handleDrop(e, index)}
-                      onDragEnd={handleDragEnd}
-                      style={{
-                        opacity: isDragging ? 0.7 : 1,
-                        cursor: isDragging ? 'grabbing' : 'grab',
-                        transition: isDragging ? 'none' : 'all 0.2s ease',
-                        position: 'relative',
-                        zIndex: isDragging ? 1000 : 1,
-                        border: isDragging ? '2px solid var(--p-color-border-info)' : 'none',
-                        backgroundColor: isDragging ? 'var(--p-color-bg-surface-selected)' : 'transparent',
-                      }}
-                    >
-                      <s-box
-                        padding="base"
-                        borderWidth={isDragOver ? "large" : isDragging ? "large" : "base"}
-                        borderRadius="base"
-                        background="subdued"
-                      >
-                        <s-stack direction="block" gap="base">
-                          {/* Option Header - Single Row */}
-                          <div 
-                            style={{ 
-                              display: "flex", 
-                              alignItems: "center", 
-                              gap: "12px",
-                              cursor: isDragging ? 'grabbing' : 'grab',
-                              userSelect: 'none',
-                            }}
-                            onMouseDown={(e) => e.stopPropagation()}
-                          >
-                            <s-icon 
-                              type="drag-handle" 
-                              color="subdued"
-                              size="small"
-                            />
-                            <div style={{ flex: 1 }}>
-                              <s-text-field
-                                value={option.label}
-                                onChange={(e: any) => handleUpdateOption(option.handle, "label", e.target.value)}
-                                placeholder="Filter label"
-                              />
-                            </div>
-                            <div style={{ flex: 1, minWidth: "200px" }}>
-                              <s-select
-                                value={option.optionType}
-                                onChange={(e: any) => handleUpdateOption(option.handle, "optionType", e.target.value)}
-                              >
-                                {getFilterTypes().map((type) => (
-                                  <s-option key={type} value={type}>
-                                    {type}
-                                  </s-option>
-                                ))}
-                              </s-select>
-                            </div>
-                            <s-badge tone={toFilterOptionStatus(option.status) === FilterOptionStatus.PUBLISHED ? "success" : "warning"}>
-                              {toFilterOptionStatus(option.status) === FilterOptionStatus.PUBLISHED ? "Active" : "Draft"}
-                            </s-badge>
-                            <s-button
-                              variant="tertiary"
-                              onClick={() => handleToggleExpand(option.handle)}
-                              icon={isExpanded ? "chevron-up" : "chevron-down"}
-                            >
-                              {isExpanded ? "Hide settings" : "Show settings"}
-                            </s-button>
-                            <s-button
-                              variant="tertiary"
-                              tone="critical"
-                              onClick={() => handleDeleteOption(option.handle)}
-                              icon="delete"
-                            />
-                          </div>
-
-                          {/* Settings - Expandable */}
-                          {isExpanded && (
-                            <s-box padding="base" borderWidth="base" borderRadius="base" background="base">
-                              <s-stack direction="block" gap="base">
-                                {/* Section 1: Basic Settings */}
-                                <s-box padding="base" borderWidth="base" borderRadius="base" background="subdued">
-                                  <s-stack direction="block" gap="base">
-                                    <s-heading>Basic Settings</s-heading>
-                                    <s-stack direction="block" gap="base">
-                                      {!isPriceFilter(option.optionType) && (
-                                        <>
-                                          {selectionTypes.length === 2 ? (
-                                            <s-choice-list
-                                              label="Selection Type"
-                                              values={[option.selectionType]}
-                                              onChange={(e: any) => {
-                                                const value = e.currentTarget?.values?.[0];
-                                                if (value) handleUpdateOption(option.handle, "selectionType", value);
-                                              }}
-                                            >
-                                              {selectionTypes.map((type: string) => (
-                                                <s-choice 
-                                                  key={type} 
-                                                  value={type} 
-                                                  selected={option.selectionType === type}
-                                                >
-                                                  {type.charAt(0).toUpperCase() + type.slice(1)}
-                                                </s-choice>
-                                              ))}
-                                            </s-choice-list>
-                                          ) : (
-                                            <s-select
-                                              label="Selection Type"
-                                              value={option.selectionType}
-                                              onChange={(e: any) => handleUpdateOption(option.handle, "selectionType", e.target.value)}
-                                            >
-                                              {selectionTypes.map((type: string) => (
-                                                <s-option key={type} value={type}>
-                                                  {type.charAt(0).toUpperCase() + type.slice(1)}
-                                                </s-option>
-                                              ))}
-                                            </s-select>
-                                          )}
-
-                                          <s-select
-                                            label="Display Style"
-                                            value={option.displayType}
-                                            onChange={(e: any) => handleUpdateOption(option.handle, "displayType", e.target.value)}
-                                          >
-                                            {displayTypes.map((type: string) => (
-                                              <s-option key={type} value={type}>
-                                                {type.charAt(0).toUpperCase() + type.slice(1)}
-                                              </s-option>
-                                            ))}
-                                          </s-select>
-                                        </>
-                                      )}
-
-                                      {isPriceFilter(option.optionType) && (
-                                        <>
-                                          <s-select
-                                            label="Display Style"
-                                            value="range"
-                                            disabled
-                                          >
-                                            <s-option value="range">Range (Price Slider)</s-option>
-                                          </s-select>
-                                          <span style={{ fontSize: '12px', color: 'var(--p-color-text-subdued)' }}>
-                                            Price filters use a range slider. Display style is automatically set to "Range".
-                                          </span>
-                                        </>
-                                      )}
-
-                                      <s-switch
-                                        label="Enable this filter"
-                                        checked={toFilterOptionStatus(option.status) === FilterOptionStatus.PUBLISHED}
-                                        onChange={() => handleToggleVisibility(option.handle)}
-                                      />
-                                    </s-stack>
-                                  </s-stack>
-                                </s-box>
-
-                                {/* Section 2: Display & Behavior */}
-                                <s-box padding="base" borderWidth="base" borderRadius="base" background="subdued">
-                                  <s-stack direction="block" gap="base">
-                                    <s-heading>Display & Behavior</s-heading>
-                                    <s-stack direction="block" gap="base">
-                                      <s-switch
-                                        label="Start collapsed"
-                                        checked={option.collapsed}
-                                        onChange={(e: any) => handleUpdateOption(option.handle, "collapsed", e.target.checked)}
-                                      />
-                                      {!isPriceFilter(option.optionType) && (
-                                        <>
-                                          <s-switch
-                                            label="Enable search bar"
-                                            checked={option.searchable}
-                                            onChange={(e: any) => handleUpdateOption(option.handle, "searchable", e.target.checked)}
-                                          />
-                                          <s-switch
-                                            label="Group similar values together"
-                                            checked={option.groupBySimilarValues}
-                                            onChange={(e: any) => handleUpdateOption(option.handle, "groupBySimilarValues", e.target.checked)}
-                                          />
-                                          <s-switch
-                                            label="Show as hierarchical menu"
-                                            checked={option.showMenu}
-                                            onChange={(e: any) => handleUpdateOption(option.handle, "showMenu", e.target.checked)}
-                                          />
-                                        </>
-                                      )}
-                                      {isPriceFilter(option.optionType) && (
-                                        <span style={{ fontSize: '12px', color: 'var(--p-color-text-subdued)' }}>
-                                          Price filters display as a range slider. Search, grouping, and menu options are not applicable.
-                                        </span>
-                                      )}
-                                    </s-stack>
-                                  </s-stack>
-                                </s-box>
-
-                                {/* Section 3: Value Selection & Filtering */}
-                                {!isPriceFilter(option.optionType) && availableValues.length > 0 && (
-                                  <s-box padding="base" borderWidth="base" borderRadius="base" background="subdued">
-                                    <s-stack direction="block" gap="base">
-                                      <s-heading>Value Selection & Filtering</s-heading>
-                                      <s-stack direction="block" gap="base">
-                                        <AllowedOptionsSelector
-                                          value={option.allowedOptions}
-                                          onChange={(values) => handleUpdateOption(option.handle, "allowedOptions", values)}
-                                          availableValues={availableValues}
-                                        />
-                                        <span style={{ fontSize: '12px', color: 'var(--p-color-text-subdued)' }}>
-                                          {option.allowedOptions.length === 0 
-                                            ? "All values will be shown" 
-                                            : `Only ${option.allowedOptions.length} selected value(s) will be shown`}
-                                        </span>
-                                      </s-stack>
-                                    </s-stack>
-                                  </s-box>
-                                )}
-
-                                {/* Section 4: Sorting & Organization - Only for non-price filters */}
-                                {!isPriceFilter(option.optionType) && (
-                                  <s-box padding="base" borderWidth="base" borderRadius="base" background="subdued">
-                                    <s-stack direction="block" gap="base">
-                                      <s-heading>Sorting & Organization</s-heading>
-                                      <s-stack direction="block" gap="base">
-                                        <s-select
-                                          label="Sort Order"
-                                          value={option.sortBy}
-                                          onChange={(e: any) => handleUpdateOption(option.handle, "sortBy", e.target.value)}
-                                        >
-                                          <s-option value="ascending">A to Z (Ascending)</s-option>
-                                          <s-option value="descending">Z to A (Descending)</s-option>
-                                          <s-option value="count">By Popularity (Count)</s-option>
-                                          <s-option value="manual">Custom Order</s-option>
-                                        </s-select>
-                                        {(option.sortBy === "manual" || toSortOrder(option.sortBy) === SortOrder.MANUAL) && (
-                                          <s-text-field
-                                            label="Custom Sort Order"
-                                            value={option.manualSortedValues.join(', ')}
-                                            onChange={(e: any) => {
-                                              const values = e.target.value.split(',').map((v: string) => v.trim()).filter((v: string) => v);
-                                              handleUpdateOption(option.handle, "manualSortedValues", values);
-                                            }}
-                                            placeholder="Enter values in desired order, separated by commas"
-                                          />
-                                        )}
-                                      </s-stack>
-                                    </s-stack>
-                                  </s-box>
-                                )}
-
-                                {/* Section 5: Text Formatting - Only for non-price filters */}
-                                {!isPriceFilter(option.optionType) && (
-                                  <s-box padding="base" borderWidth="base" borderRadius="base" background="subdued">
-                                    <s-stack direction="block" gap="base">
-                                      <s-heading>Text Formatting</s-heading>
-                                      <s-stack direction="block" gap="base">
-                                        <s-select
-                                          label="Text Case"
-                                          value={option.textTransform}
-                                          onChange={(e: any) => handleUpdateOption(option.handle, "textTransform", e.target.value)}
-                                        >
-                                          <s-option value="none">Normal (No change)</s-option>
-                                          <s-option value="uppercase">UPPERCASE</s-option>
-                                          <s-option value="lowercase">lowercase</s-option>
-                                          <s-option value="capitalize">Capitalize First Letter</s-option>
-                                        </s-select>
-                                        <s-switch
-                                          label="Show tooltip"
-                                          checked={option.showTooltip ?? false}
-                                          onChange={(e: any) => handleUpdateOption(option.handle, "showTooltip", e.target.checked)}
-                                        />
-                                        {option.showTooltip && (
-                                          <s-text-field
-                                            label="Tooltip Content"
-                                            value={option.tooltipContent}
-                                            onChange={(e: any) => handleUpdateOption(option.handle, "tooltipContent", e.target.value)}
-                                            placeholder="Help text shown when users hover over this filter"
-                                          />
-                                        )}
-                                      </s-stack>
-                                    </s-stack>
-                                  </s-box>
-                                )}
-
-                                {/* Section 6: Advanced Options - Only for non-price filters */}
-                                {!isPriceFilter(option.optionType) && (
-                                  <s-box padding="base" borderWidth="base" borderRadius="base" background="subdued">
-                                    <s-stack direction="block" gap="base">
-                                      <s-heading>Advanced Options</s-heading>
-                                      <s-stack direction="block" gap="base">
-                                        {option.showMenu && (
-                                          <MenuTreeBuilder
-                                            value={option.menus}
-                                            onChange={(values) => handleUpdateOption(option.handle, "menus", values)}
-                                            availableValues={availableValues}
-                                          />
-                                        )}
-
-                                        <s-text-field
-                                          label="Filter by Prefix (Show only values starting with)"
-                                          value={option.filterByPrefix.join(', ')}
-                                          onChange={(e: any) => {
-                                            const values = e.target.value.split(',').map((v: string) => v.trim()).filter((v: string) => v);
-                                            handleUpdateOption(option.handle, "filterByPrefix", values);
-                                          }}
-                                          placeholder="e.g., Size-, Color- (comma-separated)"
-                                        />
-                                        <s-text-field
-                                          label="Remove Prefix from Display"
-                                          value={option.removePrefix.join(', ')}
-                                          onChange={(e: any) => {
-                                            const values = e.target.value.split(',').map((v: string) => v.trim()).filter((v: string) => v);
-                                            handleUpdateOption(option.handle, "removePrefix", values);
-                                          }}
-                                          placeholder="e.g., Size-, Color- (comma-separated)"
-                                        />
-                                        <span style={{ fontSize: '12px', color: 'var(--p-color-text-subdued)' }}>
-                                          Note: Original values are preserved for filtering. Only display text is modified.
-                                        </span>
-                                      </s-stack>
-                                    </s-stack>
-                                  </s-box>
-                                )}
-
-                                {/* Section 7: Data Preview */}
-                                {!isPriceFilter(option.optionType) && availableValues.length > 0 && (
-                                  <s-box padding="base" borderWidth="base" borderRadius="base" background="subdued">
-                                    <s-stack direction="block" gap="base">
-                                      <s-heading>Available Values Preview</s-heading>
-                                      <s-stack direction="block" gap="small">
-                                        <s-text tone="auto">
-                                          Total available values: <strong>{availableValues.length.toLocaleString()}</strong>
-                                        </s-text>
-                                        <div 
-                                          style={{ 
-                                            display: "flex", 
-                                            flexWrap: "wrap", 
-                                            gap: "6px", 
-                                            padding: "12px",
-                                            border: "1px solid var(--p-color-border-subdued)",
-                                            borderRadius: "4px",
-                                            backgroundColor: "var(--p-color-bg-surface)",
-                                            maxHeight: "200px",
-                                            overflowY: "auto"
-                                          }}
-                                        >
-                                          {availableValues.slice(0, 10).map((item, idx) => (
-                                            <s-badge key={idx} tone="info">
-                                              {item.value} <span style={{ opacity: 0.7 }}>({item.count})</span>
-                                            </s-badge>
-                                          ))}
-                                          {availableValues.length > 10 && (
-                                            <s-badge tone="neutral">
-                                              +{availableValues.length - 10} more
-                                            </s-badge>
-                                          )}
-                                        </div>
-                                      </s-stack>
-                                    </s-stack>
-                                  </s-box>
-                                )}
-
-                                {/* Price Range - Only for price filters */}
-                                {isPriceFilter(option.optionType) && storefrontFilters?.priceRange && (
-                                  <s-box padding="base" borderWidth="base" borderRadius="base" background="subdued">
-                                    <s-stack direction="block" gap="base">
-                                      <s-heading>Price Range Information</s-heading>
-                                      <s-stack direction="block" gap="small">
-                                        <s-text tone="auto">
-                                          The price filter will display as a range slider with the following price range:
-                                        </s-text>
-                                        <s-box padding="base" borderWidth="base" borderRadius="base" background="base">
-                                          <div style={{ fontSize: '18px', fontWeight: '600' }}>
-                                            ${storefrontFilters.priceRange.min.toLocaleString()} - ${storefrontFilters.priceRange.max.toLocaleString()}
-                                          </div>
-                                        </s-box>
-                                        <span style={{ fontSize: '12px', color: 'var(--p-color-text-subdued)' }}>
-                                          Customers can drag the slider handles to select their desired price range.
-                                        </span>
-                                      </s-stack>
-                                    </s-stack>
-                                  </s-box>
-                                )}
-
-                                {/* Section 8: System Information */}
-                                <s-box padding="base" borderWidth="base" borderRadius="base" background="subdued">
-                                  <s-stack direction="block" gap="base">
-                                    <s-stack direction="block" gap="base">
-                                      <s-text-field
-                                        label="Handle (URL identifier)"
-                                        value={option.handle}
-                                        disabled
-                                      />
-                                      <span style={{ fontSize: '12px', color: 'var(--p-color-text-subdued)' }}>
-                                        These fields are automatically generated and used for system identification. They cannot be modified.
-                                      </span>
-                                    </s-stack>
-                                  </s-stack>
-                                </s-box>
-                              </s-stack>
-                              </s-box>
-                          )}
-                        </s-stack>
-                      </s-box>
-                    </div>
-                    
-                    {/* Drop Indicator Below */}
-                    {showDropBelow && (
-                      <div
-                        style={{
-                          position: 'absolute',
-                          bottom: '-2px',
-                          left: 0,
-                          right: 0,
-                          height: '3px',
-                          backgroundColor: 'var(--p-color-border-info)',
-                          zIndex: 10,
-                        }}
-                      />
-                    )}
-                  </div>
-                );
-              })}
-            </s-stack>
-          )}
         </s-section>
 
         {/* General Settings - Collapsed by Default */}
@@ -2234,11 +2234,12 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                             const value = e.currentTarget?.values?.[0];
                             if (value) updateFilterState({ filterOrientation: toFilterOrientation(value) });
                           }}
+                          name="FilterPosition"
                         >
                           <s-choice value={FilterOrientation.VERTICAL} selected={filterOrientation === FilterOrientation.VERTICAL}>
                             Vertical (Sidebar)
                           </s-choice>
-                          <s-choice value={FilterOrientation.HORIZONTAL} selected={filterOrientation === FilterOrientation.HORIZONTAL}>
+                          <s-choice disabled value={FilterOrientation.HORIZONTAL} selected={filterOrientation === FilterOrientation.HORIZONTAL}>
                             Horizontal (Top Bar)
                           </s-choice>
                         </s-choice-list>
@@ -2250,11 +2251,12 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                             const value = e.currentTarget?.values?.[0];
                             if (value) updateFilterState({ defaultView: toDefaultView(value) });
                           }}
+                          name="DefaultProductView"
                         >
-                          <s-choice value={DefaultView.GRID} selected={defaultView === DefaultView.GRID}>
+                          <s-choice disabled value={DefaultView.GRID} selected={defaultView === DefaultView.GRID}>
                             Grid View
                           </s-choice>
-                          <s-choice value={DefaultView.LIST} selected={defaultView === DefaultView.LIST}>
+                          <s-choice disabled value={DefaultView.LIST} selected={defaultView === DefaultView.LIST}>
                             List View
                           </s-choice>
                         </s-choice-list>
@@ -2267,6 +2269,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                               const value = e.currentTarget?.values?.[0];
                               if (value) updateFilterState({ gridColumns: parseInt(value) });
                             }}
+                            name="ProductsPerRow"
                           >
                             <s-choice value="2" selected={gridColumns === 2}>2 columns</s-choice>
                             <s-choice value="3" selected={gridColumns === 3}>3 columns</s-choice>
@@ -2279,7 +2282,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                   </s-box>
 
                   {/* Section 2: Product Display */}
-                  <s-box padding="base" borderWidth="base" borderRadius="base" background="subdued">
+                  {/* <s-box padding="base" borderWidth="base" borderRadius="base" background="subdued">
                     <s-stack direction="block" gap="base">
                       <s-heading>Product Display</s-heading>
                       <s-stack direction="block" gap="base">
@@ -2307,7 +2310,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                         />
                       </s-stack>
                     </s-stack>
-                  </s-box>
+                  </s-box> */}
 
                   {/* Section 3: Pagination */}
                   <s-box padding="base" borderWidth="base" borderRadius="base" background="subdued">
@@ -2321,16 +2324,12 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                             const value = e.currentTarget?.values?.[0];
                             if (value) updateFilterState({ paginationType: toPaginationType(value) });
                           }}
+                          name="PaginationType"
                         >
                           <s-choice value={PaginationType.PAGES} selected={paginationType === PaginationType.PAGES}>Pages (1, 2, 3...)</s-choice>
                           <s-choice value={PaginationType.LOAD_MORE} selected={paginationType === PaginationType.LOAD_MORE}>Load More Button</s-choice>
                           <s-choice value={PaginationType.INFINITE_SCROLL} selected={paginationType === PaginationType.INFINITE_SCROLL}>Infinite Scroll</s-choice>
                         </s-choice-list>
-                        <s-text-field
-                          label="Items per Page"
-                          value={itemsPerPage.toString()}
-                          onChange={(e: any) => updateFilterState({ itemsPerPage: parseInt(e.target.value) || 24 })}
-                        />
                         <s-switch
                           label="Show page info (e.g., 'Showing 1-24 of 120 products')"
                           checked={showPageInfo}

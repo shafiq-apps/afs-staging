@@ -22,6 +22,7 @@ export enum SelectionType {
 }
 
 export enum SortOrder {
+  COUNT = "COUNT",
   ASCENDING = "ASCENDING",
   DESCENDING = "DESCENDING",
   MANUAL = "MANUAL",
@@ -76,11 +77,11 @@ export enum DefaultView {
  * Helper function to safely convert string to enum value
  */
 export function toDisplayType(value: string | undefined | null): DisplayType {
-  if (!value) return DisplayType.LIST;
+  if (!value) return DisplayType.CHECKBOX;
   const upper = value.toUpperCase();
   return Object.values(DisplayType).includes(upper as DisplayType)
     ? (upper as DisplayType)
-    : DisplayType.LIST;
+    : DisplayType.CHECKBOX;
 }
 
 export function toSelectionType(value: string | undefined | null): SelectionType {

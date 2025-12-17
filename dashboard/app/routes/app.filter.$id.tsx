@@ -8,6 +8,7 @@ import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import FilterForm, { type FilterFormHandle } from "../components/FilterForm";
 import { useTranslation } from "app/utils/translations";
+import { PaginationType, SortOrder } from "app/utils/filter.enums";
 
 
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
@@ -169,9 +170,9 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
           menus: optionSettings.menus ?? [],
           removeSuffix: optionSettings.removeSuffix ?? [],
           replaceText: optionSettings.replaceText ?? [],
-          sortBy: optionSettings.sortBy ?? "ASCENDING",
+          sortBy: optionSettings.sortBy ?? SortOrder.COUNT,
           textTransform: optionSettings.textTransform ?? "NONE",
-          paginationType: optionSettings.paginationType ?? "SCROLL",
+          paginationType: optionSettings.paginationType ?? PaginationType.PAGES,
           groupBySimilarValues: optionSettings.groupBySimilarValues ?? false,
           valueNormalization: optionSettings.valueNormalization ?? {},
           baseOptionType: optionSettings.baseOptionType,
