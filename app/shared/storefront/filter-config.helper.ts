@@ -24,6 +24,35 @@ const STANDARD_FILTER_MAPPING: Record<string, keyof ProductFilterInput> = {
   collections: 'collections',
 };
 
+function normalizeStandardKey(key: string): string {
+  return (key || '').toLowerCase().trim().replace(/[\s_-]+/g, '');
+}
+
+function parseMinMaxRange(value: string): { min?: number; max?: number } | null {
+  if (!value || typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  // Accept "min-max" (floats ok). Also tolerate "min-" or "-max".
+  const idx = trimmed.indexOf('-');
+  if (idx === -1) return null;
+
+  const left = trimmed.slice(0, idx).trim();
+  const right = trimmed.slice(idx + 1).trim();
+
+  const min = left ? parseFloat(left) : undefined;
+  const max = right ? parseFloat(right) : undefined;
+
+  const out: { min?: number; max?: number } = {};
+  if (min !== undefined && !isNaN(min) && min >= 0) out.min = min;
+  if (max !== undefined && !isNaN(max) && max >= 0) out.max = max;
+
+  if (out.min === undefined && out.max === undefined) return null;
+  if (out.min !== undefined && out.max !== undefined && !(out.max > out.min)) return null;
+
+  return out;
+}
+
 const normalizeStatus = (status?: string | null) => (status || '').toUpperCase();
 const normalizeChannel = (channel?: string | null) => (channel || '').toLowerCase();
 const normalizeString = (value?: string | null) => (value || '').toLowerCase();
@@ -493,8 +522,46 @@ export function applyFilterConfigToInput(
     for (const [optionName, values] of Object.entries(result.options)) {
       if (!values || values.length === 0) continue;
       
-      const normalizedName = optionName.toLowerCase().trim();
-      const standardField = STANDARD_FILTER_MAPPING[normalizedName];
+      const normalizedName = normalizeStandardKey(optionName);
+
+      // Special-case: handle-driven price range filters (e.g. pr_xxx=10-100)
+      // These come through as option filters (handles) but should be applied via dedicated numeric fields.
+      if (normalizedName === 'price' || normalizedName === 'pricerange') {
+        const first = typeof values[0] === 'string' ? values[0] : '';
+        const parsed = parseMinMaxRange(first);
+        if (parsed) {
+          if (parsed.min !== undefined) (result as any).priceMin = parsed.min;
+          if (parsed.max !== undefined) (result as any).priceMax = parsed.max;
+          logger.debug('Converted price range option to priceMin/priceMax', {
+            optionName,
+            value: first,
+            priceMin: (result as any).priceMin,
+            priceMax: (result as any).priceMax,
+          });
+        }
+        // Don't keep as optionPairs filter
+        continue;
+      }
+
+      // Variant price range (optional): handle-driven variantPriceRange=10-100
+      if (normalizedName === 'variantpricerange' || normalizedName === 'variantpricerangefilter') {
+        const first = typeof values[0] === 'string' ? values[0] : '';
+        const parsed = parseMinMaxRange(first);
+        if (parsed) {
+          if (parsed.min !== undefined) (result as any).variantPriceMin = parsed.min;
+          if (parsed.max !== undefined) (result as any).variantPriceMax = parsed.max;
+          logger.debug('Converted variant price range option to variantPriceMin/variantPriceMax', {
+            optionName,
+            value: first,
+            variantPriceMin: (result as any).variantPriceMin,
+            variantPriceMax: (result as any).variantPriceMax,
+          });
+        }
+        // Don't keep as optionPairs filter
+        continue;
+      }
+
+      const standardField = STANDARD_FILTER_MAPPING[normalizedName as keyof typeof STANDARD_FILTER_MAPPING];
       
       if (standardField) {
         // Move to standard filter field

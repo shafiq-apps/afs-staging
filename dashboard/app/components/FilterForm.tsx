@@ -677,7 +677,8 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
         let position = 0;
 
         // Add Price filter
-        if (storefrontFilters.priceRange) {
+        const storefrontPriceRange = storefrontFilters.price || (storefrontFilters as any).priceRange;
+        if (storefrontPriceRange) {
           autoOptions.push({
             handle: generateFilterHandle('price'),
             position: position++,
@@ -705,8 +706,8 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
             paginationType: DEFAULT_FILTER_OPTION.paginationType,
             groupBySimilarValues: DEFAULT_FILTER_OPTION.groupBySimilarValues,
             status: DEFAULT_FILTER_OPTION.status,
-            minPrice: storefrontFilters.priceRange.min,
-            maxPrice: storefrontFilters.priceRange.max,
+            minPrice: storefrontPriceRange.min,
+            maxPrice: storefrontPriceRange.max,
             baseOptionType: getBaseOptionType("Price"),
           });
         }
@@ -2099,7 +2100,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                                   )}
 
                                   {/* Price Range - Only for price filters */}
-                                  {isPriceFilter(option.optionType) && storefrontFilters?.priceRange && (
+                                  {isPriceFilter(option.optionType) && (storefrontFilters?.price || (storefrontFilters as any)?.priceRange) && (
                                     <s-box padding="base" borderWidth="base" borderRadius="base" background="subdued">
                                       <s-stack direction="block" gap="base">
                                         <s-heading>Price Range Information</s-heading>
@@ -2109,7 +2110,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                                           </s-text>
                                           <s-box padding="base" borderWidth="base" borderRadius="base" background="base">
                                             <div style={{ fontSize: '18px', fontWeight: '600' }}>
-                                              ${storefrontFilters.priceRange.min.toLocaleString()} - ${storefrontFilters.priceRange.max.toLocaleString()}
+                                              ${((storefrontFilters?.price || (storefrontFilters as any)?.priceRange) as any).min.toLocaleString()} - ${((storefrontFilters?.price || (storefrontFilters as any)?.priceRange) as any).max.toLocaleString()}
                                             </div>
                                           </s-box>
                                           <span style={{ fontSize: '12px', color: 'var(--p-color-text-subdued)' }}>
