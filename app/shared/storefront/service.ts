@@ -201,7 +201,6 @@ export class StorefrontSearchService implements Injectable {
       collections: normalizeBuckets(aggregations?.collections),
       options: optionEntries,
       price: aggregations?.price,
-      variantPriceRange: aggregations?.variantPriceRange,
     };
   }
 }

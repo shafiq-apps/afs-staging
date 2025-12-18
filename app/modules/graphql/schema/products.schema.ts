@@ -140,7 +140,6 @@ export const productsSchema = `
     collections: [FacetValue!]!
     options: JSON! # Record<string, FacetValue[]>
     price: PriceRange
-    variantPriceRange: PriceRange
   }
 
   # Price Range
@@ -160,8 +159,6 @@ export const productsSchema = `
     variantOptionKeys: [String!]
     priceMin: Float
     priceMax: Float
-    variantPriceMin: Float
-    variantPriceMax: Float
     variantSkus: [String!]
   }
 
@@ -176,8 +173,6 @@ export const productsSchema = `
     variantOptionKeys: [String!]
     priceMin: Float
     priceMax: Float
-    variantPriceMin: Float
-    variantPriceMax: Float
     variantSkus: [String!]
     cursor: String  # Base64-encoded offset for pagination. Use nextCursor from previous response to get next page.
     limit: Int      # Number of products per page (default: 20, max: 500)

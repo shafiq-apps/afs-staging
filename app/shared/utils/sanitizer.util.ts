@@ -207,8 +207,6 @@ export function sanitizeFilterInput(input: {
   variantOptionKeys?: string[];
   priceMin?: number;
   priceMax?: number;
-  variantPriceMin?: number;
-  variantPriceMax?: number;
   variantSkus?: string[];
   keep?: string[];
 }): {
@@ -221,8 +219,6 @@ export function sanitizeFilterInput(input: {
   variantOptionKeys?: string[];
   priceMin?: number;
   priceMax?: number;
-  variantPriceMin?: number;
-  variantPriceMax?: number;
   variantSkus?: string[];
   keep?: string[];
 } {
@@ -279,14 +275,6 @@ export function sanitizeFilterInput(input: {
 
   if (input.priceMax !== undefined) {
     sanitized.priceMax = sanitizeNumber(input.priceMax, 0);
-  }
-
-  if (input.variantPriceMin !== undefined) {
-    sanitized.variantPriceMin = sanitizeNumber(input.variantPriceMin, 0);
-  }
-
-  if (input.variantPriceMax !== undefined) {
-    sanitized.variantPriceMax = sanitizeNumber(input.variantPriceMax, 0);
   }
 
   if (input.variantSkus) {

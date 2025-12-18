@@ -14,6 +14,7 @@
 import { shopsResolvers } from './shops.resolvers';
 import { productsResolvers } from './products.resolvers';
 import { filtersResolvers } from './filters.resolvers';
+import { cacheResolvers } from './cache.resolvers';
 
 /**
  * Array of manual resolver objects
@@ -24,6 +25,7 @@ export const resolvers: any[] = [
   shopsResolvers,    // Manual shop resolvers
   productsResolvers, // Manual product resolvers
   filtersResolvers,  // Manual filter resolvers
+  cacheResolvers,    // Cache admin/debug resolvers
   // Add more manual resolvers here as needed
 ];
 

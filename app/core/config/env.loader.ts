@@ -8,6 +8,7 @@ import { config } from 'dotenv';
 import { resolve } from 'path';
 import { existsSync } from 'fs';
 import { createModuleLogger } from '@shared/utils/logger.util';
+import { applyLoggerEnvConfig } from '@shared/utils/logger.util';
 
 const logger = createModuleLogger('env-loader', {disabled: true});
 
@@ -194,5 +195,7 @@ export function getEnvBoolean(key: string, defaultValue?: boolean): boolean {
  */
 export function initEnv(options?: EnvLoaderOptions): void {
   loadEnv(options);
+  // Apply logger module enable/disable rules after env is loaded.
+  applyLoggerEnvConfig();
 }
 

@@ -30,10 +30,6 @@ export interface FacetAggregations {
     min: number;
     max: number;
   };
-  variantPriceRange?: {
-    min: number;
-    max: number;
-  };
 }
 
 export interface ProductFilterInput {
@@ -47,9 +43,6 @@ export interface ProductFilterInput {
   // Price range filters (product-level minPrice/maxPrice)
   priceMin?: number;
   priceMax?: number;
-  // Variant price range filters (variant.price)
-  variantPriceMin?: number;
-  variantPriceMax?: number;
   // Variant SKU filter
   variantSkus?: string[];
   // Keep specific filter aggregations (by query key/handle)
@@ -66,7 +59,7 @@ export interface FacetValue {
 
 export interface StorefrontFilterDescriptor {
   key: string;
-  type: 'option' | 'vendor' | 'productType' | 'tag' | 'collection' | 'price' | 'variantPriceRange';
+  type: 'option' | 'vendor' | 'productType' | 'tag' | 'collection' | 'price';
   queryKey: string;
   label: string;
   handle?: string;
@@ -100,10 +93,6 @@ export interface ProductFilters {
     min: number;
     max: number;
   };
-  variantPriceRange?: {
-    min: number;
-    max: number;
-  };
 }
 
 export interface ProductSearchInput {
@@ -117,9 +106,6 @@ export interface ProductSearchInput {
   // Price range filters (product-level minPrice/maxPrice)
   priceMin?: number;
   priceMax?: number;
-  // Variant price range filters (variant.price)
-  variantPriceMin?: number;
-  variantPriceMax?: number;
   // Variant SKU filter
   variantSkus?: string[];
   page?: number;

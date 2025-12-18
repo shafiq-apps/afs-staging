@@ -297,11 +297,6 @@ function getStandardFilterMapping(
     pricerange: { type: 'price', queryKey: 'priceRange', aggregationKey: 'price' },
     'price-range': { type: 'price', queryKey: 'priceRange', aggregationKey: 'price' },
     price_range: { type: 'price', queryKey: 'priceRange', aggregationKey: 'price' },
-    // Variant price range filter (optional)
-    variantpricerange: { type: 'variantPriceRange', queryKey: 'variantPriceRange', aggregationKey: 'variantPriceRange' },
-    'variant-price-range': { type: 'variantPriceRange', queryKey: 'variantPriceRange', aggregationKey: 'variantPriceRange' },
-    variant_price_range: { type: 'variantPriceRange', queryKey: 'variantPriceRange', aggregationKey: 'variantPriceRange' },
-    variantpricerangefilter: { type: 'variantPriceRange', queryKey: 'variantPriceRange', aggregationKey: 'variantPriceRange' },
   };
 
   return standardFilterMapping[normalized] || null;
@@ -382,18 +377,16 @@ export function formatFilters(
     if (standardFilterMapping) {
       // Process as standard filter
       // Special-case price range filters: they are not bucket aggregations.
-      if (standardFilterMapping.type === 'price' || standardFilterMapping.type === 'variantPriceRange') {
+      if (standardFilterMapping.type === 'price') {
         const rangeAgg = aggregations[standardFilterMapping.aggregationKey] as any;
         const min = typeof rangeAgg?.min === 'number' ? rangeAgg.min : undefined;
         const max = typeof rangeAgg?.max === 'number' ? rangeAgg.max : undefined;
         if (min === undefined || max === undefined) continue;
         if (!(max > min)) continue;
 
-        const label = option.label || (standardFilterMapping.type === 'price' ? 'Price' : 'Variant Price');
-
-        // The storefront theme extension expects optionType to be "priceRange" or "variantPriceRange"
-        // to render the slider UI, even if filterConfig's optionType is "Price".
-        const uiOptionType = standardFilterMapping.type === 'price' ? 'priceRange' : 'variantPriceRange';
+        const label = option.label || 'Price';
+        // Storefront expects optionType "priceRange" for the slider UI.
+        const uiOptionType = 'priceRange';
 
         const baseFilter = createBaseFilter(
           uiOptionType,

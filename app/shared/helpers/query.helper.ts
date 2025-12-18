@@ -141,7 +141,6 @@ const RESERVED_QUERY_PARAMS = new Set([
   'tag', 'tags',
   'collection', 'collections',
   'priceMin', 'priceMax', 'price_min', 'price_max',
-  'variantPriceMin', 'variantPriceMax', 'variant_price_min', 'variant_price_max',
   'variantKey', 'variantKeys', 'variant_key', 'variant_keys', 'variantOptionKeys', 'variant_option_keys',
   'variantSku', 'variantSkus', 'variant_sku', 'variant_skus', 'sku', 'skus',
   'page', 'limit', 'sort', 'fields', 'includeFilters',

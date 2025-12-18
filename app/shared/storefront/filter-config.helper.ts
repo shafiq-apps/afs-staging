@@ -543,24 +543,6 @@ export function applyFilterConfigToInput(
         continue;
       }
 
-      // Variant price range (optional): handle-driven variantPriceRange=10-100
-      if (normalizedName === 'variantpricerange' || normalizedName === 'variantpricerangefilter') {
-        const first = typeof values[0] === 'string' ? values[0] : '';
-        const parsed = parseMinMaxRange(first);
-        if (parsed) {
-          if (parsed.min !== undefined) (result as any).variantPriceMin = parsed.min;
-          if (parsed.max !== undefined) (result as any).variantPriceMax = parsed.max;
-          logger.debug('Converted variant price range option to variantPriceMin/variantPriceMax', {
-            optionName,
-            value: first,
-            variantPriceMin: (result as any).variantPriceMin,
-            variantPriceMax: (result as any).variantPriceMax,
-          });
-        }
-        // Don't keep as optionPairs filter
-        continue;
-      }
-
       const standardField = STANDARD_FILTER_MAPPING[normalizedName as keyof typeof STANDARD_FILTER_MAPPING];
       
       if (standardField) {

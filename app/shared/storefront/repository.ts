@@ -51,7 +51,7 @@ function getEnabledAggregations(filterConfig: Filter | null, includeAllOptions: 
     // If no filter config OR includeAllOptions is true, enable all aggregations
     // This is used by GraphQL and other endpoints that need all aggregations
     return {
-      standard: new Set(['vendors', 'productTypes', 'tags', 'collections', 'price', 'variantPriceRange']),
+      standard: new Set(['vendors', 'productTypes', 'tags', 'collections', 'price']),
       variantOptions: new Map(), // Empty map signals to use optionPairs fallback (all options)
     };
   }
@@ -108,9 +108,8 @@ function getEnabledAggregations(filterConfig: Filter | null, includeAllOptions: 
     }
   }
 
-  // Always include price and variantPriceRange (fundamental filters)
+  // Always include price (fundamental filter)
   standard.add('price');
-  standard.add('variantPriceRange');
 
   return { standard, variantOptions };
 }
@@ -402,8 +401,9 @@ export class StorefrontSearchRepository {
 
       /** Product-level Price Range */
       if (
-        sanitizedFilters?.priceMin !== undefined ||
-        sanitizedFilters?.priceMax !== undefined
+        excludeFilterType !== 'price' &&
+        (sanitizedFilters?.priceMin !== undefined ||
+          sanitizedFilters?.priceMax !== undefined)
       ) {
         const rangeMust: any[] = [];
         if (sanitizedFilters.priceMin !== undefined) {
@@ -419,27 +419,6 @@ export class StorefrontSearchRepository {
         if (rangeMust.length > 0) {
           baseMustQueries.push({ bool: { must: rangeMust } });
         }
-      }
-
-      /** Variant Price Range */
-      if (
-        sanitizedFilters?.variantPriceMin !== undefined ||
-        sanitizedFilters?.variantPriceMax !== undefined
-      ) {
-        const range: any = {};
-        if (sanitizedFilters.variantPriceMin !== undefined)
-          range.gte = sanitizedFilters.variantPriceMin;
-        if (sanitizedFilters.variantPriceMax !== undefined)
-          range.lte = sanitizedFilters.variantPriceMax;
-
-        baseMustQueries.push({
-          nested: {
-            path: 'variants',
-            query: {
-              range: { 'variants.price.numeric': range },
-            },
-          },
-        });
       }
 
       /** Variant SKU Match */
@@ -528,6 +507,22 @@ export class StorefrontSearchRepository {
             if (encodedValues.length > 0) {
               postFilterQueries.push({ terms: { 'optionPairs': encodedValues } });
             }
+          }
+        }
+      }
+
+      // Handle product-level price range filter
+      if (filterType === 'price') {
+        if (sanitizedFilters?.priceMin !== undefined || sanitizedFilters?.priceMax !== undefined) {
+          const rangeMust: any[] = [];
+          if (sanitizedFilters.priceMin !== undefined) {
+            rangeMust.push({ range: { maxPrice: { gte: sanitizedFilters.priceMin } } });
+          }
+          if (sanitizedFilters.priceMax !== undefined) {
+            rangeMust.push({ range: { minPrice: { lte: sanitizedFilters.priceMax } } });
+          }
+          if (rangeMust.length > 0) {
+            postFilterQueries.push({ bool: { must: rangeMust } });
           }
         }
       }
@@ -725,9 +720,11 @@ export class StorefrontSearchRepository {
       });
     }
 
-    // Price range aggregations (these don't need auto-exclude as they're stats)
+    // Price range aggregations
+    // IMPORTANT: exclude the price filter from its own stats so the slider bounds
+    // don't "shrink" after selecting a price range (self-exclusion, like other facets).
     if (enabledAggregations.standard.has('price')) {
-      const mustQueries = buildBaseMustQueries();
+      const mustQueries = buildBaseMustQueries('price');
       const query = mustQueries.length > 0 ? { bool: { must: mustQueries } } : { match_all: {} };
       allAggregations.price = { stats: { field: 'minPrice' } };
       aggregationQueries.push({
@@ -738,29 +735,6 @@ export class StorefrontSearchRepository {
           track_total_hits: false,
           query,
           aggs: { price: allAggregations.price },
-        },
-      });
-    }
-
-    if (enabledAggregations.standard.has('variantPriceRange')) {
-      const mustQueries = buildBaseMustQueries();
-      const query = mustQueries.length > 0 ? { bool: { must: mustQueries } } : { match_all: {} };
-      allAggregations.variantPriceRange = {
-        nested: { path: 'variants' },
-        aggs: {
-          priceStats: {
-            stats: { field: 'variants.price.numeric' },
-          },
-        },
-      };
-      aggregationQueries.push({
-        filterType: 'variantPriceRange',
-        query: {
-          index,
-          size: 0,
-          track_total_hits: false,
-          query,
-          aggs: { variantPriceRange: allAggregations.variantPriceRange },
         },
       });
     }
@@ -898,17 +872,6 @@ export class StorefrontSearchRepository {
             ? {
               min: aggregations.price.min ?? 0,
               max: aggregations.price.max ?? 0,
-            }
-            : undefined,
-
-        variantPriceRange:
-          enabledAggregations.standard.has('variantPriceRange') &&
-            aggregations.variantPriceRange?.priceStats &&
-            (aggregations.variantPriceRange.priceStats.min != null ||
-              aggregations.variantPriceRange.priceStats.max != null)
-            ? {
-              min: aggregations.variantPriceRange.priceStats.min ?? 0,
-              max: aggregations.variantPriceRange.priceStats.max ?? 0,
             }
             : undefined,
       },
@@ -1194,6 +1157,10 @@ export class StorefrontSearchRepository {
       });
     }
 
+    // Track the exact clause used for price filter so we can exclude it
+    // from price-related aggregations (self-exclusion).
+    let productPriceClause: any | null = null;
+
     // Product price range filter (minPrice/maxPrice fields)
     if (sanitizedFilters?.priceMin !== undefined || sanitizedFilters?.priceMax !== undefined) {
       const rangeQuery: any = {};
@@ -1206,7 +1173,7 @@ export class StorefrontSearchRepository {
       if (Object.keys(rangeQuery).length > 0) {
         // Use should with nested query to match if any variant price is in range
         // OR use minPrice/maxPrice fields directly
-        mustQueries.push({
+        productPriceClause = {
           bool: {
             should: [
               { range: { minPrice: rangeQuery } },
@@ -1214,31 +1181,8 @@ export class StorefrontSearchRepository {
             ],
             minimum_should_match: 1,
           },
-        });
-      }
-    }
-
-    // Variant price range filter (variant.price)
-    if (sanitizedFilters?.variantPriceMin !== undefined || sanitizedFilters?.variantPriceMax !== undefined) {
-      const rangeQuery: any = {};
-      if (sanitizedFilters.variantPriceMin !== undefined) {
-        rangeQuery.gte = sanitizedFilters.variantPriceMin;
-      }
-      if (sanitizedFilters.variantPriceMax !== undefined) {
-        rangeQuery.lte = sanitizedFilters.variantPriceMax;
-      }
-      if (Object.keys(rangeQuery).length > 0) {
-        // Use nested query to filter variants by price
-        mustQueries.push({
-          nested: {
-            path: 'variants',
-            query: {
-              range: {
-                'variants.price.numeric': rangeQuery,
-              },
-            },
-          },
-        });
+        };
+        mustQueries.push(productPriceClause);
       }
     }
 
@@ -1475,29 +1419,29 @@ export class StorefrontSearchRepository {
 
         // Price range stats aggregation (product-level: minPrice/maxPrice)
         if (enabledAggregations.standard.has('price')) {
-          aggregationObject.price = {
-            stats: {
-              field: 'minPrice',
-            },
-          };
-        }
+          // Self-exclude: compute price stats while excluding the active price filter clause.
+          // Use a global aggregation to avoid the main query constraints, then re-apply all
+          // other must-filters (except price) via a filter aggregation.
+          const mustWithoutPrice = productPriceClause
+            ? mustQueries.filter((q) => q !== productPriceClause)
+            : mustQueries;
 
-        // Variant price range stats aggregation (variant.price)
-        if (enabledAggregations.standard.has('variantPriceRange')) {
-          aggregationObject.variantPriceRange = {
-            nested: {
-              path: 'variants',
-            },
+          aggregationObject.price = {
+            global: {},
             aggs: {
-              priceStats: {
-                stats: {
-                  field: 'variants.price.numeric',
+              scoped: {
+                filter: mustWithoutPrice.length > 0 ? { bool: { must: mustWithoutPrice } } : { match_all: {} },
+                aggs: {
+                  stats: {
+                    stats: { field: 'minPrice' },
+                  },
                 },
               },
             },
           };
         }
 
+        // Variant price range stats aggregation (variant.price)
         return Object.keys(aggregationObject).length > 0 ? aggregationObject : undefined;
       })()
       : undefined;
@@ -1613,8 +1557,7 @@ export class StorefrontSearchRepository {
       }
 
       // Format price range aggregations (similar to getFacets)
-      const priceRangeStats = aggregations.price;
-      const variantPriceRangeStats = aggregations.variantPriceRange?.priceStats;
+      const priceRangeStats = aggregations.price?.scoped?.stats ?? aggregations.price;
 
       // Build formatted aggregations with price ranges
       const formattedAggregations: FacetAggregations = {
@@ -1623,12 +1566,6 @@ export class StorefrontSearchRepository {
           ? {
             min: priceRangeStats.min ?? 0,
             max: priceRangeStats.max ?? 0,
-          }
-          : undefined,
-        variantPriceRange: enabledAggregations.standard.has('variantPriceRange') && variantPriceRangeStats && (variantPriceRangeStats.min !== null || variantPriceRangeStats.max !== null)
-          ? {
-            min: variantPriceRangeStats.min ?? 0,
-            max: variantPriceRangeStats.max ?? 0,
           }
           : undefined,
       };

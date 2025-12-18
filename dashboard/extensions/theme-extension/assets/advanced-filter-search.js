@@ -250,7 +250,6 @@
     scrollToProductsOnFilter: false,
     // Handle-based keys for range filters (provided by server filter config)
     priceRangeHandle: null,
-    variantPriceRangeHandle: null
   };
 
   // ============================================================================
@@ -928,7 +927,7 @@
 
       const validFilters = filters.filter(f => {
         if (!f) return false;
-        if (f.optionType === 'priceRange' || f.optionType === 'variantPriceRange') {
+        if (f.optionType === 'priceRange') {
           return f.range && typeof f.range.min === 'number' && typeof f.range.max === 'number' && f.range.max > f.range.min;
         }
         return f.values?.length > 0;
@@ -949,7 +948,7 @@
 
       validFilters.forEach(filter => {
         // Handle price range filters separately
-        if (filter.optionType === 'priceRange' || filter.optionType === 'variantPriceRange') {
+        if (filter.optionType === 'priceRange') {
           const group = this.createPriceRangeGroup(filter, states);
           if (group) fragment.appendChild(group);
           return;
@@ -2164,8 +2163,6 @@
             // Refresh range filter handles (in case config changed)
             const priceFilter = State.availableFilters.find(f => f.optionType === 'priceRange');
             State.priceRangeHandle = priceFilter?.handle || State.priceRangeHandle;
-            const variantPriceFilter = State.availableFilters.find(f => f.optionType === 'variantPriceRange');
-            State.variantPriceRangeHandle = variantPriceFilter?.handle || State.variantPriceRangeHandle;
             
             // Convert cpid to collection filter handle if collection filter exists and cpid is not already in filters
             if (State.selectedCollection?.id) {
@@ -3628,8 +3625,6 @@
         // Cache range filter handles (so we can write handle-style URL params like other filters)
         const priceFilter = State.availableFilters.find(f => f.optionType === 'priceRange');
         State.priceRangeHandle = priceFilter?.handle || null;
-        const variantPriceFilter = State.availableFilters.find(f => f.optionType === 'variantPriceRange');
-        State.variantPriceRangeHandle = variantPriceFilter?.handle || null;
 
         // If URL used handle-based price param (e.g. pr_xxx=10-100), normalize into State.filters.priceRange
         // so the slider renders correctly. Keep URL updates handle-based via State.priceRangeHandle.

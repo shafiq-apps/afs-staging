@@ -30,10 +30,6 @@ export interface StorefrontFilterData {
     min: number;
     max: number;
   };
-  variantPriceRange?: {
-    min: number;
-    max: number;
-  };
 }
 
 /**

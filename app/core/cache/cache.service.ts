@@ -9,16 +9,25 @@ import { ProductSearchInput, ProductSearchResult, FacetAggregations, ProductFilt
 import { createModuleLogger } from '@shared/utils/logger.util';
 import { Filter } from '@shared/filters/types';
 
-// Enable cache service logging (can be disabled via env var)
-const logger = createModuleLogger('cache-service', {
-  disabled: process.env.CACHE_LOG_DISABLED === 'true'
-});
+const logger = createModuleLogger('cache-service');
 
 export interface CacheServiceOptions extends CacheOptions {
   searchTTL?: number; // TTL for search results (default: 5 minutes)
   filterTTL?: number; // TTL for filter results (default: 10 minutes)
   filterListTTL?: number; // TTL for filter list results (default: 10 minutes)
   enableStats?: boolean; // Enable cache statistics tracking
+}
+
+export type CacheArea = 'search' | 'filters' | 'filterList';
+
+export interface CacheEntryInfo {
+  area: CacheArea;
+  key: string;
+  ageMs: number;
+  expiresInMs: number;
+  accessCount: number;
+  lastAccessed: number;
+  isExpired: boolean;
 }
 
 export class CacheService {
@@ -39,36 +48,140 @@ export class CacheService {
   private filterListMisses = 0;
 
   constructor(options: CacheServiceOptions = {}) {
+    const envMaxSize = parseInt(process.env.CACHE_MAX_SIZE || '2000', 10);
+    const envDefaultTTL = parseInt(process.env.CACHE_TTL || process.env.CACHE_DEFAULT_TTL || '300000', 10);
+    const envCheckInterval = parseInt(process.env.CACHE_CHECK_INTERVAL || '60000', 10);
+
     const cacheOptions: CacheOptions = {
-      ttl: options.ttl,
-      maxSize: options.maxSize || parseInt(process.env.CACHE_MAX_SIZE || '2000'),
-      checkInterval: options.checkInterval,
+      ttl: options.ttl ?? (isNaN(envDefaultTTL) ? 300000 : envDefaultTTL),
+      maxSize: options.maxSize ?? (isNaN(envMaxSize) ? 2000 : envMaxSize),
+      checkInterval: options.checkInterval ?? (isNaN(envCheckInterval) ? 60000 : envCheckInterval),
     };
 
     this.searchCache = new CacheManager<ProductSearchResult>(cacheOptions);
     this.filterCache = new CacheManager<FacetAggregations>(cacheOptions);
     this.filterListCache = new CacheManager<{ filters: Filter[]; total: number }>(cacheOptions);
-    this.searchTTL = options.searchTTL || parseInt(process.env.CACHE_SEARCH_TTL || '300000'); // 5 minutes
-    this.filterTTL = options.filterTTL || parseInt(process.env.CACHE_FILTER_TTL || '600000'); // 10 minutes
-    this.filterListTTL = options.filterListTTL || parseInt(process.env.CACHE_FILTER_LIST_TTL || '600000'); // 10 minutes
-    this.enableStats = options.enableStats !== false;
 
-    if (this.isEnabled() === false) {
-      logger.info('Cache service disabled');
-      return null;
-    }
-    else{
-      logger.info('Cache service initialized', {
-        searchTTL: this.searchTTL,
-        filterTTL: this.filterTTL,
-        filterListTTL: this.filterListTTL,
-        enableStats: this.enableStats,
-      });
-    }
+    const envSearchTTL = parseInt(process.env.CACHE_SEARCH_TTL || '300000', 10); // 5 minutes
+    const envFilterTTL = parseInt(process.env.CACHE_FILTER_TTL || '600000', 10); // 10 minutes
+    const envFilterListTTL = parseInt(process.env.CACHE_FILTER_LIST_TTL || '600000', 10); // 10 minutes
+    const envStatsEnabled = process.env.CACHE_STATS_ENABLED !== undefined
+      ? !(['false', '0', 'no', 'off'].includes(String(process.env.CACHE_STATS_ENABLED).toLowerCase().trim()))
+      : true;
+
+    this.searchTTL = options.searchTTL ?? (isNaN(envSearchTTL) ? 300000 : envSearchTTL);
+    this.filterTTL = options.filterTTL ?? (isNaN(envFilterTTL) ? 600000 : envFilterTTL);
+    this.filterListTTL = options.filterListTTL ?? (isNaN(envFilterListTTL) ? 600000 : envFilterListTTL);
+    this.enableStats = options.enableStats ?? envStatsEnabled;
+
+    logger.info('Cache service initialized', {
+      enabled: this.isEnabled(),
+      defaultTTL: cacheOptions.ttl,
+      maxSize: cacheOptions.maxSize,
+      checkInterval: cacheOptions.checkInterval,
+      searchTTL: this.searchTTL,
+      filterTTL: this.filterTTL,
+      filterListTTL: this.filterListTTL,
+      enableStats: this.enableStats,
+    });
   }
 
   isEnabled(): boolean {
+    // Prefer CACHE_ENABLED if set; otherwise fallback to CACHE_DISABLED.
+    if (process.env.CACHE_ENABLED !== undefined) {
+      const v = String(process.env.CACHE_ENABLED).toLowerCase().trim();
+      return !(v === 'false' || v === '0' || v === 'no' || v === 'off');
+    }
     return !(process.env.CACHE_DISABLED === 'true' || process.env.CACHE_DISABLED === '1');
+  }
+
+  /**
+   * Expose current cache configuration (for debugging/admin usage)
+   */
+  getConfig() {
+    const maxSize = (this.searchCache.getStats()?.maxSize ?? undefined) as any;
+    return {
+      enabled: this.isEnabled(),
+      maxSize: typeof maxSize === 'number' ? maxSize : parseInt(process.env.CACHE_MAX_SIZE || '2000', 10),
+      defaultTTL: parseInt(process.env.CACHE_TTL || process.env.CACHE_DEFAULT_TTL || '300000', 10),
+      checkInterval: parseInt(process.env.CACHE_CHECK_INTERVAL || '60000', 10),
+      searchTTL: this.searchTTL,
+      filterTTL: this.filterTTL,
+      filterListTTL: this.filterListTTL,
+      statsEnabled: this.enableStats,
+      logDisabled: ['true', '1', 'yes', 'on'].includes(String(process.env.CACHE_LOG_DISABLED || '').toLowerCase().trim()),
+    };
+  }
+
+  /**
+   * List cache entry metadata (does not return values)
+   */
+  listEntries(options?: {
+    area?: CacheArea;
+    shop?: string;
+    keyContains?: string;
+    limit?: number;
+    includeExpired?: boolean;
+  }): CacheEntryInfo[] {
+    const area = options?.area;
+    const shop = options?.shop?.trim();
+    const keyContains = options?.keyContains?.trim();
+    const limit = Math.max(0, options?.limit ?? 200);
+    const includeExpired = options?.includeExpired === true;
+
+    const collect = (a: CacheArea, mgr: CacheManager<any>): CacheEntryInfo[] => {
+      const keys = mgr.keys();
+      const out: CacheEntryInfo[] = [];
+      for (const key of keys) {
+        if (shop && !key.includes(`:${shop}:`) && !key.includes(`:${shop}`)) continue;
+        if (keyContains && !key.includes(keyContains)) continue;
+        const info = mgr.getEntryInfo(key);
+        if (!info) continue;
+        if (!includeExpired && info.isExpired) continue;
+        out.push({
+          area: a,
+          key: info.key,
+          ageMs: info.age,
+          expiresInMs: info.expiresIn,
+          accessCount: info.accessCount,
+          lastAccessed: info.lastAccessed,
+          isExpired: info.isExpired,
+        });
+        if (limit > 0 && out.length >= limit) break;
+      }
+      return out;
+    };
+
+    const result: CacheEntryInfo[] = [];
+    if (!area || area === 'search') result.push(...collect('search', this.searchCache));
+    if (!area || area === 'filters') result.push(...collect('filters', this.filterCache));
+    if (!area || area === 'filterList') result.push(...collect('filterList', this.filterListCache));
+    return result.slice(0, limit > 0 ? limit : result.length);
+  }
+
+  /**
+   * Clear cache entries by simple substring match on key.
+   */
+  clearByKeyContains(keyContains: string, area?: CacheArea): { cleared: number } {
+    const needle = (keyContains || '').trim();
+    if (!needle) return { cleared: 0 };
+
+    const clearIn = (mgr: CacheManager<any>): number => {
+      let cleared = 0;
+      for (const key of mgr.keys()) {
+        if (key.includes(needle)) {
+          if (mgr.delete(key)) cleared++;
+        }
+      }
+      return cleared;
+    };
+
+    let cleared = 0;
+    if (!area || area === 'search') cleared += clearIn(this.searchCache);
+    if (!area || area === 'filters') cleared += clearIn(this.filterCache);
+    if (!area || area === 'filterList') cleared += clearIn(this.filterListCache);
+    logger.info('Cache cleared by key substring', { keyContains: needle, area: area || 'all', cleared });
+    return { cleared };
   }
 
   /**
@@ -247,7 +360,7 @@ export class CacheService {
   /**
    * Invalidate all cache for a shop
    */
-  invalidateShop(shopDomain: string): void {
+  invalidateShop(shopDomain: string): { searchInvalidated: number; filterInvalidated: number; filterListInvalidated: number } {
     const searchPattern = generateCacheKeyPattern('search', shopDomain);
     const filterPattern = generateCacheKeyPattern('filters', shopDomain);
 
@@ -287,6 +400,8 @@ export class CacheService {
       filterInvalidated,
       filterListInvalidated,
     });
+
+    return { searchInvalidated, filterInvalidated, filterListInvalidated };
   }
 
   /**
@@ -320,6 +435,18 @@ export class CacheService {
     this.filterListCache.clear();
     this.resetStats();
     logger.info('All cache cleared');
+  }
+
+  /**
+   * Clear all cache and return number of entries removed
+   */
+  clearWithCounts(): { cleared: number } {
+    const before =
+      this.searchCache.keys().length +
+      this.filterCache.keys().length +
+      this.filterListCache.keys().length;
+    this.clear();
+    return { cleared: before };
   }
 
   /**
