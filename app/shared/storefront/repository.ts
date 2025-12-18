@@ -1337,114 +1337,16 @@ export class StorefrontSearchRepository {
       }
     }
 
-    // Build aggregations if filters are requested
-    // Only include aggregations for enabled filter options
-    const enabledAggregations = filters?.includeFilters ? getEnabledAggregations(filterConfig) : { standard: new Set<string>(), variantOptions: new Map<string, string>() };
-    const aggs = filters?.includeFilters && (enabledAggregations.standard.size > 0 || enabledAggregations.variantOptions.size > 0)
-      ? (() => {
-        const aggregationObject: any = {};
-
-        if (enabledAggregations.standard.has('vendors')) {
-          aggregationObject.vendors = {
-            terms: {
-              field: 'vendor.keyword',
-              size: DEFAULT_BUCKET_SIZE,
-              order: { _count: 'desc' as const },
-            },
-          };
-        }
-
-        if (enabledAggregations.standard.has('productTypes')) {
-          aggregationObject.productTypes = {
-            terms: {
-              field: 'productType.keyword',
-              size: DEFAULT_BUCKET_SIZE,
-              order: { _count: 'desc' as const },
-            },
-          };
-        }
-
-        if (enabledAggregations.standard.has('tags')) {
-          aggregationObject.tags = {
-            terms: {
-              field: 'tags', // Tags is an array field, use directly (not .keyword)
-              size: DEFAULT_BUCKET_SIZE * 2,
-              order: { _count: 'desc' as const },
-            },
-          };
-        }
-
-        if (enabledAggregations.standard.has('collections')) {
-          aggregationObject.collections = {
-            terms: {
-              field: 'collections', // Collections is an array field, use directly (not .keyword)
-              size: DEFAULT_BUCKET_SIZE * 2,
-              order: { _count: 'desc' as const },
-            },
-          };
-        }
-
-        if (enabledAggregations.variantOptions.size > 0) {
-          // Build specific variant option aggregations
-          for (const [aggName, optionType] of enabledAggregations.variantOptions.entries()) {
-            // optionPairs is a keyword array field, use directly (not .keyword)
-            aggregationObject[aggName] = {
-              filter: {
-                prefix: {
-                  'optionPairs': `${optionType}${PRODUCT_OPTION_PAIR_SEPARATOR}`,
-                },
-              },
-              aggs: {
-                values: {
-                  terms: {
-                    field: 'optionPairs', // Array field, use directly
-                    size: DEFAULT_BUCKET_SIZE * 2,
-                    order: { _count: 'desc' as const },
-                  },
-                },
-              },
-            };
-          }
-        } else {
-          // Fallback: fetch all optionPairs
-          // optionPairs is a keyword array field, use directly (not .keyword)
-          aggregationObject.optionPairs = {
-            terms: {
-              field: 'optionPairs', // Array field, use directly
-              size: DEFAULT_BUCKET_SIZE * 5,
-              order: { _count: 'desc' as const },
-            },
-          };
-        }
-
-        // Price range stats aggregation (product-level: minPrice/maxPrice)
-        if (enabledAggregations.standard.has('price')) {
-          // Self-exclude: compute price stats while excluding the active price filter clause.
-          // Use a global aggregation to avoid the main query constraints, then re-apply all
-          // other must-filters (except price) via a filter aggregation.
-          const mustWithoutPrice = productPriceClause
-            ? mustQueries.filter((q) => q !== productPriceClause)
-            : mustQueries;
-
-          aggregationObject.price = {
-            global: {},
-            aggs: {
-              scoped: {
-                filter: mustWithoutPrice.length > 0 ? { bool: { must: mustWithoutPrice } } : { match_all: {} },
-                aggs: {
-                  stats: {
-                    stats: { field: 'minPrice' },
-                  },
-                },
-              },
-            },
-          };
-        }
-
-        // Variant price range stats aggregation (variant.price)
-        return Object.keys(aggregationObject).length > 0 ? aggregationObject : undefined;
-      })()
-      : undefined;
+    /**
+     * IMPORTANT (Facet count correctness):
+     * `post_filter` does NOT affect aggregations. When option filters (e.g., Color)
+     * are applied via `post_filter` (used historically to "preserve" facet lists),
+     * other facets like Size will show counts as if Color was not applied.
+     *
+     * To ensure facet counts are always scoped by active filters (except self-exclusion),
+     * we fetch facets via `getFacets()` (msearch auto-exclude approach) when
+     * includeFilters=true, instead of relying on aggregations from this search request.
+     */
 
     logger.debug('[searchProducts] Executing ES query', {
       index,
@@ -1488,7 +1390,6 @@ export class StorefrontSearchRepository {
         query,
         sort,
         track_total_hits: true,
-        aggs,
         post_filter: postFilterQueries.length
           ? {
             bool: {
@@ -1529,48 +1430,15 @@ export class StorefrontSearchRepository {
       totalPages,
     };
 
-    if (filters?.includeFilters && response.aggregations) {
-      // Process aggregations - handle variant option-specific aggregations
-      const aggregations = { ...response.aggregations } as any;
-
-      // Process variant option-specific aggregations (option.Color, option.Size, etc.)
-      let combinedOptionPairs: TermsAggregation;
-
-      if (enabledAggregations.variantOptions.size > 0) {
-        // Build from specific variant option aggregations
-        const optionPairsBuckets: AggregationBucket[] = [];
-
-        for (const [aggName, optionType] of enabledAggregations.variantOptions.entries()) {
-          const variantAgg = aggregations[aggName];
-          if (variantAgg?.values?.buckets) {
-            optionPairsBuckets.push(...variantAgg.values.buckets);
-          }
-        }
-
-        combinedOptionPairs = {
-          buckets: optionPairsBuckets,
-        };
-        aggregations.optionPairs = combinedOptionPairs;
-      } else {
-        // Use all optionPairs (fallback)
-        combinedOptionPairs = aggregations.optionPairs || { buckets: [] };
-      }
-
-      // Format price range aggregations (similar to getFacets)
-      const priceRangeStats = aggregations.price?.scoped?.stats ?? aggregations.price;
-
-      // Build formatted aggregations with price ranges
-      const formattedAggregations: FacetAggregations = {
-        ...aggregations,
-        price: enabledAggregations.standard.has('price') && priceRangeStats && (priceRangeStats.min !== null || priceRangeStats.max !== null)
-          ? {
-            min: priceRangeStats.min ?? 0,
-            max: priceRangeStats.max ?? 0,
-          }
-          : undefined,
-      };
-
-      result.filters = formattedAggregations;
+    if (filters?.includeFilters) {
+      const includeAllOptions = !filterConfig || !filterConfig.options;
+      const facets = await this.getFacets(
+        shopDomain,
+        filters as unknown as ProductFilterInput,
+        filterConfig,
+        includeAllOptions
+      );
+      result.filters = facets.aggregations;
     }
     return result;
   }
