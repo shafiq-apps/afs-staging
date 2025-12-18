@@ -68,6 +68,7 @@ export const filtersSchema = `
     PRODUCT_TYPE
     TAGS
     COLLECTION
+    SKUS
     OPTION
   }
 

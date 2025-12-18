@@ -51,7 +51,7 @@ function getEnabledAggregations(filterConfig: Filter | null, includeAllOptions: 
     // If no filter config OR includeAllOptions is true, enable all aggregations
     // This is used by GraphQL and other endpoints that need all aggregations
     return {
-      standard: new Set(['vendors', 'productTypes', 'tags', 'collections', 'price']),
+      standard: new Set(['vendors', 'productTypes', 'tags', 'collections', 'skus', 'price']),
       variantOptions: new Map(), // Empty map signals to use optionPairs fallback (all options)
     };
   }
@@ -67,6 +67,8 @@ function getEnabledAggregations(filterConfig: Filter | null, includeAllOptions: 
     'tag': 'tags',
     'collection': 'collections',
     'collections': 'collections',
+    'sku': 'skus',
+    'skus': 'skus',
     'price': 'price',
     'pricerange': 'price',
     'price-range': 'price',
@@ -123,6 +125,7 @@ const STANDARD_FILTER_TYPES = new Set([
   'producttype', 'product-type', 'product type', 'product_type',
   'tags', 'tag',
   'collection', 'collections',
+  'sku', 'skus',
   'price', 'priceRange', 'price_range',
 ]);
 
@@ -272,6 +275,11 @@ export class StorefrontSearchRepository {
           field: 'collections',
           values: sanitizedFilters?.collections,
           baseFieldKey: 'COLLECTION',
+        },
+        skus: {
+          field: 'skus',
+          values: (sanitizedFilters as any)?.skus,
+          baseFieldKey: 'SKUS',
         },
       };
 
@@ -462,6 +470,11 @@ export class StorefrontSearchRepository {
           field: 'collections',
           values: sanitizedFilters?.collections,
           baseFieldKey: 'COLLECTION',
+        },
+        skus: {
+          field: 'skus',
+          values: (sanitizedFilters as any)?.skus,
+          baseFieldKey: 'SKUS',
         },
       };
 
@@ -689,6 +702,13 @@ export class StorefrontSearchRepository {
       });
     }
 
+    if (enabledAggregations.standard.has('skus')) {
+      aggregationQueries.push({
+        filterType: 'skus',
+        query: buildAggregationQuery('skus', { name: 'skus', field: 'skus', sizeMult: 2, type: 'terms' }),
+      });
+    }
+
     // Variant option aggregations
     if (enabledAggregations.variantOptions.size > 0) {
       for (const [aggName, optionType] of enabledAggregations.variantOptions) {
@@ -860,6 +880,11 @@ export class StorefrontSearchRepository {
           aggregations.collections &&
             enabledAggregations.standard.has('collections')
             ? aggregations.collections
+            : { buckets: [] },
+
+        skus:
+          aggregations.skus && enabledAggregations.standard.has('skus')
+            ? aggregations.skus
             : { buckets: [] },
 
         optionPairs: combinedOptionPairs,
@@ -1096,6 +1121,33 @@ export class StorefrontSearchRepository {
       }
       
       if (shouldKeep('collections')) {
+        postFilterQueries.push(clause);
+      } else {
+        mustQueries.push(clause);
+      }
+    }
+
+    if (hasValues((sanitizedFilters as any)?.skus)) {
+      const values = (sanitizedFilters as any).skus as string[];
+      const handleMapping = sanitizedFilters ? (sanitizedFilters as any).__handleMapping : undefined;
+      const standardFieldToHandles = handleMapping?.standardFieldToHandles?.['SKUS'] || [];
+      const hasMultipleHandles = standardFieldToHandles.length > 1;
+
+      let clause: any;
+      if (hasMultipleHandles && values.length > 1) {
+        // Different handles = AND logic: each SKU must be present (rare, but matches standard behavior)
+        clause = {
+          bool: {
+            must: values.map((sku: string) => ({
+              term: { 'skus': sku }
+            }))
+          }
+        };
+      } else {
+        clause = { terms: { 'skus': values } };
+      }
+
+      if (shouldKeep('skus')) {
         postFilterQueries.push(clause);
       } else {
         mustQueries.push(clause);
@@ -1378,6 +1430,16 @@ export class StorefrontSearchRepository {
           aggregationObject.collections = {
             terms: {
               field: 'collections', // Collections is an array field, use directly (not .keyword)
+              size: DEFAULT_BUCKET_SIZE * 2,
+              order: { _count: 'desc' as const },
+            },
+          };
+        }
+
+        if (enabledAggregations.standard.has('skus')) {
+          aggregationObject.skus = {
+            terms: {
+              field: 'skus', // Product-level skus is an array field
               size: DEFAULT_BUCKET_SIZE * 2,
               order: { _count: 'desc' as const },
             },

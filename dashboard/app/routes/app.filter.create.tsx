@@ -31,6 +31,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
         productTypes { value count }
         tags { value count }
         collections { value count }
+        skus { value count }
         options
         priceRange { min max }
       }

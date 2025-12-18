@@ -16,6 +16,7 @@ export function hasAnyFilters(filters?: ProductFilterInput): boolean {
     (filters.productTypes && filters.productTypes.length) ||
     (filters.tags && filters.tags.length) ||
     (filters.collections && filters.collections.length) ||
+    (filters.skus && filters.skus.length) ||
     (filters.options && Object.keys(filters.options).length) ||
     (filters.variantOptionKeys && filters.variantOptionKeys.length) ||
     filters.search ||
@@ -64,6 +65,11 @@ export function buildFilterInput(query: Record<string, unknown>): ProductFilterI
   if (collectionValues.length && !keepAll && !keepSet.has('collections')) {
     filters.collections = collectionValues;
   }
+
+  // Product-level SKU filter (new): filter by `product.skus` (derived from all variants).
+  // Keep backward-compat for nested variant SKU filter via `variantSku` / `variantSkus`.
+  const skuValues = parseCommaSeparated(query.sku || query.skus);
+  if (skuValues.length) filters.skus = skuValues;
 
   // Collection page ID - filters products to only show those from the collection the user is viewing
   // If cpid is provided, it takes precedence and filters to only that collection
@@ -136,7 +142,7 @@ export function buildFilterInput(query: Record<string, unknown>): ProductFilterI
   if (priceMax !== undefined && !isNaN(priceMax) && priceMax >= 0) filters.priceMax = priceMax;
 
   // Variant SKU filter
-  const variantSkuValues = parseCommaSeparated(query.variantSku || query.variantSkus || query.sku || query.skus);
+  const variantSkuValues = parseCommaSeparated(query.variantSku || query.variantSkus);
   if (variantSkuValues.length) filters.variantSkus = variantSkuValues;
 
   const hasFilters = hasAnyFilters(filters);
@@ -164,6 +170,10 @@ export function buildSearchInput(query: Record<string, unknown>): ProductSearchI
 
   const collectionValues = parseCommaSeparated(query.collection || query.collections);
   if (collectionValues.length) filters.collections = collectionValues;
+
+  // Product-level SKU filter (new)
+  const skuValues = parseCommaSeparated(query.sku || query.skus);
+  if (skuValues.length) filters.skus = skuValues;
 
   // Collection page ID - filters products to only show those from the collection the user is viewing
   // If cpid is provided, it takes precedence and filters to only that collection
@@ -217,7 +227,7 @@ export function buildSearchInput(query: Record<string, unknown>): ProductSearchI
   if (priceMax !== undefined && !isNaN(priceMax) && priceMax >= 0) filters.priceMax = priceMax;
 
   // Variant SKU filter
-  const variantSkuValues = parseCommaSeparated(query.variantSku || query.variantSkus || query.sku || query.skus);
+  const variantSkuValues = parseCommaSeparated(query.variantSku || query.variantSkus);
   if (variantSkuValues.length) filters.variantSkus = variantSkuValues;
 
   // Pagination

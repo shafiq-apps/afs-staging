@@ -72,6 +72,25 @@ export async function ensureProductIndex(esClient: Client, shop: string): Promis
       } catch (error: any) {
         logger.warn(`Failed to update index settings: ${error?.message || error}`);
       }
+
+      // Ensure new fields are mapped on existing indices (best-effort).
+      // This is important for strict deployments that rely on explicit mappings.
+      try {
+        await esClient.indices.putMapping({
+          index: indexName,
+          properties: {
+            skus: {
+              type: 'keyword',
+              eager_global_ordinals: true,
+              norms: false,
+            },
+          },
+        } as any);
+      } catch (error: any) {
+        // Best-effort: if mapping update fails (e.g., due to permissions or conflicts),
+        // indexing can still proceed with dynamic mapping depending on cluster settings.
+        logger.warn(`Failed to update product index mapping (skus): ${error?.message || error}`);
+      }
     }
   } catch (error: any) {
     // Handle race condition where index is created concurrently

@@ -178,7 +178,7 @@ export const productsResolvers = {
             'category', 'createdAt', 'updatedAt', 'publishedAt', 'totalInventory',
             'variantsCount', 'priceRangeV2', 'options', 'collections', 'collectionSortOrder',
             'bestSellerRank', 'variants', 'metafields', 'media', 'imageUrl', 'imagesUrls',
-            'minPrice', 'maxPrice'
+            'minPrice', 'maxPrice', 'skus'
           ].join(',');
         }
         
@@ -225,6 +225,7 @@ export const productsResolvers = {
             if (filters.productTypes) filterInput.productTypes = filters.productTypes;
             if (filters.tags) filterInput.tags = filters.tags;
             if (filters.collections) filterInput.collections = filters.collections;
+            if (filters.skus) filterInput.skus = filters.skus;
             if (filters.options) filterInput.options = filters.options;
             if (filters.search) filterInput.search = filters.search;
             if (filters.variantOptionKeys) filterInput.variantOptionKeys = filters.variantOptionKeys;
@@ -290,6 +291,7 @@ export const productsResolvers = {
           if (filters.productTypes) filterInput.productTypes = filters.productTypes;
           if (filters.tags) filterInput.tags = filters.tags;
           if (filters.collections) filterInput.collections = filters.collections;
+          if (filters.skus) filterInput.skus = filters.skus;
           if (filters.options) filterInput.options = filters.options;
           if (filters.search) filterInput.search = filters.search;
           if (filters.variantOptionKeys) filterInput.variantOptionKeys = filters.variantOptionKeys;
@@ -313,8 +315,11 @@ export const productsResolvers = {
         });
         
         // Return ProductFilters directly (already formatted by service.getFilters)
-        // GraphQL schema expects ProductFilters type, not StorefrontFilterDescriptor[]
-        return productFilters;
+        // Backward compatibility: expose `priceRange` alias for clients that query it.
+        return {
+          ...productFilters,
+          priceRange: (productFilters as any).price ?? null,
+        };
       } catch (error: any) {
         logger.error('Error in storefrontFilters resolver', {
           error: error?.message || error,
@@ -337,8 +342,10 @@ function formatFilters(filters: any): any {
       productTypes: [],
       tags: [],
       collections: [],
+      skus: [],
       options: {},
       price: null,
+      priceRange: null,
     };
   }
 
@@ -356,8 +363,15 @@ function formatFilters(filters: any): any {
     productTypes: Array.isArray(filters.productTypes) ? filters.productTypes : [],
     tags: Array.isArray(filters.tags) ? filters.tags : [],
     collections: Array.isArray(filters.collections) ? filters.collections : [],
+    skus: Array.isArray(filters.skus) ? filters.skus : [],
     options: filters.options && typeof filters.options === 'object' ? filters.options : {},
     price: filters.price
+      ? {
+          min: filters.price.min ?? 0,
+          max: filters.price.max ?? 0,
+        }
+      : null,
+    priceRange: filters.price
       ? {
           min: filters.price.min ?? 0,
           max: filters.price.max ?? 0,

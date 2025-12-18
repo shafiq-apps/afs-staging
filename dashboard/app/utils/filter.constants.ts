@@ -25,6 +25,7 @@ export interface StorefrontFilterData {
   productTypes?: Array<{ value: string; count: number }>;
   tags?: Array<{ value: string; count: number }>;
   collections?: Array<{ value: string; count: number }>;
+  skus?: Array<{ value: string; count: number }>;
   options?: Record<string, Array<{ value: string; count: number }>>;
   price?: {
     min: number;
@@ -135,6 +136,7 @@ export const OPTION_TYPES = [
   "ProductType",
   "Tags",
   "Collection",
+  "SKUs",
   "Metafield",
 ] as const;
 
@@ -174,6 +176,7 @@ export const STANDARD_BASE_OPTION_TYPES = [
   "PRODUCT_TYPE", // productTypes
   "TAGS",         // tags
   "COLLECTION",   // collections
+  "SKUS",         // skus
   "OPTION",       // optionPairs (variant options like Color, Size, etc.)
 ] as const;
 
@@ -208,6 +211,10 @@ export function getAvailableBaseOptionTypes(
   }
   if (storefrontFilters?.collections && storefrontFilters.collections.length > 0) {
     baseTypes.push("COLLECTION");
+  }
+
+  if (storefrontFilters?.skus && storefrontFilters.skus.length > 0) {
+    baseTypes.push("SKUS");
   }
   
   // Option is always available for variant options (optionPairs)
@@ -274,6 +281,10 @@ export function getBaseOptionType(optionType: string): string {
   if (normalizedType === "collection" || normalizedType === "collections") {
     return "COLLECTION";
   }
+
+  if (normalizedType === "sku" || normalizedType === "skus") {
+    return "SKUS";
+  }
   
   // Everything else is a variant option (Color, Size, Material, Style, etc.)
   // These come from optionPairs in FacetAggregations and are fully dynamic
@@ -305,6 +316,10 @@ export function getOptionType(optionType: string): string {
   }
   if (normalizedType === "collection" || normalizedType === "collections") {
     return "Collection";
+  }
+
+  if (normalizedType === "sku" || normalizedType === "skus") {
+    return "SKUs";
   }
   
   // Everything else is a variant option (Color, Size, Material, Style, etc.)

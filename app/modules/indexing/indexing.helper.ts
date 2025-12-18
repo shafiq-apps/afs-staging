@@ -141,6 +141,16 @@ export function transformProductToESDoc(raw: any): shopifyProduct {
     };
   });
 
+  // Extract unique SKUs from all variants for product-level SKU filtering.
+  // Stored on product document as `skus: string[]` (similar to `collections`).
+  const skus: string[] = Array.from(
+    new Set(
+      variants
+        .map((v) => (typeof v?.sku === 'string' ? v.sku.trim() : ''))
+        .filter((sku) => Boolean(sku)),
+    ),
+  );
+
   const optionPairSet = new Set<string>();
 
   for (const opt of options) {
@@ -264,6 +274,7 @@ export function transformProductToESDoc(raw: any): shopifyProduct {
     variantsCount: normalizedProduct?.variantsCount ?? null,
     options,
     collections,
+    skus,
     collectionSortOrder,
     bestSellerRank,
     variants,

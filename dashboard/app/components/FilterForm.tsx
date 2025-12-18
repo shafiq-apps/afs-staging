@@ -205,6 +205,7 @@ const BASE_FILTER_TYPES = [
   "ProductType",
   "Vendor",
   "Tags",
+  "SKUs",
   "Price",
   "Availability",
   "Metafield",
@@ -1206,6 +1207,8 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
         return storefrontFilters.tags || [];
       case "Collection":
         return storefrontFilters.collections || [];
+      case "SKUs":
+        return storefrontFilters.skus || [];
       default:
         // For variant options, use the original optionType (not normalized) to look up in options
         // because variant option keys are stored in their original case

@@ -22,6 +22,8 @@ const STANDARD_FILTER_MAPPING: Record<string, keyof ProductFilterInput> = {
   tag: 'tags',
   collection: 'collections',
   collections: 'collections',
+  sku: 'skus',
+  skus: 'skus',
 };
 
 function normalizeStandardKey(key: string): string {
@@ -548,7 +550,8 @@ export function applyFilterConfigToInput(
       if (standardField) {
         // Move to standard filter field
         if (standardField === 'vendors' || standardField === 'productTypes' || 
-            standardField === 'tags' || standardField === 'collections') {
+            standardField === 'tags' || standardField === 'collections' ||
+            standardField === 'skus') {
           // For collections, preserve cpid if it exists (cpid takes precedence)
           if (standardField === 'collections' && result.cpid) {
             // cpid already set collections - don't overwrite it
@@ -589,6 +592,8 @@ export function applyFilterConfigToInput(
                     contributingHandles.push(option.handle);
                   } else if (baseField === 'COLLECTION' && standardField === 'collections') {
                     contributingHandles.push(option.handle);
+                  } else if (baseField === 'SKUS' && standardField === 'skus') {
+                    contributingHandles.push(option.handle);
                   }
                 }
               }
@@ -602,7 +607,8 @@ export function applyFilterConfigToInput(
               const baseFieldKey = standardField === 'tags' ? 'TAGS' :
                                   standardField === 'vendors' ? 'VENDOR' :
                                   standardField === 'productTypes' ? 'PRODUCT_TYPE' :
-                                  standardField === 'collections' ? 'COLLECTION' : null;
+                                  standardField === 'collections' ? 'COLLECTION' :
+                                  standardField === 'skus' ? 'SKUS' : null;
               if (baseFieldKey) {
                 if (!handleMapping.standardFieldToHandles[baseFieldKey]) {
                   handleMapping.standardFieldToHandles[baseFieldKey] = [];
