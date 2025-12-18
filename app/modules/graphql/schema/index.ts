@@ -12,6 +12,7 @@
 import { shopsSchema } from './shops.schema';
 import { productsSchema } from './products.schema';
 import { filtersSchema } from './filters.schema';
+import { cacheSchema } from './cache.schema';
 // Example:
 // import { settingsSchema } from './settings.schema';
 
@@ -28,6 +29,7 @@ export const schemas: string[] = [
   shopsSchema, // Base schema with Query, Mutation, JSON scalar
   productsSchema, // Product types only (no Query/Mutation)
   filtersSchema, // Filter types with Query and Mutation
+  cacheSchema, // Cache admin/debug endpoints
   // Add schema strings here
   // Example: settingsSchema,
 ];

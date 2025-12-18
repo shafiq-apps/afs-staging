@@ -5,10 +5,7 @@
 
 import { createModuleLogger } from '@shared/utils/logger.util';
 
-// Enable cache logging for cleanup operations (can be disabled via env var)
-const logger = createModuleLogger('cache', {
-  disabled: process.env.CACHE_LOG_DISABLED === 'true'
-});
+const logger = createModuleLogger('cache');
 
 export interface CacheOptions {
   ttl?: number; // Time to live in milliseconds (default: 5 minutes)
@@ -33,27 +30,36 @@ export class CacheManager<T = any> {
   private cleanupLogCounter: number = 0;
 
   constructor(options: CacheOptions = {}) {
-    this.defaultTTL = options.ttl || 1 * 60 * 1000; // 5 minutes default
-    this.maxSize = options.maxSize || 1000; // 1000 entries default
+    const envDefaultTTL = parseInt(process.env.CACHE_TTL || process.env.CACHE_DEFAULT_TTL || '300000', 10); // 5 minutes default
+    const envMaxSize = parseInt(process.env.CACHE_MAX_SIZE || '1000', 10);
+    const envCheckInterval = parseInt(process.env.CACHE_CHECK_INTERVAL || '60000', 10); // 1 minute default
+
+    this.defaultTTL = options.ttl ?? (isNaN(envDefaultTTL) ? 300000 : envDefaultTTL);
+    this.maxSize = options.maxSize ?? (isNaN(envMaxSize) ? 1000 : envMaxSize);
+
     // Ensure checkInterval is valid (must be > 0)
-    const requestedInterval = options.checkInterval || 60 * 1000; // 1 minute default
+    const requestedInterval = options.checkInterval ?? (isNaN(envCheckInterval) ? 60000 : envCheckInterval);
     this.checkInterval = requestedInterval > 0 ? requestedInterval : 60 * 1000;
 
-    this.startCleanup();
     if (this.isEnabled() === false) {
       logger.info('Cache disabled');
-      return null;
+      return;
     }
-    else{
-      logger.info('Cache manager initialized', {
-        defaultTTL: this.defaultTTL,
-        maxSize: this.maxSize,
-        checkInterval: this.checkInterval,
-      });
-    }
+
+    this.startCleanup();
+    logger.info('Cache manager initialized', {
+      defaultTTL: this.defaultTTL,
+      maxSize: this.maxSize,
+      checkInterval: this.checkInterval,
+    });
   }
 
   isEnabled(): boolean {
+    // Prefer CACHE_ENABLED if set; otherwise fallback to CACHE_DISABLED.
+    if (process.env.CACHE_ENABLED !== undefined) {
+      const v = String(process.env.CACHE_ENABLED).toLowerCase().trim();
+      return !(v === 'false' || v === '0' || v === 'no' || v === 'off');
+    }
     return !(process.env.CACHE_DISABLED === 'true' || process.env.CACHE_DISABLED === '1');
   }
 
