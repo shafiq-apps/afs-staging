@@ -247,7 +247,10 @@
     moneyFormat: null,
     moneyWithCurrencyFormat: null,
     currency: null,
-    scrollToProductsOnFilter: false
+    scrollToProductsOnFilter: false,
+    // Handle-based keys for range filters (provided by server filter config)
+    priceRangeHandle: null,
+    variantPriceRangeHandle: null
   };
 
   // ============================================================================
@@ -361,9 +364,17 @@
           else if (key === 'priceRange' && value && typeof value === 'object') {
             const min = typeof value.min === 'number' && !isNaN(value.min) ? value.min : undefined;
             const max = typeof value.max === 'number' && !isNaN(value.max) ? value.max : undefined;
-            if (min !== undefined) url.searchParams.set('priceMin', String(min));
-            if (max !== undefined) url.searchParams.set('priceMax', String(max));
-            Log.debug('Price range URL params set', { priceMin: min, priceMax: max });
+            if (State.priceRangeHandle) {
+              // Handle-style: {handle}=min-max
+              const handleValue = `${min !== undefined ? min : ''}-${max !== undefined ? max : ''}`;
+              url.searchParams.set(State.priceRangeHandle, handleValue);
+              Log.debug('Price range URL handle param set', { handle: State.priceRangeHandle, value: handleValue });
+            } else {
+              // Backward compatibility
+              if (min !== undefined) url.searchParams.set('priceMin', String(min));
+              if (max !== undefined) url.searchParams.set('priceMax', String(max));
+              Log.debug('Price range URL params set', { priceMin: min, priceMax: max });
+            }
           }
           else if (key === 'search' && typeof value === 'string' && value.trim()) {
             url.searchParams.set(key, value.trim());
@@ -525,8 +536,13 @@
         if (k === 'priceRange' && v && typeof v === 'object') {
           const min = typeof v.min === 'number' && !isNaN(v.min) ? v.min : undefined;
           const max = typeof v.max === 'number' && !isNaN(v.max) ? v.max : undefined;
-          if (min !== undefined) params.set('priceMin', String(min));
-          if (max !== undefined) params.set('priceMax', String(max));
+          if (State.priceRangeHandle) {
+            params.set(State.priceRangeHandle, `${min !== undefined ? min : ''}-${max !== undefined ? max : ''}`);
+          } else {
+            // Backward compatibility
+            if (min !== undefined) params.set('priceMin', String(min));
+            if (max !== undefined) params.set('priceMax', String(max));
+          }
         }
         else if (k === 'search' && typeof v === 'string' && v.trim()) {
           params.set(k, v.trim());
@@ -668,8 +684,12 @@
         } else if (k === 'priceRange' && v && typeof v === 'object') {
           const min = typeof v.min === 'number' && !isNaN(v.min) ? v.min : undefined;
           const max = typeof v.max === 'number' && !isNaN(v.max) ? v.max : undefined;
-          if (min !== undefined) params.set('priceMin', String(min));
-          if (max !== undefined) params.set('priceMax', String(max));
+          if (State.priceRangeHandle) {
+            params.set(State.priceRangeHandle, `${min !== undefined ? min : ''}-${max !== undefined ? max : ''}`);
+          } else {
+            if (min !== undefined) params.set('priceMin', String(min));
+            if (max !== undefined) params.set('priceMax', String(max));
+          }
         }
       });
 
@@ -1876,8 +1896,12 @@
         } else if (key === 'priceRange' && value && typeof value === 'object') {
           const min = typeof value.min === 'number' && !isNaN(value.min) ? value.min : undefined;
           const max = typeof value.max === 'number' && !isNaN(value.max) ? value.max : undefined;
-          if (min !== undefined) url.searchParams.set('priceMin', String(min));
-          if (max !== undefined) url.searchParams.set('priceMax', String(max));
+          if (State.priceRangeHandle) {
+            url.searchParams.set(State.priceRangeHandle, `${min !== undefined ? min : ''}-${max !== undefined ? max : ''}`);
+          } else {
+            if (min !== undefined) url.searchParams.set('priceMin', String(min));
+            if (max !== undefined) url.searchParams.set('priceMax', String(max));
+          }
         } else if (key === 'search' && typeof value === 'string' && value.trim()) {
           url.searchParams.set(key, value.trim());
         }
@@ -2136,6 +2160,12 @@
           if (Array.isArray(filtersData.filters)) {
             State.availableFilters = filtersData.filters;
             State.filterMetadata = Metadata.buildFilterMetadata(State.availableFilters);
+
+            // Refresh range filter handles (in case config changed)
+            const priceFilter = State.availableFilters.find(f => f.optionType === 'priceRange');
+            State.priceRangeHandle = priceFilter?.handle || State.priceRangeHandle;
+            const variantPriceFilter = State.availableFilters.find(f => f.optionType === 'variantPriceRange');
+            State.variantPriceRangeHandle = variantPriceFilter?.handle || State.variantPriceRangeHandle;
             
             // Convert cpid to collection filter handle if collection filter exists and cpid is not already in filters
             if (State.selectedCollection?.id) {
@@ -3387,6 +3417,29 @@
           }
         });
 
+        // Normalize handle-based price param into State.filters.priceRange for slider UI
+        if (
+          State.priceRangeHandle &&
+          Array.isArray(State.filters[State.priceRangeHandle]) &&
+          State.filters[State.priceRangeHandle].length > 0
+        ) {
+          const raw = String(State.filters[State.priceRangeHandle][0] || '');
+          const parts = raw.split('-');
+          if (parts.length === 2) {
+            const min = parts[0].trim() ? parseFloat(parts[0]) : undefined;
+            const max = parts[1].trim() ? parseFloat(parts[1]) : undefined;
+            const hasMin = typeof min === 'number' && !isNaN(min) && min >= 0;
+            const hasMax = typeof max === 'number' && !isNaN(max) && max >= 0;
+            if (hasMin || hasMax) {
+              State.filters.priceRange = {
+                min: hasMin ? min : undefined,
+                max: hasMax ? max : undefined
+              };
+              delete State.filters[State.priceRangeHandle];
+            }
+          }
+        }
+
         const newPage = params.page || State.pagination.page;
         if (newPage !== oldPage) {
           State.pagination.page = newPage;
@@ -3571,6 +3624,36 @@
 
         State.availableFilters = filtersData.filters || [];
         State.filterMetadata = Metadata.buildFilterMetadata(State.availableFilters);
+
+        // Cache range filter handles (so we can write handle-style URL params like other filters)
+        const priceFilter = State.availableFilters.find(f => f.optionType === 'priceRange');
+        State.priceRangeHandle = priceFilter?.handle || null;
+        const variantPriceFilter = State.availableFilters.find(f => f.optionType === 'variantPriceRange');
+        State.variantPriceRangeHandle = variantPriceFilter?.handle || null;
+
+        // If URL used handle-based price param (e.g. pr_xxx=10-100), normalize into State.filters.priceRange
+        // so the slider renders correctly. Keep URL updates handle-based via State.priceRangeHandle.
+        if (
+          State.priceRangeHandle &&
+          Array.isArray(State.filters[State.priceRangeHandle]) &&
+          State.filters[State.priceRangeHandle].length > 0
+        ) {
+          const raw = String(State.filters[State.priceRangeHandle][0] || '');
+          const parts = raw.split('-');
+          if (parts.length === 2) {
+            const min = parts[0].trim() ? parseFloat(parts[0]) : undefined;
+            const max = parts[1].trim() ? parseFloat(parts[1]) : undefined;
+            const hasMin = typeof min === 'number' && !isNaN(min) && min >= 0;
+            const hasMax = typeof max === 'number' && !isNaN(max) && max >= 0;
+            if (hasMin || hasMax) {
+              State.filters.priceRange = {
+                min: hasMin ? min : undefined,
+                max: hasMax ? max : undefined
+              };
+              delete State.filters[State.priceRangeHandle];
+            }
+          }
+        }
 
         // After filters are loaded, update State.filters with cpid conversion if needed
         // Convert cpid to collection filter handle if collection filter exists
