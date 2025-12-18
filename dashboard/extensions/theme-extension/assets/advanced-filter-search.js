@@ -1069,8 +1069,8 @@
 
         // Create items fragment
         const itemsFragment = document.createDocumentFragment();
-        filter.values.forEach(item => {
-          const itemEl = this.createFilterItem(handle, item, filter);
+        filter.values.forEach((item, index) => {
+          const itemEl = this.createFilterItem(handle, item, filter, index);
           if (itemEl) itemsFragment.appendChild(itemEl);
         });
         items.appendChild(itemsFragment);
@@ -1095,7 +1095,7 @@
     // Minimal filter item creation
     // Displays label for UI, uses value for filtering
     // handle: the filter handle (e.g., 'ef4gd' for Color, 'vendor' for vendor)
-    createFilterItem(handle, item, config) {
+    createFilterItem(handle, item, config, index) {
       // Get value (for filtering) - always use original value
       const value = $.str(typeof item === 'string' ? item : (item.value || item.key || item.name || ''));
       if (!value || value === '[object Object]') return null;
@@ -1127,7 +1127,7 @@
       const currentValues = State.filters[handle] || [];
       const isChecked = currentValues.includes(value);
       const inputType = $.inputDisplayType(config);
-      const htmlFor = inputType === 'radio'? handle : handle + '-' + value.replace(/\s+/g, '-').toLowerCase();
+      const htmlFor = (inputType === 'radio'? handle : handle + '-' + value.replace(/\s+/g, '-').toLowerCase()) + "_" + index+1;
 
       const label = $.el('label', 'afs-filter-item', {
         'data-afs-filter-handle': handle, 
@@ -1140,6 +1140,7 @@
       cb.checked = isChecked;
       cb.setAttribute('data-afs-filter-value', value);
       cb.setAttribute('name', htmlFor);
+      cb.setAttribute('id', htmlFor);
 
       label.appendChild(cb);
       label.appendChild($.txt($.el('span', 'afs-filter-item__label'), displayLabel));
