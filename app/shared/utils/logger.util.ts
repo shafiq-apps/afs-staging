@@ -63,8 +63,8 @@ const getEnvMinLevel = (): LogLevel | null => {
 };
 
 const isGloballyDisabledByEnv = (): boolean => {
-  // LOG_DISABLED=true disables *all* logs
-  return parseEnvBool(process.env.LOG_DISABLED) === true;
+  // LOG_ENABLED=false disables *all* logs
+  return parseEnvBool(process.env.LOG_ENABLED) === false;
 };
 
 const isModuleDisabledByEnv = (moduleName?: string): boolean => {
@@ -185,7 +185,7 @@ export const isModuleLogsDisabled = (moduleName: string): boolean => {
  * Apply logger configuration from environment variables.
  *
  * Supported env vars:
- * - LOG_DISABLED=true|false: disables all logs
+ * - LOG_ENABLED=false: disables all logs
  * - LOG_LEVEL=debug|info|warn|error: minimum level to output
  * - LOG_DISABLED_MODULES=csv: disables specific modules (e.g. "cache,storefront-service")
  * - LOG_ENABLED_MODULES=csv: allow-list (only these modules log; overrides disabled list)
