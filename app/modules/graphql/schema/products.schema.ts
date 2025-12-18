@@ -140,6 +140,7 @@ export const productsSchema = `
     collections: [FacetValue!]!
     options: JSON! # Record<string, FacetValue[]>
     price: PriceRange
+    priceRange: PriceRange
   }
 
   # Price Range

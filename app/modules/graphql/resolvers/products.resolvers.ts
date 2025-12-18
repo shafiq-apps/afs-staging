@@ -313,8 +313,11 @@ export const productsResolvers = {
         });
         
         // Return ProductFilters directly (already formatted by service.getFilters)
-        // GraphQL schema expects ProductFilters type, not StorefrontFilterDescriptor[]
-        return productFilters;
+        // Backward compatibility: expose `priceRange` alias for clients that query it.
+        return {
+          ...productFilters,
+          priceRange: (productFilters as any).price ?? null,
+        };
       } catch (error: any) {
         logger.error('Error in storefrontFilters resolver', {
           error: error?.message || error,
@@ -339,6 +342,7 @@ function formatFilters(filters: any): any {
       collections: [],
       options: {},
       price: null,
+      priceRange: null,
     };
   }
 
@@ -358,6 +362,12 @@ function formatFilters(filters: any): any {
     collections: Array.isArray(filters.collections) ? filters.collections : [],
     options: filters.options && typeof filters.options === 'object' ? filters.options : {},
     price: filters.price
+      ? {
+          min: filters.price.min ?? 0,
+          max: filters.price.max ?? 0,
+        }
+      : null,
+    priceRange: filters.price
       ? {
           min: filters.price.min ?? 0,
           max: filters.price.max ?? 0,
