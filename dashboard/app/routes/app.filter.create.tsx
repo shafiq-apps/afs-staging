@@ -84,19 +84,28 @@ export default function CreateFilterPage() {
   /* ---------------- Slot cleanup ---------------- */
 
   useEffect(() => {
-    const cleanup = () => {
+    // Only run cleanup if we are NOT on this page anymore
+    const currentPath = `/app/filter/create`;
+    if (location.pathname === currentPath) return;
+
+    const cleanupSlots = () => {
       document
         .querySelectorAll('[slot="primary-action"], [slot="breadcrumb-actions"]')
         .forEach((el) => {
           const page = el.closest("s-page");
-          if (page?.getAttribute("data-page-id") === pageId) {
+          const pageIdAttr = page?.getAttribute("data-page-id");
+
+          // Only remove slots from other pages
+          if (pageIdAttr && pageIdAttr !== pageId) {
             el.remove();
           }
         });
     };
 
-    const id = setTimeout(cleanup, 100);
-    return () => clearTimeout(id);
+    // Delay slightly to allow navigation rendering
+    const timeoutId = setTimeout(cleanupSlots, 50);
+
+    return () => clearTimeout(timeoutId);
   }, [location.pathname, pageId]);
 
   /* ---------------- Render ---------------- */
