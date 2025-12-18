@@ -76,24 +76,24 @@ const isSupportedDeployment = (channel?: string | null) => {
  */
 function deriveVariantOptionKey(option: Filter['options'][number]): string | null {
   const optionSettings = option.optionSettings || {};
-  
-  // Priority 1: If variantOptionKey is explicitly set, use it (exact match with ES)
-  if (optionSettings.variantOptionKey) {
-    return optionSettings.variantOptionKey.trim();
-  }
-  
-  // Priority 2: If baseOptionType === "OPTION", use optionType (matches ES storage)
-  // ES stores optionPairs as "OptionName::Value" where OptionName is from product data
-  // For variant options, optionType is the exact name that matches ES storage
+
+  /**
+   * IMPORTANT:
+   * ES `optionPairs` are indexed from Shopify option names as `${opt.name}::${value}`.
+   * So for variant options we must prefer `option.optionType` (the Shopify option name),
+   * otherwise option filters can silently stop constraining aggregations.
+   */
   const baseOptionType = optionSettings.baseOptionType?.trim().toUpperCase();
   if (baseOptionType === 'OPTION') {
     const optionType = option.optionType?.trim();
-    if (optionType) {
-      return optionType; // This matches ES storage exactly
-    }
+    if (optionType) return optionType;
   }
-  
-  // For standard filters (VENDOR, PRODUCT_TYPE, etc.), variantOptionKey is not applicable
+
+  // Fallback: if optionType is missing, use variantOptionKey.
+  if (optionSettings.variantOptionKey) {
+    return optionSettings.variantOptionKey.trim();
+  }
+
   return null;
 }
 

@@ -150,24 +150,30 @@ const STANDARD_FILTER_TYPES = new Set([
  */
 function deriveVariantOptionKey(option: Filter['options'][number]): string | null {
   const optionSettings = option.optionSettings || {};
-  
-  // Priority 1: If variantOptionKey is explicitly set, use it (exact match with ES)
-  if (optionSettings.variantOptionKey) {
-    return optionSettings.variantOptionKey.trim();
-  }
-  
-  // Priority 2: If baseOptionType === "OPTION", use optionType (matches ES storage)
-  // ES stores optionPairs as "OptionName::Value" where OptionName is from product data
-  // For variant options, optionType is the exact name that matches ES storage
+
+  /**
+   * IMPORTANT:
+   * Our ES `optionPairs` are indexed from Shopify option *names* (e.g. "Color", "Size")
+   * in `transformProductToESDoc()` as `${opt.name}::${value}`.
+   *
+   * That means the safest, canonical key to use for filtering/aggregating optionPairs
+   * is the filter config's `optionType` (when baseOptionType === "OPTION").
+   *
+   * Some configs also include `variantOptionKey`, but if it differs from the Shopify
+   * option name it will NOT match `optionPairs` and will cause faceting to ignore
+   * active option filters (the bug you reported).
+   */
   const baseOptionType = optionSettings.baseOptionType?.trim().toUpperCase();
   if (baseOptionType === 'OPTION') {
     const optionType = option.optionType?.trim();
-    if (optionType) {
-      return optionType; // This matches ES storage exactly
-    }
+    if (optionType) return optionType;
   }
-  
-  // For standard filters (VENDOR, PRODUCT_TYPE, etc.), variantOptionKey is not applicable
+
+  // Fallback: if optionType is missing, use variantOptionKey if provided.
+  if (optionSettings.variantOptionKey) {
+    return optionSettings.variantOptionKey.trim();
+  }
+
   return null;
 }
 
