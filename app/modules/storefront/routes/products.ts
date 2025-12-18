@@ -43,7 +43,7 @@ export const GET = handler(async (req: HttpRequest) => {
   // Pass filterConfig to only calculate aggregations for enabled options
   const result = await productsService.searchProducts(shop, searchInput, filterConfig);
 
-  // Format filters with filterConfig settings applied (position sorting, targetScope filtering, etc.)
+  // Format filters with filterConfig settings applied (position sorting, filtering, etc.)
   // This pre-compiles filters on server-side for optimal performance
   const formattedFilters = result.filters ? formatFilters(result.filters, filterConfig) : [];
 

@@ -20,10 +20,9 @@ export interface Filter {
     handle: string;
     position: number;
     label: string;
-    optionType: string; // e.g., "Collection", "Size", "Color"
+    optionType: string; // "productOption", "productTag", "productVendor", "productType", "priceRange", "metafield"
     displayType?: string;
     selectionType?: string;
-    targetScope?: string;
     allowedOptions?: string[];
     
     // Display Options
@@ -39,7 +38,6 @@ export interface Filter {
     optionSettings?: {
       // Value Selection & Filtering
       baseOptionType?: string;
-      selectedValues?: string[];
       removeSuffix?: string[];
       replaceText?: Array<{ from: string; to: string }>;
       
@@ -125,7 +123,6 @@ export interface CreateFilterInput {
     optionType: string;
     displayType?: string;
     selectionType?: string;
-    targetScope?: string;
     allowedOptions?: string[];
     
     // Display Options
@@ -140,7 +137,6 @@ export interface CreateFilterInput {
     // Option Settings (nested object per new schema)
     optionSettings?: {
       baseOptionType?: string;
-      selectedValues?: string[];
       removeSuffix?: string[];
       replaceText?: Array<{ from: string; to: string }>;
       valueNormalization?: Record<string, string>;
@@ -210,7 +206,6 @@ export interface UpdateFilterInput {
     optionType: string;
     displayType?: string;
     selectionType?: string;
-    targetScope?: string;
     allowedOptions?: string[];
     collapsed?: boolean;
     searchable?: boolean;
@@ -221,7 +216,6 @@ export interface UpdateFilterInput {
     // Option Settings (nested object per new schema)
     optionSettings?: {
       baseOptionType?: string;
-      selectedValues?: string[];
       removeSuffix?: string[];
       replaceText?: Array<{ from: string; to: string }>;
       valueNormalization?: Record<string, string>;

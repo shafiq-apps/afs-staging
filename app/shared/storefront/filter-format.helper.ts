@@ -82,33 +82,43 @@ function applyTextTransform(value: string, transform: string | undefined): strin
 }
 
 /**
- * Group similar values (case-insensitive) and sum their counts
- * Preserves original value for filtering, uses first label for display
+ * Group similar values (case-insensitive) and sum their counts.
+ * - Keeps the first label
+ * - Merges values into a comma-separated string
  */
 function groupSimilarValues(items: FacetValue[]): FacetValue[] {
-  const grouped = new Map<string, { value: string; count: number; label: string }>();
+  const grouped = new Map<
+    string,
+    { values: Set<string>; count: number; label: string }
+  >();
 
   for (const item of items) {
-    const normalizedKey = String(item.value || '').toLowerCase().trim();
+    const rawValue = String(item.value ?? '').trim();
+    const normalizedKey = rawValue.toLowerCase();
+    const label = String(item.label ?? rawValue);
+
     const existing = grouped.get(normalizedKey);
 
     if (existing) {
-      existing.count = (existing.count || 0) + (item.count || 0);
+      existing.count += item.count ?? 0;
+      existing.values.add(rawValue);
     } else {
       grouped.set(normalizedKey, {
-        value: String(item.value || ''), // Original value for filtering
-        count: item.count || 0,
-        label: String(item.label || item.value || ''), // Use label if available, fallback to value
+        values: new Set([rawValue]),
+        count: item.count ?? 0,
+        label,
       });
     }
   }
 
   return Array.from(grouped.values()).map((g) => ({
-    value: g.value,
+    value: Array.from(g.values).join(','),
     count: g.count,
     label: g.label,
   }));
 }
+
+
 
 function applyOptionSettings(
   optionItems: FacetValue[],
@@ -120,13 +130,16 @@ function applyOptionSettings(
 
   let filteredItems = optionItems;
   if (
-    normalizeKey(configOption.targetScope) === 'entitled' &&
     Array.isArray(configOption.allowedOptions) &&
     configOption.allowedOptions.length > 0
   ) {
     const allowedSet = new Set(configOption.allowedOptions.map((value) => normalizeKey(value)));
+    console.log("allowedSet", allowedSet);
     filteredItems = optionItems.filter((item) => allowedSet.has(normalizeKey(item.value)));
   }
+  
+  
+  console.log("filteredItems",configOption);
 
   const optionSettings = configOption.optionSettings || {};
   const processedItems: FacetValue[] = [];
@@ -314,7 +327,6 @@ function createBaseFilter(
     showCount: true,
     showMenu: false,
     status: 'PUBLISHED',
-    targetScope: "all",
     allowedOptions: [],
   };
 }
@@ -398,7 +410,6 @@ export function formatFilters(
         optionKey: standardFilterMapping.queryKey,
         displayType: option.displayType || baseFilter.displayType || 'LIST',
         selectionType: option.selectionType || baseFilter.selectionType || 'MULTIPLE',
-        targetScope: option.targetScope,
         allowedOptions: option.allowedOptions,
         collapsed: option.collapsed ?? baseFilter.collapsed ?? false,
         searchable: option.searchable ?? baseFilter.searchable ?? false,
@@ -451,7 +462,6 @@ export function formatFilters(
         optionKey: matchedKey,
         displayType: option.displayType || baseFilter.displayType || 'LIST',
         selectionType: option.selectionType || baseFilter.selectionType || 'MULTIPLE',
-        targetScope: option.targetScope,
         allowedOptions: option.allowedOptions,
         collapsed: option.collapsed ?? baseFilter.collapsed ?? false,
         searchable: option.searchable ?? baseFilter.searchable ?? false,

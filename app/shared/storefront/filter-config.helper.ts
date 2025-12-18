@@ -620,7 +620,7 @@ export function applyFilterConfigToInput(
       const optionSettings = option.optionSettings || {};
       
       // Apply targetScope for this option
-      if (option.targetScope === 'entitled' && option.allowedOptions?.length > 0) {
+      if (option.allowedOptions?.length > 0) {
         // If this option has allowedOptions, restrict the input
         if (result.options && result.options[optionName]) {
           // Filter input options to only allowed ones
@@ -630,18 +630,6 @@ export function applyFilterConfigToInput(
         } else {
           // Store allowed options for this filter option
           optionRestrictions[optionName] = option.allowedOptions;
-        }
-      }
-
-      // Apply selectedValues if baseOptionType is used
-      if (optionSettings.baseOptionType && optionSettings.selectedValues?.length > 0) {
-        // This is a derived option - map to base option type
-        const baseName = optionSettings.baseOptionType.trim();
-        if (result.options && result.options[baseName]) {
-          // Filter to only selected values
-          result.options[baseName] = result.options[baseName].filter((val) =>
-            optionSettings.selectedValues!.includes(val)
-          );
         }
       }
     }
@@ -703,7 +691,7 @@ export function applyFilterConfigToInput(
  * The hash includes all fields that affect aggregation results:
  * - Filter ID, version, and timestamps
  * - Published options with their configuration
- * - Option-level settings that affect aggregations (allowedOptions, selectedValues, targetScope)
+ * - Option-level settings that affect aggregations (allowedOptions)
  * - Option status changes (published/draft)
  * 
  * @param filterConfig - The filter configuration to hash, or null if no filter
@@ -734,13 +722,9 @@ export function getFilterConfigHash(filterConfig: Filter | null): string {
           handle: opt.handle,
           optionType: opt.optionType,
           status: opt.status,
-          variantOptionKey: optionSettings.variantOptionKey || undefined, // Keep original case
-          targetScope: opt.targetScope,
+          variantOptionKey: optionSettings.variantOptionKey || undefined,
           allowedOptions: opt.allowedOptions && opt.allowedOptions.length > 0 
             ? [...opt.allowedOptions].sort() 
-            : undefined,
-          selectedValues: optionSettings.selectedValues && optionSettings.selectedValues.length > 0
-            ? [...optionSettings.selectedValues].sort()
             : undefined,
           baseOptionType: optionSettings.baseOptionType,
         };
@@ -783,11 +767,6 @@ export function formatFilterConfigForStorefront(filterConfig: Filter | null): an
     // Always include baseOptionType if it exists (required field)
     if (optionSettings.baseOptionType) {
       cleaned.baseOptionType = optionSettings.baseOptionType;
-    }
-    
-    // Include arrays only if they have values (empty arrays are excluded to minimize payload)
-    if (Array.isArray(optionSettings.selectedValues) && optionSettings.selectedValues.length > 0) {
-      cleaned.selectedValues = optionSettings.selectedValues;
     }
     
     if (Array.isArray(optionSettings.removeSuffix) && optionSettings.removeSuffix.length > 0) {
@@ -921,7 +900,6 @@ export function formatFilterConfigForStorefront(filterConfig: Filter | null): an
           optionType: opt.optionType,
           displayType: opt.displayType,
           selectionType: opt.selectionType,
-          targetScope: opt.targetScope,
           allowedOptions: opt.allowedOptions || [],
           collapsed: opt.collapsed || false,
           searchable: opt.searchable || false,

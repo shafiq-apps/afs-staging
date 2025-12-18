@@ -75,6 +75,7 @@ export const filtersSchema = `
     label: String!
     value: String!
     id: String!
+    gid: String!
   }
 
   type TextReplacement {
@@ -84,7 +85,6 @@ export const filtersSchema = `
 
   type FilterOptionSettings {
     baseOptionType: String
-    selectedValues: [String!]
     removeSuffix: [String!]
     replaceText: [TextReplacement!]
     variantOptionKey: String
@@ -107,7 +107,6 @@ export const filtersSchema = `
     optionType: String!
     displayType: DisplayType!
     selectionType: SelectionType!
-    targetScope: String!
     allowedOptions: [String!]!
     collapsed: Boolean!
     searchable: Boolean!
@@ -180,6 +179,7 @@ export const filtersSchema = `
     label: String!
     value: String!
     id: String!
+    gid: String!
   }
 
   input TextReplacementInput {
@@ -189,7 +189,6 @@ export const filtersSchema = `
 
   input FilterOptionSettingsInput {
     baseOptionType: String
-    selectedValues: [String!]
     removeSuffix: [String!]
     replaceText: [TextReplacementInput!]
     variantOptionKey: String
@@ -212,7 +211,6 @@ export const filtersSchema = `
     optionType: String!
     displayType: DisplayType
     selectionType: SelectionType
-    targetScope: String
     allowedOptions: [String!]
     collapsed: Boolean
     searchable: Boolean

@@ -75,7 +75,6 @@ export interface StorefrontFilterDescriptor {
   optionKey?: string;
   displayType?: string;
   selectionType?: string;
-  targetScope?: string;
   allowedOptions?: string[];
   collapsed?: boolean;
   searchable?: boolean;

@@ -57,7 +57,7 @@
       "all": "All collections",
       "specific": "Specific collections",
       "selectCollections": "Select collections",
-      "selectedCollections": "Selected collections:"
+      "allowedCollections": "Selected collections:"
     },
     "filterOptions": {
       "title": "Filter Options",

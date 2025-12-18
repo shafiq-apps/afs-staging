@@ -44,7 +44,6 @@ export class FiltersRepository {
           optionType: opt.optionType ?? opt.option_type ?? opt.type ?? '',
           displayType: opt.displayType ?? opt.display_type ?? 'LIST',
           selectionType: opt.selectionType ?? opt.selection_type ?? 'MULTIPLE',
-          targetScope: opt.targetScope ?? opt.target_scope ?? opt.target_selection ?? 'all',
           allowedOptions: opt.allowedOptions ?? opt.allowed_options ?? opt.entitled_options ?? [],
           
           // Display Options (top-level)
@@ -60,7 +59,6 @@ export class FiltersRepository {
           optionSettings: {
             // Value Selection & Filtering (from optionSettings or legacy top-level)
             baseOptionType: optionSettings.baseOptionType ?? opt.baseOptionType,
-            selectedValues: optionSettings.selectedValues ?? opt.selectedValues ?? [],
             removeSuffix: optionSettings.removeSuffix ?? opt.removeSuffix ?? [],
             replaceText: optionSettings.replaceText ?? opt.replaceText ?? [],
             
@@ -163,15 +161,6 @@ export class FiltersRepository {
       if (response.hits.hits.length > 0 && response.hits.hits[0]._source) {
         const source = response.hits.hits[0]._source as any;
         const normalized = this.normalizeFilter(source);
-        logger.log('Normalized filter', { 
-          shop, 
-          id, 
-          storedShop: source.shop,
-          hasFilterType: !!normalized.filterType,
-          hasTargetScope: !!normalized.targetScope,
-          hasDeploymentChannel: !!normalized.deploymentChannel,
-          optionsCount: normalized.options?.length || 0,
-        });
         return normalized;
       }
 
@@ -343,7 +332,6 @@ export class FiltersRepository {
             optionType: opt.optionType,
             displayType: opt.displayType || 'LIST',
             selectionType: opt.selectionType || 'MULTIPLE',
-            targetScope: opt.targetScope || 'all',
             allowedOptions: opt.allowedOptions || [],
             
             // Display Options (top-level)
@@ -359,7 +347,6 @@ export class FiltersRepository {
             optionSettings: {
               // Value Selection & Filtering
               baseOptionType: optionSettings.baseOptionType,
-              selectedValues: optionSettings.selectedValues || [],
               removeSuffix: optionSettings.removeSuffix || [],
               replaceText: optionSettings.replaceText || [],
               

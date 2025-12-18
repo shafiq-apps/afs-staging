@@ -38,6 +38,7 @@ import {
   type StorefrontFilterData,
   SORT_TYPES_MAPPINGS,
 } from "../utils/filter.constants";
+import { normalizeShopifyId } from "app/utils/normalize-shopify-id";
 
 interface FilterOption {
   // Identification
@@ -55,7 +56,6 @@ interface FilterOption {
   
   // Value Selection & Filtering
   baseOptionType?: string;
-  selectedValues: string[];
   allowedOptions: string[];
   filterByPrefix: string[];
   removePrefix: string[];
@@ -78,7 +78,6 @@ interface FilterOption {
   manualSortedValues: string[];
   
   // Advanced
-  targetScope: string;
   textTransform: string;
   paginationType: string;
   groups: string[];
@@ -97,6 +96,7 @@ interface CollectionReference {
   label: string;
   value: string;
   id: string;
+  gid: string;
 }
 
 // StorefrontFilterData is imported from filter.constants.ts
@@ -115,7 +115,7 @@ interface FilterState {
   status: FilterStatus;
   filterType: string;
   targetScope: TargetScope;
-  selectedCollections: CollectionReference[];
+  allowedCollections: CollectionReference[];
   filterOptions: FilterOption[];
   deploymentChannel: DeploymentChannel;
   tags: string[];
@@ -480,7 +480,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
     status: FilterStatus.PUBLISHED,
     filterType: "",
     targetScope: TargetScope.ALL,
-    selectedCollections: [],
+    allowedCollections: [],
     filterOptions: [],
     deploymentChannel: DeploymentChannel.APP,
     tags: [],
@@ -531,7 +531,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
     status,
     filterType,
     targetScope,
-    selectedCollections,
+    allowedCollections,
     filterOptions,
     deploymentChannel,
     tags,
@@ -566,9 +566,9 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
     if (!shopify) return;
 
     try {
-      const preselected = selectedCollections
-        .filter((c) => c.id)
-        .map((c) => ({ id: c.id }));
+      const preselected = allowedCollections
+        .filter((c) => c.gid)
+        .map((c) => ({ id: c.gid }));
 
       const result = await shopify.resourcePicker({
         type: 'collection',
@@ -583,24 +583,24 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
 
       if (result && Array.isArray(result)) {
         const newCollections: CollectionReference[] = result.map((collection: any) => ({
-          id: collection.id || "",
+          id: normalizeShopifyId(collection.id),
+          gid: collection.id || "",
           label: collection.title || "",
           value: collection.handle || collection.id || "",
         }));
-        updateFilterState({ selectedCollections: newCollections });
+        updateFilterState({ allowedCollections: newCollections });
         // Clear collections error when collections are selected
         if (collectionsError) setCollectionsError("");
       }
     } catch (error) {
       shopify.toast.show('Failed to open collection picker', { isError: true });
     }
-  }, [shopify, selectedCollections]);
+  }, [shopify, allowedCollections]);
 
   useEffect(() => {
     if (mode === "edit" && initialFilter) {
       const normalizedOptions = (initialFilter.options || []).map((option: FilterOption) => ({
         ...option,
-        selectedValues: option.selectedValues ?? [],
         allowedOptions: option.allowedOptions ?? [],
         groups: option.groups ?? [],
         removePrefix: option.removePrefix ?? [],
@@ -627,7 +627,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
         status: toFilterStatus(initialFilter.status),
         filterType: initialFilter.filterType || "",
         targetScope: toTargetScope(initialFilter.targetScope) || TargetScope.ALL,
-        selectedCollections: JSON.parse(JSON.stringify(initialFilter.allowedCollections || [])),
+        allowedCollections: JSON.parse(JSON.stringify(initialFilter.allowedCollections || [])),
         filterOptions: JSON.parse(JSON.stringify(normalizedOptions)),
         deploymentChannel: toDeploymentChannel(initialFilter.deploymentChannel) || DeploymentChannel.APP,
         tags: initialFilter.tags || [],
@@ -684,8 +684,6 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
             optionType: getOptionType("Price"),
             displayType: PRICE_FILTER_DEFAULTS.displayType,
             selectionType: PRICE_FILTER_DEFAULTS.selectionType,
-            targetScope: DEFAULT_FILTER_OPTION.targetScope,
-            selectedValues: [...DEFAULT_FILTER_OPTION.selectedValues],
             allowedOptions: [...DEFAULT_FILTER_OPTION.allowedOptions],
             groups: [...DEFAULT_FILTER_OPTION.groups],
             collapsed: DEFAULT_FILTER_OPTION.collapsed,
@@ -721,8 +719,6 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
             optionType: getOptionType("Vendor"),
             displayType: DEFAULT_FILTER_OPTION.displayType,
             selectionType: DEFAULT_FILTER_OPTION.selectionType,
-            targetScope: DEFAULT_FILTER_OPTION.targetScope,
-            selectedValues: [...DEFAULT_FILTER_OPTION.selectedValues],
             allowedOptions: [...DEFAULT_FILTER_OPTION.allowedOptions],
             groups: [...DEFAULT_FILTER_OPTION.groups],
             collapsed: DEFAULT_FILTER_OPTION.collapsed,
@@ -756,8 +752,6 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
             optionType: getOptionType("productType"),
             displayType: DEFAULT_FILTER_OPTION.displayType,
             selectionType: DEFAULT_FILTER_OPTION.selectionType,
-            targetScope: DEFAULT_FILTER_OPTION.targetScope,
-            selectedValues: [...DEFAULT_FILTER_OPTION.selectedValues],
             allowedOptions: [...DEFAULT_FILTER_OPTION.allowedOptions],
             groups: [...DEFAULT_FILTER_OPTION.groups],
             collapsed: DEFAULT_FILTER_OPTION.collapsed,
@@ -792,8 +786,6 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
             baseOptionType: getBaseOptionType("Tags"),
             displayType: DEFAULT_FILTER_OPTION.displayType,
             selectionType: DEFAULT_FILTER_OPTION.selectionType,
-            targetScope: DEFAULT_FILTER_OPTION.targetScope,
-            selectedValues: [...DEFAULT_FILTER_OPTION.selectedValues],
             allowedOptions: [...DEFAULT_FILTER_OPTION.allowedOptions],
             groups: [...DEFAULT_FILTER_OPTION.groups],
             collapsed: DEFAULT_FILTER_OPTION.collapsed,
@@ -827,8 +819,6 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
             baseOptionType: getBaseOptionType("Collection"),
             displayType: DEFAULT_FILTER_OPTION.displayType,
             selectionType: DEFAULT_FILTER_OPTION.selectionType,
-            targetScope: DEFAULT_FILTER_OPTION.targetScope,
-            selectedValues: [...DEFAULT_FILTER_OPTION.selectedValues],
             allowedOptions: [...DEFAULT_FILTER_OPTION.allowedOptions],
             groups: [...DEFAULT_FILTER_OPTION.groups],
             collapsed: DEFAULT_FILTER_OPTION.collapsed,
@@ -871,8 +861,6 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                 baseOptionType: getBaseOptionType(optionKey),
                 displayType: DEFAULT_FILTER_OPTION.displayType,
                 selectionType: DEFAULT_FILTER_OPTION.selectionType,
-                targetScope: DEFAULT_FILTER_OPTION.targetScope,
-                selectedValues: DEFAULT_FILTER_OPTION.selectedValues,
                 allowedOptions: DEFAULT_FILTER_OPTION.allowedOptions,
                 groups: DEFAULT_FILTER_OPTION.groups,
                 collapsed: DEFAULT_FILTER_OPTION.collapsed,
@@ -932,7 +920,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
           status: DEFAULT_FILTER.status,
           filterType: "",
           targetScope: DEFAULT_FILTER.targetScope,
-          selectedCollections: [],
+          allowedCollections: [],
           filterOptions: [],
           deploymentChannel: DeploymentChannel.APP,
           tags: [],
@@ -981,11 +969,11 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
       const newScope = toTargetScope(event.currentTarget?.values?.[0]);
       updateFilterState({ targetScope: newScope });
       // Clear collections error when switching away from "entitled" or when collections are already selected
-      if (newScope !== TargetScope.ENTITLED || selectedCollections.length > 0) {
+      if (newScope !== TargetScope.ENTITLED || allowedCollections.length > 0) {
         setCollectionsError("");
       }
     }
-  }, [selectedCollections.length, collectionsError, updateFilterState]);
+  }, [allowedCollections.length, collectionsError, updateFilterState]);
 
   // Detect changes using deepEqual
   useEffect(() => {
@@ -1059,8 +1047,6 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
       baseOptionType: getBaseOptionType("Collection"),
       displayType: DEFAULT_FILTER_OPTION.displayType,
       selectionType: DEFAULT_FILTER_OPTION.selectionType,
-      targetScope: DEFAULT_FILTER_OPTION.targetScope,
-      selectedValues: [...DEFAULT_FILTER_OPTION.selectedValues],
       allowedOptions: [...DEFAULT_FILTER_OPTION.allowedOptions],
       groups: [...DEFAULT_FILTER_OPTION.groups],
       collapsed: DEFAULT_FILTER_OPTION.collapsed,
@@ -1296,7 +1282,6 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
         minPrice,
         maxPrice,
         baseOptionType,
-        selectedValues,
         removeSuffix,
         replaceText,
         variantOptionKey,
@@ -1320,7 +1305,6 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
       const optionSettings: any = {};
       
       if (finalBaseOptionType) optionSettings.baseOptionType = finalBaseOptionType;
-      if (selectedValues && selectedValues.length > 0) optionSettings.selectedValues = selectedValues;
       if (removeSuffix && removeSuffix.length > 0) optionSettings.removeSuffix = removeSuffix;
       if (replaceText && replaceText.length > 0) optionSettings.replaceText = replaceText;
       if (variantOptionKey) optionSettings.variantOptionKey = variantOptionKey;
@@ -1378,7 +1362,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
     }
 
     // Validate collections when targetScope is "entitled" (specific collections)
-    if (targetScope === TargetScope.ENTITLED && selectedCollections.length === 0) {
+    if (targetScope === TargetScope.ENTITLED && allowedCollections.length === 0) {
       setCollectionsError("At least one collection must be selected when using specific collections");
       hasError = true;
     }
@@ -1418,19 +1402,19 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
             createFilter(shop: $shop, input: $input) {
               id
               title
-              description
               status
-              version
-              createdAt
-              options {
-                handle
+              filterType
+              targetScope
+              allowedCollections {
+                id
+                gid
                 label
-                position
+                value
               }
-              settings {
-                defaultView
-                filterOrientation
-              }
+              deploymentChannel
+              isActive
+              createdAt
+              updatedAt
             }
           }
         `
@@ -1439,19 +1423,19 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
             updateFilter(shop: $shop, id: $id, input: $input) {
               id
               title
-              description
               status
+              filterType
+              targetScope
+              allowedCollections {
+                id
+                gid
+                label
+                value
+              }
+              deploymentChannel
+              isActive
               version
               updatedAt
-              options {
-                handle
-                label
-                position
-              }
-              settings {
-                defaultView
-                filterOrientation
-              }
             }
           }
         `;
@@ -1462,7 +1446,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
         status: toFilterStatus(status),
         filterType: filterType.trim() || undefined,
         targetScope: typeof targetScope === 'string' ? targetScope : targetScope,
-        allowedCollections: selectedCollections,
+        allowedCollections: allowedCollections,
         options: normalizedOptions,
         deploymentChannel: deploymentChannel,
         tags: tags.length > 0 ? tags : undefined,
@@ -1677,17 +1661,17 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                   >
                     {t("filterForm.collectionDisplay.selectCollections")}
                   </s-button>
-                  {selectedCollections.length > 0 && (
+                  {allowedCollections.length > 0 && (
                     <s-stack direction="block" gap="small">
-                      <s-text tone="auto">{t("filterForm.collectionDisplay.selectedCollections")}</s-text>
+                      <s-text tone="auto">{t("filterForm.collectionDisplay.allowedCollections")}</s-text>
                       <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
-                        {selectedCollections.map((collection) => (
+                        {allowedCollections.map((collection) => (
                           <s-badge key={collection.id}>
                             {collection.label}
                             <button
                               type="button"
                               onClick={() => {
-                                updateFilterState({ selectedCollections: selectedCollections.filter(c => c.id !== collection.id) });
+                                updateFilterState({ allowedCollections: allowedCollections.filter(c => c.id !== collection.id) });
                                 if (collectionsError) setCollectionsError("");
                               }}
                               style={{ 

@@ -53,16 +53,15 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
             optionType
             displayType
             selectionType
-            targetScope
             allowedOptions
             collapsed
             searchable
             tooltipContent
+            showTooltip
             showMenu
             status
             optionSettings {
               baseOptionType
-              selectedValues
               removeSuffix
               replaceText {
                 from
@@ -84,6 +83,32 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
           settings {
             defaultView
             filterOrientation
+            displayQuickView
+            displayItemsCount
+            displayVariantInsteadOfProduct
+            defaultView
+            filterOrientation
+            displayCollectionImage
+            hideOutOfStockItems
+            onLaptop
+            onTablet
+            onMobile
+            productDisplay {
+              gridColumns
+              showProductCount
+              showSortOptions
+              defaultSort
+            }
+            pagination {
+              type
+              itemsPerPage
+              showPageInfo
+              pageInfoFormat
+            }
+            showFilterCount
+            showActiveFilters
+            showResetButton
+            showClearAllButton
           }
         }
       }
@@ -177,7 +202,6 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
           valueNormalization: optionSettings.valueNormalization ?? {},
           baseOptionType: optionSettings.baseOptionType,
           variantOptionKey: optionSettings.variantOptionKey,
-          selectedValues: optionSettings.selectedValues ?? [],
           // Keep optionSettings for reference
           optionSettings: optionSettings,
         };
