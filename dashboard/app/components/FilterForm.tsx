@@ -2178,6 +2178,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
         </s-section>
 
         {/* General Settings - Collapsed by Default */}
+        { false && (
         <s-section>
           <s-box padding="base" borderWidth="base" borderRadius="base" background="subdued">
             <div 
@@ -2201,7 +2202,6 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                 {generalSettingsExpanded ? "Hide" : "Show"}
               </s-button>
             </div>
-            
             {generalSettingsExpanded && (
               <div style={{ marginTop: "16px" }}>
                 <s-stack direction="block" gap="base">
@@ -2426,6 +2426,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
             )}
           </s-box>
         </s-section>
+        )}
 
       </s-stack>
 
