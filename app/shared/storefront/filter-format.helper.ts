@@ -290,6 +290,18 @@ function getStandardFilterMapping(
     tag: { type: 'tag', queryKey: 'tags', aggregationKey: 'tags' },
     collection: { type: 'collection', queryKey: 'collections', aggregationKey: 'collections' },
     collections: { type: 'collection', queryKey: 'collections', aggregationKey: 'collections' },
+    // Price range filter (rendered as a range slider in storefront script)
+    // Note: filter configs often use optionType "Price" / baseOptionType "Price"
+    // but the storefront theme extension expects optionType "priceRange".
+    price: { type: 'price', queryKey: 'priceRange', aggregationKey: 'price' },
+    pricerange: { type: 'price', queryKey: 'priceRange', aggregationKey: 'price' },
+    'price-range': { type: 'price', queryKey: 'priceRange', aggregationKey: 'price' },
+    price_range: { type: 'price', queryKey: 'priceRange', aggregationKey: 'price' },
+    // Variant price range filter (optional)
+    variantpricerange: { type: 'variantPriceRange', queryKey: 'variantPriceRange', aggregationKey: 'variantPriceRange' },
+    'variant-price-range': { type: 'variantPriceRange', queryKey: 'variantPriceRange', aggregationKey: 'variantPriceRange' },
+    variant_price_range: { type: 'variantPriceRange', queryKey: 'variantPriceRange', aggregationKey: 'variantPriceRange' },
+    variantpricerangefilter: { type: 'variantPriceRange', queryKey: 'variantPriceRange', aggregationKey: 'variantPriceRange' },
   };
 
   return standardFilterMapping[normalized] || null;
@@ -369,6 +381,51 @@ export function formatFilters(
 
     if (standardFilterMapping) {
       // Process as standard filter
+      // Special-case price range filters: they are not bucket aggregations.
+      if (standardFilterMapping.type === 'price' || standardFilterMapping.type === 'variantPriceRange') {
+        const rangeAgg = aggregations[standardFilterMapping.aggregationKey] as any;
+        const min = typeof rangeAgg?.min === 'number' ? rangeAgg.min : undefined;
+        const max = typeof rangeAgg?.max === 'number' ? rangeAgg.max : undefined;
+        if (min === undefined || max === undefined) continue;
+        if (!(max > min)) continue;
+
+        const label = option.label || (standardFilterMapping.type === 'price' ? 'Price' : 'Variant Price');
+
+        // The storefront theme extension expects optionType to be "priceRange" or "variantPriceRange"
+        // to render the slider UI, even if filterConfig's optionType is "Price".
+        const uiOptionType = standardFilterMapping.type === 'price' ? 'priceRange' : 'variantPriceRange';
+
+        const baseFilter = createBaseFilter(
+          uiOptionType,
+          standardFilterMapping.type,
+          standardFilterMapping.queryKey,
+          label,
+          option.handle,
+          filters.length
+        );
+
+        filters.push({
+          ...baseFilter,
+          handle: option.handle,
+          position: option.position,
+          optionType: uiOptionType,
+          optionKey: standardFilterMapping.queryKey,
+          displayType: option.displayType || 'RANGE',
+          selectionType: option.selectionType || 'RANGE',
+          allowedOptions: option.allowedOptions,
+          collapsed: option.collapsed ?? baseFilter.collapsed ?? false,
+          searchable: false,
+          showTooltip: option.showTooltip ?? baseFilter.showTooltip ?? false,
+          tooltipContent: option.tooltipContent || baseFilter.tooltipContent || '',
+          showCount: option.showCount !== undefined ? option.showCount : (baseFilter.showCount ?? true),
+          showMenu: false,
+          status: option.status || baseFilter.status || 'PUBLISHED',
+          range: { min, max },
+        } as StorefrontFilterDescriptor);
+
+        continue;
+      }
+
       // Check if there's a handle-specific aggregation for this option (for contextual counts)
       const handleSpecificAggregations = (aggregations as any).__handleSpecificAggregations || {};
       let aggregation = handleSpecificAggregations[option.handle];
