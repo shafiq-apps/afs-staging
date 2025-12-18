@@ -203,6 +203,7 @@ export function sanitizeFilterInput(input: {
   productTypes?: string[];
   tags?: string[];
   collections?: string[];
+  skus?: string[];
   options?: Record<string, string[]>;
   variantOptionKeys?: string[];
   priceMin?: number;
@@ -215,6 +216,7 @@ export function sanitizeFilterInput(input: {
   productTypes?: string[];
   tags?: string[];
   collections?: string[];
+  skus?: string[];
   options?: Record<string, string[]>;
   variantOptionKeys?: string[];
   priceMin?: number;
@@ -242,6 +244,10 @@ export function sanitizeFilterInput(input: {
 
   if (input.collections) {
     sanitized.collections = sanitizeTermsArray(input.collections);
+  }
+
+  if (input.skus) {
+    sanitized.skus = sanitizeTermsArray(input.skus);
   }
 
   if (input.options) {

@@ -25,6 +25,7 @@ export interface FacetAggregations {
   productTypes?: TermsAggregation;
   tags?: TermsAggregation;
   collections?: TermsAggregation;
+  skus?: TermsAggregation;
   optionPairs?: TermsAggregation;
   price?: {
     min: number;
@@ -37,6 +38,7 @@ export interface ProductFilterInput {
   productTypes?: string[];
   tags?: string[];
   collections?: string[];
+  skus?: string[];
   options?: Record<string, string[]>;
   search?: string;
   variantOptionKeys?: string[];
@@ -59,7 +61,7 @@ export interface FacetValue {
 
 export interface StorefrontFilterDescriptor {
   key: string;
-  type: 'option' | 'vendor' | 'productType' | 'tag' | 'collection' | 'price';
+  type: 'option' | 'vendor' | 'productType' | 'tag' | 'collection' | 'price' | 'sku';
   queryKey: string;
   label: string;
   handle?: string;
@@ -88,6 +90,7 @@ export interface ProductFilters {
   productTypes: FacetValue[];
   tags: FacetValue[];
   collections: FacetValue[];
+  skus: FacetValue[];
   options: Record<string, FacetValue[]>;
   price?: {
     min: number;
@@ -100,6 +103,7 @@ export interface ProductSearchInput {
   productTypes?: string[];
   tags?: string[];
   collections?: string[];
+  skus?: string[];
   options?: Record<string, string[]>;
   search?: string;
   variantOptionKeys?: string[];
@@ -215,6 +219,7 @@ export interface shopifyProduct {
   priceRangeV2?: productPriceRangeV2 | null;
   options: productOption[];
   collections: string[];
+  skus: string[];
   collectionSortOrder: Record<string, number>;
   bestSellerRank: number | null;
   variants: productVariant[];

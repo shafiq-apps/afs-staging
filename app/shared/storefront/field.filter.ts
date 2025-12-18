@@ -32,6 +32,7 @@ const ALLOWED_FIELDS = [
   'priceRangeV2',
   'options',
   'collections',
+  'skus',
   'collectionSortOrder',
   'bestSellerRank',
   'variants',

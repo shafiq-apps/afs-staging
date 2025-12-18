@@ -290,6 +290,8 @@ function getStandardFilterMapping(
     tag: { type: 'tag', queryKey: 'tags', aggregationKey: 'tags' },
     collection: { type: 'collection', queryKey: 'collections', aggregationKey: 'collections' },
     collections: { type: 'collection', queryKey: 'collections', aggregationKey: 'collections' },
+    sku: { type: 'sku', queryKey: 'skus', aggregationKey: 'skus' },
+    skus: { type: 'sku', queryKey: 'skus', aggregationKey: 'skus' },
     // Price range filter (rendered as a range slider in storefront script)
     // Note: filter configs often use optionType "Price" / baseOptionType "Price"
     // but the storefront theme extension expects optionType "priceRange".

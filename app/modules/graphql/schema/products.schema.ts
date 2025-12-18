@@ -112,6 +112,7 @@ export const productsSchema = `
     priceRangeV2: ProductPriceRangeV2
     options: [ProductOption!]!
     collections: [String!]!
+    skus: [String!]
     collectionSortOrder: JSON
     bestSellerRank: Int
     variants: [ProductVariant!]!
@@ -138,7 +139,10 @@ export const productsSchema = `
     productTypes: [FacetValue!]!
     tags: [FacetValue!]!
     collections: [FacetValue!]!
+    skus: [FacetValue!]!
     options: JSON! # Record<string, FacetValue[]>
+    # Backward compatibility: some clients query `priceRange` instead of `price`
+    priceRange: PriceRange
     price: PriceRange
   }
 
@@ -154,6 +158,7 @@ export const productsSchema = `
     productTypes: [String!]
     tags: [String!]
     collections: [String!]
+    skus: [String!]
     options: JSON
     search: String
     variantOptionKeys: [String!]
@@ -168,6 +173,7 @@ export const productsSchema = `
     productTypes: [String!]
     tags: [String!]
     collections: [String!]
+    skus: [String!]
     options: JSON
     search: String
     variantOptionKeys: [String!]

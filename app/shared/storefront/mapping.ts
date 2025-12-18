@@ -39,6 +39,11 @@ export const PRODUCT_MAPPING = {
       eager_global_ordinals: true, // Faster aggregations on arrays
       norms: false,
     },
+    skus: {
+      type: 'keyword', // Product-level list of all variant SKUs
+      eager_global_ordinals: true, // Faster aggregations on arrays
+      norms: false,
+    },
     category: {
       properties: {
         name: { type: 'keyword' },
