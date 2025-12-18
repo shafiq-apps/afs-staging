@@ -124,7 +124,7 @@ const STANDARD_FILTER_TYPES = new Set([
   'producttype', 'product-type', 'product type', 'product_type',
   'tags', 'tag',
   'collection', 'collections',
-  'price', 'price', 'priceRange', 'price_range',
+  'price', 'priceRange', 'price_range',
 ]);
 
 /**

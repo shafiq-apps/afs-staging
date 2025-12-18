@@ -286,7 +286,7 @@
             const min = parseFloat(parts[0]) || 0;
             const max = parseFloat(parts[1]) || 0;
             if (min >= 0 && max > min) {
-              params.priceRange = { min, max };
+              params.price = { min, max };
             }
           }
         }
@@ -307,16 +307,6 @@
             const [field, order] = value.split(':');
             params.sort = { field, order: order || 'desc' };
           }
-        }
-        else if (key === 'keep') {
-          // Parse keep - can be comma-separated string or '__all__'
-          const keepValue = $.str(value);
-          if (keepValue === '__all__') {
-            params.keep = '__all__';
-          } else {
-            params.keep = $.split(value);
-          }
-          Log.debug('Keep filters parsed', { keep: params.keep });
         }
         else {
           // Everything else is a handle (dynamic filter) - use directly, no conversion
@@ -344,8 +334,8 @@
             url.searchParams.set(key, value.join(','));
             Log.debug('URL param set', { key, value: value.join(',') });
           }
-          else if (key === 'priceRange' && value && typeof value === 'object' && value.min !== undefined && value.max !== undefined) {
-            url.searchParams.set('priceRange', `${value.min}-${value.max}`);
+          else if (key === 'price' && value && typeof value === 'object' && value.min !== undefined && value.max !== undefined) {
+            url.searchParams.set('price', `${value.min}-${value.max}`);
             Log.debug('Price range URL param set', { min: value.min, max: value.max });
           }
           else if (key === 'search' && typeof value === 'string' && value.trim()) {
@@ -504,9 +494,9 @@
         const v = filters[k];
         if ($.empty(v)) return;
 
-        // Direct params (search, priceRange)
-        if (k === 'priceRange' && v && typeof v === 'object' && v.min !== undefined && v.max !== undefined) {
-          params.set('priceRange', `${v.min}-${v.max}`);
+        // Direct params (search, price)
+        if (k === 'price' && v && typeof v === 'object' && v.min !== undefined && v.max !== undefined) {
+          params.set('price', `${v.min}-${v.max}`);
         }
         else if (k === 'search' && typeof v === 'string' && v.trim()) {
           params.set(k, v.trim());
@@ -1890,6 +1880,8 @@
         return;
       }
 
+      debugger;
+
       const current = State.filters[handle] || [];
       const isActive = current.includes(normalized);
       const filterValues = isActive
@@ -1975,7 +1967,7 @@
       }
 
       // Check if range matches the full range (no filter applied)
-      const priceFilter = State.availableFilters.find(f => f.optionType === 'priceRange' || f.optionType === 'variantPriceRange');
+      const priceFilter = State.availableFilters.find(f => f.optionType === 'priceRange' || f.optionKey === 'priceRange');
       if (priceFilter && priceFilter.range) {
         if (min === priceFilter.range.min && max === priceFilter.range.max) {
           State.filters.priceRange = null;
