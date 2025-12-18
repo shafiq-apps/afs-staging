@@ -20,7 +20,7 @@ export interface Filter {
     handle: string;
     position: number;
     label: string;
-    optionType: string; // "productOption", "productTag", "productVendor", "productType", "priceRange", "metafield"
+    optionType: string; // "productOption", "productTag", "productVendor", "productType", "price", "metafield"
     displayType?: string;
     selectionType?: string;
     allowedOptions?: string[];

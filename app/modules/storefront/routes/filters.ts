@@ -96,7 +96,7 @@ export const GET = handler(async (req: HttpRequest) => {
     hasTags: !!aggregations?.tags?.buckets?.length,
     hasCollections: !!aggregations?.collections?.buckets?.length,
     hasOptionPairs: !!aggregations?.optionPairs?.buckets?.length,
-    hasPriceRange: !!aggregations?.priceRange,
+    hasPriceRange: !!aggregations?.price,
     vendorsBucketCount: aggregations?.vendors?.buckets?.length || 0,
     productTypesBucketCount: aggregations?.productTypes?.buckets?.length || 0,
     tagsBucketCount: aggregations?.tags?.buckets?.length || 0,

@@ -39,53 +39,156 @@
         }
     </style>
 
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+        .input-shop {
+            margin-bottom: 2px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .input-shop p {
+            margin: 0;
+            font-size: 14px;
+            color: #555555;
+            padding: 0;
+        }
+
+        #set-shop-btn {
+            margin-left: 8px;
+            padding: 4px 12px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        #shop-url {
+            padding: 4px 8px;
+            font-size: 14px;
+        }
+    </style>
+
+    <div class="input-shop">
+        <p id="available-shop-name"></p>
+        <input type="text" id="shop-url" value="digitalcoo-filter-demo-07.myshopify.com" style="width: 300px;" />
+        <button id="set-shop-btn" onclick="initializeAFS()">Refresh</button>
+    </div>
+
     <div data-afs-container id="afs-container"></div>
 
     <script src="../dashboard/extensions/theme-extension/assets/advanced-filter-search.js"></script>
     <script>
         (function () {
+            const shopsCollections = {
+                "digitalcoo-filter-demo-07.myshopify.com": {
+                    collections: [
+                        {
+                            id: 169206415441,
+                            title: "All products (13006)"
+                        },
+
+                        {
+                            id: 680122875985,
+                            title: "App Test Collection (5)"
+                        },
+
+                        {
+                            id: 151681073233,
+                            title: "Home page (1)"
+                        },
+
+                        {
+                            id: 169207070801,
+                            title: "Under $150 (8082)"
+                        },
+
+                        {
+                            id: 169207529553,
+                            title: "Under $300 (12469)"
+                        },
+
+                        {
+                            id: 169206775889,
+                            title: "Under $50 (3483)"
+                        }
+                    ],
+                    selectedCollection: {
+                        id: 169206775889,
+                        sortBy: "best-selling"
+                    }
+                },
+                "digitalcoo-filter-demo-10.myshopify.com": {
+                    collections: [
+                        {
+                            id: 174251016285,
+                            title: "All"
+                        },
+
+                        {
+                            id: 174251081821,
+                            title: "Dresses"
+                        },
+
+                        {
+                            id: 307085770845,
+                            title: "New year 2026"
+                        },
+
+                        {
+                            id: 306458427485,
+                            title: "Test collection"
+                        },
+
+                        {
+                            id: 174251049053,
+                            title: "watches"
+                        }
+                    ],
+                    selectedCollection: {
+                        id: 174251016285,
+                        sortBy: "best-selling"
+                    }
+                }
+            }
             const config = {
                 // apiBaseUrl: "https://fstaging.digitalcoo.com",
                 apiBaseUrl: "http://localhost:3554",
-                shop: "digitalcoo-filter-demo-10.myshopify.com",
+                shop: "digitalcoo-filter-demo-07.myshopify.com",
                 container: '#afs-container',
                 filtersContainer: '.afs-filters-container',
                 productsContainer: '.afs-products-container',
                 pageSize: 24,
                 enableLogging: true,
                 scrollToProductsOnFilter: false,
-                collections: [
-                    {
-                        id: 174251016285,
-                        title: "All"
-                    },
-                    {
-                        id: 174251081821,
-                        title: "Dresses"
-                    },
-                    {
-                        id: 307085770845,
-                        title: "New year 2026"
-                    },
-                    {
-                        id: 306458427485,
-                        title: "Test collection"
-                    },
-                    {
-                        id: 174251049053,
-                        title: "watches"
-                    }
-                ],
-                selectedCollection: {
-                    id: 174251016285,
-                    sortBy: "best-selling"
-                }
+                collections: shopsCollections["digitalcoo-filter-demo-10.myshopify.com"].collections,
+                selectedCollection: shopsCollections["digitalcoo-filter-demo-10.myshopify.com"].selectedCollection,
             };
 
             // Function to initialize AFS
             function initializeAFS() {
                 if (typeof window.AFS !== 'undefined') {
                     try {
+                        const availableShops = Object.keys(shopsCollections);
+                        document.getElementById('available-shop-name').innerText = 'Available shops: ' + availableShops.join(', ');
+                        try {
+                            const removeExisting = document.querySelector('[data-afs-container]');
+                            if (removeExisting) {
+                                removeExisting.innerHTML = '';
+                            }
+                        } catch (error) {
+
+                        }
+                        const shop = document.getElementById('shop-url').value;
+                        if (shop) {
+                            config.shop = shop;
+                            config.collections = shopsCollections[shop]?.collections || [];
+                            config.selectedCollection = shopsCollections[shop]?.selectedCollection || {};
+                        }
                         window.AFS.init(config);
                     } catch (error) {
                         console.error('Failed to initialize Advanced Filter Search:', error);
@@ -105,6 +208,8 @@
                 // DOM is already ready, just wait for script
                 setTimeout(initializeAFS, 50);
             }
+
+            window.initializeAFS = initializeAFS;
         })();
     </script>
 </body>

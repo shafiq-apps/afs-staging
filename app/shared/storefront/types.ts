@@ -26,7 +26,7 @@ export interface FacetAggregations {
   tags?: TermsAggregation;
   collections?: TermsAggregation;
   optionPairs?: TermsAggregation;
-  priceRange?: {
+  price?: {
     min: number;
     max: number;
   };
@@ -66,7 +66,7 @@ export interface FacetValue {
 
 export interface StorefrontFilterDescriptor {
   key: string;
-  type: 'option' | 'vendor' | 'productType' | 'tag' | 'collection' | 'priceRange' | 'variantPriceRange';
+  type: 'option' | 'vendor' | 'productType' | 'tag' | 'collection' | 'price' | 'variantPriceRange';
   queryKey: string;
   label: string;
   handle?: string;
@@ -96,7 +96,7 @@ export interface ProductFilters {
   tags: FacetValue[];
   collections: FacetValue[];
   options: Record<string, FacetValue[]>;
-  priceRange?: {
+  price?: {
     min: number;
     max: number;
   };

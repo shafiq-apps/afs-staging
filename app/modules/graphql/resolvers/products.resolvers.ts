@@ -342,7 +342,7 @@ function formatFilters(filters: any): any {
       tags: [],
       collections: [],
       options: {},
-      priceRange: null,
+      price: null,
       variantPriceRange: null,
     };
   }
@@ -353,7 +353,7 @@ function formatFilters(filters: any): any {
     hasTags: !!filters.tags,
     hasCollections: !!filters.collections,
     hasOptions: !!filters.options,
-    hasPriceRange: !!filters.priceRange,
+    hasPriceRange: !!filters.price,
     hasVariantPriceRange: !!filters.variantPriceRange,
   });
 
@@ -363,10 +363,10 @@ function formatFilters(filters: any): any {
     tags: Array.isArray(filters.tags) ? filters.tags : [],
     collections: Array.isArray(filters.collections) ? filters.collections : [],
     options: filters.options && typeof filters.options === 'object' ? filters.options : {},
-    priceRange: filters.priceRange
+    price: filters.price
       ? {
-          min: filters.priceRange.min ?? 0,
-          max: filters.priceRange.max ?? 0,
+          min: filters.price.min ?? 0,
+          max: filters.price.max ?? 0,
         }
       : null,
     variantPriceRange: filters.variantPriceRange

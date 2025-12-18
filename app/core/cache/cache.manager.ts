@@ -40,17 +40,31 @@ export class CacheManager<T = any> {
     this.checkInterval = requestedInterval > 0 ? requestedInterval : 60 * 1000;
 
     this.startCleanup();
-    logger.info('Cache manager initialized', {
-      defaultTTL: this.defaultTTL,
-      maxSize: this.maxSize,
-      checkInterval: this.checkInterval,
-    });
+    if (this.isEnabled() === false) {
+      logger.info('Cache disabled');
+      return null;
+    }
+    else{
+      logger.info('Cache manager initialized', {
+        defaultTTL: this.defaultTTL,
+        maxSize: this.maxSize,
+        checkInterval: this.checkInterval,
+      });
+    }
+  }
+
+  isEnabled(): boolean {
+    return !(process.env.CACHE_DISABLED === 'true' || process.env.CACHE_DISABLED === '1');
   }
 
   /**
    * Get value from cache
    */
   get(key: string): T | null {
+    if (this.isEnabled() === false) {
+      logger.info('Cache disabled', { key });
+      return null;
+    }
     const entry = this.store.get(key);
 
     if (!entry) {
@@ -75,6 +89,10 @@ export class CacheManager<T = any> {
    * Set value in cache
    */
   set(key: string, value: T, ttl?: number): void {
+    if (this.isEnabled() === false) {
+      logger.info('Cache disabled', { key });
+      return null;
+    }
     const now = Date.now();
     const expiresAt = now + (ttl || this.defaultTTL);
 

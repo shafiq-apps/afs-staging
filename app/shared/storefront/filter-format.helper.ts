@@ -134,12 +134,8 @@ function applyOptionSettings(
     configOption.allowedOptions.length > 0
   ) {
     const allowedSet = new Set(configOption.allowedOptions.map((value) => normalizeKey(value)));
-    console.log("allowedSet", allowedSet);
     filteredItems = optionItems.filter((item) => allowedSet.has(normalizeKey(item.value)));
   }
-  
-  
-  console.log("filteredItems",configOption);
 
   const optionSettings = configOption.optionSettings || {};
   const processedItems: FacetValue[] = [];

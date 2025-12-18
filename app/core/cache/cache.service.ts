@@ -53,12 +53,22 @@ export class CacheService {
     this.filterListTTL = options.filterListTTL || parseInt(process.env.CACHE_FILTER_LIST_TTL || '600000'); // 10 minutes
     this.enableStats = options.enableStats !== false;
 
-    logger.info('Cache service initialized', {
-      searchTTL: this.searchTTL,
-      filterTTL: this.filterTTL,
-      filterListTTL: this.filterListTTL,
-      enableStats: this.enableStats,
-    });
+    if (this.isEnabled() === false) {
+      logger.info('Cache service disabled');
+      return null;
+    }
+    else{
+      logger.info('Cache service initialized', {
+        searchTTL: this.searchTTL,
+        filterTTL: this.filterTTL,
+        filterListTTL: this.filterListTTL,
+        enableStats: this.enableStats,
+      });
+    }
+  }
+
+  isEnabled(): boolean {
+    return !(process.env.CACHE_DISABLED === 'true' || process.env.CACHE_DISABLED === '1');
   }
 
   /**
@@ -93,6 +103,10 @@ export class CacheService {
     ttl?: number,
     cpid?: string
   ): void {
+    if (this.isEnabled() === false) {
+      logger.info('Cache disabled', { shopDomain });
+      return null;
+    }
     const key = this.generateFilterListCacheKey(shopDomain, cpid);
     this.filterListCache.set(key, data, ttl || this.filterListTTL);
     logger.info('Filter list cached', { key, shopDomain, cpid: cpid || 'none', filterCount: data.filters.length });
@@ -144,6 +158,10 @@ export class CacheService {
    * Get cached search results
    */
   getSearchResults(shopDomain: string, filters?: ProductSearchInput, filterConfigHash?: string): ProductSearchResult | null {
+    if (this.isEnabled() === false) {
+      logger.info('Cache disabled', { shopDomain });
+      return null;
+    }
     const key = generateSearchCacheKey(shopDomain, filters, filterConfigHash);
     const result = this.searchCache.get(key);
 
@@ -172,6 +190,10 @@ export class CacheService {
     ttl?: number,
     filterConfigHash?: string
   ): void {
+    if (this.isEnabled() === false) {
+      logger.info('Cache disabled', { shopDomain });
+      return null;
+    }
     const key = generateSearchCacheKey(shopDomain, filters, filterConfigHash);
     this.searchCache.set(key, results, ttl || this.searchTTL);
     logger.info('Search results cached', { key, shopDomain });
@@ -181,6 +203,10 @@ export class CacheService {
    * Get cached filter results
    */
   getFilterResults(shopDomain: string, filters?: ProductFilterInput, filterConfigHash?: string): FacetAggregations | null {
+    if (this.isEnabled() === false) {
+      logger.info('Cache disabled', { shopDomain });
+      return null;
+    }
     const key = generateFilterCacheKey(shopDomain, filters, filterConfigHash);
     const result = this.filterCache.get(key);
 
@@ -209,6 +235,10 @@ export class CacheService {
     ttl?: number,
     filterConfigHash?: string
   ): void {
+    if (this.isEnabled() === false) {
+      logger.info('Cache disabled', { shopDomain });
+      return null;
+    }
     const key = generateFilterCacheKey(shopDomain, filters, filterConfigHash);
     this.filterCache.set(key, results, ttl || this.filterTTL);
     logger.info('Filter results cached', { key, shopDomain });

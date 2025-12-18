@@ -51,7 +51,7 @@ function getEnabledAggregations(filterConfig: Filter | null, includeAllOptions: 
     // If no filter config OR includeAllOptions is true, enable all aggregations
     // This is used by GraphQL and other endpoints that need all aggregations
     return {
-      standard: new Set(['vendors', 'productTypes', 'tags', 'collections', 'priceRange', 'variantPriceRange']),
+      standard: new Set(['vendors', 'productTypes', 'tags', 'collections', 'price', 'variantPriceRange']),
       variantOptions: new Map(), // Empty map signals to use optionPairs fallback (all options)
     };
   }
@@ -67,9 +67,9 @@ function getEnabledAggregations(filterConfig: Filter | null, includeAllOptions: 
     'tag': 'tags',
     'collection': 'collections',
     'collections': 'collections',
-    'price': 'priceRange',
-    'pricerange': 'priceRange',
-    'price range': 'priceRange',
+    'price': 'price',
+    'pricerange': 'price',
+    'price-range': 'price',
   };
 
     for (const option of filterConfig.options) {
@@ -108,8 +108,8 @@ function getEnabledAggregations(filterConfig: Filter | null, includeAllOptions: 
     }
   }
 
-  // Always include priceRange and variantPriceRange (fundamental filters)
-  standard.add('priceRange');
+  // Always include price and variantPriceRange (fundamental filters)
+  standard.add('price');
   standard.add('variantPriceRange');
 
   return { standard, variantOptions };
@@ -124,7 +124,7 @@ const STANDARD_FILTER_TYPES = new Set([
   'producttype', 'product-type', 'product type', 'product_type',
   'tags', 'tag',
   'collection', 'collections',
-  'price', 'pricerange', 'price range', 'price_range',
+  'price', 'price', 'priceRange', 'price_range',
 ]);
 
 /**
@@ -726,18 +726,18 @@ export class StorefrontSearchRepository {
     }
 
     // Price range aggregations (these don't need auto-exclude as they're stats)
-    if (enabledAggregations.standard.has('priceRange')) {
+    if (enabledAggregations.standard.has('price')) {
       const mustQueries = buildBaseMustQueries();
       const query = mustQueries.length > 0 ? { bool: { must: mustQueries } } : { match_all: {} };
-      allAggregations.priceRange = { stats: { field: 'minPrice' } };
+      allAggregations.price = { stats: { field: 'minPrice' } };
       aggregationQueries.push({
-        filterType: 'priceRange',
+        filterType: 'price',
         query: {
           index,
           size: 0,
           track_total_hits: false,
           query,
-          aggs: { priceRange: allAggregations.priceRange },
+          aggs: { price: allAggregations.price },
         },
       });
     }
@@ -890,14 +890,14 @@ export class StorefrontSearchRepository {
 
         optionPairs: combinedOptionPairs,
 
-        priceRange:
-          enabledAggregations.standard.has('priceRange') &&
-            aggregations.priceRange &&
-            (aggregations.priceRange.min != null ||
-              aggregations.priceRange.max != null)
+        price:
+          enabledAggregations.standard.has('price') &&
+            aggregations.price &&
+            (aggregations.price.min != null ||
+              aggregations.price.max != null)
             ? {
-              min: aggregations.priceRange.min ?? 0,
-              max: aggregations.priceRange.max ?? 0,
+              min: aggregations.price.min ?? 0,
+              max: aggregations.price.max ?? 0,
             }
             : undefined,
 
@@ -1265,7 +1265,7 @@ export class StorefrontSearchRepository {
     });
 
     // Hide out of stock items (from filter configuration settings)
-    if (filters?.hideOutOfStockItems) {
+    if (false && filters?.hideOutOfStockItems) {
       // Filter to only products with at least one variant that has inventory
       mustQueries.push({
         nested: {
@@ -1474,8 +1474,8 @@ export class StorefrontSearchRepository {
         }
 
         // Price range stats aggregation (product-level: minPrice/maxPrice)
-        if (enabledAggregations.standard.has('priceRange')) {
-          aggregationObject.priceRange = {
+        if (enabledAggregations.standard.has('price')) {
+          aggregationObject.price = {
             stats: {
               field: 'minPrice',
             },
@@ -1613,13 +1613,13 @@ export class StorefrontSearchRepository {
       }
 
       // Format price range aggregations (similar to getFacets)
-      const priceRangeStats = aggregations.priceRange;
+      const priceRangeStats = aggregations.price;
       const variantPriceRangeStats = aggregations.variantPriceRange?.priceStats;
 
       // Build formatted aggregations with price ranges
       const formattedAggregations: FacetAggregations = {
         ...aggregations,
-        priceRange: enabledAggregations.standard.has('priceRange') && priceRangeStats && (priceRangeStats.min !== null || priceRangeStats.max !== null)
+        price: enabledAggregations.standard.has('price') && priceRangeStats && (priceRangeStats.min !== null || priceRangeStats.max !== null)
           ? {
             min: priceRangeStats.min ?? 0,
             max: priceRangeStats.max ?? 0,
@@ -1635,7 +1635,6 @@ export class StorefrontSearchRepository {
 
       result.filters = formattedAggregations;
     }
-
     return result;
   }
 }

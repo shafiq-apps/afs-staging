@@ -26,7 +26,7 @@ export interface StorefrontFilterData {
   tags?: Array<{ value: string; count: number }>;
   collections?: Array<{ value: string; count: number }>;
   options?: Record<string, Array<{ value: string; count: number }>>;
-  priceRange?: {
+  price?: {
     min: number;
     max: number;
   };
@@ -163,7 +163,7 @@ export const DEFAULT_VIEWS = Object.values(DefaultView) as readonly string[];
 /**
  * Standard base option types that correspond to FacetAggregations fields
  * These match the structure in products.type.ts FacetAggregations interface:
- * - priceRange -> "PRICE"
+ * - price -> "PRICE"
  * - vendors -> "VENDOR"
  * - productTypes -> "PRODUCT_TYPE"
  * - tags -> "TAGS"
@@ -173,7 +173,7 @@ export const DEFAULT_VIEWS = Object.values(DefaultView) as readonly string[];
  * IMPORTANT: Values match GraphQL BaseOptionType enum exactly
  */
 export const STANDARD_BASE_OPTION_TYPES = [
-  "PRICE",        // priceRange
+  "PRICE",        // price
   "VENDOR",       // vendors
   "PRODUCT_TYPE", // productTypes
   "TAGS",         // tags
@@ -198,7 +198,7 @@ export function getAvailableBaseOptionTypes(
   // Always include standard base types that are available in FacetAggregations
   // These correspond to the fields in products.type.ts FacetAggregations interface
   // Returns values matching GraphQL BaseOptionType enum exactly
-  if (storefrontFilters?.priceRange) {
+  if (storefrontFilters?.price) {
     baseTypes.push("PRICE");
   }
   if (storefrontFilters?.vendors && storefrontFilters.vendors.length > 0) {
@@ -263,7 +263,7 @@ export function getBaseOptionType(optionType: string): string {
   // Standard/base option types that use their own name as base type
   // These correspond to FacetAggregations fields in products.type.ts
   // Returns values matching GraphQL BaseOptionType enum exactly
-  if (normalizedType === "price" || normalizedType === "pricerange" || normalizedType === "price range") {
+  if (normalizedType === "price" || normalizedType === "pricerange" || normalizedType === "price-range") {
     return "PRICE";
   }
   if (normalizedType === "vendor" || normalizedType === "vendors") {
