@@ -21,8 +21,6 @@ export function hasAnyFilters(filters?: ProductFilterInput): boolean {
     filters.search ||
     filters.priceMin !== undefined ||
     filters.priceMax !== undefined ||
-    filters.variantPriceMin !== undefined ||
-    filters.variantPriceMax !== undefined ||
     (filters.variantSkus && filters.variantSkus.length)
   );
 }
@@ -137,13 +135,6 @@ export function buildFilterInput(query: Record<string, unknown>): ProductFilterI
   const priceMax = typeof query.priceMax === 'string' ? parseFloat(query.priceMax) : typeof query.priceMax === 'number' ? query.priceMax : undefined;
   if (priceMax !== undefined && !isNaN(priceMax) && priceMax >= 0) filters.priceMax = priceMax;
 
-  // Variant price range filters (variant.price)
-  const variantPriceMin = typeof query.variantPriceMin === 'string' ? parseFloat(query.variantPriceMin) : typeof query.variantPriceMin === 'number' ? query.variantPriceMin : undefined;
-  if (variantPriceMin !== undefined && !isNaN(variantPriceMin) && variantPriceMin >= 0) filters.variantPriceMin = variantPriceMin;
-
-  const variantPriceMax = typeof query.variantPriceMax === 'string' ? parseFloat(query.variantPriceMax) : typeof query.variantPriceMax === 'number' ? query.variantPriceMax : undefined;
-  if (variantPriceMax !== undefined && !isNaN(variantPriceMax) && variantPriceMax >= 0) filters.variantPriceMax = variantPriceMax;
-
   // Variant SKU filter
   const variantSkuValues = parseCommaSeparated(query.variantSku || query.variantSkus || query.sku || query.skus);
   if (variantSkuValues.length) filters.variantSkus = variantSkuValues;
@@ -224,13 +215,6 @@ export function buildSearchInput(query: Record<string, unknown>): ProductSearchI
 
   const priceMax = typeof query.priceMax === 'string' ? parseFloat(query.priceMax) : typeof query.priceMax === 'number' ? query.priceMax : undefined;
   if (priceMax !== undefined && !isNaN(priceMax) && priceMax >= 0) filters.priceMax = priceMax;
-
-  // Variant price range filters (variant.price)
-  const variantPriceMin = typeof query.variantPriceMin === 'string' ? parseFloat(query.variantPriceMin) : typeof query.variantPriceMin === 'number' ? query.variantPriceMin : undefined;
-  if (variantPriceMin !== undefined && !isNaN(variantPriceMin) && variantPriceMin >= 0) filters.variantPriceMin = variantPriceMin;
-
-  const variantPriceMax = typeof query.variantPriceMax === 'string' ? parseFloat(query.variantPriceMax) : typeof query.variantPriceMax === 'number' ? query.variantPriceMax : undefined;
-  if (variantPriceMax !== undefined && !isNaN(variantPriceMax) && variantPriceMax >= 0) filters.variantPriceMax = variantPriceMax;
 
   // Variant SKU filter
   const variantSkuValues = parseCommaSeparated(query.variantSku || query.variantSkus || query.sku || query.skus);

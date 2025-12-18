@@ -38,8 +38,6 @@ Search and retrieve products with filtering, pagination, and sorting capabilitie
 | `variantKey` / `variantKeys` | string | No | Comma-separated variant option keys | `Color,Size` |
 | `priceMin` | number | No | Minimum product price | `10.00` |
 | `priceMax` | number | No | Maximum product price | `100.00` |
-| `variantPriceMin` | number | No | Minimum variant price | `15.00` |
-| `variantPriceMax` | number | No | Maximum variant price | `150.00` |
 | `variantSku` / `variantSkus` | string | No | Comma-separated SKUs | `SKU-001,SKU-002` |
 | `keep` | string | No | Keep filter aggregations (by handle) | `sd5d3s,dopd8i` |
 | `preserveOptionAggregations` | boolean | No | Preserve all option aggregations | `true` |
@@ -129,8 +127,6 @@ Retrieve filter aggregations (facets) and filter configuration for storefront di
 | `variantKey` / `variantKeys` | string | No | Comma-separated variant option keys | `Color,Size` |
 | `priceMin` | number | No | Minimum product price | `10.00` |
 | `priceMax` | number | No | Maximum product price | `100.00` |
-| `variantPriceMin` | number | No | Minimum variant price | `15.00` |
-| `variantPriceMax` | number | No | Maximum variant price | `150.00` |
 | `variantSku` / `variantSkus` | string | No | Comma-separated SKUs | `SKU-001,SKU-002` |
 | `keep` | string | No | Keep filter aggregations (by handle) | `sd5d3s,dopd8i` |
 | `preserveOptionAggregations` | boolean | No | Preserve all option aggregations | `true` |
@@ -658,10 +654,10 @@ GET /storefront/products?shop=shop.myshopify.com&vendor=Nike,Adidas&tag=sale,new
 
 ### Price Range Filtering
 
-Both product-level and variant-level price filtering are supported:
+Use `priceMin` / `priceMax`:
 
 ```bash
-GET /storefront/products?shop=shop.myshopify.com&priceMin=10&priceMax=100&variantPriceMin=15&variantPriceMax=150
+GET /storefront/products?shop=shop.myshopify.com&priceMin=10&priceMax=100
 ```
 
 ### Preserve Filter Aggregations

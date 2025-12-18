@@ -51,7 +51,7 @@ function getEnabledAggregations(filterConfig: Filter | null, includeAllOptions: 
     // If no filter config OR includeAllOptions is true, enable all aggregations
     // This is used by GraphQL and other endpoints that need all aggregations
     return {
-      standard: new Set(['vendors', 'productTypes', 'tags', 'collections', 'price', 'variantPriceRange']),
+      standard: new Set(['vendors', 'productTypes', 'tags', 'collections', 'price']),
       variantOptions: new Map(), // Empty map signals to use optionPairs fallback (all options)
     };
   }
@@ -108,9 +108,8 @@ function getEnabledAggregations(filterConfig: Filter | null, includeAllOptions: 
     }
   }
 
-  // Always include price and variantPriceRange (fundamental filters)
+  // Always include price (fundamental filter)
   standard.add('price');
-  standard.add('variantPriceRange');
 
   return { standard, variantOptions };
 }
@@ -422,28 +421,6 @@ export class StorefrontSearchRepository {
         }
       }
 
-      /** Variant Price Range */
-      if (
-        excludeFilterType !== 'variantPriceRange' &&
-        (sanitizedFilters?.variantPriceMin !== undefined ||
-          sanitizedFilters?.variantPriceMax !== undefined)
-      ) {
-        const range: any = {};
-        if (sanitizedFilters.variantPriceMin !== undefined)
-          range.gte = sanitizedFilters.variantPriceMin;
-        if (sanitizedFilters.variantPriceMax !== undefined)
-          range.lte = sanitizedFilters.variantPriceMax;
-
-        baseMustQueries.push({
-          nested: {
-            path: 'variants',
-            query: {
-              range: { 'variants.price.numeric': range },
-            },
-          },
-        });
-      }
-
       /** Variant SKU Match */
       if (hasValues(sanitizedFilters?.variantSkus)) {
         baseMustQueries.push({
@@ -546,23 +523,6 @@ export class StorefrontSearchRepository {
           }
           if (rangeMust.length > 0) {
             postFilterQueries.push({ bool: { must: rangeMust } });
-          }
-        }
-      }
-
-      // Handle variant-level price range filter
-      if (filterType === 'variantPriceRange') {
-        if (sanitizedFilters?.variantPriceMin !== undefined || sanitizedFilters?.variantPriceMax !== undefined) {
-          const range: any = {};
-          if (sanitizedFilters.variantPriceMin !== undefined) range.gte = sanitizedFilters.variantPriceMin;
-          if (sanitizedFilters.variantPriceMax !== undefined) range.lte = sanitizedFilters.variantPriceMax;
-          if (Object.keys(range).length > 0) {
-            postFilterQueries.push({
-              nested: {
-                path: 'variants',
-                query: { range: { 'variants.price.numeric': range } },
-              },
-            });
           }
         }
       }
@@ -779,29 +739,6 @@ export class StorefrontSearchRepository {
       });
     }
 
-    if (enabledAggregations.standard.has('variantPriceRange')) {
-      const mustQueries = buildBaseMustQueries('variantPriceRange');
-      const query = mustQueries.length > 0 ? { bool: { must: mustQueries } } : { match_all: {} };
-      allAggregations.variantPriceRange = {
-        nested: { path: 'variants' },
-        aggs: {
-          priceStats: {
-            stats: { field: 'variants.price.numeric' },
-          },
-        },
-      };
-      aggregationQueries.push({
-        filterType: 'variantPriceRange',
-        query: {
-          index,
-          size: 0,
-          track_total_hits: false,
-          query,
-          aggs: { variantPriceRange: allAggregations.variantPriceRange },
-        },
-      });
-    }
-
     // Execute all aggregation queries in parallel using msearch
     logger.debug('Executing aggregation queries with auto-exclude', {
       shop: shopDomain,
@@ -935,17 +872,6 @@ export class StorefrontSearchRepository {
             ? {
               min: aggregations.price.min ?? 0,
               max: aggregations.price.max ?? 0,
-            }
-            : undefined,
-
-        variantPriceRange:
-          enabledAggregations.standard.has('variantPriceRange') &&
-            aggregations.variantPriceRange?.priceStats &&
-            (aggregations.variantPriceRange.priceStats.min != null ||
-              aggregations.variantPriceRange.priceStats.max != null)
-            ? {
-              min: aggregations.variantPriceRange.priceStats.min ?? 0,
-              max: aggregations.variantPriceRange.priceStats.max ?? 0,
             }
             : undefined,
       },
@@ -1231,10 +1157,9 @@ export class StorefrontSearchRepository {
       });
     }
 
-    // Track the exact clauses used for price filters so we can exclude them
+    // Track the exact clause used for price filter so we can exclude it
     // from price-related aggregations (self-exclusion).
     let productPriceClause: any | null = null;
-    let variantPriceClause: any | null = null;
 
     // Product price range filter (minPrice/maxPrice fields)
     if (sanitizedFilters?.priceMin !== undefined || sanitizedFilters?.priceMax !== undefined) {
@@ -1258,31 +1183,6 @@ export class StorefrontSearchRepository {
           },
         };
         mustQueries.push(productPriceClause);
-      }
-    }
-
-    // Variant price range filter (variant.price)
-    if (sanitizedFilters?.variantPriceMin !== undefined || sanitizedFilters?.variantPriceMax !== undefined) {
-      const rangeQuery: any = {};
-      if (sanitizedFilters.variantPriceMin !== undefined) {
-        rangeQuery.gte = sanitizedFilters.variantPriceMin;
-      }
-      if (sanitizedFilters.variantPriceMax !== undefined) {
-        rangeQuery.lte = sanitizedFilters.variantPriceMax;
-      }
-      if (Object.keys(rangeQuery).length > 0) {
-        // Use nested query to filter variants by price
-        variantPriceClause = {
-          nested: {
-            path: 'variants',
-            query: {
-              range: {
-                'variants.price.numeric': rangeQuery,
-              },
-            },
-          },
-        };
-        mustQueries.push(variantPriceClause);
       }
     }
 
@@ -1542,32 +1442,6 @@ export class StorefrontSearchRepository {
         }
 
         // Variant price range stats aggregation (variant.price)
-        if (enabledAggregations.standard.has('variantPriceRange')) {
-          // Self-exclude: compute variant price stats while excluding the active variant price filter clause.
-          const mustWithoutVariantPrice = variantPriceClause
-            ? mustQueries.filter((q) => q !== variantPriceClause)
-            : mustQueries;
-
-          aggregationObject.variantPriceRange = {
-            global: {},
-            aggs: {
-              scoped: {
-                filter: mustWithoutVariantPrice.length > 0 ? { bool: { must: mustWithoutVariantPrice } } : { match_all: {} },
-                aggs: {
-                  range: {
-                    nested: { path: 'variants' },
-                    aggs: {
-                      priceStats: {
-                        stats: { field: 'variants.price.numeric' },
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          };
-        }
-
         return Object.keys(aggregationObject).length > 0 ? aggregationObject : undefined;
       })()
       : undefined;
@@ -1684,9 +1558,6 @@ export class StorefrontSearchRepository {
 
       // Format price range aggregations (similar to getFacets)
       const priceRangeStats = aggregations.price?.scoped?.stats ?? aggregations.price;
-      const variantPriceRangeStats =
-        aggregations.variantPriceRange?.scoped?.range?.priceStats ??
-        aggregations.variantPriceRange?.priceStats;
 
       // Build formatted aggregations with price ranges
       const formattedAggregations: FacetAggregations = {
@@ -1695,12 +1566,6 @@ export class StorefrontSearchRepository {
           ? {
             min: priceRangeStats.min ?? 0,
             max: priceRangeStats.max ?? 0,
-          }
-          : undefined,
-        variantPriceRange: enabledAggregations.standard.has('variantPriceRange') && variantPriceRangeStats && (variantPriceRangeStats.min !== null || variantPriceRangeStats.max !== null)
-          ? {
-            min: variantPriceRangeStats.min ?? 0,
-            max: variantPriceRangeStats.max ?? 0,
           }
           : undefined,
       };

@@ -230,8 +230,6 @@ export const productsResolvers = {
             if (filters.variantOptionKeys) filterInput.variantOptionKeys = filters.variantOptionKeys;
             if (filters.priceMin !== undefined) filterInput.priceMin = filters.priceMin;
             if (filters.priceMax !== undefined) filterInput.priceMax = filters.priceMax;
-            if (filters.variantPriceMin !== undefined) filterInput.variantPriceMin = filters.variantPriceMin;
-            if (filters.variantPriceMax !== undefined) filterInput.variantPriceMax = filters.variantPriceMax;
             if (filters.variantSkus) filterInput.variantSkus = filters.variantSkus;
             
             logger.log('Fetching filters for aggregations', { shop, filterInput });
@@ -297,8 +295,6 @@ export const productsResolvers = {
           if (filters.variantOptionKeys) filterInput.variantOptionKeys = filters.variantOptionKeys;
           if (filters.priceMin !== undefined) filterInput.priceMin = filters.priceMin;
           if (filters.priceMax !== undefined) filterInput.priceMax = filters.priceMax;
-          if (filters.variantPriceMin !== undefined) filterInput.variantPriceMin = filters.variantPriceMin;
-          if (filters.variantPriceMax !== undefined) filterInput.variantPriceMax = filters.variantPriceMax;
           if (filters.variantSkus) filterInput.variantSkus = filters.variantSkus;
         }
         
@@ -343,7 +339,6 @@ function formatFilters(filters: any): any {
       collections: [],
       options: {},
       price: null,
-      variantPriceRange: null,
     };
   }
 
@@ -354,7 +349,6 @@ function formatFilters(filters: any): any {
     hasCollections: !!filters.collections,
     hasOptions: !!filters.options,
     hasPriceRange: !!filters.price,
-    hasVariantPriceRange: !!filters.variantPriceRange,
   });
 
   return {
@@ -367,12 +361,6 @@ function formatFilters(filters: any): any {
       ? {
           min: filters.price.min ?? 0,
           max: filters.price.max ?? 0,
-        }
-      : null,
-    variantPriceRange: filters.variantPriceRange
-      ? {
-          min: filters.variantPriceRange.min ?? 0,
-          max: filters.variantPriceRange.max ?? 0,
         }
       : null,
   };

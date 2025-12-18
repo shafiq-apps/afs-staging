@@ -20,8 +20,6 @@ This guide explains how to use query parameters to filter and search products. T
 | `collection` / `collections` | comma-separated | `174251016285` | Filter by collection IDs |
 | `priceMin` | number | `10.00` | Minimum product price |
 | `priceMax` | number | `100.00` | Maximum product price |
-| `variantPriceMin` | number | `5.00` | Minimum variant price |
-| `variantPriceMax` | number | `50.00` | Maximum variant price |
 
 ### Option Filters (Variant Options)
 
