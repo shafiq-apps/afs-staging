@@ -1,31 +1,80 @@
-# GraphQL Queries & Mutations - Sample Examples
+## GraphQL Queries & Mutations (App Server) — Updated Samples
 
-This document contains sample GraphQL queries and mutations for all available schemas in the application.
+This file is a **living set of examples** for *every* GraphQL operation exposed by the app server.
+It is kept aligned with the **actual schema strings in** `app/modules/graphql/schema/*`.
 
-## Table of Contents
+### Endpoint
 
-1. [Shops Schema](#shops-schema)
-2. [Products Schema](#products-schema)
-3. [Filters Schema](#filters-schema)
+- **URL**: `POST /graphql`
+- **Body**:
+
+```json
+{
+  "query": "query MyQuery($var: String!) { ... }",
+  "variables": { "var": "value" },
+  "operationName": "MyQuery"
+}
+```
+
+### Notes about JSON fields
+
+The schema uses a `JSON` scalar for:
+- **inputs** like `ProductSearchInput.options` / `ProductFilterInput.options`
+- **outputs** like `ProductFilters.options`
+
+**Best practice:** pass JSON via `variables` (not inline in the query string).
 
 ---
 
-## Shops Schema
+### Table of Contents
 
-### Queries
+1. [Shops](#shops)
+2. [Products](#products)
+3. [Storefront Filters (Aggregations)](#storefront-filters-aggregations)
+4. [Filters (Filter Config CRUD)](#filters-filter-config-crud)
+5. [Cache Admin (Debug)](#cache-admin-debug)
+6. [Combined Examples](#combined-examples)
+7. [cURL examples](#curl-examples)
 
-#### 1. Get Shop by Domain
+---
 
-**Query:**
+## Shops
+
+### Query: `shop(domain: String!)`
+
 ```graphql
-query GetShop($domain: String!) {
+query Shop($domain: String!) {
   shop(domain: $domain) {
     shop
     installedAt
     isActive
     scopes
+
+    # NOTE: these fields exist in the schema; be careful exposing them.
+    accessToken
+    refreshToken
+
     lastAccessed
     updatedAt
+    isDeleted
+    uninstalledAt
+    reinstalledAt
+    reinstalled
+
+    sessionId
+    state
+    isOnline
+    scope
+    expires
+    userId
+    firstName
+    lastName
+    email
+    accountOwner
+    locale
+    collaborator
+    emailVerified
+
     metadata {
       shopId
       currencyCode
@@ -39,210 +88,53 @@ query GetShop($domain: String!) {
 }
 ```
 
-**Variables:**
+**Variables**
+
 ```json
-{
-  "domain": "example.myshopify.com"
-}
+{ "domain": "example.myshopify.com" }
 ```
 
-**Response:**
+**Example response (shape)**
+
 ```json
 {
   "data": {
     "shop": {
       "shop": "example.myshopify.com",
-      "installedAt": "2025-01-15T10:30:00Z",
+      "installedAt": "2025-12-01T10:00:00.000Z",
       "isActive": true,
       "scopes": ["read_products", "write_products"],
-      "lastAccessed": "2025-11-27T09:00:00Z",
-      "updatedAt": "2025-11-27T09:00:00Z",
-      "metadata": {
-        "shopId": "12345678",
-        "currencyCode": "USD",
-        "email": "merchant@example.com"
-      },
-      "locals": {
-        "ip": "192.168.1.1",
-        "userAgent": "Mozilla/5.0..."
-      }
+      "accessToken": "shpat_***",
+      "refreshToken": "shpat_***",
+      "lastAccessed": "2025-12-18T09:15:00.000Z",
+      "updatedAt": "2025-12-18T09:15:00.000Z",
+      "uninstalledAt": null,
+      "reinstalledAt": null,
+      "metadata": { "shopId": "12345678", "currencyCode": "USD", "email": "merchant@example.com" },
+      "locals": { "ip": "203.0.113.10", "userAgent": "Mozilla/5.0" }
     }
   }
 }
 ```
 
-#### 2. Check if Shop Exists
+### Query: `shopExists(domain: String!)`
 
-**Query:**
 ```graphql
-query CheckShopExists($domain: String!) {
+query ShopExists($domain: String!) {
   shopExists(domain: $domain)
 }
 ```
 
-**Variables:**
+**Variables**
+
 ```json
-{
-  "domain": "example.myshopify.com"
-}
+{ "domain": "example.myshopify.com" }
 ```
 
-**Response:**
-```json
-{
-  "data": {
-    "shopExists": true
-  }
-}
-```
+### Query: `indexingStatus(shop: String!)`
 
-### Mutations
-
-#### 3. Create Shop
-
-**Mutation:**
 ```graphql
-mutation CreateShop($input: CreateShopInput!) {
-  createShop(input: $input) {
-    shop
-    installedAt
-    isActive
-    scopes
-    metadata {
-      shopId
-      currencyCode
-      email
-    }
-  }
-}
-```
-
-**Variables:**
-```json
-{
-  "input": {
-    "shop": "example.myshopify.com",
-    "accessToken": "shpat_xxxxxxxxxxxxx",
-    "refreshToken": "refresh_xxxxxxxxxxxxx",
-    "installedAt": "2025-01-15T10:30:00Z",
-    "isActive": true,
-    "scopes": ["read_products", "write_products"],
-    "metadata": {
-      "shopId": "12345678",
-      "currencyCode": "USD",
-      "email": "merchant@example.com"
-    },
-    "locals": {
-      "ip": "192.168.1.1",
-      "userAgent": "Mozilla/5.0..."
-    }
-  }
-}
-```
-
-**Response:**
-```json
-{
-  "data": {
-    "createShop": {
-      "shop": "example.myshopify.com",
-      "installedAt": "2025-01-15T10:30:00Z",
-      "isActive": true,
-      "scopes": ["read_products", "write_products"],
-      "metadata": {
-        "shopId": "12345678",
-        "currencyCode": "USD",
-        "email": "merchant@example.com"
-      }
-    }
-  }
-}
-```
-
-#### 4. Update Shop
-
-**Mutation:**
-```graphql
-mutation UpdateShop($domain: String!, $input: UpdateShopInput!) {
-  updateShop(domain: $domain, input: $input) {
-    shop
-    isActive
-    lastAccessed
-    updatedAt
-    metadata {
-      shopId
-      currencyCode
-      email
-    }
-  }
-}
-```
-
-**Variables:**
-```json
-{
-  "domain": "example.myshopify.com",
-  "input": {
-    "isActive": false,
-    "lastAccessed": "2025-11-27T10:00:00Z",
-    "metadata": {
-      "shopId": "12345678",
-      "currencyCode": "EUR",
-      "email": "newemail@example.com"
-    }
-  }
-}
-```
-
-**Response:**
-```json
-{
-  "data": {
-    "updateShop": {
-      "shop": "example.myshopify.com",
-      "isActive": false,
-      "lastAccessed": "2025-11-27T10:00:00Z",
-      "updatedAt": "2025-11-27T10:00:00Z",
-      "metadata": {
-        "shopId": "12345678",
-        "currencyCode": "EUR",
-        "email": "newemail@example.com"
-      }
-    }
-  }
-}
-```
-
-#### 5. Delete Shop
-
-**Mutation:**
-```graphql
-mutation DeleteShop($domain: String!) {
-  deleteShop(domain: $domain)
-}
-```
-
-**Variables:**
-```json
-{
-  "domain": "example.myshopify.com"
-}
-```
-
-**Response:**
-```json
-{
-  "data": {
-    "deleteShop": true
-  }
-}
-```
-
-#### 6. Get Indexing Status
-
-**Query:**
-```graphql
-query GetIndexingStatus($shop: String!) {
+query IndexingStatus($shop: String!) {
   indexingStatus(shop: $shop) {
     shop
     status
@@ -267,133 +159,83 @@ query GetIndexingStatus($shop: String!) {
 }
 ```
 
-**Variables:**
+**Variables**
+
 ```json
-{
-  "shop": "example.myshopify.com"
-}
+{ "shop": "example.myshopify.com" }
 ```
 
-**Response (In Progress):**
-```json
-{
-  "data": {
-    "indexingStatus": {
-      "shop": "example.myshopify.com",
-      "status": "in_progress",
-      "startedAt": "2025-11-28T12:00:00.000Z",
-      "completedAt": null,
-      "totalLines": 5000,
-      "totalIndexed": 2500,
-      "totalFailed": 5,
-      "progress": 50,
-      "failedItems": [
-        {
-          "id": "gid://shopify/Product/123",
-          "line": 1234,
-          "error": "Validation error",
-          "retryCount": 1
-        }
-      ],
-      "error": null,
-      "lastShopifyUpdatedAt": "2025-11-28T11:00:00.000Z",
-      "indexExists": true,
-      "lastUpdatedAt": "2025-11-28T12:15:00.000Z",
-      "duration": null
-    }
+### Mutation: `createShop(input: CreateShopInput!)`
+
+```graphql
+mutation CreateShop($input: CreateShopInput!) {
+  createShop(input: $input) {
+    shop
+    isActive
+    scopes
+    installedAt
+    updatedAt
+    lastAccessed
+    metadata
+    locals
   }
 }
 ```
 
-**Response (Completed):**
+**Variables**
+
 ```json
 {
-  "data": {
-    "indexingStatus": {
-      "shop": "example.myshopify.com",
-      "status": "success",
-      "startedAt": "2025-11-28T12:00:00.000Z",
-      "completedAt": "2025-11-28T12:30:00.000Z",
-      "totalLines": 5000,
-      "totalIndexed": 4995,
-      "totalFailed": 5,
-      "progress": 100,
-      "failedItems": [
-        {
-          "id": "gid://shopify/Product/123",
-          "line": 1234,
-          "error": "Validation error",
-          "retryCount": 3
-        }
-      ],
-      "error": null,
-      "lastShopifyUpdatedAt": "2025-11-28T11:00:00.000Z",
-      "indexExists": true,
-      "lastUpdatedAt": "2025-11-28T12:30:00.000Z",
-      "duration": 1800000
-    }
+  "input": {
+    "shop": "example.myshopify.com",
+    "accessToken": "shpat_***",
+    "refreshToken": "shpat_***",
+    "isActive": true,
+    "scopes": ["read_products", "write_products"],
+    "installedAt": "2025-12-01T10:00:00.000Z",
+    "metadata": { "shopId": "12345678", "currencyCode": "USD", "email": "merchant@example.com" },
+    "locals": { "ip": "203.0.113.10", "userAgent": "Mozilla/5.0" }
   }
 }
 ```
 
-**Response (Failed):**
-```json
-{
-  "data": {
-    "indexingStatus": {
-      "shop": "example.myshopify.com",
-      "status": "failed",
-      "startedAt": "2025-11-28T12:00:00.000Z",
-      "completedAt": "2025-11-28T12:10:00.000Z",
-      "totalLines": 5000,
-      "totalIndexed": 1000,
-      "totalFailed": 50,
-      "progress": 20,
-      "failedItems": [...],
-      "error": "Bulk operation failed: Connection timeout",
-      "lastShopifyUpdatedAt": "2025-11-28T11:00:00.000Z",
-      "indexExists": true,
-      "lastUpdatedAt": "2025-11-28T12:10:00.000Z",
-      "duration": 600000
-    }
+### Mutation: `updateShop(domain: String!, input: UpdateShopInput!)`
+
+```graphql
+mutation UpdateShop($domain: String!, $input: UpdateShopInput!) {
+  updateShop(domain: $domain, input: $input) {
+    shop
+    isActive
+    updatedAt
+    lastAccessed
+    metadata
   }
 }
 ```
 
-**Response (Not Started):**
+**Variables**
+
 ```json
 {
-  "data": {
-    "indexingStatus": {
-      "shop": "example.myshopify.com",
-      "status": "not_started",
-      "startedAt": null,
-      "completedAt": null,
-      "totalLines": null,
-      "totalIndexed": 0,
-      "totalFailed": 0,
-      "progress": 0,
-      "failedItems": [],
-      "error": null,
-      "lastShopifyUpdatedAt": null,
-      "indexExists": false,
-      "lastUpdatedAt": null,
-      "duration": null
-    }
+  "domain": "example.myshopify.com",
+  "input": {
+    "isActive": true,
+    "lastAccessed": "2025-12-18T09:15:00.000Z",
+    "metadata": { "currencyCode": "EUR" }
   }
 }
 ```
 
-**Note:** 
-- This query returns the current indexing status from Elasticsearch checkpoints
-- Status can be: `"in_progress"`, `"success"`, `"failed"`, or `"not_started"`
-- Progress is calculated as a percentage (0-100)
-- Duration is in milliseconds (null if indexing hasn't completed)
-- Failed items include details about products that failed to index
+### Mutation: `deleteShop(domain: String!)`
 
-#### 7. Reindex Products
+```graphql
+mutation DeleteShop($domain: String!) {
+  deleteShop(domain: $domain)
+}
+```
 
-**Mutation:**
+### Mutation: `reindexProducts(shop: String!)`
+
 ```graphql
 mutation ReindexProducts($shop: String!) {
   reindexProducts(shop: $shop) {
@@ -403,104 +245,27 @@ mutation ReindexProducts($shop: String!) {
 }
 ```
 
-**Variables:**
-```json
-{
-  "shop": "example.myshopify.com"
-}
-```
-
-**Response:**
-```json
-{
-  "data": {
-    "reindexProducts": {
-      "success": true,
-      "message": "Indexing started"
-    }
-  }
-}
-```
-
-**Error Response (Shop not found):**
-```json
-{
-  "data": {
-    "reindexProducts": {
-      "success": false,
-      "message": "Shop not found: example.myshopify.com"
-    }
-  }
-}
-```
-
-**Error Response (Shop missing access token):**
-```json
-{
-  "data": {
-    "reindexProducts": {
-      "success": false,
-      "message": "Shop missing access token: example.myshopify.com"
-    }
-  }
-}
-```
-
-**Error Response (Shop not active):**
-```json
-{
-  "data": {
-    "reindexProducts": {
-      "success": false,
-      "message": "Shop is not active: example.myshopify.com"
-    }
-  }
-}
-```
-
-**Note:** 
-- This mutation triggers bulk indexing of products from Shopify to Elasticsearch
-- The mutation returns immediately with a success status while indexing runs in the background
-- The indexing process is asynchronous and may take some time depending on the number of products
-- This is equivalent to the REST endpoint: `POST /indexing/reindex?shop={shop}`
-
 ---
 
-## Products Schema
+## Products
 
-### Queries
+### Query: `product(shop: String!, id: String!)`
 
-#### 1. Get Product by ID
-
-**Query:**
 ```graphql
-query GetProduct($shop: String!, $id: String!) {
+query Product($shop: String!, $id: String!) {
   product(shop: $shop, id: $id) {
     id
-    productId
     title
     handle
     status
-    tags
-    productType
     vendor
-    category {
-      name
-    }
-    createdAt
-    updatedAt
-    publishedAt
-    totalInventory
-    bestSellerRank
+    productType
+    tags
     minPrice
     maxPrice
     imageUrl
     imagesUrls
-    options {
-      id
-      name
-      values
-    }
+    options { name values }
     variants {
       id
       title
@@ -508,56 +273,22 @@ query GetProduct($shop: String!, $id: String!) {
       price
       availableForSale
       inventoryQuantity
+      selectedOptions { name value }
     }
   }
 }
 ```
 
-**Variables:**
+**Variables**
+
 ```json
-{
-  "shop": "example.myshopify.com",
-  "id": "gid://shopify/Product/123456789"
-}
+{ "shop": "example.myshopify.com", "id": "gid://shopify/Product/123" }
 ```
 
-**Response:**
-```json
-{
-  "data": {
-    "product": {
-      "id": "gid://shopify/Product/123456789",
-      "productId": "123456789",
-      "title": "Example Product",
-      "handle": "example-product",
-      "status": "ACTIVE",
-      "tags": ["tag1", "tag2"],
-      "productType": "Clothing",
-      "vendor": "Example Vendor",
-      "bestSellerRank": 5,
-      "minPrice": 29.99,
-      "maxPrice": 49.99,
-      "imageUrl": "https://cdn.shopify.com/...",
-      "variants": [
-        {
-          "id": "gid://shopify/ProductVariant/987654321",
-          "title": "Small / Red",
-          "sku": "PROD-001-S-RED",
-          "price": "29.99",
-          "availableForSale": true,
-          "inventoryQuantity": 100
-        }
-      ]
-    }
-  }
-}
-```
+### Query: `products(shop: String!, filters: ProductSearchInput)`
 
-#### 2. Get Products (First Page - Cursor Pagination)
-
-**Query:**
 ```graphql
-query GetProducts($shop: String!, $filters: ProductSearchInput) {
+query Products($shop: String!, $filters: ProductSearchInput) {
   products(shop: $shop, filters: $filters) {
     products {
       id
@@ -566,429 +297,132 @@ query GetProducts($shop: String!, $filters: ProductSearchInput) {
       productType
       minPrice
       maxPrice
-      bestSellerRank
       imageUrl
-      status
+      bestSellerRank
     }
     total
     nextCursor
     hasNextPage
     prevCursor
+
+    # Only returned when includeFilters=true
+    filters {
+      vendors { value count }
+      productTypes { value count }
+      tags { value count }
+      collections { value count }
+      options
+      price { min max }
+    }
   }
 }
 ```
 
-**Variables:**
+**Variables (include filter aggs + option filter + price range)**
+
 ```json
 {
   "shop": "example.myshopify.com",
   "filters": {
-    "limit": 20
+    "limit": 20,
+    "includeFilters": true,
+    "search": "jacket",
+    "vendors": ["Nike"],
+    "priceMin": 10,
+    "priceMax": 100,
+    "options": {
+      "Color": ["Black"],
+      "Size": ["M", "L"]
+    }
   }
 }
 ```
 
-**Response:**
+**Example response (shape)**
+
 ```json
 {
   "data": {
     "products": {
       "products": [
         {
-          "id": "gid://shopify/Product/123456789",
-          "title": "Product 1",
-          "vendor": "Vendor A",
-          "productType": "Type A",
-          "minPrice": 29.99,
-          "maxPrice": 49.99,
-          "bestSellerRank": 1,
+          "id": "gid://shopify/Product/123",
+          "title": "Jacket - Black",
+          "vendor": "Nike",
+          "productType": "Jackets",
+          "minPrice": 49.99,
+          "maxPrice": 89.99,
           "imageUrl": "https://cdn.shopify.com/...",
-          "status": "ACTIVE"
+          "bestSellerRank": 12
         }
       ],
-      "total": 150,
-      "nextCursor": "MjA=",
-      "hasNextPage": true,
-      "prevCursor": null
-    }
-  }
-}
-```
-
-#### 3. Get Products with Filters and Pagination (Next Page)
-
-**Query:**
-```graphql
-query GetProductsNextPage($shop: String!, $filters: ProductSearchInput) {
-  products(shop: $shop, filters: $filters) {
-    products {
-      id
-      title
-      vendor
-      productType
-      minPrice
-      maxPrice
-      bestSellerRank
-      imageUrl
-    }
-    total
-    nextCursor
-    hasNextPage
-    prevCursor
-  }
-}
-```
-
-**Variables:**
-```json
-{
-  "shop": "example.myshopify.com",
-  "filters": {
-    "limit": 20,
-    "cursor": "MjA="
-  }
-}
-```
-
-**Response:**
-```json
-{
-  "data": {
-    "products": {
-      "products": [...],
-      "total": 150,
-      "nextCursor": "NDA=",
-      "hasNextPage": true,
-      "prevCursor": "MA=="
-    }
-  }
-}
-```
-
-#### 4. Get Products with Search and Filters
-
-**Query:**
-```graphql
-query SearchProducts($shop: String!, $filters: ProductSearchInput) {
-  products(shop: $shop, filters: $filters) {
-    products {
-      id
-      title
-      vendor
-      productType
-      tags
-      minPrice
-      maxPrice
-      bestSellerRank
-      imageUrl
-    }
-    total
-    nextCursor
-    hasNextPage
-    prevCursor
-    filters {
-      vendors {
-        value
-        count
-      }
-      productTypes {
-        value
-        count
-      }
-      tags {
-        value
-        count
-      }
-      collections {
-        value
-        count
-      }
-      priceRange {
-        min
-        max
-      }
-    }
-  }
-}
-```
-
-**Variables:**
-```json
-{
-  "shop": "example.myshopify.com",
-  "filters": {
-    "search": "jacket",
-    "vendors": ["Vendor A", "Vendor B"],
-    "productTypes": ["Clothing"],
-    "tags": ["winter", "sale"],
-    "priceMin": 20,
-    "priceMax": 100,
-    "limit": 20,
-    "includeFilters": true
-  }
-}
-```
-
-**Response:**
-```json
-{
-  "data": {
-    "products": {
-      "products": [...],
-      "total": 45,
+      "total": 42,
       "nextCursor": "MjA=",
       "hasNextPage": true,
       "prevCursor": null,
       "filters": {
-        "vendors": [
-          { "value": "Vendor A", "count": 25 },
-          { "value": "Vendor B", "count": 20 }
-        ],
-        "productTypes": [
-          { "value": "Clothing", "count": 45 }
-        ],
-        "tags": [
-          { "value": "winter", "count": 30 },
-          { "value": "sale", "count": 15 }
-        ],
-        "collections": [...],
-        "priceRange": {
-          "min": 19.99,
-          "max": 99.99
-        }
+        "vendors": [{ "value": "Nike", "count": 42 }],
+        "productTypes": [{ "value": "Jackets", "count": 42 }],
+        "tags": [{ "value": "winter", "count": 18 }],
+        "collections": [{ "value": "174251016285", "count": 42 }],
+        "options": {
+          "Color": [{ "value": "Black", "count": 20 }],
+          "Size": [{ "value": "M", "count": 14 }]
+        },
+        "price": { "min": 0.0, "max": 999.99 }
       }
     }
   }
 }
 ```
 
-#### 5. Get Products with Option Filters
+---
 
-**Query:**
+## Storefront Filters (Aggregations)
+
+### Query: `storefrontFilters(shop: String!, filters: ProductFilterInput)`
+
+This returns **aggregations only** (no products).
+
 ```graphql
-query GetProductsWithOptions($shop: String!, $filters: ProductSearchInput) {
-  products(shop: $shop, filters: $filters) {
-    products {
-      id
-      title
-      options {
-        name
-        values
-      }
-      variants {
-        id
-        title
-        selectedOptions {
-          name
-          value
-        }
-        price
-      }
-    }
-    total
-    nextCursor
-    hasNextPage
-  }
-}
-```
-
-**Variables:**
-```json
-{
-  "shop": "example.myshopify.com",
-  "filters": {
-    "options": {
-      "Color": ["Red", "Blue"],
-      "Size": ["M", "L"]
-    },
-    "limit": 20
-  }
-}
-```
-
-**Response:**
-```json
-{
-  "data": {
-    "products": {
-      "products": [
-        {
-          "id": "gid://shopify/Product/123456789",
-          "title": "Example Product",
-          "options": [
-            {
-              "name": "Color",
-              "values": ["Red", "Blue", "Green"]
-            },
-            {
-              "name": "Size",
-              "values": ["S", "M", "L", "XL"]
-            }
-          ],
-          "variants": [
-            {
-              "id": "gid://shopify/ProductVariant/987654321",
-              "title": "Red / M",
-              "selectedOptions": [
-                { "name": "Color", "value": "Red" },
-                { "name": "Size", "value": "M" }
-              ],
-              "price": "29.99"
-            }
-          ]
-        }
-      ],
-      "total": 10,
-      "nextCursor": null,
-      "hasNextPage": false
-    }
-  }
-}
-```
-
-#### 6. Get Products with Sorting
-
-**Query:**
-```graphql
-query GetProductsSorted($shop: String!, $filters: ProductSearchInput) {
-  products(shop: $shop, filters: $filters) {
-    products {
-      id
-      title
-      minPrice
-      maxPrice
-      bestSellerRank
-      createdAt
-    }
-    total
-    nextCursor
-    hasNextPage
-  }
-}
-```
-
-**Variables:**
-```json
-{
-  "shop": "example.myshopify.com",
-  "filters": {
-    "sort": "price:asc",
-    "limit": 20
-  }
-}
-```
-
-**Available Sort Options:**
-- `"price:asc"` - Price ascending
-- `"price:desc"` - Price descending
-- `"createdAt:desc"` - Newest first (default)
-- `"createdAt:asc"` - Oldest first
-- `"bestSellerRank:asc"` - Best selling first
-
-#### 7. Get Storefront Filters (Aggregations)
-
-**Query:**
-```graphql
-query GetStorefrontFilters($shop: String!, $filters: ProductFilterInput) {
+query StorefrontFilters($shop: String!, $filters: ProductFilterInput) {
   storefrontFilters(shop: $shop, filters: $filters) {
-    vendors {
-      value
-      count
-    }
-    productTypes {
-      value
-      count
-    }
-    tags {
-      value
-      count
-    }
-    collections {
-      value
-      count
-    }
+    vendors { value count }
+    productTypes { value count }
+    tags { value count }
+    collections { value count }
     options
-    priceRange {
-      min
-      max
-    }
+    price { min max }
   }
 }
 ```
 
-**Variables (No filters - get all aggregations):**
+**Variables (no filters)**
+
 ```json
-{
-  "shop": "example.myshopify.com"
-}
+{ "shop": "example.myshopify.com" }
 ```
 
-**Variables (With filters - get filtered aggregations):**
+**Variables (with filters applied)**
+
 ```json
 {
   "shop": "example.myshopify.com",
   "filters": {
     "vendors": ["Nike"],
-    "productTypes": ["Jacket"]
+    "priceMax": 50
   }
 }
 ```
-
-**Response:**
-```json
-{
-  "data": {
-    "storefrontFilters": {
-      "vendors": [
-        { "value": "digitalcoo-filter-demo-10", "count": 49 }
-      ],
-      "productTypes": [
-        { "value": "watches", "count": 16 },
-        { "value": "Watches", "count": 1 }
-      ],
-      "tags": [
-        { "value": "jacket", "count": 24 },
-        { "value": "coat", "count": 18 },
-        { "value": "leather", "count": 8 }
-      ],
-      "collections": [
-        { "value": "174251016285", "count": 49 },
-        { "value": "306458427485", "count": 49 }
-      ],
-      "options": {
-        "Size": [
-          { "value": "M", "count": 26 },
-          { "value": "L", "count": 22 },
-          { "value": "S", "count": 19 }
-        ],
-        "Color": [
-          { "value": "Black", "count": 17 },
-          { "value": "black", "count": 10 },
-          { "value": "White", "count": 6 }
-        ]
-      },
-      "priceRange": {
-        "min": 0.02,
-        "max": 23998
-      }
-    }
-  }
-}
-```
-
-**Note:** This query returns the same data as the REST endpoint `GET /storefront/filters?shop={shop}`. It's useful for getting filter aggregations without fetching products.
 
 ---
 
-## Filters Schema
+## Filters (Filter Config CRUD)
 
-### Queries
+### Query: `filter(shop: String!, id: String!)`
 
-#### 1. Get Filter by ID
-
-**Query:**
 ```graphql
-query GetFilter($shop: String!, $id: String!) {
+query Filter($shop: String!, $id: String!) {
   filter(shop: $shop, id: $id) {
     id
     shop
@@ -998,860 +432,323 @@ query GetFilter($shop: String!, $id: String!) {
     targetScope
     status
     deploymentChannel
-    isActive
-    version
     createdAt
     updatedAt
-    allowedCollections {
-      label
-      value
-      id
-    }
+    version
+    tags
+
+    allowedCollections { label value id gid }
+
     options {
       handle
       position
-      optionId
       label
       optionType
       displayType
       selectionType
-      targetScope
-      
-      # Value Selection & Filtering
-      baseOptionType
-      selectedValues
-      removeSuffix
-      replaceText {
-        from
-        to
-      }
-      
-      # Value Grouping & Normalization
-      valueNormalization
-      groupBySimilarValues
-      
-      # Display Options
+      allowedOptions
       collapsed
       searchable
       showTooltip
       tooltipContent
       showCount
-      
-      # Filtering & Prefixes
-      removePrefix
-      filterByPrefix
-      
-      # Sorting
-      sortBy
-      manualSortedValues
-      
-      # Advanced
-      groups
-      menus
       showMenu
-      textTransform
-      paginationType
       status
+      optionSettings {
+        baseOptionType
+        removeSuffix
+        replaceText { from to }
+        variantOptionKey
+        valueNormalization
+        groupBySimilarValues
+        removePrefix
+        filterByPrefix
+        sortBy
+        manualSortedValues
+        groups
+        menus
+        textTransform
+        paginationType
+      }
     }
+
     settings {
-      # Legacy fields
       displayQuickView
       displayItemsCount
+      displayVariantInsteadOfProduct
       defaultView
       filterOrientation
+      displayCollectionImage
       hideOutOfStockItems
-      
-      # New nested structure
-      productDisplay {
-        gridColumns
-        showProductCount
-        showSortOptions
-        defaultSort
-      }
-      pagination {
-        type
-        itemsPerPage
-        showPageInfo
-        pageInfoFormat
-      }
+      onLaptop
+      onTablet
+      onMobile
+      productDisplay { gridColumns showProductCount showSortOptions defaultSort }
+      pagination { type itemsPerPage showPageInfo pageInfoFormat }
       showFilterCount
       showActiveFilters
       showResetButton
       showClearAllButton
     }
-    tags
   }
 }
 ```
 
-**Variables:**
-```json
-{
-  "shop": "example.myshopify.com",
-  "id": "41c36da4-6ac6-476e-a30e-21ab5c7341d2"
-}
-```
+### Query: `filters(shop: String!)`
 
-**Response:**
-```json
-{
-  "data": {
-    "filter": {
-      "id": "41c36da4-6ac6-476e-a30e-21ab5c7341d2",
-      "shop": "example.myshopify.com",
-      "title": "Main Product Filters",
-      "description": "Primary filter configuration for product listing",
-      "filterType": "custom",
-      "targetScope": "all",
-      "status": "published",
-      "deploymentChannel": "app",
-      "isActive": true,
-      "version": 2,
-      "createdAt": "2025-10-27T09:06:52.576Z",
-      "updatedAt": "2025-11-27T10:00:00.000Z",
-      "allowedCollections": [
-        {
-          "label": "Dresses",
-          "value": "dresses",
-          "id": "#158110974018"
-        }
-      ],
-      "options": [
-        {
-          "handle": "collection",
-          "position": 0,
-          "optionId": "6f30",
-          "label": "Collection",
-          "optionType": "Collection##6f30",
-          "displayType": "list",
-          "selectionType": "multiple",
-          "targetScope": "all",
-          "baseOptionType": null,
-          "selectedValues": [],
-          "removeSuffix": [],
-          "replaceText": [],
-          "valueNormalization": null,
-          "groupBySimilarValues": false,
-          "collapsed": false,
-          "searchable": true,
-          "showTooltip": false,
-          "tooltipContent": "",
-          "showCount": true,
-          "removePrefix": [],
-          "filterByPrefix": [],
-          "sortBy": "ascending",
-          "manualSortedValues": [],
-          "groups": [],
-          "menus": [],
-          "showMenu": false,
-          "textTransform": "none",
-          "paginationType": "scroll",
-          "status": "published"
-        }
-      ],
-      "settings": {
-        "displayQuickView": true,
-        "displayItemsCount": true,
-        "defaultView": "grid",
-        "filterOrientation": "vertical",
-        "hideOutOfStockItems": false,
-        "productDisplay": {
-          "gridColumns": 4,
-          "showProductCount": true,
-          "showSortOptions": true,
-          "defaultSort": "createdAt:desc"
-        },
-        "pagination": {
-          "type": "pages",
-          "itemsPerPage": 20,
-          "showPageInfo": true,
-          "pageInfoFormat": "Showing {start}-{end} of {total} products"
-        },
-        "showFilterCount": true,
-        "showActiveFilters": true,
-        "showResetButton": true,
-        "showClearAllButton": true
-      },
-      "tags": ["main", "product-listing"]
-    }
-  }
-}
-```
-
-#### 2. List All Filters
-
-**Query:**
 ```graphql
-query ListFilters($shop: String!) {
+query Filters($shop: String!) {
   filters(shop: $shop) {
     total
     filters {
       id
       title
-      description
-      filterType
       status
       deploymentChannel
-      isActive
       createdAt
       updatedAt
+      version
       tags
     }
   }
 }
 ```
 
-**Variables:**
-```json
-{
-  "shop": "example.myshopify.com"
-}
-```
+### Mutation: `createFilter(shop: String!, input: CreateFilterInput!)`
 
-**Response:**
-```json
-{
-  "data": {
-    "filters": {
-      "total": 2,
-      "filters": [
-        {
-          "id": "41c36da4-6ac6-476e-a30e-21ab5c7341d2",
-          "title": "Main Product Filters",
-          "description": "Primary filter configuration",
-          "filterType": "custom",
-          "status": "published",
-          "deploymentChannel": "app",
-          "isActive": true,
-          "createdAt": "2025-10-27T09:06:52.576Z",
-          "updatedAt": "2025-11-27T10:00:00.000Z",
-          "tags": ["main", "product-listing"]
-        },
-        {
-          "id": "553ae9a1-ef2c-4f63-a621-e2438f0701ff",
-          "title": "Testing",
-          "filterType": "custom",
-          "status": "published",
-          "deploymentChannel": "app",
-          "isActive": true,
-          "createdAt": "2025-10-17T18:05:49.280Z",
-          "updatedAt": "2025-11-11T08:46:18.915Z",
-          "tags": []
-        }
-      ]
-    }
-  }
-}
-```
-
-### Mutations
-
-#### 3. Create Filter
-
-**Mutation:**
 ```graphql
 mutation CreateFilter($shop: String!, $input: CreateFilterInput!) {
   createFilter(shop: $shop, input: $input) {
     id
+    shop
     title
-    description
-    filterType
-    targetScope
     status
     deploymentChannel
-    isActive
     createdAt
-    options {
-      handle
-      label
-      position
-      displayType
-      showCount
-    }
+    version
+    options { handle position label optionType displayType selectionType status }
   }
 }
 ```
 
-**Variables:**
+**Variables**
+
 ```json
 {
   "shop": "example.myshopify.com",
   "input": {
-    "title": "New Filter Configuration",
-    "description": "Custom filter setup for product search",
+    "title": "Main Filters",
     "filterType": "custom",
     "targetScope": "all",
-    "status": "published",
-    "deploymentChannel": "app",
-    "isActive": true,
-    "tags": ["custom", "search"],
+    "deploymentChannel": "APP",
+    "status": "PUBLISHED",
+    "tags": ["main"],
     "allowedCollections": [
-      {
-        "label": "Featured",
-        "value": "featured",
-        "id": "#123456789"
-      }
+      { "label": "All Products", "value": "all", "id": "0", "gid": "gid://shopify/Collection/0" }
     ],
     "options": [
       {
-        "handle": "collection",
+        "handle": "pr_price",
         "position": 0,
-        "optionId": "7a42",
-        "label": "Collection",
-        "optionType": "Collection##7a42",
-        "displayType": "list",
-        "selectionType": "multiple",
-        "targetScope": "all",
-        "collapsed": false,
-        "searchable": true,
-        "showTooltip": false,
-        "showCount": true,
-        "sortBy": "ascending",
-        "status": "published"
+        "label": "Price",
+        "optionType": "Price",
+        "displayType": "RANGE",
+        "selectionType": "RANGE",
+        "status": "PUBLISHED",
+        "optionSettings": { "baseOptionType": "PRICE" }
       },
       {
-        "handle": "color",
+        "handle": "op_color",
         "position": 1,
-        "optionId": "8b53",
         "label": "Color",
-        "optionType": "Color##8b53",
-        "displayType": "color-swatch",
-        "selectionType": "multiple",
-        "targetScope": "all",
-        "baseOptionType": null,
-        "selectedValues": [],
-        "removeSuffix": [],
-        "replaceText": [],
-        "valueNormalization": {
-          "red": "Red",
-          "Red": "Red",
-          "RED": "Red"
-        },
-        "groupBySimilarValues": true,
-        "collapsed": false,
-        "searchable": false,
-        "showTooltip": true,
-        "tooltipContent": "Select a color",
-        "showCount": true,
-        "sortBy": "manual",
-        "manualSortedValues": ["Red", "Blue", "Green", "Black", "White"],
-        "status": "published"
-      },
-      {
-        "handle": "winter-colors",
-        "position": 2,
-        "optionId": "9c64",
-        "label": "Winter Colors",
-        "optionType": "Color##9c64",
-        "displayType": "swatch",
-        "selectionType": "multiple",
-        "targetScope": "all",
-        "baseOptionType": "Color",
-        "selectedValues": ["Red", "Yellow", "Pink", "Dark Green"],
-        "removeSuffix": [],
-        "replaceText": [
-          { "from": "Dark Green", "to": "Forest Green" }
-        ],
-        "valueNormalization": null,
-        "groupBySimilarValues": false,
-        "collapsed": false,
-        "searchable": false,
-        "showTooltip": true,
-        "tooltipContent": "Winter color selection",
-        "showCount": true,
-        "sortBy": "ascending",
-        "status": "published"
-      },
-      {
-        "handle": "size",
-        "position": 3,
-        "optionId": "ad75",
-        "label": "Size",
-        "optionType": "Size##ad75",
-        "displayType": "checkbox",
-        "selectionType": "multiple",
-        "targetScope": "all",
-        "removePrefix": ["Size "],
-        "removeSuffix": [" (US)"],
-        "replaceText": [
-          { "from": "XS", "to": "Extra Small" },
-          { "from": "XL", "to": "Extra Large" }
-        ],
-        "collapsed": false,
-        "searchable": true,
-        "showCount": true,
-        "sortBy": "manual",
-        "manualSortedValues": ["XS", "S", "M", "L", "XL", "XXL"],
-        "status": "published"
-      }
-    ],
-    "settings": {
-      "displayQuickView": true,
-      "displayItemsCount": true,
-      "displayVariantInsteadOfProduct": false,
-      "defaultView": "grid",
-      "filterOrientation": "vertical",
-      "displayCollectionImage": false,
-      "hideOutOfStockItems": false,
-      "onLaptop": "expanded",
-      "onTablet": "expanded",
-      "onMobile": "expanded",
-      "productDisplay": {
-        "gridColumns": 4,
-        "showProductCount": true,
-        "showSortOptions": true,
-        "defaultSort": "createdAt:desc"
-      },
-      "pagination": {
-        "type": "pages",
-        "itemsPerPage": 20,
-        "showPageInfo": true,
-        "pageInfoFormat": "Showing {start}-{end} of {total} products"
-      },
-      "showFilterCount": true,
-      "showActiveFilters": true,
-      "showResetButton": true,
-      "showClearAllButton": true
-    }
-  }
-}
-```
-
-**Response:**
-```json
-{
-  "data": {
-    "createFilter": {
-      "id": "new-uuid-here",
-      "title": "New Filter Configuration",
-      "description": "Custom filter setup for product search",
-      "filterType": "custom",
-      "targetScope": "all",
-      "status": "published",
-      "deploymentChannel": "app",
-      "isActive": true,
-      "createdAt": "2025-11-27T10:30:00.000Z",
-      "options": [
-        {
-          "handle": "collection",
-          "label": "Collection",
-          "position": 0
-        },
-        {
-          "handle": "product-type",
-          "label": "Product Type",
-          "position": 1
-        },
-        {
-          "handle": "price",
-          "label": "Price",
-          "position": 2
-        }
-      ]
-    }
-  }
-}
-```
-
-#### 4. Update Filter
-
-**Mutation:**
-```graphql
-mutation UpdateFilter($shop: String!, $id: String!, $input: UpdateFilterInput!) {
-  updateFilter(shop: $shop, id: $id, input: $input) {
-    id
-    title
-    description
-    isActive
-    status
-    version
-    updatedAt
-    options {
-      handle
-      label
-      position
-    }
-    settings {
-      defaultView
-      filterOrientation
-      productDisplay {
-        gridColumns
-        defaultSort
-      }
-      pagination {
-        type
-        itemsPerPage
-      }
-      showResetButton
-      showClearAllButton
-    }
-  }
-}
-```
-
-**Variables:**
-```json
-{
-  "shop": "example.myshopify.com",
-  "id": "41c36da4-6ac6-476e-a30e-21ab5c7341d2",
-  "input": {
-    "title": "Updated Filter Title",
-    "description": "Updated description",
-    "isActive": false,
-    "status": "draft",
-    "tags": ["updated", "draft"],
-    "settings": {
-      "defaultView": "list",
-      "filterOrientation": "horizontal",
-      "productDisplay": {
-        "gridColumns": 3,
-        "defaultSort": "price:asc"
-      },
-      "pagination": {
-        "type": "load-more",
-        "itemsPerPage": 24
-      },
-      "showResetButton": true,
-      "showClearAllButton": true
-    }
-  }
-}
-```
-
-**Response:**
-```json
-{
-  "data": {
-    "updateFilter": {
-      "id": "41c36da4-6ac6-476e-a30e-21ab5c7341d2",
-      "title": "Updated Filter Title",
-      "description": "Updated description",
-      "isActive": false,
-      "status": "draft",
-      "version": 3,
-      "updatedAt": "2025-11-27T11:00:00.000Z",
-      "options": [...],
-      "settings": {
-        "defaultView": "list",
-        "filterOrientation": "horizontal",
-        "productDisplay": {
-          "gridColumns": 3,
-          "defaultSort": "price:asc"
-        },
-        "pagination": {
-          "type": "load-more",
-          "itemsPerPage": 24
-        },
-        "showResetButton": true,
-        "showClearAllButton": true
-      }
-    }
-  }
-}
-```
-
-#### 5. Update Filter Options Only
-
-**Mutation:**
-```graphql
-mutation UpdateFilterOptions($shop: String!, $id: String!, $input: UpdateFilterInput!) {
-  updateFilter(shop: $shop, id: $id, input: $input) {
-    id
-    title
-    options {
-      handle
-      position
-      label
-      displayType
-      collapsed
-      searchable
-      showTooltip
-      showCount
-      status
-    }
-    version
-    updatedAt
-  }
-}
-```
-
-**Variables:**
-```json
-{
-  "shop": "example.myshopify.com",
-  "id": "41c36da4-6ac6-476e-a30e-21ab5c7341d2",
-  "input": {
-    "options": [
-      {
-        "handle": "collection",
-        "position": 0,
-        "optionId": "6f30",
-        "label": "Collection",
-        "optionType": "Collection##6f30",
-        "displayType": "list",
-        "collapsed": true,
-        "searchable": true,
-        "showTooltip": false,
-        "showCount": true,
-        "status": "published"
-      },
-      {
-        "handle": "color",
-        "position": 1,
-        "optionId": "8b53",
-        "label": "Color",
-        "optionType": "Color##8b53",
-        "displayType": "color-swatch",
-        "baseOptionType": null,
-        "selectedValues": [],
-        "valueNormalization": {
-          "red": "Red",
-          "blue": "Blue"
-        },
-        "groupBySimilarValues": true,
-        "collapsed": false,
-        "searchable": false,
-        "showTooltip": true,
-        "tooltipContent": "Select color",
-        "showCount": true,
-        "status": "published"
+        "optionType": "Color",
+        "displayType": "CHECKBOX",
+        "selectionType": "MULTIPLE",
+        "status": "PUBLISHED",
+        "optionSettings": { "baseOptionType": "OPTION", "variantOptionKey": "Color" }
       }
     ]
   }
 }
 ```
 
-**Response:**
-```json
-{
-  "data": {
-    "updateFilter": {
-      "id": "41c36da4-6ac6-476e-a30e-21ab5c7341d2",
-      "title": "Main Product Filters",
-      "options": [
-        {
-          "handle": "collection",
-          "position": 0,
-          "label": "Collection",
-          "collapsed": true,
-          "searchable": true,
-          "status": "published"
-        },
-        {
-          "handle": "vendor",
-          "position": 1,
-          "label": "Vendor",
-          "collapsed": false,
-          "searchable": true,
-          "status": "published"
-        }
-      ],
-      "version": 4,
-      "updatedAt": "2025-11-27T11:15:00.000Z"
-    }
+### Mutation: `updateFilter(shop: String!, id: String!, input: CreateFilterInput!)`
+
+> Note: the schema currently uses `CreateFilterInput` for updates.
+
+```graphql
+mutation UpdateFilter($shop: String!, $id: String!, $input: CreateFilterInput!) {
+  updateFilter(shop: $shop, id: $id, input: $input) {
+    id
+    title
+    status
+    updatedAt
+    version
   }
 }
 ```
 
-#### 6. Delete Filter
+### Mutation: `deleteFilter(shop: String!, id: String!)`
 
-**Mutation:**
 ```graphql
 mutation DeleteFilter($shop: String!, $id: String!) {
   deleteFilter(shop: $shop, id: $id)
 }
 ```
 
-**Variables:**
-```json
-{
-  "shop": "example.myshopify.com",
-  "id": "41c36da4-6ac6-476e-a30e-21ab5c7341d2"
+---
+
+## Cache Admin (Debug)
+
+These operations are **disabled in production by default**.
+Enable with env var: `GRAPHQL_CACHE_ADMIN_ENABLED=true`.
+
+### Query: `cacheConfig`
+
+```graphql
+query CacheConfig {
+  cacheConfig {
+    enabled
+    maxSize
+    defaultTTL
+    checkInterval
+    searchTTL
+    filterTTL
+    filterListTTL
+    statsEnabled
+    logDisabled
+  }
 }
 ```
 
-**Response:**
+### Query: `cacheStats`
+
+```graphql
+query CacheStats {
+  cacheStats
+}
+```
+
+### Query: `cacheEntries(input: CacheEntriesInput)`
+
+```graphql
+query CacheEntries($input: CacheEntriesInput) {
+  cacheEntries(input: $input) {
+    area
+    key
+    ageMs
+    expiresInMs
+    accessCount
+    lastAccessed
+    isExpired
+  }
+}
+```
+
+**Variables**
+
 ```json
-{
-  "data": {
-    "deleteFilter": true
+{ "input": { "area": "filters", "shop": "example.myshopify.com", "limit": 50 } }
+```
+
+### Mutation: `cacheClearAll`
+
+```graphql
+mutation CacheClearAll {
+  cacheClearAll {
+    success
+    cleared
+    details
+  }
+}
+```
+
+### Mutation: `cacheClearShop(shop: String!)`
+
+```graphql
+mutation CacheClearShop($shop: String!) {
+  cacheClearShop(shop: $shop) {
+    success
+    cleared
+    details
+  }
+}
+```
+
+### Mutation: `cacheClearByKeyContains(keyContains: String!, area: CacheArea)`
+
+```graphql
+mutation CacheClearByKeyContains($keyContains: String!, $area: CacheArea) {
+  cacheClearByKeyContains(keyContains: $keyContains, area: $area) {
+    success
+    cleared
+    details
   }
 }
 ```
 
 ---
 
-## Combined Queries
+## Combined Examples
 
-### Get Shop with Products and Filters
+### Fetch shop + products + storefront aggs in one request
 
-**Query:**
 ```graphql
-query GetShopWithData($shopDomain: String!, $productFilters: ProductSearchInput) {
-  shop(domain: $shopDomain) {
+query Combined($domain: String!, $filters: ProductSearchInput, $facetFilters: ProductFilterInput) {
+  shop(domain: $domain) {
     shop
     isActive
-    metadata {
-      shopId
-      currencyCode
-    }
   }
-  
-  products(shop: $shopDomain, filters: $productFilters) {
-    products {
-      id
-      title
-      minPrice
-      maxPrice
-    }
+
+  products(shop: $domain, filters: $filters) {
     total
     nextCursor
     hasNextPage
   }
-  
-  filters(shop: $shopDomain) {
-    total
-    filters {
-      id
-      title
-      isActive
-    }
+
+  storefrontFilters(shop: $domain, filters: $facetFilters) {
+    price { min max }
   }
 }
 ```
 
-**Variables:**
+**Variables**
+
 ```json
 {
-  "shopDomain": "example.myshopify.com",
-  "productFilters": {
-    "limit": 10
-  }
-}
-```
-
-**Response:**
-```json
-{
-  "data": {
-    "shop": {
-      "shop": "example.myshopify.com",
-      "isActive": true,
-      "metadata": {
-        "shopId": "12345678",
-        "currencyCode": "USD"
-      }
-    },
-    "products": {
-      "products": [...],
-      "total": 150,
-      "nextCursor": "MTA=",
-      "hasNextPage": true
-    },
-    "filters": {
-      "total": 2,
-      "filters": [
-        {
-          "id": "41c36da4-6ac6-476e-a30e-21ab5c7341d2",
-          "title": "Main Product Filters",
-          "isActive": true
-        }
-      ]
-    }
-  }
+  "domain": "example.myshopify.com",
+  "filters": { "limit": 20, "includeFilters": false },
+  "facetFilters": { "priceMax": 50 }
 }
 ```
 
 ---
 
-## Notes
+## cURL examples
 
-### Pagination
-- Products query uses **cursor-based pagination**
-- Maximum limit is **500 products** per query
-- Use `nextCursor` from response to get next page
-- Use `prevCursor` from response to get previous page
-- Check `hasNextPage` to know if more results are available
+### Basic: shopExists
 
-### Filter Aggregations
-- Set `includeFilters: true` in `ProductSearchInput` to get filter aggregations
-- Aggregations include: vendors, productTypes, tags, collections, options, price ranges
-
-### Field Selection
-- GraphQL allows you to select only the fields you need
-- This reduces response size and improves performance
-- All fields are optional except those marked with `!`
-
-### Error Handling
-- All queries return errors in the `errors` array if something goes wrong
-- Check for `errors` in the response before using `data`
-- Error messages include details about what went wrong
-
-### Authentication
-- All queries require proper authentication
-- Shop domain must match authenticated shop
-- Mutations may require additional permissions
-
----
-
-## Testing with GraphQL Playground
-
-You can test these queries using any GraphQL client:
-
-1. **GraphQL Playground**: `http://localhost:PORT/graphql`
-2. **Postman**: Use POST request with JSON body
-3. **cURL**: 
 ```bash
-curl -X POST http://localhost:PORT/graphql \
-  -H "Content-Type: application/json" \
-  -d '{"query": "query { shop(domain: \"example.myshopify.com\") { shop isActive } }"}'
-```
-
----
-
-## Example cURL Commands
-
-### Get Shop
-```bash
-curl -X POST http://localhost:3000/graphql \
+curl -X POST "http://localhost:3000/graphql" \
   -H "Content-Type: application/json" \
   -d '{
-    "query": "query GetShop($domain: String!) { shop(domain: $domain) { shop isActive } }",
+    "operationName": "ShopExists",
+    "query": "query ShopExists($domain: String!) { shopExists(domain: $domain) }",
     "variables": { "domain": "example.myshopify.com" }
   }'
 ```
 
-### Get Products
-```bash
-curl -X POST http://localhost:3000/graphql \
-  -H "Content-Type: application/json" \
-  -d '{
-    "query": "query GetProducts($shop: String!) { products(shop: $shop, filters: { limit: 20 }) { products { id title } total nextCursor } }",
-    "variables": { "shop": "example.myshopify.com" }
-  }'
-```
+### Products: include aggregations
 
-### Create Filter
 ```bash
-curl -X POST http://localhost:3000/graphql \
+curl -X POST "http://localhost:3000/graphql" \
   -H "Content-Type: application/json" \
   -d '{
-    "query": "mutation CreateFilter($shop: String!, $input: CreateFilterInput!) { createFilter(shop: $shop, input: $input) { id title } }",
+    "operationName": "Products",
+    "query": "query Products($shop: String!, $filters: ProductSearchInput) { products(shop: $shop, filters: $filters) { total nextCursor hasNextPage filters { price { min max } } } }",
     "variables": {
       "shop": "example.myshopify.com",
-      "input": {
-        "title": "Test Filter",
-        "options": [
-          {
-            "handle": "collection",
-            "position": 0,
-            "optionId": "test123",
-            "label": "Collection",
-            "optionType": "Collection##test123"
-          }
-        ]
-      }
+      "filters": { "limit": 20, "includeFilters": true, "priceMax": 50 }
     }
   }'
 ```
-
