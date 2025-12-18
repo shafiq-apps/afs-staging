@@ -40,6 +40,11 @@ import {
 } from "../utils/filter.constants";
 import { normalizeShopifyId } from "app/utils/normalize-shopify-id";
 
+export enum PageMode {
+  CREATE = "CREATE",
+  EDIT = "EDIT",
+}
+
 interface FilterOption {
   // Identification
   handle: string;
@@ -108,6 +113,10 @@ interface MenuTreeNode {
   children?: MenuTreeNode[];
 }
 
+export interface FilterFormHandle {
+  save: () => Promise<void>;
+}
+
 // Combined filter state type - all filter-related state in one object
 interface FilterState {
   title: string;
@@ -144,7 +153,7 @@ interface FilterState {
 }
 
 interface FilterFormProps {
-  mode: "create" | "edit";
+  mode: PageMode;
   initialFilter?: {
     id?: string;
     title: string;
@@ -188,7 +197,6 @@ interface FilterFormProps {
   shop: string;
   graphqlEndpoint: string;
   storefrontFilters: StorefrontFilterData | null;
-  onSave?: () => void;
   onSavingChange?: (isSaving: boolean) => void;
 }
 
@@ -442,18 +450,12 @@ function AllowedOptionsSelector({
   );
 }
 
-export interface FilterFormHandle {
-  save: () => Promise<void>;
-  isSaving: boolean;
-}
-
 const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function FilterForm({
   mode,
   initialFilter,
   shop,
   graphqlEndpoint,
   storefrontFilters,
-  onSave,
   onSavingChange
 }, ref) {
   const navigate = useNavigate();
@@ -561,7 +563,6 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
 
   // Note: getBaseOptionType is imported from filter.constants.ts
   // This local function is kept for backward compatibility but should use the imported one
-
   const handleOpenCollectionPicker = useCallback(async () => {
     if (!shopify) return;
 
@@ -598,7 +599,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
   }, [shopify, allowedCollections]);
 
   useEffect(() => {
-    if (mode === "edit" && initialFilter) {
+    if (mode === PageMode.EDIT && initialFilter) {
       const normalizedOptions = (initialFilter.options || []).map((option: FilterOption) => ({
         ...option,
         allowedOptions: option.allowedOptions ?? [],
@@ -912,7 +913,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
           showClearAllButton: true,
         };
         setInitialFilterState(createInitState);
-      } else if (mode === "create") {
+      } else if (mode === PageMode.CREATE) {
         // Create mode without auto-population - set empty initial state
         const createInitState: FilterState = {
           title: "",
@@ -954,7 +955,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
 
   // Focus title input on mount for create mode
   useEffect(() => {
-    if (mode === "create") {
+    if (mode === PageMode.CREATE) {
       setTimeout(() => {
         const titleInput = document.getElementById(titleInputId) as HTMLInputElement;
         if (titleInput) {
@@ -1338,10 +1339,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
 
   // Expose save function and state via ref
   useImperativeHandle(ref, () => ({
-    save: async () => {
-      await handleSaveInternal();
-    },
-    isSaving
+    save: handleSaveInternal
   }));
 
   const handleSaveInternal = async (e?: React.FormEvent) => {
@@ -1379,6 +1377,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
 
     setIsSaving(true);
     onSavingChange?.(true);
+
     try {
       if (!shop) {
         shopify.toast.show("Shop information is missing", { isError: true });
@@ -1396,7 +1395,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
 
       const normalizedOptions = normalizeFilterOptions(filterOptions);
 
-      const mutation = mode === "create" 
+      const mutation = mode === PageMode.CREATE 
         ? `
           mutation CreateFilter($shop: String!, $input: CreateFilterInput!) {
             createFilter(shop: $shop, input: $input) {
@@ -1445,8 +1444,8 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
         description: description.trim() || undefined,
         status: toFilterStatus(status),
         filterType: filterType.trim() || undefined,
-        targetScope: typeof targetScope === 'string' ? targetScope : targetScope,
-        allowedCollections: allowedCollections,
+        targetScope: targetScope,
+        allowedCollections: targetScope === TargetScope.ENTITLED ? allowedCollections : [],
         options: normalizedOptions,
         deploymentChannel: deploymentChannel,
         tags: tags.length > 0 ? tags : undefined,
@@ -1454,8 +1453,8 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
           displayQuickView,
           displayItemsCount,
           displayVariantInsteadOfProduct,
-          defaultView: typeof defaultView === 'string' ? defaultView : defaultView,
-          filterOrientation: typeof filterOrientation === 'string' ? filterOrientation : filterOrientation,
+          defaultView: defaultView,
+          filterOrientation: filterOrientation,
           displayCollectionImage,
           hideOutOfStockItems,
           onLaptop: onLaptop || undefined,
@@ -1480,7 +1479,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
         },
       };
 
-      const variables: any = mode === "create" 
+      const variables: any = mode === PageMode.CREATE 
         ? { input }
         : { id: initialFilter?.id, input };
 
@@ -1498,7 +1497,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
 
       if (!response.ok) {
         const errorData = await response.json();
-        const errorMessage = errorData.error || `Failed to ${mode} filter`;
+        const errorMessage = errorData.error || `Failed to ${mode === PageMode.CREATE ? "create" : "update"} filter`;
         shopify.toast.show(errorMessage, { isError: true });
         setIsSaving(false);
         onSavingChange?.(false);
@@ -1508,10 +1507,10 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
       const result = await response.json();
 
       if (result.error || (result.errors && result.errors.length > 0)) {
-        const errorMessage = result.error || result.errors?.[0]?.message || `Failed to ${mode} filter`;
+        const errorMessage = result.error || result.errors?.[0]?.message || `Failed to ${mode === PageMode.CREATE ? "create" : "update"} filter`;
         shopify.toast.show(errorMessage, { isError: true });
       } else if (result.createFilter || result.updateFilter) {
-        shopify.toast.show(`Filter ${mode === "create" ? "created" : "updated"} successfully`);
+        shopify.toast.show(`Filter ${mode === PageMode.CREATE ? "created" : "updated"} successfully`);
         
         // Programmatically dismiss the save bar
         const dismissSaveBar = () => {
@@ -1545,17 +1544,15 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
           // Dismiss save bar again before navigation to ensure it's gone
           dismissSaveBar();
           
-          if (onSave) {
-            onSave();
-          } else if (mode === "create") {
+          if (mode === PageMode.CREATE) {
             navigate("/app/filters");
           }
         }, 100);
       } else {
-        shopify.toast.show(`Failed to ${mode} filter: Unexpected response`, { isError: true });
+        shopify.toast.show(`Failed to ${mode === PageMode.CREATE ? "create" : "update"} filter: Unexpected response`, { isError: true });
       }
     } catch (error: any) {
-      shopify.toast.show(error.message || `Failed to ${mode} filter`, { isError: true });
+      shopify.toast.show(error.message || `Failed to ${mode === PageMode.CREATE ? "create" : "update"} filter`, { isError: true });
     } finally {
       setIsSaving(false);
       onSavingChange?.(false);
@@ -1587,7 +1584,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
     return getAvailableDisplayTypes(optionType);
   };
 
-  const pageId = mode === "create" ? "filter-create" : `filter-edit-${initialFilter?.id || "new"}`;
+  const pageId = mode === PageMode.CREATE ? "filter-create" : `filter-edit-${initialFilter?.id || "new"}`;
   const pageKey = `${pageId}-${location.pathname}`;
 
   const handleSave = async (e?: React.FormEvent) => {

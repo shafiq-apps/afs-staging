@@ -3,320 +3,234 @@ import type {
   LoaderFunctionArgs,
 } from "react-router";
 import { useLoaderData, useLocation } from "react-router";
-import { useEffect, useRef, useState } from "react";
-import { authenticate } from "../shopify.server";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { boundary } from "@shopify/shopify-app-react-router/server";
-import FilterForm, { type FilterFormHandle } from "../components/FilterForm";
+
+import { authenticate } from "../shopify.server";
+import FilterForm, {
+  PageMode,
+  type FilterFormHandle,
+} from "../components/FilterForm";
 import { useTranslation } from "app/utils/translations";
 import { PaginationType, SortOrder } from "app/utils/filter.enums";
 
+/* ======================================================
+   LOADER
+====================================================== */
 
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
-  await authenticate.admin(request);
+  const { session } = await authenticate.admin(request);
 
   const GRAPHQL_ENDPOINT =
-    process.env.GRAPHQL_ENDPOINT || "http://localhost:3554/graphql";
+    process.env.GRAPHQL_ENDPOINT ?? "http://localhost:3554/graphql";
 
   const filterId = params.id;
   if (!filterId) {
-    return { 
-      filter: null, 
-      error: "Filter ID is required", 
-      shop: "", 
-      graphqlEndpoint: GRAPHQL_ENDPOINT,
-      storefrontFilters: null,
-    };
+    throw new Response("Filter ID is required", { status: 400 });
   }
 
-  try {
-    const { session } = await authenticate.admin(request);
-    const shop = session?.shop || "";
+  const shop = session.shop;
 
-    // Fetch filter data
-    const filterQuery = `
-      query GetFilter($shop: String!, $id: String!) {
-        filter(shop: $shop, id: $id) {
+  const filterQuery = `
+    query GetFilter($shop: String!, $id: String!) {
+      filter(shop: $shop, id: $id) {
+        id
+        title
+        description
+        status
+        targetScope
+        allowedCollections {
           id
-          title
-          description
+          label
+          value
+        }
+        options {
+          handle
+          position
+          label
+          optionType
+          displayType
+          selectionType
+          allowedOptions
+          collapsed
+          searchable
+          tooltipContent
+          showTooltip
+          showMenu
           status
-          targetScope
-          allowedCollections {
-            label
-            value
-            id
-          }
-          options {
-            handle
-            position
-            label
-            optionType
-            displayType
-            selectionType
-            allowedOptions
-            collapsed
-            searchable
-            tooltipContent
-            showTooltip
-            showMenu
-            status
-            optionSettings {
-              baseOptionType
-              removeSuffix
-              replaceText {
-                from
-                to
-              }
-              variantOptionKey
-              valueNormalization
-              groupBySimilarValues
-              removePrefix
-              filterByPrefix
-              sortBy
-              manualSortedValues
-              groups
-              menus
-              textTransform
-              paginationType
-            }
-          }
-          settings {
-            defaultView
-            filterOrientation
-            displayQuickView
-            displayItemsCount
-            displayVariantInsteadOfProduct
-            defaultView
-            filterOrientation
-            displayCollectionImage
-            hideOutOfStockItems
-            onLaptop
-            onTablet
-            onMobile
-            productDisplay {
-              gridColumns
-              showProductCount
-              showSortOptions
-              defaultSort
-            }
-            pagination {
-              type
-              itemsPerPage
-              showPageInfo
-              pageInfoFormat
-            }
-            showFilterCount
-            showActiveFilters
-            showResetButton
-            showClearAllButton
+          optionSettings {
+            baseOptionType
+            removeSuffix
+            replaceText { from to }
+            variantOptionKey
+            valueNormalization
+            groupBySimilarValues
+            removePrefix
+            filterByPrefix
+            sortBy
+            manualSortedValues
+            groups
+            menus
+            textTransform
+            paginationType
           }
         }
-      }
-    `;
-
-    // Fetch storefront filters for available values
-    const storefrontQuery = `
-      query GetStorefrontFilters($shop: String!) {
-        storefrontFilters(shop: $shop) {
-          vendors {
-            value
-            count
+        settings {
+          defaultView
+          filterOrientation
+          displayQuickView
+          displayItemsCount
+          displayVariantInsteadOfProduct
+          displayCollectionImage
+          hideOutOfStockItems
+          onLaptop
+          onTablet
+          onMobile
+          productDisplay {
+            gridColumns
+            showProductCount
+            showSortOptions
+            defaultSort
           }
-          productTypes {
-            value
-            count
+          pagination {
+            type
+            itemsPerPage
+            showPageInfo
+            pageInfoFormat
           }
-          tags {
-            value
-            count
-          }
-          collections {
-            value
-            count
-          }
-          options
-          priceRange {
-            min
-            max
-          }
+          showFilterCount
+          showActiveFilters
+          showResetButton
+          showClearAllButton
         }
       }
-    `;
+    }
+  `;
 
-    const [filterResponse, storefrontResponse] = await Promise.all([
-      fetch(GRAPHQL_ENDPOINT, {
+  const storefrontQuery = `
+    query GetStorefrontFilters($shop: String!) {
+      storefrontFilters(shop: $shop) {
+        vendors { value count }
+        productTypes { value count }
+        tags { value count }
+        collections { value count }
+        options
+        priceRange { min max }
+      }
+    }
+  `;
+
+  const [filterRes, storefrontRes] = await Promise.all([
+    fetch(GRAPHQL_ENDPOINT, {
       method: "POST",
-        headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-          query: filterQuery,
-        variables: { shop, id: filterId },
-      }),
-      }),
-      fetch(GRAPHQL_ENDPOINT, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          query: storefrontQuery,
-          variables: { shop },
-        }),
-      }),
-    ]);
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query: filterQuery, variables: { shop, id: filterId } }),
+    }),
+    fetch(GRAPHQL_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query: storefrontQuery, variables: { shop } }),
+    }),
+  ]);
 
-    const [filterResult, storefrontResult] = await Promise.all([
-      filterResponse.json(),
-      storefrontResponse.json(),
-    ]);
+  const filterJson = await filterRes.json();
+  const storefrontJson = await storefrontRes.json();
 
-    if (filterResult.errors) {
-      return {
-        filter: null,
-        error: filterResult.errors[0]?.message || "Failed to fetch filter",
-        shop,
-        graphqlEndpoint: GRAPHQL_ENDPOINT,
-        storefrontFilters: null,
-      };
-    }
-
-    const filter = filterResult.data?.filter;
-    const storefrontFilters = storefrontResult.data?.storefrontFilters || null;
-    
-    if (filter && filter.options) {
-      filter.options = filter.options.map((option: any) => {
-        const optionSettings = option.optionSettings || {};
-        return {
-          ...option,
-          tooltipContent: option.tooltipContent ?? "",
-          allowedOptions: option.allowedOptions ?? [],
-          // Extract fields from optionSettings to top level for backward compatibility
-          groups: optionSettings.groups ?? [],
-          removePrefix: optionSettings.removePrefix ?? [],
-          filterByPrefix: optionSettings.filterByPrefix ?? [],
-          manualSortedValues: optionSettings.manualSortedValues ?? [],
-          menus: optionSettings.menus ?? [],
-          removeSuffix: optionSettings.removeSuffix ?? [],
-          replaceText: optionSettings.replaceText ?? [],
-          sortBy: optionSettings.sortBy ?? SortOrder.COUNT,
-          textTransform: optionSettings.textTransform ?? "NONE",
-          paginationType: optionSettings.paginationType ?? PaginationType.PAGES,
-          groupBySimilarValues: optionSettings.groupBySimilarValues ?? false,
-          valueNormalization: optionSettings.valueNormalization ?? {},
-          baseOptionType: optionSettings.baseOptionType,
-          variantOptionKey: optionSettings.variantOptionKey,
-          // Keep optionSettings for reference
-          optionSettings: optionSettings,
-        };
-      });
-    }
-
-    return {
-      filter: filter || null,
-      error: undefined,
-      shop: shop || "",
-      graphqlEndpoint: GRAPHQL_ENDPOINT,
-      storefrontFilters
-    };
-  } catch (error: any) {
-    return {
-      filter: null,
-      error: error.message || "Failed to fetch filter",
-      graphqlEndpoint: GRAPHQL_ENDPOINT,
-      storefrontFilters: null
-    };
+  if (filterJson.errors) {
+    throw new Response(filterJson.errors[0].message, { status: 500 });
   }
+
+  const filter = filterJson.data.filter;
+
+  // Normalize option settings (single responsibility here)
+  filter.options = filter.options.map((option: any) => {
+    const s = option.optionSettings ?? {};
+    return {
+      ...option,
+      tooltipContent: option.tooltipContent ?? "",
+      allowedOptions: option.allowedOptions ?? [],
+      groups: s.groups ?? [],
+      removePrefix: s.removePrefix ?? [],
+      filterByPrefix: s.filterByPrefix ?? [],
+      manualSortedValues: s.manualSortedValues ?? [],
+      menus: s.menus ?? [],
+      removeSuffix: s.removeSuffix ?? [],
+      replaceText: s.replaceText ?? [],
+      sortBy: s.sortBy ?? SortOrder.COUNT,
+      textTransform: s.textTransform ?? "NONE",
+      paginationType: s.paginationType ?? PaginationType.PAGES,
+      groupBySimilarValues: s.groupBySimilarValues ?? false,
+      valueNormalization: s.valueNormalization ?? {},
+      baseOptionType: s.baseOptionType,
+      variantOptionKey: s.variantOptionKey,
+      optionSettings: s,
+    };
+  });
+
+  return {
+    filter,
+    shop,
+    graphqlEndpoint: GRAPHQL_ENDPOINT,
+    storefrontFilters: storefrontJson.data?.storefrontFilters ?? null,
+  };
 };
 
+/* ======================================================
+   PAGE
+====================================================== */
+
 export default function EditFilterPage() {
-  const { 
-    filter: initialFilter, 
-    error: loadError, 
-    shop, 
-    graphqlEndpoint,
-    storefrontFilters,
-  } = useLoaderData<typeof loader>();
-  
-  const location = useLocation();
+  const { filter, shop, graphqlEndpoint, storefrontFilters } =
+    useLoaderData<typeof loader>();
+
   const { t } = useTranslation();
-
-  if (loadError) {
-    return (
-      <s-page heading={t("filterForm.edit.pageTitle")}>
-        <s-section>
-          <s-banner tone="critical">
-            <s-text>Error: {loadError}</s-text>
-          </s-banner>
-        </s-section>
-      </s-page>
-    );
-  }
-
-  if (!initialFilter) {
-    return (
-      <s-page heading={t("filterForm.edit.pageTitle")}>
-        <s-section>
-          <s-spinner size="large" />
-          <s-text>Loading filter...</s-text>
-        </s-section>
-      </s-page>
-    );
-  }
-
-  const pageId = `filter-edit-${initialFilter?.id || "new"}`;
-
-  // Cleanup slots from other pages when navigating away
-  useEffect(() => {
-    // Only cleanup if we're NOT on this edit page anymore
-    const currentPath = `/app/filter/${initialFilter?.id || ''}`;
-    if (location.pathname === currentPath) {
-      return;
-    }
-
-    const cleanupSlots = () => {
-      // Find all slot elements that might be from this edit page
-      const allPrimaryActions = document.querySelectorAll('[slot="primary-action"]');
-      const allBreadcrumbs = document.querySelectorAll('[slot="breadcrumb-actions"]');
-      
-      // Remove slots that are inside a page with this edit page ID
-      allPrimaryActions.forEach(el => {
-        const parentPage = el.closest('s-page');
-        if (parentPage && parentPage.getAttribute('data-page-id') === pageId) {
-          el.remove();
-        }
-      });
-      
-      allBreadcrumbs.forEach(el => {
-        const parentPage = el.closest('s-page');
-        if (parentPage && parentPage.getAttribute('data-page-id') === pageId) {
-          el.remove();
-        }
-      });
-    };
-
-    // Cleanup after a short delay
-    const timeoutId = setTimeout(cleanupSlots, 100);
-
-    return () => {
-      clearTimeout(timeoutId);
-    };
-  }, [location.pathname, pageId, initialFilter?.id]);
+  const location = useLocation();
 
   const formRef = useRef<FilterFormHandle>(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  const handleSaveClick = async () => {
-    if (formRef.current && !isSaving) {
-      await formRef.current.save();
-    }
-  };
+  const pageId = `filter-edit-${filter.id}`;
 
-  const handleSavingChange = (saving: boolean) => {
+  /* ---------------- Save ---------------- */
+
+  const handleSaveClick = useCallback(async () => {
+    await formRef.current?.save();
+  }, []);
+
+  const handleSavingChange = useCallback((saving: boolean) => {
     setIsSaving(saving);
-  };
+  }, []);
+
+  /* ---------------- Slot cleanup ---------------- */
+
+  useEffect(() => {
+    const cleanup = () => {
+      document
+        .querySelectorAll('[slot="primary-action"], [slot="breadcrumb-actions"]')
+        .forEach((el) => {
+          const page = el.closest("s-page");
+          if (page?.getAttribute("data-page-id") === pageId) {
+            el.remove();
+          }
+        });
+    };
+
+    const id = setTimeout(cleanup, 100);
+    return () => clearTimeout(id);
+  }, [location.pathname, pageId]);
+
+  /* ---------------- Render ---------------- */
 
   return (
-    <s-page key={`${pageId}-${location.pathname}`} heading={initialFilter ? `${t("filterForm.edit.pageTitle")}: ${initialFilter.title}` : t("filterForm.edit.pageTitle")} data-page-id={pageId}>
+    <s-page
+      key={`${pageId}-${location.pathname}`}
+      data-page-id={pageId}
+      heading={`${t("filterForm.edit.pageTitle")}: ${filter.title}`}
+    >
       <s-link slot="breadcrumb-actions" href="/app/filters">
         Filters
       </s-link>
+
       <s-button
         slot="primary-action"
         variant="primary"
@@ -326,11 +240,12 @@ export default function EditFilterPage() {
       >
         Save
       </s-button>
+
       <FilterForm
         ref={formRef}
-        mode="edit"
-        initialFilter={initialFilter}
-        shop={shop || ""}
+        mode={PageMode.EDIT}
+        initialFilter={filter}
+        shop={shop}
         graphqlEndpoint={graphqlEndpoint}
         storefrontFilters={storefrontFilters}
         onSavingChange={handleSavingChange}
@@ -339,6 +254,9 @@ export default function EditFilterPage() {
   );
 }
 
-export const headers: HeadersFunction = (headersArgs) => {
-  return boundary.headers(headersArgs);
-};
+/* ======================================================
+   HEADERS
+====================================================== */
+
+export const headers: HeadersFunction = (args) =>
+  boundary.headers(args);
