@@ -141,7 +141,6 @@ export const productsSchema = `
     collections: [FacetValue!]!
     skus: [FacetValue!]!
     options: JSON! # Record<string, FacetValue[]>
-    # Backward compatibility: some clients query `priceRange` instead of `price`
     priceRange: PriceRange
     price: PriceRange
   }
