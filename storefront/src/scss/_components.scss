@@ -1,0 +1,153 @@
+/**
+ * Advanced Filter Search - Shared Components
+ * Reusable component styles
+ */
+
+/* ============================================================================
+   Base Reset
+   ============================================================================ */
+
+[data-afs-container] button,
+[data-afs-container] svg,
+[data-afs-container] a,
+[data-afs-container] input,
+[data-afs-container] select,
+[data-afs-container] textarea,
+[data-afs-container] label,
+[data-afs-container] span,
+[data-afs-container] div {
+  font-family: var(--afs-font-family);
+  background: var(--afs-bg-color);
+  height: auto;
+  width: auto;
+  line-height: normal;
+  color: var(--afs-text-color);
+  font-style: normal;
+  font-weight: var(--afs-font-weight, 400);
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+  outline: none;
+  border: none;
+}
+
+/* ============================================================================
+   Scrollbar Styles
+   ============================================================================ */
+
+@mixin custom-scrollbar($width: 6px, $track-color: transparent, $thumb-color: var(--afs-border-color)) {
+  &::-webkit-scrollbar {
+    width: $width;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: $track-color;
+    border-radius: 3px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: $thumb-color;
+    border-radius: 3px;
+    transition: background 0.2s ease;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: var(--afs-scrollbar-thumb-hover);
+  }
+
+  scrollbar-width: thin;
+  scrollbar-color: $thumb-color $track-color;
+}
+
+/* ============================================================================
+   Button Styles
+   ============================================================================ */
+
+@mixin button-base {
+  padding: 6px 12px;
+  font-size: 14px;
+  border: 1px solid var(--afs-border-color);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--afs-text-color);
+  font-family: var(--afs-font-family);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+@mixin button-hover {
+  background: var(--afs-accent-color);
+  color: var(--afs-text-color-inverse);
+  border-color: var(--afs-accent-color);
+}
+
+@mixin button-active {
+  transform: scale(0.98);
+}
+
+/* ============================================================================
+   Card Styles
+   ============================================================================ */
+
+@mixin card-base {
+  display: flex;
+  flex-direction: column;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  overflow: visible;
+  transition: none;
+  cursor: default;
+}
+
+/* ============================================================================
+   Skeleton Loading Animation
+   ============================================================================ */
+
+@keyframes afs-skeleton-loading {
+  0% {
+    background-position: 200% 0 !important;
+  }
+
+  100% {
+    background-position: -200% 0 !important;
+  }
+}
+
+@mixin skeleton-base {
+  background: linear-gradient(
+    90deg,
+    var(--afs-skeleton-color-light) 25%,
+    var(--afs-skeleton-color-dark) 50%,
+    var(--afs-skeleton-color-light) 75%
+  ) !important;
+  background-size: 200% 100% !important;
+  background-position: 200% 0 !important;
+  animation: afs-skeleton-loading 1.5s ease-in-out infinite !important;
+  will-change: background-position;
+  border-radius: 4px;
+  display: block !important;
+  position: relative;
+
+  &::before {
+    content: '';
+    display: block;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+  }
+}
+
+/* ============================================================================
+   Accessibility
+   ============================================================================ */
+
+[data-afs-container] {
+  .afs-filter-item:focus,
+  .afs-pagination__button:focus,
+  .afs-product-card:focus {
+    outline: 2px solid var(--afs-accent-color);
+    outline-offset: 2px;
+  }
+}

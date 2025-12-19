@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FILTERS</title>
 
-    <link rel="stylesheet" href="../dashboard/extensions/theme-extension/assets/advanced-filter-search.css">
+    <link rel="stylesheet" href="../dashboard/extensions/theme-extension/assets/advanced-filter-search.min.css">
 </head>
 
 <body>
@@ -35,7 +35,6 @@
             --afs-font-weight: 400;
             --afs-font-weight-bold: 600;
             --afs-font-style: normal;
-            padding: 12px 8%;
         }
     </style>
 
@@ -71,6 +70,10 @@
             padding: 4px 8px;
             font-size: 14px;
         }
+
+        [data-afs-container] {
+            padding: 12px 8%;
+        }
     </style>
 
     <div class="input-shop">
@@ -81,7 +84,7 @@
 
     <div data-afs-container id="afs-container"></div>
 
-    <script src="../dashboard/extensions/theme-extension/assets/advanced-filter-search.js"></script>
+    <script src="../dashboard/extensions/theme-extension/assets/advanced-filter-search.min.js"></script>
     <script>
         (function () {
             const shopsCollections = {

@@ -1,0 +1,923 @@
+/**
+ * Advanced Filter Search - Quick View Module
+ * 
+ * Handles product quick view modal functionality
+ */
+
+// ============================================================================
+// TYPE DEFINITIONS
+// ============================================================================
+
+interface ProductModalElement extends HTMLDialogElement {
+  _productData?: Product;
+  _currentVariantId?: number | string;
+  _slider?: SliderInstance;
+}
+
+interface Product {
+  id?: string | number;
+  productId?: string | number;
+  gid?: string | number;
+  handle?: string;
+  title?: string;
+  vendor?: string;
+  imageUrl?: string;
+  featuredImage?: ProductImage;
+  minPrice?: string | number;
+  maxPrice?: string | number;
+  totalInventory?: string | number;
+  variants?: ProductVariant[];
+  description?: string;
+  images?: string[];
+  options?: Array<{
+    name: string;
+    values: string[];
+  }>;
+}
+
+interface ProductVariant {
+  id: number | string;
+  available?: boolean;
+  availableForSale?: boolean;
+  price: number | string;
+  compare_at_price?: number | string;
+  option1?: string;
+  option2?: string;
+  option3?: string;
+  options?: string[];
+  featured_image?: {
+    src?: string;
+    url?: string;
+    position?: number;
+    variant_ids?: number[];
+  } | string;
+  image?: string | {
+    url?: string;
+    src?: string;
+  };
+  imageUrl?: string;
+  featuredImage?: {
+    url?: string;
+    src?: string;
+  };
+}
+
+interface ProductImage {
+  url?: string;
+  urlSmall?: string;
+  urlMedium?: string;
+  urlLarge?: string;
+  urlFallback?: string;
+}
+
+interface SliderInstance {
+  destroy: () => void;
+  goToSlide: (index: number) => void;
+  updateVariantImage: (variant: ProductVariant, images: string[], variants?: ProductVariant[]) => boolean;
+  readonly currentIndex: number;
+}
+
+interface ShopifyWindow extends Window {
+  Shopify?: {
+    routes?: {
+      root?: string;
+    };
+  };
+  AFSSlider?: new (container: string | HTMLElement, options?: {
+    thumbnailsPosition?: 'top' | 'left' | 'right' | 'bottom';
+    enableKeyboard?: boolean;
+    enableAutoHeight?: boolean;
+    maxHeight?: number | null;
+    enableMagnifier?: boolean;
+    magnifierZoom?: number;
+  }) => SliderInstance;
+  AFS_State?: AppState;
+  AFS_LOG?: typeof Log;
+  QuickAdd?: typeof QuickAdd;
+  $?: typeof $;
+  Lang?: {
+    buttons: { quickAdd: string; quickAddToCart: string; quickView: string; addToCart: string; buyNow: string; clear: string; clearAll: string; close: string; closeFilters: string; toggleFilters: string; filters: string; previous: string; next: string; apply: string };
+    labels: { sortBy: string; appliedFilters: string; search: string; price: string; collection: string; productUnavailable: string; loading: string; loadingProduct: string };
+    sortOptions: { bestSelling: string; titleAsc: string; titleDesc: string; priceAsc: string; priceDesc: string; createdAsc: string; createdDesc: string };
+    messages: { noProductsFound: string; oneProductFound: string; productsFound: string; showingProducts: string; pageOf: string; addedToCart: string; failedToLoad: string; failedToLoadProducts: string; failedToLoadProduct: string; failedToAddToCart: string; failedToProceedToCheckout: string; failedToLoadProductModal: string; failedToLoadFilters: string; initializationFailed: string; loadFailed: string; unknownError: string; checkConsole: string };
+    placeholders: { searchProducts: string; searchFilter: string };
+  };
+  SpecialValue?: { DEFAULT_TITLE: string };
+  Icons?: Icons;
+}
+
+interface Icons {
+  readonly rightArrow: string;
+  readonly downArrow: string;
+  readonly eye: string;
+  readonly minus: string;
+  readonly plus: string;
+  readonly close: string;
+}
+
+interface ImageOptimizationOptions {
+  width?: number;
+  height?: number;
+  quality?: number;
+  format?: string;
+  crop?: string | null;
+}
+
+// ============================================================================
+// QUICK VIEW MODULE
+// ============================================================================
+
+(function() {
+  'use strict';
+
+  // Access shared utilities from main AFS module
+  const shopifyWindow = window as unknown as ShopifyWindow;
+  const State = shopifyWindow.AFS_State || { moneyFormat: null, currency: null };
+  const Log = shopifyWindow.AFS_LOG || { error: () => {}, warn: () => {}, info: () => {}, debug: () => {}, log: () => {}, init: () => {} };
+  const QuickAdd = shopifyWindow.QuickAdd || { add: async () => {}, addFromForm: async () => {}, addVariant: async () => {}, showSuccess: () => {} };
+  const $ = shopifyWindow.$ || {
+    debounce: () => () => {},
+    toLowerCase: () => '',
+    inputDisplayType: () => 'checkbox' as const,
+    isMultiSelect: () => false,
+    split: () => [],
+    id: () => null,
+    str: () => '',
+    empty: () => true,
+    el: () => document.createElement('div'),
+    txt: () => document.createElement('div'),
+    clear: () => {},
+    frag: () => document.createDocumentFragment(),
+    optimizeImageUrl: () => '',
+    buildImageSrcset: () => '',
+    formatMoney: () => '',
+    equals: () => false,
+    equalsAny: () => false,
+    isVendorKey: () => false,
+    isProductTypeKey: () => false,
+    isTagKey: () => false,
+    isCollectionKey: () => false,
+    isPriceRangeKey: () => false,
+    isBestSelling: () => false,
+    isCollectionOptionType: () => false,
+    isPriceRangeOptionType: () => false
+  };
+  const Icons = shopifyWindow.Icons || { rightArrow: '', downArrow: '', close: '', minus: '', plus: '', eye: '' };
+
+  // ============================================================================
+  // PRODUCT MODAL FUNCTIONS
+  // ============================================================================
+
+  // Create Product Modal using Ajax API
+  async function createProductModal(handle: string, modalId: string): Promise<ProductModalElement> {
+    const dialog = $.el('dialog', 'afs-product-modal', { 'id': modalId }) as ProductModalElement;
+
+    // Show loading state
+    dialog.innerHTML = `
+        <div class="afs-product-modal__container">
+          <div class="afs-product-modal__close-container">
+            <button class="afs-product-modal__close" type="button">${Icons.close}</button>
+          </div>
+          <div class="afs-product-modal__content">
+            <div class="afs-product-modal__loading" style="padding: 2rem; text-align: center;">
+              ${Lang.labels.loadingProduct}
+            </div>
+          </div>
+        </div>
+      `;
+
+    // Get locale-aware URL using Shopify routes
+    const routesRoot = (shopifyWindow.Shopify && shopifyWindow.Shopify.routes && shopifyWindow.Shopify.routes.root) || '/';
+    const productUrl = `${routesRoot}products/${handle}.js`;
+
+    try {
+      // Fetch product data using Ajax API
+      const response = await fetch(productUrl);
+      if (!response.ok) {
+        throw new Error('Failed to load product');
+      }
+      const productData = await response.json() as Product;
+
+      // Ajax API returns product directly (not wrapped in {product: ...})
+      // Verify it has the expected structure
+      if (!productData.variants || !Array.isArray(productData.variants)) {
+        throw new Error('Invalid product data structure');
+      }
+
+      // Find first available variant or first variant
+      const selectedVariant = productData.variants.find(v => v.available) || productData.variants[0];
+      let currentVariantId: number | string | null = selectedVariant ? selectedVariant.id : null;
+
+      // Build variant selector HTML
+      const buildVariantSelector = (): string => {
+        if (!productData.variants || productData.variants.length === 0) return '';
+        
+        // Don't render variant selector if product has only one variant with "Default Title"
+        // This is Shopify's default single variant (not a real variant)
+        if (productData.variants.length === 1) {
+          const firstVariant = productData.variants[0];
+          const variantTitle = (firstVariant as { title?: string }).title;
+          if (variantTitle && $.equals(variantTitle, SpecialValue.DEFAULT_TITLE)) {
+            return '';
+          }
+        }
+
+        if (!productData.options || productData.options.length === 0) return '';
+
+        let html = '<div class="afs-product-modal__variant-selector">';
+        productData.options.forEach((option, optionIndex) => {
+          html += `<div class="afs-product-modal__option-group">`;
+          html += `<label class="afs-product-modal__option-label">${option.name}</label>`;
+          html += `<div class="afs-product-modal__option-values">`;
+
+          // Get unique values for this option
+          const uniqueValues = [...new Set(productData.variants!.map(v => {
+            if (optionIndex === 0) return v.option1;
+            if (optionIndex === 1) return v.option2;
+            return v.option3;
+          }).filter(Boolean))];
+
+          uniqueValues.forEach(value => {
+            const variant = productData.variants!.find(v => {
+              if (optionIndex === 0) return v.option1 === value;
+              if (optionIndex === 1) return v.option2 === value;
+              return v.option3 === value;
+            });
+            const isAvailable = variant && variant.available;
+            const isSelected = variant && variant.id === currentVariantId;
+
+            html += `<button 
+                class="afs-product-modal__option-value ${isSelected ? 'afs-product-modal__option-value--selected' : ''} ${!isAvailable ? 'afs-product-modal__option-value--unavailable' : ''}"
+                data-option-index="${optionIndex}"
+                data-option-value="${value}"
+                data-variant-id="${variant ? variant.id : ''}"
+                ${!isAvailable ? 'disabled' : ''}
+                type="button"
+              >${value}</button>`;
+          });
+
+          html += `</div></div>`;
+        });
+        html += '</div>';
+        return html;
+      };
+
+      // Build images HTML using slider structure with full optimization
+      const buildImagesHTML = (): { thumbnails: string; mainImages: string } => {
+        if (!productData.images || productData.images.length === 0) {
+          // Return empty structure if no images
+          return {
+            thumbnails: '',
+            mainImages: '<div class="afs-slider__main"><div style="padding: 2rem; text-align: center;">No images available</div></div>'
+          };
+        }
+
+        // Build thumbnails with optimized/cropped images and srcset
+        let thumbnailsHTML = '<div class="afs-slider__thumbnails">';
+        productData.images.forEach((image, index) => {
+          const isActive = index === 0 ? 'afs-slider__thumbnail--active' : '';
+
+          // Optimize thumbnail: small square cropped image
+          const thumbnailUrl = $.optimizeImageUrl(image, {
+            width: 100,
+            height: 100,
+            crop: 'center',
+            format: 'webp',
+            quality: 75
+          });
+
+          // Build srcset for thumbnails (responsive sizes with crop)
+          const thumbnailSizes = [80, 100, 120];
+          const thumbnailSrcset = thumbnailSizes.map(size => {
+            const optimized = $.optimizeImageUrl(image, {
+              width: size,
+              height: size,
+              crop: 'center',
+              format: 'webp',
+              quality: 75
+            });
+            return `${optimized} ${size}w`;
+          }).join(', ');
+
+          thumbnailsHTML += `
+              <div class="afs-slider__thumbnail ${isActive}" data-slide-index="${index}">
+                <img 
+                  src="${thumbnailUrl}" 
+                  srcset="${thumbnailSrcset}"
+                  sizes="100px"
+                  alt="${productData.title} - Thumbnail ${index + 1}" 
+                  loading="lazy"
+                  width="100"
+                  height="100"
+                />
+              </div>
+            `;
+        });
+        thumbnailsHTML += '</div>';
+
+        // Build main images with optimized full images (no cropping) and srcset
+        let mainImagesHTML = '<div class="afs-slider__main">';
+        productData.images.forEach((image, index) => {
+          // Optimize main image: larger size, no cropping, maintain aspect ratio
+          const mainImageUrl = $.optimizeImageUrl(image, {
+            width: 800,
+            height: 800, // Max height, will maintain aspect ratio
+            format: 'webp',
+            quality: 85
+            // No crop parameter = maintains aspect ratio
+          });
+
+          // Build srcset for main images (responsive sizes for different screen sizes, no crop)
+          const mainImageSizes = [400, 600, 800, 1000, 1200];
+          const mainImageSrcset = mainImageSizes.map(size => {
+            const optimized = $.optimizeImageUrl(image, {
+              width: size,
+              height: size,
+              format: 'webp',
+              quality: size <= 600 ? 80 : 85
+              // No crop = maintains aspect ratio
+            });
+            return `${optimized} ${size}w`;
+          }).join(', ');
+
+          mainImagesHTML += `
+              <img 
+                class="afs-slider__image" 
+                src="${mainImageUrl}" 
+                srcset="${mainImageSrcset}"
+                sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 600px"
+                alt="${productData.title} - Image ${index + 1}" 
+                loading="${index === 0 ? 'eager' : 'lazy'}"
+              />
+            `;
+        });
+        mainImagesHTML += '</div>';
+
+        return {
+          thumbnails: thumbnailsHTML,
+          mainImages: mainImagesHTML
+        };
+      };
+
+      const imagesHTML = buildImagesHTML();
+      const variantSelectorHTML = buildVariantSelector();
+
+      // Format price
+      const formatPrice = (price: number | string): string => {
+        return $.formatMoney(price, State.moneyFormat || '{{amount}}', State.currency || '');
+      };
+
+      const currentVariant = productData.variants.find(v => v.id === currentVariantId) || selectedVariant;
+      const priceHTML = formatPrice(currentVariant.price);
+      const comparePriceHTML = currentVariant.compare_at_price && currentVariant.compare_at_price > currentVariant.price
+        ? `<span class="afs-product-modal__compare-price">${formatPrice(currentVariant.compare_at_price)}</span>`
+        : '';
+
+      // Build full modal HTML
+      dialog.innerHTML = `
+          <div class="afs-product-modal__container">
+            <div class="afs-product-modal__close-container">
+              <button class="afs-product-modal__close" type="button">${Icons.close}</button>
+            </div>
+            <div class="afs-product-modal__content">
+              <div class="afs-product-modal__layout">
+                <div class="afs-product-modal__media">
+                  <div class="afs-slider" id="${modalId}-slider">
+                    ${imagesHTML.mainImages}
+                    ${imagesHTML.thumbnails}
+                  </div>
+                </div>
+                <div class="afs-product-modal__details">
+                  <div class="afs-product-modal__header">
+                    <div>
+                      <span class="afs-product-modal__vendor">${productData.vendor || ''}</span>
+                    </div>
+                    <h1 class="afs-product-modal__title">${productData.title || ''}</h1>
+                    <div class="afs-product-modal__price-container">
+                      <span class="afs-product-modal__price">${priceHTML}</span>
+                      ${comparePriceHTML}
+                    </div>
+                  </div>
+                  ${variantSelectorHTML}
+                  <div class="afs-product-modal__buttons">
+                    <div class="afs-product-modal__add-to-cart">
+                      <div class="afs-product-modal__incrementor">
+                        <button class="afs-product-modal__decrease" type="button">${Icons.minus}</button>
+                        <span class="afs-product-modal__count" id="${modalId}-count">1</span>
+                        <button class="afs-product-modal__increase" type="button">${Icons.plus}</button>
+                      </div>
+                      <button
+                        class="afs-product-modal__add-button"
+                        id="${modalId}-add-button"
+                        data-variant-id="${currentVariantId}"
+                        ${!currentVariant.available ? 'disabled' : ''}
+                        type="button"
+                      >
+                        ${Lang.buttons.addToCart}
+                      </button>
+                    </div>
+                    <button
+                      class="afs-product-modal__buy-button"
+                      id="${modalId}-buy-button"
+                      data-variant-id="${currentVariantId}"
+                      ${!currentVariant.available ? 'disabled' : ''}
+                      type="button"
+                    >
+                      ${Lang.buttons.buyNow}
+                    </button>
+                  </div>
+                  <div class="afs-product-modal__description">
+                    <span class="afs-product-modal__description-text">
+                      ${productData.description || ''}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+
+      // Store product data on dialog element
+      dialog._productData = productData;
+      dialog._currentVariantId = currentVariantId || undefined;
+
+      // Initialize slider after DOM is ready
+      setTimeout(() => {
+        const sliderContainer = dialog.querySelector<HTMLElement>(`#${modalId}-slider`);
+        if (sliderContainer && shopifyWindow.AFSSlider) {
+          dialog._slider = new shopifyWindow.AFSSlider(sliderContainer, {
+            thumbnailsPosition: 'left', // Can be 'top', 'left', 'right', 'bottom'
+            enableKeyboard: true,
+            enableAutoHeight: false, // Disable auto height to prevent shrinking
+            maxHeight: 600, // Fixed max height in pixels
+            enableMagnifier: true, // Enable image magnifier on hover
+            magnifierZoom: 2 // 2x zoom level for magnifier
+          });
+        }
+      }, 100);
+
+      // Setup event handlers
+      setupModalHandlers(dialog, modalId, productData, formatPrice);
+
+    } catch (error) {
+      Log.error('Failed to load product for modal', { error: error instanceof Error ? error.message : String(error), handle });
+      dialog.innerHTML = `
+          <div class="afs-product-modal__container">
+            <div class="afs-product-modal__close-container">
+              <button class="afs-product-modal__close" type="button">${Icons.close}</button>
+            </div>
+            <div class="afs-product-modal__content">
+              <div style="padding: 2rem; text-align: center;">
+                <p>${Lang.messages.failedToLoadProductModal}</p>
+              </div>
+            </div>
+          </div>
+        `;
+      setupCloseHandler(dialog);
+    }
+
+    return dialog;
+  }
+
+  // Setup modal event handlers
+  function setupModalHandlers(dialog: ProductModalElement, modalId: string, product: Product, formatPrice: (price: number | string) => string): void {
+    const closeBtn = dialog.querySelector<HTMLButtonElement>('.afs-product-modal__close');
+
+    const closeModal = (): void => {
+      // Destroy slider if it exists
+      if (dialog._slider && typeof dialog._slider.destroy === 'function') {
+        dialog._slider.destroy();
+        dialog._slider = undefined;
+      }
+
+      document.body.style.overflow = '';
+      document.body.style.removeProperty('overflow');
+      if (dialog.close) {
+        dialog.close();
+      } else {
+        dialog.style.display = 'none';
+      }
+    };
+
+    // Close button
+    if (closeBtn) {
+      closeBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        closeModal();
+      });
+    }
+
+    // ESC key and backdrop click
+    dialog.addEventListener('cancel', (e) => {
+      e.preventDefault();
+      closeModal();
+    });
+
+    dialog.addEventListener('click', (e) => {
+      if (e.target === dialog) {
+        closeModal();
+      }
+    });
+
+    // Quantity controls
+    const decreaseBtn = dialog.querySelector<HTMLButtonElement>('.afs-product-modal__decrease');
+    const increaseBtn = dialog.querySelector<HTMLButtonElement>('.afs-product-modal__increase');
+    const countDisplay = dialog.querySelector<HTMLElement>(`#${modalId}-count`);
+
+    if (decreaseBtn && countDisplay) {
+      decreaseBtn.addEventListener('click', () => {
+        const currentCount = parseInt(countDisplay.textContent || '1', 10) || 1;
+        if (currentCount > 1) {
+          countDisplay.textContent = String(currentCount - 1);
+        }
+      });
+    }
+
+    if (increaseBtn && countDisplay) {
+      increaseBtn.addEventListener('click', () => {
+        const currentCount = parseInt(countDisplay.textContent || '1', 10) || 1;
+        countDisplay.textContent = String(currentCount + 1);
+      });
+    }
+
+    // Variant selector
+    const variantButtons = dialog.querySelectorAll<HTMLButtonElement>('.afs-product-modal__option-value');
+    variantButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (btn.disabled) return;
+
+        // Get selected values for all options
+        const selectedValues: string[] = [];
+        if (product.options) {
+          product.options.forEach((option, optionIndex) => {
+            const selectedBtn = dialog.querySelector<HTMLButtonElement>(
+              `.afs-product-modal__option-value[data-option-index="${optionIndex}"].afs-product-modal__option-value--selected`
+            );
+            if (selectedBtn) {
+              selectedValues[optionIndex] = selectedBtn.dataset.optionValue || '';
+            }
+          });
+        }
+
+        // Update clicked option
+        const optionIndex = parseInt(btn.dataset.optionIndex || '0', 10);
+        selectedValues[optionIndex] = btn.dataset.optionValue || '';
+
+        // Remove selected from all options in this group
+        dialog.querySelectorAll<HTMLButtonElement>(`.afs-product-modal__option-value[data-option-index="${optionIndex}"]`).forEach(b => {
+          b.classList.remove('afs-product-modal__option-value--selected');
+        });
+        btn.classList.add('afs-product-modal__option-value--selected');
+
+        // Find matching variant
+        const matchingVariant = product.variants?.find(v => {
+          if (!product.options) return false;
+          return product.options.every((option, idx) => {
+            if (idx === 0) return v.option1 === selectedValues[idx];
+            if (idx === 1) return v.option2 === selectedValues[idx];
+            return v.option3 === selectedValues[idx];
+          });
+        });
+
+        if (matchingVariant) {
+          updateVariantInModal(dialog, modalId, matchingVariant, formatPrice);
+        }
+      });
+    });
+
+    // Add to cart button
+    const addButton = dialog.querySelector<HTMLButtonElement>(`#${modalId}-add-button`);
+    if (addButton && countDisplay) {
+      addButton.addEventListener('click', async () => {
+        if (addButton.disabled) return;
+        const quantity = parseInt(countDisplay.textContent || '1', 10) || 1;
+        const variantId = addButton.dataset.variantId;
+
+        try {
+          await QuickAdd.addVariant(parseInt(variantId || '0', 10), quantity);
+          closeModal();
+        } catch (error) {
+          Log.error('Failed to add to cart from modal', { error: error instanceof Error ? error.message : String(error) });
+          alert(Lang.messages.failedToAddToCart);
+        }
+      });
+    }
+
+    // Buy now button
+    const buyButton = dialog.querySelector<HTMLButtonElement>(`#${modalId}-buy-button`);
+    if (buyButton && countDisplay) {
+      buyButton.addEventListener('click', async () => {
+        if (buyButton.disabled) return;
+        const quantity = parseInt(countDisplay.textContent || '1', 10) || 1;
+        const variantId = buyButton.dataset.variantId;
+
+        try {
+          const routesRoot = (shopifyWindow.Shopify && shopifyWindow.Shopify.routes && shopifyWindow.Shopify.routes.root) || '/';
+          // Redirect to checkout
+          window.location.href = `${routesRoot}cart/${variantId}:${quantity}?checkout`;
+        } catch (error) {
+        Log.error('Failed to buy now', { error: error instanceof Error ? error.message : String(error) });
+        alert(Lang.messages.failedToProceedToCheckout);
+        }
+      });
+    }
+  }
+
+  // Update variant in modal (price, images, availability)
+  function updateVariantInModal(dialog: ProductModalElement, modalId: string, variant: ProductVariant, formatPrice: (price: number | string) => string): void {
+    // Update variant ID
+    dialog._currentVariantId = variant.id;
+
+    // Update price
+    const priceContainer = dialog.querySelector<HTMLElement>('.afs-product-modal__price-container');
+    if (priceContainer) {
+      const priceHTML = formatPrice(variant.price);
+      const comparePriceHTML = variant.compare_at_price && variant.compare_at_price > variant.price
+        ? `<span class="afs-product-modal__compare-price">${formatPrice(variant.compare_at_price)}</span>`
+        : '';
+      priceContainer.innerHTML = `
+          <span class="afs-product-modal__price">${priceHTML}</span>
+          ${comparePriceHTML}
+        `;
+    }
+
+    // Update add to cart button
+    const addButton = dialog.querySelector<HTMLButtonElement>(`#${modalId}-add-button`);
+    if (addButton) {
+      addButton.dataset.variantId = String(variant.id);
+      addButton.disabled = !variant.available;
+      addButton.innerHTML = Lang.buttons.addToCart;
+    }
+
+    // Update buy now button
+    const buyButton = dialog.querySelector<HTMLButtonElement>(`#${modalId}-buy-button`);
+    if (buyButton) {
+      buyButton.dataset.variantId = String(variant.id);
+      buyButton.disabled = !variant.available;
+    }
+
+    // Update images if variant has specific image
+    // Use slider's updateVariantImage method if available, otherwise fall back to manual matching
+    const product = dialog._productData;
+    if (product && product.images && dialog._slider && product.variants) {
+      // OPTIMIZATION: Quick check using variant_ids array
+      // Find which image is assigned to this variant by checking variant_ids
+      const currentVariantId = variant.id;
+      let targetImageIndex: number | null = null;
+
+      // Check if current variant has featured_image with variant_ids
+      if (variant.featured_image && typeof variant.featured_image === 'object' && variant.featured_image.variant_ids) {
+        // This variant is assigned to an image - check if it's different from current
+        const variantImagePosition = variant.featured_image.position;
+        if (variantImagePosition !== null && variantImagePosition !== undefined) {
+          const positionIndex = variantImagePosition - 1; // Convert from 1-based to 0-based
+          if (positionIndex >= 0 && positionIndex < product.images.length) {
+            // Check if current slide is different from this variant's image
+            const currentSlideIndex = dialog._slider.currentIndex || 0;
+            if (currentSlideIndex !== positionIndex) {
+              targetImageIndex = positionIndex;
+            }
+          }
+        }
+      } else {
+        // Variant doesn't have featured_image, but check if any other variant's image is assigned to this variant
+        // Iterate through all variants to find which image has this variant in its variant_ids
+        for (const v of product.variants) {
+          if (v.featured_image && typeof v.featured_image === 'object' && v.featured_image.variant_ids) {
+            // Check if current variant ID is in this image's variant_ids array
+            if (v.featured_image.variant_ids.includes(Number(currentVariantId))) {
+              const variantImagePosition = v.featured_image.position;
+              if (variantImagePosition !== null && variantImagePosition !== undefined) {
+                const positionIndex = variantImagePosition - 1; // Convert from 1-based to 0-based
+                if (positionIndex >= 0 && positionIndex < product.images.length) {
+                  const currentSlideIndex = dialog._slider.currentIndex || 0;
+                  if (currentSlideIndex !== positionIndex) {
+                    targetImageIndex = positionIndex;
+                    break; // Found the image, exit loop
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // If we found a target image index using variant_ids, use it
+      if (targetImageIndex !== null && dialog._slider.goToSlide) {
+        dialog._slider.goToSlide(targetImageIndex);
+        return; // Successfully updated using variant_ids optimization
+      }
+
+      // Try using the slider's built-in method (fallback, pass variants for optimization)
+      if (dialog._slider.updateVariantImage && product.images) {
+        const updated = dialog._slider.updateVariantImage(variant, product.images, product.variants);
+        if (updated) return; // Successfully updated, exit early
+      }
+
+      // Fallback: manual image matching (for backwards compatibility)
+      // Extract variant image URL from various possible structures
+      let variantImageUrl: string | null = null;
+      let variantImagePosition: number | null = null;
+
+      // Handle featured_image as object (Shopify format: { src: "...", position: 5, ... })
+      if (variant.featured_image) {
+        if (typeof variant.featured_image === 'object') {
+          variantImageUrl = variant.featured_image.src || variant.featured_image.url || null;
+          variantImagePosition = variant.featured_image.position || null;
+        } else if (typeof variant.featured_image === 'string') {
+          variantImageUrl = variant.featured_image;
+        }
+      }
+
+      // Fallback to other image properties
+      if (!variantImageUrl) {
+        variantImageUrl = (typeof variant.image === 'string' ? variant.image : null) ||
+          variant.imageUrl ||
+          (variant.image && typeof variant.image === 'object' ? variant.image.url || variant.image.src || null : null) ||
+          (variant.featuredImage && typeof variant.featuredImage === 'object' ? variant.featuredImage.url || variant.featuredImage.src || null : null);
+      }
+
+      if (variantImageUrl && product.images && dialog._slider.goToSlide) {
+        // Normalize image URL for comparison (remove protocol, query params, etc.)
+        const normalizeUrl = (url: string | { url?: string; src?: string } | null | undefined): string => {
+          if (!url) return '';
+          // Handle both string URLs and object URLs
+          const urlString = typeof url === 'string' ? url : (url && typeof url === 'object' ? (url.url || url.src || '') : '');
+          // Remove protocol, normalize to https, remove query params
+          return urlString
+            .replace(/^https?:\/\//, '')
+            .replace(/^\/\//, '')
+            .split('?')[0]
+            .toLowerCase()
+            .trim();
+        };
+
+        // First, try to use position if available (1-based, convert to 0-based index)
+        if (variantImagePosition !== null && variantImagePosition !== undefined) {
+          const positionIndex = variantImagePosition - 1; // Convert from 1-based to 0-based
+          if (positionIndex >= 0 && positionIndex < product.images.length) {
+            dialog._slider.goToSlide(positionIndex);
+            return;
+          }
+        }
+
+        const normalizedVariantImage = normalizeUrl(variantImageUrl);
+
+        // Find matching image in product images array
+        const variantImageIndex = product.images.findIndex(img => {
+          const normalizedImg = normalizeUrl(img);
+          // Compare normalized URLs
+          return normalizedImg === normalizedVariantImage ||
+            normalizedImg.includes(normalizedVariantImage) ||
+            normalizedVariantImage.includes(normalizedImg);
+        });
+
+        if (variantImageIndex !== -1) {
+          // Use slider's goToSlide method to change to variant's image
+          dialog._slider.goToSlide(variantImageIndex);
+        } else {
+          // If exact match not found, try to find by filename
+          const variantImageFilename = normalizedVariantImage.split('/').pop();
+          if (variantImageFilename) {
+            const filenameMatchIndex = product.images.findIndex(img => {
+              const imgFilename = normalizeUrl(img).split('/').pop();
+              return imgFilename === variantImageFilename;
+            });
+
+            if (filenameMatchIndex !== -1 && dialog._slider.goToSlide) {
+              dialog._slider.goToSlide(filenameMatchIndex);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Setup close handler only
+  function setupCloseHandler(dialog: ProductModalElement): void {
+    const closeBtn = dialog.querySelector<HTMLButtonElement>('.afs-product-modal__close');
+    const closeModal = (): void => {
+      // Destroy slider if it exists
+      if (dialog._slider && typeof dialog._slider.destroy === 'function') {
+        dialog._slider.destroy();
+        dialog._slider = undefined;
+      }
+
+      document.body.style.overflow = '';
+      document.body.style.removeProperty('overflow');
+      if (dialog.close) {
+        dialog.close();
+      } else {
+        dialog.style.display = 'none';
+      }
+    };
+
+    if (closeBtn) {
+      closeBtn.addEventListener('click', closeModal);
+    }
+    dialog.addEventListener('cancel', closeModal);
+    dialog.addEventListener('click', (e) => {
+      if (e.target === dialog) closeModal();
+    });
+  }
+
+  // ============================================================================
+  // QUICK VIEW BUTTON CREATION
+  // ============================================================================
+
+  /**
+   * Creates a quick view button for a product card
+   * This function should be called from the main AFS module when creating product cards
+   */
+  function createQuickViewButton(product: Product): HTMLElement | null {
+    if (!product.handle) return null;
+
+    const quickViewBtn = $.el('button', 'afs-product-card__quick-view', {
+      'data-product-handle': product.handle,
+      'data-product-id': String(product.id || product.productId || product.gid || ''),
+      'aria-label': Lang.buttons.quickView,
+      'type': 'button'
+    });
+    const quickViewIcon = $.el('span', 'afs-product-card__quick-view-icon');
+    quickViewIcon.innerHTML = Icons.eye;
+    quickViewBtn.appendChild(quickViewIcon);
+    return quickViewBtn;
+  }
+
+  // ============================================================================
+  // QUICK VIEW EVENT HANDLER
+  // ============================================================================
+
+  /**
+   * Handles quick view button clicks
+   * This should be called from the main AFS module's event handler
+   */
+  function handleQuickViewClick(handle: string): void {
+    if (!handle) return;
+
+    // Open product modal using Ajax API
+    const modalId = `product-modal-${handle}`;
+    let modal = document.getElementById(modalId) as ProductModalElement | null;
+
+    const openModal = async (): Promise<void> => {
+      if (!modal) {
+        // Create modal (async - fetches product data)
+        modal = await createProductModal(handle, modalId);
+        document.body.appendChild(modal);
+      }
+
+      // Show modal
+      if (modal.showModal) {
+        document.body.style.overflow = 'hidden';
+        modal.showModal();
+      } else {
+        document.body.style.overflow = 'hidden';
+        modal.style.display = 'block';
+      }
+
+      // Ensure overflow is restored when modal closes
+      const restoreScroll = (): void => {
+        document.body.style.overflow = '';
+        document.body.style.removeProperty('overflow');
+      };
+
+      modal.addEventListener('close', restoreScroll, { once: true });
+
+      const observer = new MutationObserver(() => {
+        if (modal && !modal.open && !modal.hasAttribute('open')) {
+          restoreScroll();
+          observer.disconnect();
+        }
+      });
+      if (modal) {
+        observer.observe(modal, { attributes: true, attributeFilter: ['open'] });
+      }
+    };
+
+    openModal().catch(error => {
+      Log.error('Failed to open product modal', { error: error instanceof Error ? error.message : String(error), handle });
+      alert(Lang.messages.failedToLoadProductModal);
+    });
+  }
+
+  // ============================================================================
+  // EXPORTS
+  // ============================================================================
+
+  // Export functions to window for use by main AFS module
+  if (typeof window !== 'undefined') {
+    (window as typeof window & {
+      AFSQuickView?: {
+        createQuickViewButton: (product: Product) => HTMLElement | null;
+        handleQuickViewClick: (handle: string) => void;
+        createProductModal: (handle: string, modalId: string) => Promise<ProductModalElement>;
+      };
+    }).AFSQuickView = {
+      createQuickViewButton,
+      handleQuickViewClick,
+      createProductModal
+    };
+  }
+
+})();

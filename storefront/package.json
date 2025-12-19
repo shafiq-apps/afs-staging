@@ -1,0 +1,25 @@
+{
+  "name": "storefront",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "",
+  "main": "index.ts",
+  "scripts": {
+    "build": "npx tsx build.ts",
+    "watch": "npx tsx watch build.ts"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^25.0.3",
+    "concurrently": "^9.2.1",
+    "esbuild": "^0.27.2",
+    "sass": "^1.97.0",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.3"
+  }
+}

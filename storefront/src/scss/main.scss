@@ -1,0 +1,14 @@
+/**
+ * Advanced Filter Search - Main Styles
+ * Scoped styles with afs- prefix to prevent conflicts
+ * 2025 © Digitalcoo 
+ */
+
+@use 'variables' as *;
+@use 'components' as *;
+@use 'filters';
+@use 'products-grid';
+@use 'pagination';
+@use 'skeleton';
+@use 'responsive';
+@use 'afs-quickview';
