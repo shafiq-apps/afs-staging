@@ -3,6 +3,19 @@
  * 
 **/
 
+// Import quickview functions and types
+import { 
+  createQuickViewButton, 
+  handleQuickViewClick, 
+  createProductModal,
+  type Product,
+  type ProductVariant,
+  type ProductImage,
+  type ProductModalElement,
+  type SliderInstance,
+  type SliderOptions
+} from './quickview.js';
+
 // ============================================================================
 // TYPE DEFINITIONS
 // ============================================================================
@@ -95,61 +108,7 @@ interface FilterOption {
   key?: string;
 }
 
-interface ProductImage {
-  url?: string;
-  urlSmall?: string;
-  urlMedium?: string;
-  urlLarge?: string;
-  urlFallback?: string;
-}
-
-interface ProductVariant {
-  id: number | string;
-  available?: boolean;
-  availableForSale?: boolean;
-  price: number | string;
-  compare_at_price?: number | string;
-  option1?: string;
-  option2?: string;
-  option3?: string;
-  options?: string[];
-  featured_image?: {
-    src?: string;
-    url?: string;
-    position?: number;
-    variant_ids?: number[];
-  } | string;
-  image?: string | {
-    url?: string;
-    src?: string;
-  };
-  imageUrl?: string;
-  featuredImage?: {
-    url?: string;
-    src?: string;
-  };
-}
-
-interface Product {
-  id?: string | number;
-  productId?: string | number;
-  gid?: string | number;
-  handle?: string;
-  title?: string;
-  vendor?: string;
-  imageUrl?: string;
-  featuredImage?: ProductImage;
-  minPrice?: string | number;
-  maxPrice?: string | number;
-  totalInventory?: string | number;
-  variants?: ProductVariant[];
-  description?: string;
-  images?: string[];
-  options?: Array<{
-    name: string;
-    values: string[];
-  }>;
-}
+// Product, ProductVariant, ProductImage, ProductModalElement, and SliderInstance types are imported from quickview.ts
 
 interface Collection {
   id?: string | number;
@@ -254,25 +213,13 @@ interface AFSConfig {
   keep?: string[] | typeof SpecialValue.ALL | string | null;
 }
 
-// SliderInstance interface - matches AFSSlider class public API
-interface SliderInstance {
-  destroy: () => void;
-  goToSlide: (index: number) => void;
-  updateVariantImage: (variant: ProductVariant, images: string[], variants?: ProductVariant[]) => boolean;
-  readonly currentIndex: number;
-}
-
-interface ProductModalElement extends HTMLDialogElement {
-  _productData?: Product;
-  _currentVariantId?: number | string;
-  _slider?: SliderInstance;
-}
+// SliderInstance and ProductModalElement types are imported from quickview.ts
 
 interface FilterItemsElement extends HTMLElement {
   _items?: FilterValue[];
 }
 
-interface ShopifyWindow extends Window {
+interface AppWindow extends Window {
   Shopify?: {
     routes?: {
       root?: string;
@@ -1045,7 +992,7 @@ const UrlManager = {
 // ============================================================================
 
 const API = {
-  baseURL: 'http://localhost:3554', // Default, should be set via config
+  baseURL: 'https://fstaging.digitalcoo.com',
   cache: new Map<string, ProductsResponseData>(),
   timestamps: new Map<string, number>(),
   pending: new Map<string, Promise<ProductsResponseData>>(),
@@ -2092,8 +2039,7 @@ const DOM = {
       }
 
       // Add Quick View button - opens product modal
-      const shopifyWindow = window as ShopifyWindow;
-      const quickViewBtn = shopifyWindow.AFSQuickView?.createQuickViewButton(p);
+      const quickViewBtn = createQuickViewButton(p);
       if (quickViewBtn) {
         imgContainer.appendChild(quickViewBtn);
       }
@@ -2898,32 +2844,11 @@ const Filters = {
 // ============================================================================
 // PRODUCT MODAL FUNCTIONS
 // ============================================================================
-// NOTE: Product modal functions have been moved to afs-quickview.ts
-// The functions are available via window.AFSQuickView
+// NOTE: Product modal functions have been moved to quickview.ts
+// The functions are imported from quickview.ts module
 
-// Type definition for backward compatibility
-async function createProductModal(handle: string, modalId: string): Promise<ProductModalElement> {
-  const shopifyWindow = window as ShopifyWindow;
-  if (shopifyWindow.AFSQuickView?.createProductModal) {
-    return shopifyWindow.AFSQuickView.createProductModal(handle, modalId);
-  }
-  throw new Error('AFSQuickView module not loaded');
-}
-
-// Legacy function stubs for backward compatibility
-function setupModalHandlers(dialog: ProductModalElement, modalId: string, product: Product, formatPrice: (price: number | string) => string): void {
-  // Handled by AFSQuickView module
-}
-
-function updateVariantInModal(dialog: ProductModalElement, modalId: string, variant: ProductVariant, formatPrice: (price: number | string) => string): void {
-  // Handled by AFSQuickView module
-}
-
-function setupCloseHandler(dialog: ProductModalElement): void {
-  // Handled by AFSQuickView module
-}
-
-// NOTE: Modal handler implementations moved to afs-quickview.ts
+// Re-export createProductModal for backward compatibility (if needed elsewhere)
+// The function is already imported from quickview.ts above
 
 // ============================================================================
 // QUICK ADD FUNCTIONALITY
@@ -3267,12 +3192,7 @@ const Events = {
         const handle = btn.getAttribute('data-product-handle');
         if (handle) {
           // Use quick view module
-          const shopifyWindow = window as ShopifyWindow;
-          if (shopifyWindow.AFSQuickView?.handleQuickViewClick) {
-            shopifyWindow.AFSQuickView.handleQuickViewClick(handle);
-          } else {
-            Log.error('AFSQuickView module not loaded');
-          }
+          handleQuickViewClick(handle);
         }
       }
     });
@@ -3859,20 +3779,20 @@ const AFS: AFSInterface = {
 };
 
 // Export to window
-const shopifyWindow = window as unknown as ShopifyWindow;
-shopifyWindow.DOM = DOM;
-shopifyWindow.AFS_State = State;
-shopifyWindow.AFS_API = API;
-shopifyWindow.AFS_LOG = Log;
-shopifyWindow.QuickAdd = QuickAdd;
-shopifyWindow.$ = $;
-shopifyWindow.Icons = Icons;
-(shopifyWindow as typeof shopifyWindow & { Lang?: typeof Lang }).Lang = Lang;
-(shopifyWindow as typeof shopifyWindow & { SpecialValue?: typeof SpecialValue }).SpecialValue = SpecialValue;
+const appWindow = window as unknown as AppWindow;
+appWindow.DOM = DOM;
+appWindow.AFS_State = State;
+appWindow.AFS_API = API;
+appWindow.AFS_LOG = Log;
+appWindow.QuickAdd = QuickAdd;
+appWindow.$ = $;
+appWindow.Icons = Icons;
+(appWindow as typeof appWindow & { Lang?: typeof Lang }).Lang = Lang;
+(appWindow as typeof appWindow & { SpecialValue?: typeof SpecialValue }).SpecialValue = SpecialValue;
 
 // Export
 if (typeof window !== 'undefined') {
-  shopifyWindow.AFS = AFS;
+  appWindow.AFS = AFS;
 } else if (typeof global !== 'undefined') {
   (global as typeof globalThis & { AFS?: AFSInterface }).AFS = AFS;
 }

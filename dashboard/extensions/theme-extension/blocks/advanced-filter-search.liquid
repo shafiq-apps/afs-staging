@@ -1,4 +1,4 @@
-{{ 'advanced-filter-search.css' | asset_url | stylesheet_tag }}
+{{ 'advanced-filter-search.min.css' | asset_url | stylesheet_tag }}
 
 {% comment %} Generate CSS Variables from Block Settings {% endcomment %}
 <style>
@@ -47,7 +47,7 @@
   {% comment %} Container will be populated by JavaScript {% endcomment %}
 </div>
 
-<script src="{{ 'advanced-filter-search.js' | asset_url }}" defer></script>
+<script src="{{ 'advanced-filter-search.min.js' | asset_url }}" defer></script>
 
 {% render 'advanced-filter-search-init', block: block %}
 
@@ -172,7 +172,7 @@
       "type": "text",
       "id": "font_family",
       "label": "Font Family",
-      "default": "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+      "default": "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
       "info": "CSS font-family value"
     }
   ]
