@@ -1,8 +1,7 @@
 /**
  * Advanced Filter Search
  * 
- * Describe hardcoded values and their means and functionality
- */
+**/
 
 // ============================================================================
 // TYPE DEFINITIONS
