@@ -1,0 +1,42 @@
+/**
+ * Advanced Filter Search - Pagination Styles
+ */
+
+@use 'variables' as *;
+@use 'components' as *;
+
+/* ============================================================================
+   Pagination
+   ============================================================================ */
+
+[data-afs-container] {
+  .afs-pagination {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: $spacing-lg;
+    margin-top: $spacing-xxl;
+    padding-top: $spacing-xl;
+    border-top: 1px solid var(--afs-border-color);
+
+    &__button {
+      @include button-base;
+
+      &:hover:not(:disabled) {
+        @include button-hover;
+      }
+
+      &:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+      }
+    }
+
+    &__info {
+      font-size: $font-size-md;
+      color: var(--afs-text-color);
+      font-family: var(--afs-font-family);
+    }
+  }
+}

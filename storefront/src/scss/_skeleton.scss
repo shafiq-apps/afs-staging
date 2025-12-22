@@ -1,0 +1,129 @@
+/**
+ * Advanced Filter Search - Loading Skeleton Styles
+ */
+
+@use 'variables' as *;
+@use 'components' as *;
+
+/* ============================================================================
+   Loading Skeleton
+   ============================================================================ */
+
+[data-afs-container] {
+  .afs-skeleton-card,
+  .afs-skeleton-card__image,
+  .afs-skeleton-card__info,
+  .afs-skeleton-card__title,
+  .afs-skeleton-card__vendor,
+  .afs-skeleton-card__price,
+  .afs-skeleton-filter-group__title,
+  .afs-skeleton-filter-item {
+    &:empty {
+      display: block !important;
+      visibility: visible !important;
+    }
+  }
+
+  .afs-skeleton-card {
+    display: flex !important;
+    flex-direction: column;
+    background: var(--afs-bg-color);
+    border-radius: $border-radius-sm;
+    overflow: hidden;
+    min-height: 300px;
+    width: 100%;
+
+    &__image {
+      width: 100%;
+      height: 200px;
+      min-height: 180px;
+      @include skeleton-base;
+      flex-shrink: 0;
+    }
+
+    &__info {
+      padding: $spacing-md 0px;
+      display: flex;
+      flex-direction: column;
+      gap: $spacing-sm;
+      min-height: 66px;
+      flex: 1;
+    }
+
+    &__title {
+      height: 16px;
+      min-height: 16px;
+      width: 100%;
+      @include skeleton-base;
+      flex-shrink: 0;
+    }
+
+    &__vendor {
+      height: 12px;
+      min-height: 12px;
+      width: 40%;
+      @include skeleton-base;
+      flex-shrink: 0;
+    }
+
+    &__price {
+      height: 16px;
+      min-height: 16px;
+      width: 50%;
+      @include skeleton-base;
+      flex-shrink: 0;
+    }
+  }
+
+  [class*="afs-skeleton"] {
+    animation-fill-mode: both !important;
+    animation-play-state: running !important;
+  }
+
+  /* ============================================================================
+     Filters Skeleton
+     ============================================================================ */
+
+  .afs-filters-skeleton {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-xl;
+  }
+
+  .afs-skeleton-filter-group {
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--afs-border-color);
+
+    &:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+
+    &__header {
+      margin-bottom: $spacing-md;
+    }
+
+    &__title {
+      height: 20px;
+      min-height: 20px;
+      width: 60%;
+      @include skeleton-base;
+      flex-shrink: 0;
+    }
+
+    &__content {
+      display: flex;
+      flex-direction: column;
+      gap: $spacing-sm;
+      min-height: 80px;
+    }
+  }
+
+  .afs-skeleton-filter-item {
+    height: 18px;
+    min-height: 18px;
+    width: 100%;
+    @include skeleton-base;
+    flex-shrink: 0;
+  }
+}

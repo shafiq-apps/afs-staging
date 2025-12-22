@@ -468,11 +468,11 @@ export function formatFilters(
       } as StorefrontFilterDescriptor);
     } else {
       // Process as regular option filter
-      // Derive variantOptionKey at runtime to ensure perfect ES matching
+      // Derive the optionPairs key (Shopify option name) for matching
       const optionSettings = option.optionSettings || {};
       const baseOptionType = optionSettings.baseOptionType?.trim().toUpperCase();
-      const derivedVariantOptionKey = baseOptionType === 'OPTION' 
-        ? (optionSettings.variantOptionKey || option.optionType?.trim() || null)
+      const derivedVariantOptionKey = baseOptionType === 'OPTION'
+        ? (option.optionType?.trim() || optionSettings.variantOptionKey || null)
         : optionSettings.variantOptionKey || null;
       
       const matchedKey = findMatchingOptionKey(rawOptions, [

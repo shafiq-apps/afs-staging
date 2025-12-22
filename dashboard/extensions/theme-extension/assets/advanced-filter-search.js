@@ -262,6 +262,20 @@
     warn: (msg, data) => Log.enabled ? console.warn('[AFS]', msg, data || '') : () => { },
     info: (msg, data) => Log.enabled ? console.info('[AFS]', msg, data || '') : () => { },
     debug: (msg, data) => Log.enabled ? console.debug('[AFS]', msg, data || '') : () => { },
+    init: (enabled) => {
+      Log.enabled = enabled !== false;
+      Log.log
+        (
+          "%c" + "Advanced Filter & Search initialized",
+          "color: #00c853;" +
+          "font-size: 20px;" +
+          "font-weight: bold;" +
+          "background: #0b1e13;" +
+          "padding: 10px 15px;" +
+          "border-radius: 6px;" +
+          "font-family: Arial, sans-serif;"
+        )
+    }
   };
 
   // ============================================================================
@@ -518,8 +532,8 @@
         params.set('cpid', State.selectedCollection.id);
         Log.debug('cpid sent to products API', { cpid: State.selectedCollection.id, filters });
       } else {
-        Log.debug('cpid not sent to products API', { 
-          hasCpid: !!State.selectedCollection?.id, 
+        Log.debug('cpid not sent to products API', {
+          hasCpid: !!State.selectedCollection?.id,
           filters,
           reason: 'filters present or cpid already in collection filter'
         });
@@ -614,14 +628,14 @@
 
       const params = new URLSearchParams();
       params.set('shop', State.shop);
-      
+
       // Only send cpid if conditions are met (clean page or only sort/page/limit, and not in collection filter)
       if (this.shouldSendCpid(filters)) {
         params.set('cpid', State.selectedCollection.id);
         Log.debug('cpid sent to filters API', { cpid: State.selectedCollection.id, filters });
       } else {
-        Log.debug('cpid not sent to filters API', { 
-          hasCpid: !!State.selectedCollection?.id, 
+        Log.debug('cpid not sent to filters API', {
+          hasCpid: !!State.selectedCollection?.id,
           filters,
           reason: 'filters present or cpid already in collection filter'
         });
@@ -661,7 +675,7 @@
           // Exclude the keep handle from the aggregation query
           if (keepHandle && filtersForAggregation.hasOwnProperty(keepHandle)) {
             delete filtersForAggregation[keepHandle];
-            Log.debug('Excluded keep filter from aggregation query', { 
+            Log.debug('Excluded keep filter from aggregation query', {
               excludedHandle: keepHandle,
               remainingFilters: Object.keys(filtersForAggregation)
             });
@@ -697,8 +711,8 @@
       params.forEach((value, key) => {
         allParams[key] = value;
       });
-      Log.debug('All params for filters endpoint', { 
-        params: allParams, 
+      Log.debug('All params for filters endpoint', {
+        params: allParams,
         hasKeep: params.has('keep'),
         keepValue: params.get('keep'),
         StateKeep: State.keep
@@ -862,12 +876,12 @@
         // Close drawer
         this.filtersContainer.classList.remove('afs-filters-container--open');
         document.body.classList.remove('afs-filters-open');
-        
+
         // Hide backdrop
         if (this.mobileFilterBackdrop) {
           this.mobileFilterBackdrop.style.display = 'none';
         }
-        
+
         // Restore scroll position
         const scrollY = document.body.style.top;
         document.body.style.overflow = '';
@@ -880,7 +894,7 @@
         document.body.style.removeProperty('width');
         document.body.style.removeProperty('height');
         document.body.style.removeProperty('top');
-        
+
         if (scrollY) {
           window.scrollTo(0, parseInt(scrollY || '0') * -1);
         }
@@ -888,12 +902,12 @@
         // Open drawer
         this.filtersContainer.classList.add('afs-filters-container--open');
         document.body.classList.add('afs-filters-open');
-        
+
         // Show backdrop
         if (this.mobileFilterBackdrop) {
           this.mobileFilterBackdrop.style.display = 'block';
         }
-        
+
         // Store current scroll position and prevent body scroll
         const scrollY = window.scrollY;
         document.body.style.position = 'fixed';
@@ -1021,12 +1035,12 @@
           'for': 'afs-filter-group__label'
         }), filter.label || filter.optionType));
         header.appendChild(toggle);
-        
+
         // Add clear button next to the label (only show if filter has active values)
         const hasActiveValues = State.filters[handle] && (
           Array.isArray(State.filters[handle]) ? State.filters[handle].length > 0 :
-          typeof State.filters[handle] === 'object' ? Object.keys(State.filters[handle]).length > 0 :
-          Boolean(State.filters[handle])
+            typeof State.filters[handle] === 'object' ? Object.keys(State.filters[handle]).length > 0 :
+              Boolean(State.filters[handle])
         );
         if (hasActiveValues) {
           const clearBtn = $.el('button', 'afs-filter-group__clear', {
@@ -1038,7 +1052,7 @@
           clearBtn.title = `Clear ${filter.label || handle} filters`;
           header.appendChild(clearBtn);
         }
-        
+
         group.appendChild(header);
 
         // Content
@@ -1127,11 +1141,11 @@
       const currentValues = State.filters[handle] || [];
       const isChecked = currentValues.includes(value);
       const inputType = $.inputDisplayType(config);
-      const htmlFor = (inputType === 'radio'? handle : handle + '-' + value.replace(/\s+/g, '-').toLowerCase()) + "_" + index+1;
+      const htmlFor = (inputType === 'radio' ? handle : handle + '-' + value.replace(/\s+/g, '-').toLowerCase()) + "_" + index + 1;
 
       const label = $.el('label', 'afs-filter-item', {
-        'data-afs-filter-handle': handle, 
-        'data-afs-filter-value': value, 
+        'data-afs-filter-handle': handle,
+        'data-afs-filter-value': value,
         'for': htmlFor
       });
       if (isChecked) label.classList.add('afs-filter-item--active');
@@ -1182,9 +1196,9 @@
       toggle.appendChild(icon);
       toggle.appendChild($.txt($.el('label', 'afs-filter-group__label', { 'for': 'afs-filter-group__label' }), filter.label || 'Price'));
       header.appendChild(toggle);
-      
+
       // Add clear button for price range (only show if price range is active and not at default)
-      const isPriceRangeActive = State.filters.priceRange && 
+      const isPriceRangeActive = State.filters.priceRange &&
         (State.filters.priceRange.min !== minRange || State.filters.priceRange.max !== maxRange);
       if (isPriceRangeActive) {
         const clearBtn = $.el('button', 'afs-filter-group__clear', {
@@ -1196,7 +1210,7 @@
         clearBtn.title = `Clear ${filter.label} filter`;
         header.appendChild(clearBtn);
       }
-      
+
       group.appendChild(header);
 
       // Content
@@ -1619,21 +1633,21 @@
                 displayValue = collection.title || collection.label || collection.name || v;
               }
             }
-            
+
             activeFilters.push({ handle: key, label: `${label}: ${displayValue}`, value: v });
           });
         }
       });
-      
+
       // Also show cpid if it exists and collection filter is not in filters
       if (State.selectedCollection?.id) {
         const hasCollectionFilter = Object.keys(filters).some(key => {
           const metadata = State.filterMetadata.get(key);
           return (metadata?.optionType === 'Collection' || key === 'collections') &&
-                 Array.isArray(filters[key]) && 
-                 filters[key].includes(String(State.selectedCollection.id));
+            Array.isArray(filters[key]) &&
+            filters[key].includes(String(State.selectedCollection.id));
         });
-        
+
         if (!hasCollectionFilter) {
           // Find collection name from State.collections
           const collection = State.collections?.find(c => {
@@ -1641,10 +1655,10 @@
             return cId && String(cId) === String(State.selectedCollection.id);
           });
           const collectionName = collection?.title || collection?.label || collection?.name || 'Collection';
-          activeFilters.push({ 
-            handle: 'cpid', 
-            label: `Collection: ${collectionName}`, 
-            value: State.selectedCollection.id 
+          activeFilters.push({
+            handle: 'cpid',
+            label: `Collection: ${collectionName}`,
+            value: State.selectedCollection.id
           });
         }
       }
@@ -1969,26 +1983,26 @@
       // Check if this is a collection filter and if cpid should be cleared
       const metadata = State.filterMetadata.get(handle);
       const isCollectionFilter = (metadata?.optionType === 'Collection' || handle === 'collections');
-      
+
       if (isCollectionFilter && State.selectedCollection?.id) {
         // Store original cpid value before any modifications
         const originalCpid = State.selectedCollection.id;
-        
+
         // If unchecking (removing) and the value matches cpid, clear cpid
         if (isActive && String(normalized) === String(originalCpid)) {
           State.selectedCollection.id = null;
-          Log.debug('Collection filter unchecked (was cpid), cleared cpid', { 
-            handle, 
-            value: normalized, 
-            cpid: originalCpid 
+          Log.debug('Collection filter unchecked (was cpid), cleared cpid', {
+            handle,
+            value: normalized,
+            cpid: originalCpid
           });
         }
         // Also check if cpid is no longer in the filter values after toggle
         else if (!filterValues.some(v => String(v) === String(originalCpid))) {
           State.selectedCollection.id = null;
-          Log.debug('Collection filter toggled, cpid no longer in values, cleared cpid', { 
-            handle, 
-            value: normalized, 
+          Log.debug('Collection filter toggled, cpid no longer in values, cleared cpid', {
+            handle,
+            value: normalized,
             filterValues,
             wasCpid: String(normalized) === String(originalCpid),
             originalCpid
@@ -2164,16 +2178,16 @@
             // Refresh range filter handles (in case config changed)
             const priceFilter = State.availableFilters.find(f => f.optionType === 'priceRange');
             State.priceRangeHandle = priceFilter?.handle || State.priceRangeHandle;
-            
+
             // Convert cpid to collection filter handle if collection filter exists and cpid is not already in filters
             if (State.selectedCollection?.id) {
               // Find collection filter handle from available filters
-              const collectionFilter = State.availableFilters.find(f => 
-                f.optionType === 'Collection' || 
+              const collectionFilter = State.availableFilters.find(f =>
+                f.optionType === 'Collection' ||
                 f.queryKey === 'collections' ||
                 f.handle === 'collections'
               );
-              
+
               if (collectionFilter) {
                 const collectionHandle = collectionFilter.handle || collectionFilter.queryKey || 'collections';
                 // Check if collection filter already has this ID
@@ -2181,14 +2195,14 @@
                 if (!existingCollectionValues.includes(String(State.selectedCollection.id))) {
                   // Add cpid as collection filter
                   State.filters[collectionHandle] = [...existingCollectionValues, String(State.selectedCollection.id)];
-                  Log.debug('Converted cpid to collection filter', { 
-                    cpid: State.selectedCollection.id, 
-                    handle: collectionHandle 
+                  Log.debug('Converted cpid to collection filter', {
+                    cpid: State.selectedCollection.id,
+                    handle: collectionHandle
                   });
                 }
               }
             }
-            
+
             DOM.renderFilters(State.availableFilters);
           }
         } catch (e) {
@@ -2246,7 +2260,7 @@
   // Create Product Modal using Ajax API
   async function createProductModal(handle, modalId) {
     const dialog = $.el('dialog', 'afs-product-modal', { 'id': modalId });
-    
+
     // Show loading state
     dialog.innerHTML = `
       <div class="afs-product-modal__container">
@@ -2272,7 +2286,7 @@
         throw new Error('Failed to load product');
       }
       const productData = await response.json();
-      
+
       // Ajax API returns product directly (not wrapped in {product: ...})
       // Verify it has the expected structure
       if (!productData.variants || !Array.isArray(productData.variants)) {
@@ -2287,26 +2301,26 @@
       const buildVariantSelector = () => {
         // Don't render variant selector if product has only one variant with "Default Title"
         // This is Shopify's default single variant (not a real variant)
-        if (productData.variants.length === 1 && 
-            productData.variants[0].title === 'Default Title') {
+        if (productData.variants.length === 1 &&
+          productData.variants[0].title === 'Default Title') {
           return '';
         }
-        
+
         if (!productData.options || productData.options.length === 0) return '';
-        
+
         let html = '<div class="afs-product-modal__variant-selector">';
         productData.options.forEach((option, optionIndex) => {
           html += `<div class="afs-product-modal__option-group">`;
           html += `<label class="afs-product-modal__option-label">${option.name}</label>`;
           html += `<div class="afs-product-modal__option-values">`;
-          
+
           // Get unique values for this option
           const uniqueValues = [...new Set(productData.variants.map(v => {
             if (optionIndex === 0) return v.option1;
             if (optionIndex === 1) return v.option2;
             return v.option3;
           }).filter(Boolean))];
-          
+
           uniqueValues.forEach(value => {
             const variant = productData.variants.find(v => {
               if (optionIndex === 0) return v.option1 === value;
@@ -2315,7 +2329,7 @@
             });
             const isAvailable = variant && variant.available;
             const isSelected = variant && variant.id === currentVariantId;
-            
+
             html += `<button 
               class="afs-product-modal__option-value ${isSelected ? 'afs-product-modal__option-value--selected' : ''} ${!isAvailable ? 'afs-product-modal__option-value--unavailable' : ''}"
               data-option-index="${optionIndex}"
@@ -2325,7 +2339,7 @@
               type="button"
             >${value}</button>`;
           });
-          
+
           html += `</div></div>`;
         });
         html += '</div>';
@@ -2341,12 +2355,12 @@
             mainImages: '<div class="afs-slider__main"><div style="padding: 2rem; text-align: center;">No images available</div></div>'
           };
         }
-        
+
         // Build thumbnails with optimized/cropped images and srcset
         let thumbnailsHTML = '<div class="afs-slider__thumbnails">';
         productData.images.forEach((image, index) => {
           const isActive = index === 0 ? 'afs-slider__thumbnail--active' : '';
-          
+
           // Optimize thumbnail: small square cropped image
           const thumbnailUrl = $.optimizeImageUrl(image, {
             width: 100,
@@ -2355,7 +2369,7 @@
             format: 'webp',
             quality: 75
           });
-          
+
           // Build srcset for thumbnails (responsive sizes with crop)
           const thumbnailSizes = [80, 100, 120];
           const thumbnailSrcset = thumbnailSizes.map(size => {
@@ -2368,7 +2382,7 @@
             });
             return `${optimized} ${size}w`;
           }).join(', ');
-          
+
           thumbnailsHTML += `
             <div class="afs-slider__thumbnail ${isActive}" data-slide-index="${index}">
               <img 
@@ -2384,7 +2398,7 @@
           `;
         });
         thumbnailsHTML += '</div>';
-        
+
         // Build main images with optimized full images (no cropping) and srcset
         let mainImagesHTML = '<div class="afs-slider__main">';
         productData.images.forEach((image, index) => {
@@ -2396,7 +2410,7 @@
             quality: 85
             // No crop parameter = maintains aspect ratio
           });
-          
+
           // Build srcset for main images (responsive sizes for different screen sizes, no crop)
           const mainImageSizes = [400, 600, 800, 1000, 1200];
           const mainImageSrcset = mainImageSizes.map(size => {
@@ -2409,7 +2423,7 @@
             });
             return `${optimized} ${size}w`;
           }).join(', ');
-          
+
           mainImagesHTML += `
             <img 
               class="afs-slider__image" 
@@ -2422,7 +2436,7 @@
           `;
         });
         mainImagesHTML += '</div>';
-        
+
         return {
           thumbnails: thumbnailsHTML,
           mainImages: mainImagesHTML
@@ -2431,7 +2445,7 @@
 
       const imagesHTML = buildImagesHTML();
       const variantSelectorHTML = buildVariantSelector();
-      
+
       // Format price
       const formatPrice = (price) => {
         return $.formatMoney(price, State.moneyFormat || '{{amount}}', State.currency || '');
@@ -2439,8 +2453,8 @@
 
       const currentVariant = productData.variants.find(v => v.id === currentVariantId) || selectedVariant;
       const priceHTML = formatPrice(currentVariant.price);
-      const comparePriceHTML = currentVariant.compare_at_price && currentVariant.compare_at_price > currentVariant.price 
-        ? `<span class="afs-product-modal__compare-price">${formatPrice(currentVariant.compare_at_price)}</span>` 
+      const comparePriceHTML = currentVariant.compare_at_price && currentVariant.compare_at_price > currentVariant.price
+        ? `<span class="afs-product-modal__compare-price">${formatPrice(currentVariant.compare_at_price)}</span>`
         : '';
 
       // Build full modal HTML
@@ -2552,14 +2566,14 @@
   // Setup modal event handlers
   function setupModalHandlers(dialog, modalId, product, formatPrice) {
     const closeBtn = dialog.querySelector('.afs-product-modal__close');
-    
+
     const closeModal = () => {
       // Destroy slider if it exists
       if (dialog._slider && typeof dialog._slider.destroy === 'function') {
         dialog._slider.destroy();
         dialog._slider = null;
       }
-      
+
       document.body.style.overflow = '';
       document.body.style.removeProperty('overflow');
       if (dialog.close) {
@@ -2663,7 +2677,7 @@
         if (addButton.disabled) return;
         const quantity = parseInt(countDisplay.textContent, 10) || 1;
         const variantId = addButton.dataset.variantId;
-        
+
         try {
           await QuickAdd.addVariant(parseInt(variantId), quantity);
           closeModal();
@@ -2681,7 +2695,7 @@
         if (buyButton.disabled) return;
         const quantity = parseInt(countDisplay.textContent, 10) || 1;
         const variantId = buyButton.dataset.variantId;
-        
+
         try {
           const routesRoot = (window.Shopify && window.Shopify.routes && window.Shopify.routes.root) || '/';
           // Redirect to checkout
@@ -2703,8 +2717,8 @@
     const priceContainer = dialog.querySelector('.afs-product-modal__price-container');
     if (priceContainer) {
       const priceHTML = formatPrice(variant.price);
-      const comparePriceHTML = variant.compare_at_price && variant.compare_at_price > variant.price 
-        ? `<span class="afs-product-modal__compare-price">${formatPrice(variant.compare_at_price)}</span>` 
+      const comparePriceHTML = variant.compare_at_price && variant.compare_at_price > variant.price
+        ? `<span class="afs-product-modal__compare-price">${formatPrice(variant.compare_at_price)}</span>`
         : '';
       priceContainer.innerHTML = `
         <span class="afs-product-modal__price">${priceHTML}</span>
@@ -2735,7 +2749,7 @@
       // Find which image is assigned to this variant by checking variant_ids
       const currentVariantId = variant.id;
       let targetImageIndex = null;
-      
+
       // Check if current variant has featured_image with variant_ids
       if (variant.featured_image && typeof variant.featured_image === 'object' && variant.featured_image.variant_ids) {
         // This variant is assigned to an image - check if it's different from current
@@ -2772,24 +2786,24 @@
           }
         }
       }
-      
+
       // If we found a target image index using variant_ids, use it
       if (targetImageIndex !== null) {
         dialog._slider.goToSlide(targetImageIndex);
         return; // Successfully updated using variant_ids optimization
       }
-      
+
       // Try using the slider's built-in method (fallback, pass variants for optimization)
       if (typeof dialog._slider.updateVariantImage === 'function') {
         const updated = dialog._slider.updateVariantImage(variant, product.images, product.variants);
         if (updated) return; // Successfully updated, exit early
       }
-      
+
       // Fallback: manual image matching (for backwards compatibility)
       // Extract variant image URL from various possible structures
       let variantImageUrl = null;
       let variantImagePosition = null;
-      
+
       // Handle featured_image as object (Shopify format: { src: "...", position: 5, ... })
       if (variant.featured_image) {
         if (typeof variant.featured_image === 'object') {
@@ -2799,15 +2813,15 @@
           variantImageUrl = variant.featured_image;
         }
       }
-      
+
       // Fallback to other image properties
       if (!variantImageUrl) {
-        variantImageUrl = variant.image || 
-                         variant.imageUrl || 
-                         (variant.image && typeof variant.image === 'object' ? variant.image.url || variant.image.src : null) ||
-                         (variant.featuredImage && typeof variant.featuredImage === 'object' ? variant.featuredImage.url || variant.featuredImage.src : null);
+        variantImageUrl = variant.image ||
+          variant.imageUrl ||
+          (variant.image && typeof variant.image === 'object' ? variant.image.url || variant.image.src : null) ||
+          (variant.featuredImage && typeof variant.featuredImage === 'object' ? variant.featuredImage.url || variant.featuredImage.src : null);
       }
-      
+
       if (variantImageUrl) {
         // Normalize image URL for comparison (remove protocol, query params, etc.)
         const normalizeUrl = (url) => {
@@ -2822,7 +2836,7 @@
             .toLowerCase()
             .trim();
         };
-        
+
         // First, try to use position if available (1-based, convert to 0-based index)
         if (variantImagePosition !== null && variantImagePosition !== undefined) {
           const positionIndex = variantImagePosition - 1; // Convert from 1-based to 0-based
@@ -2831,18 +2845,18 @@
             return;
           }
         }
-        
+
         const normalizedVariantImage = normalizeUrl(variantImageUrl);
-        
+
         // Find matching image in product images array
         const variantImageIndex = product.images.findIndex(img => {
           const normalizedImg = normalizeUrl(img);
           // Compare normalized URLs
-          return normalizedImg === normalizedVariantImage || 
-                 normalizedImg.includes(normalizedVariantImage) || 
-                 normalizedVariantImage.includes(normalizedImg);
+          return normalizedImg === normalizedVariantImage ||
+            normalizedImg.includes(normalizedVariantImage) ||
+            normalizedVariantImage.includes(normalizedImg);
         });
-        
+
         if (variantImageIndex !== -1) {
           // Use slider's goToSlide method to change to variant's image
           dialog._slider.goToSlide(variantImageIndex);
@@ -2853,7 +2867,7 @@
             const imgFilename = normalizeUrl(img).split('/').pop();
             return imgFilename === variantImageFilename;
           });
-          
+
           if (filenameMatchIndex !== -1) {
             dialog._slider.goToSlide(filenameMatchIndex);
           }
@@ -2871,7 +2885,7 @@
         dialog._slider.destroy();
         dialog._slider = null;
       }
-      
+
       document.body.style.overflow = '';
       document.body.style.removeProperty('overflow');
       if (dialog.close) {
@@ -2889,7 +2903,7 @@
       if (e.target === dialog) closeModal();
     });
   }
-  
+
   // Old web component helper functions removed - now handled in setupModalHandlers
 
   // Quick Add functionality
@@ -3144,41 +3158,41 @@
           e.stopPropagation();
           const clearBtn = e.target.closest('.afs-filter-group__clear');
           if (!clearBtn) return;
-          
+
           const handle = clearBtn.getAttribute('data-afs-filter-handle');
           if (!handle) return;
-          
+
           // Check if this is a collection filter and if cpid should be cleared
           const metadata = State.filterMetadata.get(handle);
           const isCollectionFilter = (metadata?.optionType === 'Collection' || handle === 'collections');
-          
+
           // Remove the filter from State.filters
           if (State.filters[handle]) {
             // If clearing collection filter and cpid exists, check if cpid was in the filter values
             if (isCollectionFilter && State.selectedCollection?.id) {
               const filterValues = State.filters[handle];
               const originalCpid = State.selectedCollection.id;
-              const cpidInValues = Array.isArray(filterValues) && 
-                                  filterValues.some(v => String(v) === String(originalCpid));
+              const cpidInValues = Array.isArray(filterValues) &&
+                filterValues.some(v => String(v) === String(originalCpid));
               if (cpidInValues) {
                 State.selectedCollection.id = null;
-                Log.debug('Collection filter cleared (contained cpid), cleared cpid', { 
-                  handle, 
-                  cpid: originalCpid 
+                Log.debug('Collection filter cleared (contained cpid), cleared cpid', {
+                  handle,
+                  cpid: originalCpid
                 });
               }
             }
-            
+
             delete State.filters[handle];
             Log.debug('Filter cleared', { handle, isCollectionFilter });
-            
+
             // Update URL
             UrlManager.update(State.filters, State.pagination, State.sort);
-            
+
             // Scroll to top and show loading
             DOM.scrollToProducts();
             DOM.showLoading();
-            
+
             // Apply filters to refresh products and filters
             Filters.apply();
           }
@@ -3231,7 +3245,7 @@
             // Open product modal using Ajax API
             const modalId = `product-modal-${handle}`;
             let modal = document.getElementById(modalId);
-            
+
             const openModal = async () => {
               if (!modal) {
                 // Create modal (async - fetches product data)
@@ -3491,7 +3505,7 @@
   const AFS = {
     init(config = {}) {
       try {
-        Log.enabled = config.enableLogging !== false;
+        Log.init(config.enableLogging);
         Log.info('Initializing AFS', config);
 
         if (config.apiBaseUrl) {
@@ -3577,7 +3591,7 @@
         // Parse URL params FIRST before loading filters, so filters endpoint gets the correct filters
         const urlParams = UrlManager.parse();
         Log.debug('Parsed URL params on load', { urlParams });
-        
+
         // Rebuild filters from URL params BEFORE calling API.filters()
         // This ensures filters endpoint receives the correct filters from URL
         State.filters = {
@@ -3598,22 +3612,19 @@
             }
           }
         });
-        
+
         // Clear cpid if filters are present (other than page, sort, size, limit)
         clearCpidIfFiltersPresent(State.filters);
-        
+
         Log.info('Loading filters...', { shop: State.shop, filters: State.filters });
         let filtersData;
         try {
           filtersData = await API.filters(State.filters);
-          Log.enabled = true;
           Log.info('Filters loaded', { filtersCount: filtersData.filters || 0 });
         } catch (filterError) {
           Log.warn('Failed to load filters, continuing with empty filters', { error: filterError.message });
           filtersData = { filters: [] };
         }
-
-        Log.enabled = false;
         // Validate filters is an array
         if (!Array.isArray(filtersData.filters)) {
           Log.error('Invalid filters response: filters is not an array', { filters: filtersData.filters });
@@ -3654,12 +3665,12 @@
         // After filters are loaded, update State.filters with cpid conversion if needed
         // Convert cpid to collection filter handle if collection filter exists
         if (State.selectedCollection?.id) {
-          const collectionFilter = State.availableFilters.find(f => 
-            f.optionType === 'Collection' || 
+          const collectionFilter = State.availableFilters.find(f =>
+            f.optionType === 'Collection' ||
             f.queryKey === 'collections' ||
             f.handle === 'collections'
           );
-          
+
           if (collectionFilter) {
             const collectionHandle = collectionFilter.handle || collectionFilter.queryKey || 'collections';
             // Check if collection filter already has this ID in State.filters
@@ -3670,9 +3681,9 @@
                 State.filters[collectionHandle] = [];
               }
               State.filters[collectionHandle].push(String(State.selectedCollection.id));
-              Log.debug('Converted cpid to collection filter', { 
-                cpid: State.selectedCollection.id, 
-                handle: collectionHandle 
+              Log.debug('Converted cpid to collection filter', {
+                cpid: State.selectedCollection.id,
+                handle: collectionHandle
               });
             }
           }
