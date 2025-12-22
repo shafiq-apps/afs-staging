@@ -45,16 +45,17 @@ export function sanitizeQueryKey(key: string): string {
  * 
  * This allows product option values like "24"+Plyobox", "Size: 5'6"", etc.
  */
-export function sanitizeQueryValue(value: string): string {
+export function sanitizeQueryValue(value: string, opts?: { trim?: boolean }): string {
   if (!value || typeof value !== 'string') return '';
+  const shouldTrim = opts?.trim !== false;
+  const input = shouldTrim ? value.trim() : value;
   // Remove blocked characters as defined in sanitization constants
   // Allow: alphanumeric, spaces, quotes, parentheses, slashes, and most special chars
   // Only remove: Characters defined in BLOCKED_CHARS_QUERY_VALUE
   const blockedRegex = new RegExp(`[${BLOCKED_CHARS_QUERY_VALUE.replace(/[\\^$.*+?()[\]{}|]/g, '\\$&')}]`, 'g');
-  return value
+  return input
     .replace(/\0/g, '') // Remove null bytes explicitly
     .replace(blockedRegex, '') // Remove blocked characters
-    .trim()
     .substring(0, MAX_QUERY_VALUE_LENGTH); // Max length from constants
 }
 
@@ -69,6 +70,19 @@ export function parseCommaSeparated(value: unknown): string[] {
     .flatMap((item) => (typeof item === 'string' ? item.split(',') : []))
     .map((entry) => sanitizeQueryValue(entry.trim()))
     .filter(Boolean);
+}
+
+/**
+ * Parse comma-separated values from query parameters, preserving leading/trailing whitespace.
+ * Useful for option values where ES keyword matching should be exact.
+ */
+export function parseCommaSeparatedPreserveWhitespace(value: unknown): string[] {
+  if (!value) return [];
+  const values = Array.isArray(value) ? value : [value];
+  return values
+    .flatMap((item) => (typeof item === 'string' ? item.split(',') : []))
+    .map((entry) => sanitizeQueryValue(entry, { trim: false }))
+    .filter((v) => v.trim().length > 0);
 }
 
 /**
@@ -170,7 +184,7 @@ export function parseOptionFilters(query: Record<string, unknown>): Record<strin
     const sanitizedName = sanitizeQueryKey(name);
     if (!sanitizedName) return; // Skip if name is invalid after sanitization
     
-    const values = parseCommaSeparated(raw);
+    const values = parseCommaSeparatedPreserveWhitespace(raw);
     if (values.length) {
       optionFilters[sanitizedName] = values;
     }

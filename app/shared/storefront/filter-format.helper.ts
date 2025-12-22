@@ -141,12 +141,19 @@ function applyOptionSettings(
   const processedItems: FacetValue[] = [];
 
   for (const item of filteredItems) {
-    // Keep original value unchanged for filtering
-    const originalValue = String(item.value ?? '').trim();
-    if (!originalValue) continue;
+    // IMPORTANT:
+    // - Keep the raw aggregation key as the filter `value` (exact matching in ES keyword fields).
+    // - Only trim/transform the *label* (display), not the value.
+    //
+    // This prevents distinct ES keys like "Black", "Black " (or other whitespace variants)
+    // from collapsing into the same `value` and causing multiple UI options to toggle together.
+    const rawValue = String(item.value ?? '');
+    const trimmedValue = rawValue.trim();
+    if (!trimmedValue) continue;
 
     // Apply transformations to label (for display), not value (for filtering)
     let label = String(item.label ?? item.value ?? '').trim();
+    if (!label) label = trimmedValue;
 
     // Remove prefix from label
     if (Array.isArray(optionSettings.removePrefix)) {
@@ -188,13 +195,13 @@ function applyOptionSettings(
     // Filter by prefix - check original value (for filtering accuracy)
     if (Array.isArray(optionSettings.filterByPrefix) && optionSettings.filterByPrefix.length > 0) {
       const matches = optionSettings.filterByPrefix.some((prefix: string) =>
-        originalValue.toLowerCase().startsWith(String(prefix).toLowerCase())
+        trimmedValue.toLowerCase().startsWith(String(prefix).toLowerCase())
       );
       if (!matches) continue;
     }
 
     processedItems.push({
-      value: originalValue, // Original value for filtering (unchanged)
+      value: rawValue, // Raw value for filtering (exact)
       count: item.count,
       label: label, // Transformed label for display
     });
