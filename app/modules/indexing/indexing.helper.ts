@@ -84,16 +84,32 @@ export function transformProductToESDoc(raw: any): shopifyProduct {
   const variantOptionKeysSet = new Set<string>();
   const variantOptionLookup: Record<string, string> = {};
 
+  const normalizeOptionName = (name: unknown): string | null => {
+    if (typeof name !== 'string') return null;
+    const trimmed = name.trim();
+    return trimmed ? trimmed : null;
+  };
+
+  const normalizeOptionValue = (value: unknown): string | null => {
+    if (value === null || value === undefined) return null;
+    // Keep case exactly as-is (case sensitivity matters for ES keyword matching),
+    // but trim leading/trailing whitespace to avoid phantom duplicate buckets
+    // such as "M" vs "M\u00A0" or "Black" vs "Black ".
+    const str = typeof value === 'string' ? value : String(value);
+    const trimmed = str.trim();
+    return trimmed ? trimmed : null;
+  };
+
   const variants: productVariant[] = variantNodes.map((variantNode: any) => {
     const selectedOptions = Array.isArray(variantNode?.selectedOptions)
       ? variantNode.selectedOptions.map((opt: any) => ({
-        name: opt?.name ?? null,
-        value: opt?.value ?? null,
+        name: normalizeOptionName(opt?.name),
+        value: normalizeOptionValue(opt?.value),
       }))
       : Array.isArray(variantNode?.options)
         ? variantNode.options.map((value: any, idx: number) => ({
-          name: optionNodes[idx]?.name ?? `Option ${idx + 1}`,
-          value: value ?? null,
+          name: normalizeOptionName(optionNodes[idx]?.name) ?? `Option ${idx + 1}`,
+          value: normalizeOptionValue(value),
         }))
         : [];
 
@@ -145,8 +161,10 @@ export function transformProductToESDoc(raw: any): shopifyProduct {
 
   for (const opt of options) {
     for (const value of opt.values) {
-      if (!value) continue;
-      optionPairSet.add(`${opt.name}${PRODUCT_OPTION_PAIR_SEPARATOR}${value}`);
+      const name = normalizeOptionName(opt?.name);
+      const v = normalizeOptionValue(value);
+      if (!name || !v) continue;
+      optionPairSet.add(`${name}${PRODUCT_OPTION_PAIR_SEPARATOR}${v}`);
     }
   }
 
