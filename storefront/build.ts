@@ -14,7 +14,7 @@ const buildJS = (watch = false) => {
   const options: Parameters<typeof build>[0] = {
     entryPoints: ['src/main.ts'],
     bundle: true,
-    minify: false,
+    minify: true,
     sourcemap: false,
     treeShaking: true,
     format: 'cjs',
