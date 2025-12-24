@@ -191,22 +191,16 @@ export const isModuleLogsDisabled = (moduleName: string): boolean => {
  * - LOG_ENABLED_MODULES=csv: allow-list (only these modules log; overrides disabled list)
  */
 export const applyLoggerEnvConfig = (): void => {
+  // Merge disabled modules into the in-memory set (non-destructive).
+  const disabledByEnv = parseCsv(process.env.LOG_DISABLED_MODULES);
+  disabledByEnv.forEach((m) => disabledModules.add(m));
+
   // If an allow-list is provided, prefer it and disable everything else.
   const enabledOnly = parseCsv(process.env.LOG_ENABLED_MODULES);
   if (enabledOnly.length > 0) {
     disabledModules.clear();
     // We don't eagerly disable "all others" here; that's handled dynamically by isModuleDisabledByEnv().
     return;
-  }
-
-  // Merge disabled modules into the in-memory set (non-destructive).
-  const disabledByEnv = parseCsv(process.env.LOG_DISABLED_MODULES);
-  disabledByEnv.forEach((m) => disabledModules.add(m));
-
-  // Back-compat: CACHE_LOG_DISABLED disables cache module logs.
-  if (parseEnvBool(process.env.CACHE_LOG_DISABLED) === true) {
-    disabledModules.add('cache');
-    disabledModules.add('cache-service');
   }
 };
 
