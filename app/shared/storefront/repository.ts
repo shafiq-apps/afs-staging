@@ -29,6 +29,12 @@ const logger = createModuleLogger('storefront-repository');
 const hasValues = (arr?: string[]) => Array.isArray(arr) && arr.length > 0;
 const DEFAULT_BUCKET_SIZE = AGGREGATION_BUCKET_SIZES.DEFAULT;
 
+function escapeRegex(input: string): string {
+  // Escape regex metacharacters for ES include/exclude patterns.
+  // Ref: Java regex syntax (used by Elasticsearch).
+  return String(input).replace(/[\\.^$|?*+()[\]{}]/g, '\\$&');
+}
+
 /**
  * Aggregation mapping result
  * Contains both standard aggregations and variant option-specific aggregations
@@ -625,16 +631,22 @@ export class StorefrontSearchRepository {
         aggs[aggConfig.name] = { stats: { field: aggConfig.field } };
       } else if (aggConfig.type === 'option') {
         // Option aggregation with prefix filter
+        const optionPrefix = `${aggConfig.field}${PRODUCT_OPTION_PAIR_SEPARATOR}`;
         aggs[aggConfig.name] = {
           filter: {
               prefix: {
-                [ES_FIELDS.OPTION_PAIRS]: `${aggConfig.field}${PRODUCT_OPTION_PAIR_SEPARATOR}`,
+                [ES_FIELDS.OPTION_PAIRS]: optionPrefix,
               },
           },
           aggs: {
             values: {
               terms: {
                 field: ES_FIELDS.OPTION_PAIRS,
+                // IMPORTANT:
+                // The prefix filter above restricts documents, not individual array values.
+                // Without `include`, the terms agg will also bucket unrelated optionPairs
+                // (e.g., Color::*, Size::*) from the same documents.
+                include: `${escapeRegex(optionPrefix)}.*`,
                 size: DEFAULT_BUCKET_SIZE * AGGREGATION_BUCKET_SIZES.TAGS_MULTIPLIER,
                 // order: { _count: 'desc' as const },
               },
