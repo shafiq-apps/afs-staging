@@ -453,8 +453,10 @@ class AFSSlider {
 
     // Mouse leave: reset zoom
     viewport.addEventListener('mouseleave', () => {
-      const activeImage = this.images[this.currentIndex];
+      const activeImage = this.images[this._currentIndex];
       if (activeImage) {
+        // Reset transform to scale(1) and remove translate
+        activeImage.style.transform = 'scale(1) translate(0, 0)';
         activeImage.classList.remove('afs-slider__image--zoomed');
         activeImage.classList.add('afs-slider__image--zoom-reset');
         // Remove reset class after transition

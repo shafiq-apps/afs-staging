@@ -1,29 +1,9 @@
-@use 'variables' as *;
-@use 'components' as *;
 
-body {
-  font-family: Arial, sans-serif;
-}
-
-#filters {
-  display: flex;
-
-  .filter-group {
-    margin-right: 1rem;
-
-    label {
-      font-weight: bold;
-    }
-  }
-}
-
-#products-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
-
-  .product-card {
-    border: 1px solid #ccc;
-    padding: 1rem;
-  }
-}
+@use './variables';
+@use './components';
+@use './skeleton';
+@use './filters';
+@use './products-grid';
+@use './quickview';
+@use './pagination';
+@use './responsive';

@@ -1396,15 +1396,30 @@ const DOM = {
   mobileFilterBackdrop: null as HTMLElement | null,
 
   init(containerSel: string, filtersSel: string | undefined, productsSel: string | undefined): void {
+    // Validate container selector - must not be empty
+    if (!containerSel || typeof containerSel !== 'string' || containerSel.trim() === '') {
+      throw new Error('Container selector cannot be empty. Provide a valid selector or ensure [data-afs-container] exists in the DOM.');
+    }
+
     this.container = document.querySelector<HTMLElement>(containerSel) || document.querySelector<HTMLElement>('[data-afs-container]');
-    if (!this.container) throw new Error('Container not found');
+    if (!this.container) {
+      throw new Error(`Container not found. Selector: "${containerSel}". Please ensure the container element exists in the DOM.`);
+    }
 
     this.container.setAttribute('data-afs-container', 'true');
 
     const main = this.container.querySelector<HTMLElement>('.afs-main-content') || $.el('div', 'afs-main-content');
     if (!main.parentNode) this.container.appendChild(main);
 
-    this.filtersContainer = document.querySelector<HTMLElement>(filtersSel || '') || $.el('div', 'afs-filters-container');
+    // Only querySelector if selector is provided and not empty
+    this.filtersContainer = (filtersSel && filtersSel.trim() !== '') 
+      ? document.querySelector<HTMLElement>(filtersSel) || null
+      : null;
+    
+    if (!this.filtersContainer) {
+      this.filtersContainer = $.el('div', 'afs-filters-container');
+    }
+    
     if (!this.filtersContainer.parentNode && main) main.appendChild(this.filtersContainer);
 
     // Ensure filters are closed by default on mobile
@@ -1442,7 +1457,15 @@ const DOM = {
       }
     }
 
-    this.productsContainer = document.querySelector<HTMLElement>(productsSel || '') || $.el('div', 'afs-products-container');
+    // Only querySelector if selector is provided and not empty
+    this.productsContainer = (productsSel && productsSel.trim() !== '') 
+      ? document.querySelector<HTMLElement>(productsSel) || null
+      : null;
+    
+    if (!this.productsContainer) {
+      this.productsContainer = $.el('div', 'afs-products-container');
+    }
+    
     if (!this.productsContainer.parentNode && main) main.appendChild(this.productsContainer);
 
     this.productsInfo = $.el('div', 'afs-products-info');
@@ -2466,8 +2489,25 @@ const DOM = {
   },
 
   showError(message: string): void {
+    // Try to find productsContainer if not set, or use container as fallback
     if (!this.productsContainer) {
-      Log.error('Cannot show error: productsContainer not found');
+      // Try to find it in the container
+      this.productsContainer = this.container?.querySelector<HTMLElement>('.afs-products-container') || null;
+      
+      // If still not found, create it
+      if (!this.productsContainer && this.container) {
+        const main = this.container.querySelector<HTMLElement>('.afs-main-content');
+        if (main) {
+          this.productsContainer = $.el('div', 'afs-products-container');
+          main.appendChild(this.productsContainer);
+        }
+      }
+    }
+    
+    if (!this.productsContainer) {
+      // Last resort: log to console
+      Log.error('Cannot show error: productsContainer not found', { message });
+      console.error('[AFS Error]', message);
       return;
     }
 
@@ -3641,7 +3681,12 @@ const AFS: AFSInterface = {
       Log.info('Shop set', { shop: State.shop });
       Log.info('Collections set', { collections: State.collections });
 
-      DOM.init(config.containerSelector || '[data-afs-container]', config.filtersSelector, config.productsSelector);
+      // Map config properties to selectors (support both old and new naming)
+      const containerSelector = config.containerSelector || (config as any).container || '[data-afs-container]';
+      const filtersSelector = config.filtersSelector || (config as any).filtersContainer;
+      const productsSelector = config.productsSelector || (config as any).productsContainer;
+      
+      DOM.init(containerSelector, filtersSelector, productsSelector);
       Log.info('DOM initialized');
 
       // Show loading skeleton immediately on initial load (before API calls)

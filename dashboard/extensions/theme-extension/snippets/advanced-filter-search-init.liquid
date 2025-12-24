@@ -47,9 +47,9 @@
     const config = {
       apiBaseUrl: {{ block.settings.api_base_url | json }},
       shop: {{ shop.permanent_domain | json }},
-      container: '#afs-container-{{ block.id }}',
-      filtersContainer: '.afs-filters-container',
-      productsContainer: '.afs-products-container',
+      containerSelector: '#afs-container-{{ block.id }}',
+      filtersSelector: '.afs-filters-container',
+      productsSelector: '.afs-products-container',
       pageSize: {{ page_size | json }},
       enableLogging: {{ block.settings.enable_logging | default: false }},
       collections: [
