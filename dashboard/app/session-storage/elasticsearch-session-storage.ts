@@ -9,10 +9,11 @@ import type { Session } from "@shopify/shopify-app-react-router/server";
 // Simple logger for dashboard (no shared utils available)
 // No-op logger - logging removed per user request
 const logger = {
-  log: () => {},
-  error: () => {},
-  warn: () => {},
-  debug: () => {},
+  info: (...args: any) => {},
+  error: (...args: any) => {},
+  log: (...args: any) => {},
+  debug: (...args: any) => {},
+  warn: (...args: any) => {},
 };
 
 // Get GraphQL endpoint from environment

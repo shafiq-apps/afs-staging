@@ -209,10 +209,10 @@ export default function EditFilterPage() {
 
   /* ---------------- Save ---------------- */
 
-  const handleSaveClick = useCallback(async (e?: React.MouseEvent) => {
+  const handleSaveClick = useCallback(async (e?: any) => {
     if (e) {
-      e.preventDefault();
-      e.stopPropagation();
+      e.preventDefault?.();
+      e.stopPropagation?.();
     }
     
     if (!formRef.current) {
@@ -273,11 +273,7 @@ export default function EditFilterPage() {
       <s-button
         slot="primary-action"
         variant="primary"
-        onClick={(e) => {
-          e?.preventDefault?.();
-          e?.stopPropagation?.();
-          handleSaveClick(e);
-        }}
+        onClick={handleSaveClick}
         loading={isSaving}
         disabled={isSaving}
       >

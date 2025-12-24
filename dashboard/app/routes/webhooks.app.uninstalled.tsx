@@ -6,8 +6,8 @@ import { graphqlRequest } from "../utils/graphql.client";
 // Simple logger for dashboard webhooks
 // No-op logger - logging removed per user request
 const logger = {
-  info: () => {},
-  error: () => {},
+  info: (...args: any) => {},
+  error: (...args: any) => {},
 };
 
 /**
