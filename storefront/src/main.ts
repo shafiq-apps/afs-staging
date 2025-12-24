@@ -6,8 +6,7 @@
 // Import and execute all modules
 // These files are self-contained and execute immediately when imported
 import './advanced-filter-search';
-import './afs-quickview';
-import './afs-slider';
+import './quickview.ts';
 
 // All modules export to window object, so no additional exports needed here
 // The build process will bundle everything into a single file

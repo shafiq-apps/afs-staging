@@ -537,4 +537,63 @@ export class FiltersRepository {
       throw error;
     }
   }
+
+  /**
+   * Delete all filters for a shop
+   * Used during app uninstallation to clean up all filter data
+   */
+  async deleteAllFilters(shop: string): Promise<number> {
+    try {
+      const index = FILTERS_INDEX_NAME;
+      
+      logger.log('Deleting all filters for shop', { shop });
+      
+      // Use delete by query to remove all filters for this shop
+      const response = await this.esClient.deleteByQuery({
+        index,
+        query: {
+          bool: {
+            must: [
+              {
+                bool: {
+                  should: [
+                    { term: { 'shop.keyword': shop } },
+                    { term: { shop: shop } }
+                  ],
+                  minimum_should_match: 1
+                }
+              }
+            ]
+          }
+        },
+        refresh: true,
+      });
+
+      const deletedCount = response.deleted || 0;
+      
+      // Invalidate cache when filters are deleted
+      try {
+        const cacheService = getCacheService();
+        cacheService.invalidateShop(shop);
+        logger.info('All filters deleted and cache invalidated', { shop, deletedCount });
+      } catch (cacheError: any) {
+        // Log cache invalidation error but don't fail the deletion
+        logger.warn('Failed to invalidate cache after deleting all filters', {
+          shop,
+          deletedCount,
+          error: cacheError?.message || cacheError,
+        });
+      }
+
+      return deletedCount;
+    } catch (error: any) {
+      if (error.statusCode === 404) {
+        // Index doesn't exist, no filters to delete
+        logger.log('Filters index does not exist', { shop });
+        return 0;
+      }
+      logger.error('Error deleting all filters for shop', { shop, error: error?.message || error });
+      throw error;
+    }
+  }
 }

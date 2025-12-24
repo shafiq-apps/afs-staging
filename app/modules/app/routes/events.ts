@@ -17,6 +17,7 @@ import { getProductMapping } from '@shared/storefront/mapping';
 import { IndexingLockService } from '@modules/indexing/indexing.lock.service';
 import { IndexerCheckpointService } from '@modules/indexing/indexing.checkpoint.service';
 import { SHOPS_INDEX_NAME } from '@shared/constants/es.constant';
+import { performUninstallCleanup } from '@modules/webhooks/webhooks.uninstall.service';
 
 const logger = createModuleLogger('app-events');
 
@@ -198,56 +199,47 @@ export const POST = handler(async (req: HttpRequest) => {
         },
       };
     } else if (event === 'APP_UNINSTALLED') {
-      // Update shop to mark as uninstalled (matches old uninstallShop() method)
+      // Comprehensive uninstallation cleanup using shared service
       const esClient = getESClient();
-      const shopsRepository = new ShopsRepository(esClient, SHOPS_INDEX_NAME);
       
-      // Get existing shop to preserve data
-      const existingShop = await shopsRepository.getShop(shop);
-      
-      if (!existingShop) {
-        logger.warn(`Shop not found for uninstall: ${shop}`);
-        // Still return success as uninstall event was received
+      try {
+        // Use shared uninstall cleanup service
+        const cleanupResults = await performUninstallCleanup(esClient, shop);
+        
+        logger.info(`Uninstallation cleanup completed for shop: ${shop}`, cleanupResults);
+
         return {
           success: true,
-          message: `Uninstall event processed (shop not found in database)`,
+          message: `Shop uninstalled successfully`,
           event,
           shop,
+          data: {
+            shop: existingShop?.shop || shop,
+            isActive: false,
+            uninstalledAt: new Date().toISOString(),
+            cleanupResults,
+          },
         };
-      }
-
-      // Update shop to mark as uninstalled
-      const updateData = {
-        ...existingShop,
-        isActive: false,
-        uninstalledAt: new Date().toISOString(),
-        lastAccessed: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-
-      // Use saveShop() for update - will update if exists
-      const updatedShop = await shopsRepository.saveShop(updateData);
-
-      if (!updatedShop) {
-        logger.warn(`Failed to update shop for uninstall: ${shop}`);
+      } catch (error: any) {
+        logger.error(`Error during uninstallation cleanup for shop: ${shop}`, {
+          error: error?.message || error,
+          stack: error?.stack,
+          cleanupResults,
+        });
+        
         // Still return success as uninstall event was received
+        // Partial cleanup is better than no cleanup
         return {
           success: true,
-          message: `Uninstall event processed (update failed)`,
+          message: `Uninstall event processed (some cleanup steps may have failed)`,
           event,
           shop,
+          data: {
+            cleanupResults,
+            error: error?.message || 'Unknown error',
+          },
         };
       }
-
-      logger.info(`Shop uninstalled successfully: ${shop}`);
-
-      return {
-        success: true,
-        message: `Shop uninstalled successfully`,
-        event,
-        shop,
-        data: updatedShop,
-      };
     }
 
     // Unknown event type

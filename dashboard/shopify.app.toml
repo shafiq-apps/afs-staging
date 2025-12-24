@@ -24,6 +24,28 @@ api_version = "2026-01"
   uri = "/webhooks/shop/redact"
   compliance_topics = [ "shop/redact" ]
 
+  # Product webhooks
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/products/create"
+  topics = [ "products/create" ]
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/products/update"
+  topics = [ "products/update" ]
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/products/delete"
+  topics = [ "products/delete" ]
+
+  # Collection webhooks
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/collections/update"
+  topics = [ "collections/update" ]
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/collections/delete"
+  topics = [ "collections/delete" ]
+
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
 scopes = "read_locales,read_online_store_pages,read_products,read_themes,write_online_store_pages,write_products"

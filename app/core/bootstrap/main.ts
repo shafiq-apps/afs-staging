@@ -92,6 +92,18 @@ export async function bootstrap() {
     shopsRepository: shopsModule.repository,
   });
   
+  // Initialize webhook worker for async processing
+  try {
+    const { WebhookWorkerService } = await import('@modules/webhooks/webhooks.worker.service');
+    const webhookWorker = new WebhookWorkerService(esClient);
+    const workerInterval = parseInt(process.env.WEBHOOK_WORKER_INTERVAL_MS || '5000');
+    webhookWorker.start(workerInterval);
+    logger.info('Webhook worker started', { intervalMs: workerInterval });
+  } catch (error: any) {
+    logger.warn('Failed to start webhook worker', error?.message || error);
+    // Don't fail bootstrap if worker fails to start
+  }
+  
   // TODO: Initialize other modules here (users, etc.)
   // const usersModule = createUsersModule();
 
