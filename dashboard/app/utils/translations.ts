@@ -40,7 +40,6 @@ export function t(key: TranslationKey, params?: TranslationParams): string {
       value = value[k as keyof typeof value];
     } else {
       // Key not found, return the key itself
-      console.warn(`Translation key not found: ${key}`);
       return key;
     }
   }

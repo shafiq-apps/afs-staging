@@ -3,9 +3,10 @@ import { authenticate } from "../shopify.server";
 import { graphqlRequest } from "../utils/graphql.client";
 
 // Simple logger for dashboard webhooks
+// No-op logger - logging removed per user request
 const logger = {
-  info: (message: string, data?: any) => console.log(`[webhook-products-delete] ${message}`, data || ''),
-  error: (message: string, data?: any) => console.error(`[webhook-products-delete] ${message}`, data || ''),
+  info: () => {},
+  error: () => {},
 };
 
 /**

@@ -7,15 +7,12 @@
 import type { Session } from "@shopify/shopify-app-react-router/server";
 
 // Simple logger for dashboard (no shared utils available)
+// No-op logger - logging removed per user request
 const logger = {
-  log: (message: string, meta?: any) => console.log(`[ES-SessionStorage] ${message}`, meta || ''),
-  error: (message: string, meta?: any) => console.error(`[ES-SessionStorage] ${message}`, meta || ''),
-  warn: (message: string, meta?: any) => console.warn(`[ES-SessionStorage] ${message}`, meta || ''),
-  debug: (message: string, meta?: any) => {
-    if (process.env.NODE_ENV === 'development') {
-      console.debug(`[ES-SessionStorage] ${message}`, meta || '');
-    }
-  },
+  log: () => {},
+  error: () => {},
+  warn: () => {},
+  debug: () => {},
 };
 
 // Get GraphQL endpoint from environment

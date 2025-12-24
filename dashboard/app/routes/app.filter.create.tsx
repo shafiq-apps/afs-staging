@@ -73,8 +73,21 @@ export default function CreateFilterPage() {
 
   /* ---------------- Save ---------------- */
 
-  const handleSaveClick = useCallback(async () => {
-    await formRef.current?.save();
+  const handleSaveClick = useCallback(async (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
+    if (!formRef.current) {
+      return;
+    }
+    
+    try {
+      await formRef.current.save();
+    } catch (error) {
+      // Error handled by FilterForm component
+    }
   }, []);
 
   const handleSavingChange = useCallback((saving: boolean) => {
@@ -123,7 +136,11 @@ export default function CreateFilterPage() {
       <s-button
         slot="primary-action"
         variant="primary"
-        onClick={handleSaveClick}
+        onClick={(e) => {
+          e?.preventDefault?.();
+          e?.stopPropagation?.();
+          handleSaveClick(e);
+        }}
         loading={isSaving}
         disabled={isSaving}
       >

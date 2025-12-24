@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useImperativeHandle, forwardRef } from "react";
+import { useState, useEffect, useCallback, useImperativeHandle, forwardRef } from "react";
 import { useNavigate, useLocation } from "react-router";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { useTranslation } from "../utils/translations";
@@ -7,7 +7,6 @@ import { deepEqual } from "../utils/deep-equal";
 import {
   DisplayType,
   SelectionType,
-  SortOrder,
   FilterOptionStatus,
   FilterStatus,
   PaginationType,
@@ -567,9 +566,20 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
     if (!shopify) return;
 
     try {
+      // Normalize IDs for preselection - use gid if available, otherwise reconstruct from normalized id
       const preselected = allowedCollections
-        .filter((c) => c.gid)
-        .map((c) => ({ id: c.gid }));
+        .map((c) => {
+          // If gid exists and is in GID format, use it
+          if (c.gid && c.gid.startsWith('gid://')) {
+            return { id: c.gid };
+          }
+          // Otherwise, reconstruct GID from normalized id
+          if (c.id) {
+            return { id: `gid://shopify/Collection/${c.id}` };
+          }
+          return null;
+        })
+        .filter((item): item is { id: string } => item !== null);
 
       const result = await shopify.resourcePicker({
         type: 'collection',
@@ -622,13 +632,28 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
       const productDisplay: any = settings.productDisplay || {};
       const pagination: any = settings.pagination || {};
       
+      // Normalize allowedCollections IDs and ensure gid is set
+      const normalizedAllowedCollections = (initialFilter.allowedCollections || []).map((collection: any) => {
+        // Normalize the id field (handle both GID and numeric formats)
+        const normalizedId = normalizeShopifyId(collection.id);
+        // Use gid if available, otherwise try to reconstruct from id
+        const gid = collection.gid || (collection.id?.startsWith('gid://') ? collection.id : `gid://shopify/Collection/${normalizedId}`);
+        
+        return {
+          id: normalizedId, // Always use normalized ID for storage/comparison
+          gid: gid, // Keep GID format for Shopify picker
+          label: collection.label || "",
+          value: collection.value || collection.handle || normalizedId,
+        };
+      });
+
       const initState: FilterState = {
         title: initialFilter.title || "",
         description: initialFilter.description || "",
         status: toFilterStatus(initialFilter.status),
         filterType: initialFilter.filterType || "",
         targetScope: toTargetScope(initialFilter.targetScope) || TargetScope.ALL,
-        allowedCollections: JSON.parse(JSON.stringify(initialFilter.allowedCollections || [])),
+        allowedCollections: normalizedAllowedCollections,
         filterOptions: JSON.parse(JSON.stringify(normalizedOptions)),
         deploymentChannel: toDeploymentChannel(initialFilter.deploymentChannel) || DeploymentChannel.APP,
         tags: initialFilter.tags || [],
@@ -1349,30 +1374,54 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
       e.stopPropagation();
     }
 
+    // Guard against multiple simultaneous save attempts
+    if (isSaving) {
+      return;
+    }
+
     // Validation
     let hasError = false;
+    const errors: string[] = [];
     setTitleError("");
     setOptionsError("");
     setCollectionsError("");
 
     if (!title.trim()) {
-      setTitleError("Filter title is required");
+      const errorMsg = "Filter title is required";
+      setTitleError(errorMsg);
+      errors.push(errorMsg);
       hasError = true;
     }
 
     // Validate collections when targetScope is "entitled" (specific collections)
     if (targetScope === TargetScope.ENTITLED && allowedCollections.length === 0) {
-      setCollectionsError("At least one collection must be selected when using specific collections");
+      const errorMsg = "At least one collection must be selected when using specific collections";
+      setCollectionsError(errorMsg);
+      errors.push(errorMsg);
       hasError = true;
     }
 
     const activeOptions = filterOptions.filter(opt => toFilterOptionStatus(opt.status) === FilterOptionStatus.PUBLISHED);
     if (activeOptions.length === 0) {
-      setOptionsError("At least one filter option must be active");
+      const errorMsg = "At least one filter option must be active";
+      setOptionsError(errorMsg);
+      errors.push(errorMsg);
       hasError = true;
     }
 
     if (hasError) {
+      // Show validation errors to user
+      const errorMessage = errors.join('. ');
+      shopify.toast.show(`Please fix the following errors: ${errorMessage}`, { isError: true });
+      
+      // Scroll to first error field
+      if (titleError || !title.trim()) {
+        const titleInput = document.getElementById(titleInputId);
+        if (titleInput) {
+          titleInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          titleInput.focus();
+        }
+      }
       return;
     }
 
@@ -1381,14 +1430,16 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
 
     try {
       if (!shop) {
-        shopify.toast.show("Shop information is missing", { isError: true });
+        const errorMsg = "Shop information is missing";
+        shopify.toast.show(errorMsg, { isError: true });
         setIsSaving(false);
         onSavingChange?.(false);
         return;
       }
 
       if (!graphqlEndpoint) {
-        shopify.toast.show("GraphQL endpoint is not configured", { isError: true });
+        const errorMsg = "GraphQL endpoint is not configured";
+        shopify.toast.show(errorMsg, { isError: true });
         setIsSaving(false);
         onSavingChange?.(false);
         return;
@@ -1484,7 +1535,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
         ? { input }
         : { id: initialFilter?.id, input };
 
-      // Use server-side API route instead of direct GraphQL endpoint
+      // Use server-side API route (handles authentication and shop injection)
       const response = await fetch("/app/api/graphql", {
         method: "POST",
         headers: {
@@ -1497,8 +1548,14 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        const errorMessage = errorData.error || `Failed to ${mode === PageMode.CREATE ? "create" : "update"} filter`;
+        const errorText = await response.text();
+        let errorMessage = `Failed to ${mode === PageMode.CREATE ? "create" : "update"} filter`;
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.error || errorData.message || errorMessage;
+        } catch {
+          errorMessage = errorText || errorMessage;
+        }
         shopify.toast.show(errorMessage, { isError: true });
         setIsSaving(false);
         onSavingChange?.(false);
@@ -1547,13 +1604,17 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
           
           if (mode === PageMode.CREATE) {
             navigate("/app/filters");
+          } else {
+            // For edit mode, stay on the page but refresh the data
+            // window.location.reload();
           }
         }, 100);
       } else {
         shopify.toast.show(`Failed to ${mode === PageMode.CREATE ? "create" : "update"} filter: Unexpected response`, { isError: true });
       }
     } catch (error: any) {
-      shopify.toast.show(error.message || `Failed to ${mode === PageMode.CREATE ? "create" : "update"} filter`, { isError: true });
+      const errorMessage = error?.message || error?.toString() || `Failed to ${mode === PageMode.CREATE ? "create" : "update"} filter`;
+      shopify.toast.show(errorMessage, { isError: true });
     } finally {
       setIsSaving(false);
       onSavingChange?.(false);
@@ -1589,6 +1650,17 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
   const pageKey = `${pageId}-${location.pathname}`;
 
   const handleSave = async (e?: React.FormEvent) => {
+    // Prevent default form submission
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
+    // Guard against multiple saves
+    if (isSaving) {
+      return;
+    }
+    
     await handleSaveInternal(e);
   };
 

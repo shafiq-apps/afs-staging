@@ -13,6 +13,7 @@ import FilterForm, {
 } from "../components/FilterForm";
 import { useTranslation } from "app/utils/translations";
 import { PaginationType, SortOrder } from "app/utils/filter.enums";
+import { normalizeShopifyId } from "app/utils/normalize-shopify-id";
 
 /* ======================================================
    LOADER
@@ -41,6 +42,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
         targetScope
         allowedCollections {
           id
+          gid
           label
           value
         }
@@ -142,6 +144,20 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
 
   const filter = filterJson.data.filter;
 
+  // Normalize allowedCollections IDs - ensure id is normalized and gid is set
+  if (filter.allowedCollections && Array.isArray(filter.allowedCollections)) {
+    filter.allowedCollections = filter.allowedCollections.map((collection: any) => {
+      const normalizedId = normalizeShopifyId(collection.id);
+      const gid = collection.gid || (collection.id?.startsWith('gid://') ? collection.id : `gid://shopify/Collection/${normalizedId}`);
+      
+      return {
+        ...collection,
+        id: normalizedId, // Always use normalized ID
+        gid: gid, // Ensure gid is set for picker preselection
+      };
+    });
+  }
+
   // Normalize option settings (single responsibility here)
   filter.options = filter.options.map((option: any) => {
     const s = option.optionSettings ?? {};
@@ -193,8 +209,21 @@ export default function EditFilterPage() {
 
   /* ---------------- Save ---------------- */
 
-  const handleSaveClick = useCallback(async () => {
-    await formRef.current?.save();
+  const handleSaveClick = useCallback(async (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
+    if (!formRef.current) {
+      return;
+    }
+    
+    try {
+      await formRef.current.save();
+    } catch (error) {
+      // Error handled by FilterForm component
+    }
   }, []);
 
   const handleSavingChange = useCallback((saving: boolean) => {
@@ -244,7 +273,11 @@ export default function EditFilterPage() {
       <s-button
         slot="primary-action"
         variant="primary"
-        onClick={handleSaveClick}
+        onClick={(e) => {
+          e?.preventDefault?.();
+          e?.stopPropagation?.();
+          handleSaveClick(e);
+        }}
         loading={isSaving}
         disabled={isSaving}
       >

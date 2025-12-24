@@ -33,7 +33,6 @@ export async function graphqlRequest(query: string, variables?: any): Promise<an
 
     return result.data;
   } catch (error: any) {
-    console.error('GraphQL request error:', error);
     throw error;
   }
 }
