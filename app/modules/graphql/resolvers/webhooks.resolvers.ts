@@ -5,7 +5,7 @@
 
 import { createModuleLogger } from '@shared/utils/logger.util';
 import { GraphQLContext } from '../graphql.type';
-import { getESClient } from '@core/elasticsearch/es.client';
+import { getESClient as getESClientCore } from '@core/elasticsearch/es.client';
 import { WEBHOOKS_QUEUE_INDEX_NAME } from '@shared/constants/es.constant';
 import { v4 as uuidv4 } from 'uuid';
 import { WebhooksRepository } from '@modules/webhooks/webhooks.repository';
@@ -13,6 +13,20 @@ import { WebhookReconciliationService } from '@modules/webhooks/webhooks.reconci
 import { performUninstallCleanup } from '@modules/webhooks/webhooks.uninstall.service';
 
 const logger = createModuleLogger('webhooks-resolvers');
+
+// Helper function to get ES client from context (matching pattern from other resolvers)
+function getESClient(context: GraphQLContext): any {
+  // Get ES client from request (injected by bootstrap)
+  const esClient = (context.req as any)?.esClient;
+  if (!esClient) {
+    logger.warn('ES client not found in context.req, using core client', {
+      reqKeys: Object.keys(context.req || {}),
+      hasReq: !!context.req,
+    });
+    return getESClientCore();
+  }
+  return esClient;
+}
 
 export const webhooksResolvers = {
   Mutation: {
@@ -243,20 +257,20 @@ export const webhooksResolvers = {
           return null;
         }
 
-        const webhook = response.hits.hits[0]?._source;
+        const webhook = response.hits.hits[0]?._source as any;
         if (!webhook) {
           return null;
         }
         return {
-          webhookId: webhook.webhookId,
-          topic: webhook.topic,
-          shop: webhook.shop,
-          eventType: webhook.eventType,
-          status: webhook.status,
-          receivedAt: webhook.receivedAt,
-          processedAt: webhook.processedAt,
+          webhookId: webhook.webhookId || args.webhookId,
+          topic: webhook.topic || '',
+          shop: webhook.shop || '',
+          eventType: webhook.eventType || '',
+          status: webhook.status || 'pending',
+          receivedAt: webhook.receivedAt || '',
+          processedAt: webhook.processedAt || null,
           retryCount: webhook.retryCount || 0,
-          error: webhook.error,
+          error: webhook.error || null,
         };
       } catch (error: any) {
         logger.error('Error getting webhook status', {

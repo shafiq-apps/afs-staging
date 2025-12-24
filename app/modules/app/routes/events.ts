@@ -202,9 +202,12 @@ export const POST = handler(async (req: HttpRequest) => {
       // Comprehensive uninstallation cleanup using shared service
       const esClient = getESClient();
       
+      // Declare cleanupResults outside try-catch for proper scope
+      let cleanupResults: any = null;
+      
       try {
         // Use shared uninstall cleanup service
-        const cleanupResults = await performUninstallCleanup(esClient, shop);
+        cleanupResults = await performUninstallCleanup(esClient, shop);
         
         logger.info(`Uninstallation cleanup completed for shop: ${shop}`, cleanupResults);
 
@@ -214,7 +217,7 @@ export const POST = handler(async (req: HttpRequest) => {
           event,
           shop,
           data: {
-            shop: existingShop?.shop || shop,
+            shop: shop,
             isActive: false,
             uninstalledAt: new Date().toISOString(),
             cleanupResults,
