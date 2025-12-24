@@ -15,7 +15,7 @@ import { handler } from '@core/http/http.handler';
 import { HttpRequest } from '@core/http/http.types';
 import { validateShopDomain } from '@core/http/validation.middleware';
 import { rateLimit } from '@core/security/rate-limit.middleware';
-import { buildFilterInput } from '@modules/storefront/products.helper';
+import { buildSearchInput } from '@modules/storefront/products.helper';
 import { createModuleLogger } from '@shared/utils/logger.util';
 import { formatFilters } from '@shared/storefront/filter-format.helper';
 import {
@@ -33,7 +33,13 @@ export const GET = handler(async (req: HttpRequest) => {
   const shopParam = req.query.shop as string;
 
   // Build filter input from request query parameters
-  let filterInput = buildFilterInput(req.query);
+  // IMPORTANT:
+  // Use the *same* query parsing as `/storefront/products` to ensure
+  // facet counts are scoped to the exact same active filters as product results.
+  // The older `buildFilterInput()` implementation intentionally drops filters
+  // when `keep` / `preserveOptionAggregations` is present (historical behavior),
+  // which can cause "facet count != results count" discrepancies.
+  let filterInput = buildSearchInput(req.query);
 
   logger.log(`Fetching storefront filters for shop=${shopParam}`, filterInput ? `with filters=${JSON.stringify(filterInput)}` : '');
 
