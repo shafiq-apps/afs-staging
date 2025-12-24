@@ -63,6 +63,11 @@ export enum TargetScope {
   ENTITLED = "entitled",
 }
 
+export enum FilterType {
+  CUSTOM = "custom",
+  DEFAULT = "default",
+}
+
 export enum FilterOrientation {
   VERTICAL = "vertical",
   HORIZONTAL = "horizontal",
@@ -157,6 +162,14 @@ export function toTargetScope(value: string | undefined | null): TargetScope {
   return Object.values(TargetScope).includes(lower as TargetScope)
     ? (lower as TargetScope)
     : TargetScope.ALL;
+}
+
+export function toFilterType(value: string | undefined | null): FilterType {
+  if (!value) return FilterType.CUSTOM;
+  const lower = value.toLowerCase();
+  return Object.values(FilterType).includes(lower as FilterType)
+    ? (lower as FilterType)
+    : FilterType.CUSTOM;
 }
 
 export function toFilterOrientation(value: string | undefined | null): FilterOrientation {

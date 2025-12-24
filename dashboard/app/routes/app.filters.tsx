@@ -8,6 +8,7 @@ import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { useTranslation } from "../utils/translations";
+import { TargetScope } from "../utils/filter.enums";
 
 interface CollectionReference {
   label: string;
@@ -264,13 +265,23 @@ export default function FiltersPage() {
   };
 
   const getCollectionDisplay = (filter: Filter): string => {
-    if (filter.targetScope === "all") {
+    // Use enum values for comparison (also handle legacy "specific" value)
+    if (filter.targetScope === TargetScope.ALL || filter.targetScope === "all") {
       return t("filters.collectionDisplay.all");
-    } else if (filter.targetScope === "specific" && filter.allowedCollections && filter.allowedCollections.length > 0) {
-      if (filter.allowedCollections.length === 1) {
-        return filter.allowedCollections[0].label;
+    } else if (
+      filter.targetScope === TargetScope.ENTITLED || 
+      filter.targetScope === "entitled" || 
+      filter.targetScope === "specific" // Legacy value support
+    ) {
+      // Show collection count when targetScope is entitled/specific
+      if (filter.allowedCollections && filter.allowedCollections.length > 0) {
+        if (filter.allowedCollections.length === 1) {
+          return filter.allowedCollections[0].label || t("filters.collectionDisplay.specific", { count: "1" });
+        }
+        return t("filters.collectionDisplay.specific", { count: filter.allowedCollections.length.toString() });
       }
-      return t("filters.collectionDisplay.specific", { count: filter.allowedCollections.length.toString() });
+      // If no collections selected, show "No Collections"
+      return t("filters.collectionDisplay.none");
     }
     return t("filters.collectionDisplay.none");
   };

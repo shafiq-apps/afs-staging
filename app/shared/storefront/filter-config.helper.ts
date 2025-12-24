@@ -12,6 +12,12 @@ import { NO_FILTER_CONFIG_HASH } from '@core/cache/cache.key';
 
 const logger = createModuleLogger('products-filter-config-helper');
 
+// Filter type constants (matching FilterType enum values)
+const FILTER_TYPE = {
+  CUSTOM: 'custom',
+  DEFAULT: 'default',
+} as const;
+
 const STANDARD_FILTER_MAPPING: Record<string, keyof ProductFilterInput> = {
   vendor: 'vendors',
   vendors: 'vendors',
@@ -113,6 +119,49 @@ export interface FilterConfigRepository {
   listFilters(shop: string, cpid?: string): Promise<{ filters: Filter[] }>;
 }
 
+/**
+ * Normalize collection ID for comparison
+ * Handles both GraphQL GID format (gid://shopify/Collection/123) and simple numeric IDs
+ */
+function normalizeCollectionId(id: string | null | undefined): string | null {
+  if (!id) return null;
+  
+  // If already a numeric ID, return as-is
+  if (/^\d+$/.test(id)) {
+    return id;
+  }
+  
+  // Extract ID from GID format: gid://shopify/Collection/ID
+  const match = id.match(/gid:\/\/shopify\/[^/]+\/(.+)$/);
+  if (match && match[1]) {
+    return match[1];
+  }
+  
+  // If no match, return original (might be a different format)
+  return id;
+}
+
+/**
+ * Check if a collection ID matches any collection in allowedCollections
+ * Normalizes both IDs for comparison
+ */
+function isCollectionInAllowedCollections(
+  collectionId: string | null | undefined,
+  allowedCollections?: Array<{ id: string; label?: string }>
+): boolean {
+  if (!collectionId || !allowedCollections || allowedCollections.length === 0) {
+    return false;
+  }
+  
+  const normalizedCollectionId = normalizeCollectionId(collectionId);
+  if (!normalizedCollectionId) return false;
+  
+  return allowedCollections.some((c) => {
+    const normalizedAllowedId = normalizeCollectionId(c.id);
+    return normalizedAllowedId === normalizedCollectionId;
+  });
+}
+
 export async function getActiveFilterConfig(
   filtersRepository: FilterConfigRepository,
   shop: string,
@@ -120,6 +169,10 @@ export async function getActiveFilterConfig(
   cpid?: string
 ): Promise<Filter | null> {
   try {
+    // Use cpid (collection page ID) as the primary identifier for collection matching
+    // cpid is the current page collection ID where filters should be rendered
+    const targetCollectionId = cpid || collectionId;
+    
     // Pass cpid to listFilters for cache key generation
     // If cpid changes and there are multiple filters, cache will be invalidated
     const { filters } = await filtersRepository.listFilters(shop, cpid);
@@ -130,38 +183,51 @@ export async function getActiveFilterConfig(
     );
 
     if (publishedFilters.length === 0) {
-      logger.log('No published filter configuration found', { shop });
+      logger.log('No published filter configuration found', { shop, cpid });
       return null;
     }
 
-    // Priority 1: If collection ID is provided, find filters where collection is in allowedCollections
-    if (collectionId) {
+    // Priority 1: If collection ID (cpid) is provided, find filters where:
+    // - targetScope === 'entitled' AND
+    // - collection ID is in allowedCollections[]
+    if (targetCollectionId) {
+      const normalizedTargetId = normalizeCollectionId(targetCollectionId);
+      
       const collectionSpecificFilters = publishedFilters.filter((f) => {
-        const isEntitled = normalizeString(f.targetScope) === 'entitled';
-        if (isEntitled && f.allowedCollections?.length > 0) {
-          return f.allowedCollections.some((c) => c.id === collectionId);
+        // Use normalized comparison for targetScope (handles both 'entitled' and legacy 'specific')
+        const normalizedScope = normalizeString(f.targetScope);
+        const isEntitled = normalizedScope === 'entitled' || normalizedScope === 'specific';
+        if (!isEntitled) return false;
+        
+        // Check if collection is in allowedCollections array
+        if (f.allowedCollections && f.allowedCollections.length > 0) {
+          return isCollectionInAllowedCollections(normalizedTargetId, f.allowedCollections);
         }
+        
+        // If no allowedCollections, this filter doesn't match the collection
         return false;
       });
 
       if (collectionSpecificFilters.length > 0) {
         // Among collection-specific filters, prioritize by filterType
-        const customFilter = collectionSpecificFilters.find((f) => normalizeString(f.filterType) === 'custom');
+        const customFilter = collectionSpecificFilters.find((f) => normalizeString(f.filterType) === FILTER_TYPE.CUSTOM);
         if (customFilter) {
           logger.log('Collection-specific custom filter found', {
             shop,
-            collectionId,
+            collectionId: targetCollectionId,
+            cpid,
             filterId: customFilter.id,
             title: customFilter.title,
           });
           return customFilter;
         }
 
-        const defaultFilter = collectionSpecificFilters.find((f) => normalizeString(f.filterType) === 'default');
+        const defaultFilter = collectionSpecificFilters.find((f) => normalizeString(f.filterType) === FILTER_TYPE.DEFAULT);
         if (defaultFilter) {
           logger.log('Collection-specific default filter found', {
             shop,
-            collectionId,
+            collectionId: targetCollectionId,
+            cpid,
             filterId: defaultFilter.id,
             title: defaultFilter.title,
           });
@@ -171,18 +237,70 @@ export async function getActiveFilterConfig(
         // Return first collection-specific filter
         logger.log('Collection-specific filter found', {
           shop,
-          collectionId,
+          collectionId: targetCollectionId,
+          cpid,
           filterId: collectionSpecificFilters[0].id,
           title: collectionSpecificFilters[0].title,
         });
         return collectionSpecificFilters[0];
       }
+      
+      // If no collection-specific filter found, return null
+      // Frontend will render fallback products
+      logger.log('No filter found for collection, returning null for fallback products', {
+        shop,
+        collectionId: targetCollectionId,
+        cpid,
+        totalFilters: publishedFilters.length,
+      });
+      return null;
     }
 
-    // Priority 2: Custom published filter
-    const customFilter = publishedFilters.find((f) => normalizeString(f.filterType) === 'custom');
+    // Priority 2: Filters with targetScope === 'all' (filters for all collections)
+    // Only return these if no collection-specific filter was found
+    const allScopeFilters = publishedFilters.filter((f) => {
+      const normalizedScope = normalizeString(f.targetScope);
+      return normalizedScope === 'all';
+    });
+    
+    if (allScopeFilters.length > 0) {
+      // Among all-scope filters, prioritize by filterType
+      const customFilter = allScopeFilters.find((f) => normalizeString(f.filterType) === FILTER_TYPE.CUSTOM);
+      if (customFilter) {
+        logger.log('All-scope custom filter found', {
+          shop,
+          filterId: customFilter.id,
+          title: customFilter.title,
+          optionsCount: customFilter.options?.length || 0,
+        });
+        return customFilter;
+      }
+
+      const defaultFilter = allScopeFilters.find((f) => normalizeString(f.filterType) === FILTER_TYPE.DEFAULT);
+      if (defaultFilter) {
+        logger.log('All-scope default filter found', {
+          shop,
+          filterId: defaultFilter.id,
+          title: defaultFilter.title,
+          optionsCount: defaultFilter.options?.length || 0,
+        });
+        return defaultFilter;
+      }
+
+      // Return first all-scope filter
+      logger.log('All-scope filter found', {
+        shop,
+        filterId: allScopeFilters[0].id,
+        title: allScopeFilters[0].title,
+        optionsCount: allScopeFilters[0].options?.length || 0,
+      });
+      return allScopeFilters[0];
+    }
+
+    // Priority 3: Custom published filter (fallback, any scope)
+    const customFilter = publishedFilters.find((f) => normalizeString(f.filterType) === FILTER_TYPE.CUSTOM);
     if (customFilter) {
-      logger.log('Custom published filter found', {
+      logger.log('Custom published filter found (fallback)', {
         shop,
         filterId: customFilter.id,
         title: customFilter.title,
@@ -191,10 +309,10 @@ export async function getActiveFilterConfig(
       return customFilter;
     }
 
-    // Priority 3: Default published filter
-    const defaultFilter = publishedFilters.find((f) => normalizeString(f.filterType) === 'default');
+    // Priority 4: Default published filter (fallback, any scope)
+    const defaultFilter = publishedFilters.find((f) => normalizeString(f.filterType) === FILTER_TYPE.DEFAULT);
     if (defaultFilter) {
-      logger.log('Default published filter found', {
+      logger.log('Default published filter found (fallback)', {
         shop,
         filterId: defaultFilter.id,
         title: defaultFilter.title,
@@ -203,9 +321,9 @@ export async function getActiveFilterConfig(
       return defaultFilter;
     }
 
-    // Priority 4: Any published filter (fallback)
+    // Priority 5: Any published filter (last resort)
     const anyFilter = publishedFilters[0];
-    logger.log('Using first available published filter', {
+    logger.log('Using first available published filter (last resort)', {
       shop,
       filterId: anyFilter.id,
       title: anyFilter.title,
