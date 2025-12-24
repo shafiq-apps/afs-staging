@@ -647,8 +647,7 @@ export class StorefrontSearchRepository {
                 // Without `include`, the terms agg will also bucket unrelated optionPairs
                 // (e.g., Color::*, Size::*) from the same documents.
                 include: `${escapeRegex(optionPrefix)}.*`,
-                size: DEFAULT_BUCKET_SIZE * AGGREGATION_BUCKET_SIZES.TAGS_MULTIPLIER,
-                // order: { _count: 'desc' as const },
+                size: DEFAULT_BUCKET_SIZE * AGGREGATION_BUCKET_SIZES.OPTION_PAIRS_MULTIPLIER,
               },
             },
           },
