@@ -1,5 +1,5 @@
-@import 'variables';
-@import 'components';
+@use 'variables' as *;
+@use 'components' as *;
 
 body {
   font-family: Arial, sans-serif;

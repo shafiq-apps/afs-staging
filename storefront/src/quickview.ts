@@ -508,7 +508,7 @@ class AFSSlider {
           if (activeImage) {
             const transform = activeImage.style.transform || '';
             const scaleMatch = transform.match(/scale\(([\d.]+)\)/);
-            const currentScale = scaleMatch ? parseFloat(scaleMatch[1]) : 1;
+            let currentScale = scaleMatch ? parseFloat(scaleMatch[1]) : 1;
             
             if (currentScale > 1) {
               // Reset zoom
