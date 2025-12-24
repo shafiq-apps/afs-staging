@@ -110,15 +110,6 @@
       opacity: 1;
     }
 
-    &[data-afs-collapsed="true"] &__content {
-      max-height: 0 !important;
-      opacity: 0;
-      margin: 0 !important;
-      padding: 0 !important;
-      overflow: hidden;
-      // Removed display: block - it prevents proper collapse animation
-    }
-
     &__search {
       margin-bottom: $spacing-md;
 
@@ -155,6 +146,14 @@
       padding-right: $spacing-xs;
       @include custom-scrollbar(4px);
     }
+  }
+
+  [data-afs-collapsed="true"] .afs-filter-group__content {
+    max-height: 0 !important;
+    opacity: 0;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden;
   }
 
   /* ============================================================================
@@ -346,6 +345,10 @@
         width: 0px;
         height: 0px;
         opacity: 0;
+      }
+
+      .afs-filter-item {
+        gap: 10px 0px;
       }
 
       .afs-filter-item:hover .afs-filter-item__label {

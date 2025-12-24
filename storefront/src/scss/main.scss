@@ -1,9 +1,8 @@
-
-@use './variables';
-@use './components';
-@use './skeleton';
-@use './filters';
-@use './products-grid';
-@use './quickview';
-@use './pagination';
-@use './responsive';
+@use './_variables';
+@use './_components';
+@use './_skeleton';
+@use './_filters';
+@use './_products-grid';
+@use './_quickview';
+@use './_pagination';
+@use './_responsive';
