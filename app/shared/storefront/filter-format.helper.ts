@@ -31,7 +31,10 @@ export function formatOptionPairs(optionPairsBuckets?: Array<{ key: string; doc_
   const optionEntries: Record<string, FacetValue[]> = {};
   const buckets = optionPairsBuckets ?? [];
 
+  var index = 0;
+  // console.log("buckets", buckets.filter(b => b.key.includes("Ships From")));
   for (const bucket of buckets) {
+
     const key = bucket.key || '';
     if (!key.includes(PRODUCT_OPTION_PAIR_SEPARATOR)) continue;
     const [optionName, optionValue] = key.split(PRODUCT_OPTION_PAIR_SEPARATOR);
@@ -40,7 +43,14 @@ export function formatOptionPairs(optionPairsBuckets?: Array<{ key: string; doc_
     if (!optionEntries[optionName]) {
       optionEntries[optionName] = [];
     }
-
+    if(optionName === "Ships From") {
+      // console.log("#"+index, bucket.key, bucket.doc_count);
+    }
+    else{
+      // console.log("optionName:", optionName, bucket.key);
+    }
+    
+    index++;
     optionEntries[optionName].push({
       value: optionValue, // Original value for filtering
       count: bucket.doc_count,
@@ -48,10 +58,10 @@ export function formatOptionPairs(optionPairsBuckets?: Array<{ key: string; doc_
     });
   }
 
-  // Sort by count descending
-  for (const entry of Object.values(optionEntries)) {
-    entry.sort((a, b) => b.count - a.count);
-  }
+  // // Sort by count descending
+  // for (const entry of Object.values(optionEntries)) {
+  //   entry.sort((a, b) => b.count - a.count);
+  // }
 
   return optionEntries;
 }
@@ -118,12 +128,17 @@ function groupSimilarValues(items: FacetValue[]): FacetValue[] {
   }));
 }
 
-
-
 function applyOptionSettings(
   optionItems: FacetValue[],
   configOption?: Filter['options'][number]
 ): FacetValue[] {
+
+  if (configOption.handle === "comcj5" && false) {
+    console.log("************************************************************");
+    console.log("optionItems", optionItems);
+    console.log("************************************************************");
+  }
+
   if (!configOption) {
     return [...optionItems];
   }
@@ -265,10 +280,11 @@ function findMatchingOptionKey(
 ): string | null {
   const optionKeys = Object.keys(optionsMap);
   for (const candidate of candidates) {
-    const normalizedCandidate = normalizeKey(candidate);
-    if (!normalizedCandidate) continue;
+    
+    if (!candidate) continue;
 
-    const match = optionKeys.find((key) => normalizeKey(key) === normalizedCandidate);
+    // const match = optionKeys.find((key) => normalizeKey(key) === normalizedCandidate);
+    const match = optionKeys.find((key) => key === candidate);
     if (match) {
       return match;
     }
@@ -352,11 +368,14 @@ export function formatFilters(
     return [];
   }
 
-
   if (!filterConfig || !Array.isArray(filterConfig.options) || filterConfig.options.length === 0) {
     // Returning empty to enforce "handles only from filterConfig" rule.
     return [];
   }
+
+  // console.log("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
+  // console.log(aggregations?.optionPairs?.buckets);
+  // console.log("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
 
   const filters: StorefrontFilterDescriptor[] = [];
   const rawOptions = formatOptionPairs(aggregations.optionPairs?.buckets);
@@ -487,6 +506,15 @@ export function formatFilters(
         option.optionType,
         option.label,
       ]);
+
+      // if(derivedVariantOptionKey === "Ships From") {
+      //   console.log("**********************************************");
+      //   console.log("matchedKey", matchedKey);
+      //   console.log("rawOptions", rawOptions["Ships From"]);
+      //   console.log("**********************************************");
+      // }
+
+      // console.log(derivedVariantOptionKey);
 
       if (!matchedKey) continue;
       const optionValues = rawOptions[matchedKey];

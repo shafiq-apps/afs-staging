@@ -5,28 +5,29 @@
 
 import { Client } from '@elastic/elasticsearch';
 import { createModuleLogger } from '@shared/utils/logger.util';
-
-const logger = createModuleLogger('storefront-repository');
 import { sanitizeFilterInput } from '@shared/utils/sanitizer.util';
+import { isPublishedStatus } from '@shared/utils/status.util';
 import {
   ProductFilterInput,
   ProductSearchInput,
   ProductSearchResult,
   FacetAggregations,
-  shopifyProduct,
-  AggregationBucket,
-  TermsAggregation,
+  shopifyProduct
 } from './types';
-import { PRODUCT_INDEX_NAME, PRODUCT_OPTION_PAIR_SEPARATOR } from '@shared/constants/products.constants';
+import {
+  PRODUCT_INDEX_NAME,
+  PRODUCT_OPTION_PAIR_SEPARATOR,
+  ES_FIELDS,
+  AGGREGATION_BUCKET_SIZES
+} from '@shared/constants/products.constants';
 import { filterProductsForStorefront } from './storefront.helper';
 import { Filter } from '@shared/filters/types';
 import { mapOptionNameToHandle } from './filter-config.helper';
 
-const DEFAULT_BUCKET_SIZE = 500;
+const logger = createModuleLogger('storefront-repository');
 
 const hasValues = (arr?: string[]) => Array.isArray(arr) && arr.length > 0;
-const normalizeStatus = (status?: string | null) => (status || '').toUpperCase();
-const isPublishedStatus = (status?: string | null) => normalizeStatus(status) === 'PUBLISHED';
+const DEFAULT_BUCKET_SIZE = AGGREGATION_BUCKET_SIZES.DEFAULT;
 
 /**
  * Aggregation mapping result
@@ -35,6 +36,70 @@ const isPublishedStatus = (status?: string | null) => normalizeStatus(status) ==
 interface AggregationMapping {
   standard: Set<string>; // Standard aggregations: vendors, tags, collections, etc.
   variantOptions: Map<string, string>; // Map of aggregation name -> optionType (e.g., "option.Color" -> "Color")
+}
+
+/**
+ * Elasticsearch Query Types
+ * Type definitions for ES query structures to replace 'any' types
+ */
+interface ESTermQuery {
+  term: Record<string, string | number | boolean>;
+}
+
+interface ESTermsQuery {
+  terms: Record<string, string[]>;
+}
+
+interface ESRangeQuery {
+  range: Record<string, { gte?: number; lte?: number; gt?: number }>;
+}
+
+interface ESBoolQuery {
+  bool: {
+    must?: ESQuery[];
+    should?: ESQuery[];
+    minimum_should_match?: number;
+  };
+}
+
+interface ESNestedQuery {
+  nested: {
+    path: string;
+    query: ESQuery;
+  };
+}
+
+interface ESMultiMatchQuery {
+  multi_match: {
+    query: string;
+    fields: string[];
+    type: string;
+    operator: string;
+  };
+}
+
+interface ESMatchAllQuery {
+  match_all: Record<string, never>;
+}
+
+type ESQuery = ESTermQuery | ESTermsQuery | ESRangeQuery | ESBoolQuery | ESNestedQuery | ESMultiMatchQuery | ESMatchAllQuery;
+
+interface AggregationConfig {
+  name: string;
+  field: string;
+  sizeMult?: number;
+  type?: 'terms' | 'stats' | 'option';
+}
+
+interface HandleMapping {
+  handleToBaseField?: Record<string, string>;
+  baseFieldToHandles?: Record<string, string[]>;
+  handleToValues?: Record<string, string[]>;
+  standardFieldToHandles?: Record<string, string[]>;
+}
+
+interface SanitizedFilterInputWithMapping extends ProductFilterInput {
+  __handleMapping?: HandleMapping;
 }
 
 /**
@@ -72,19 +137,19 @@ function getEnabledAggregations(filterConfig: Filter | null, includeAllOptions: 
     'price-range': 'price',
   };
 
-    for (const option of filterConfig.options) {
-      // Only include published options
-      if (option.status !== 'PUBLISHED') continue;
+  for (const option of filterConfig.options) {
+    // Only include published options
+    if (!isPublishedStatus(option.status)) continue;
 
-      const optionType = option.optionType?.trim() || '';
-      const normalizedOptionType = optionType.toLowerCase();
-      const optionSettings = option.optionSettings || {};
+    const optionType = option.optionType?.trim() || '';
+    const normalizedOptionType = optionType.toLowerCase();
+    const optionSettings = option.optionSettings || {};
 
-      // Derive variant option key at runtime to ensure perfect ES matching
-      // This uses the exact name that matches ES storage (optionPairs format)
-      const derivedVariantOptionKey = deriveVariantOptionKey(option);
-      const variantOptionKey = derivedVariantOptionKey || optionType;
-      const baseOptionType = optionSettings.baseOptionType;
+    // Derive variant option key at runtime to ensure perfect ES matching
+    // This uses the exact name that matches ES storage (optionPairs format)
+    const derivedVariantOptionKey = deriveVariantOptionKey(option);
+    const variantOptionKey = derivedVariantOptionKey || optionType;
+    const baseOptionType = optionSettings.baseOptionType;
 
     // Check if it's a standard filter type
     if (optionTypeToAggregation[normalizedOptionType]) {
@@ -186,11 +251,11 @@ function getVariantOptionKeys(filterConfig: Filter | null): Set<string> {
 
   for (const option of filterConfig.options) {
     // Only include published options
-    if (option.status !== 'PUBLISHED') continue;
+    if (!isPublishedStatus(option.status)) continue;
 
     // Derive variantOptionKey at runtime to ensure perfect ES matching
     const derivedVariantOptionKey = deriveVariantOptionKey(option);
-    
+
     if (derivedVariantOptionKey) {
       // Use derived variantOptionKey (exact match with ES storage)
       variantOptionKeys.add(derivedVariantOptionKey);
@@ -201,7 +266,7 @@ function getVariantOptionKeys(filterConfig: Filter | null): Set<string> {
     // Standard filters use their own aggregation fields (vendors, productTypes, etc.)
     const optionSettings = option.optionSettings || {};
     const baseOptionType = optionSettings.baseOptionType?.trim().toUpperCase();
-    
+
     // Skip standard filter types (they don't use variantOptionKeys)
     if (baseOptionType && baseOptionType !== 'OPTION') {
       continue;
@@ -225,12 +290,7 @@ export class StorefrontSearchRepository {
    * Matches old app's ProductFiltersRepository.getFacets implementation
    * Only calculates aggregations for enabled filter options in filterConfig
    */
-  async getFacets(
-    shopDomain: string,
-    filters?: ProductFilterInput,
-    filterConfig?: Filter | null,
-    includeAllOptions: boolean = false
-  ) {
+  async getFacets(shopDomain: string, filters?: ProductFilterInput, filterConfig?: Filter | null, includeAllOptions: boolean = false) {
     const index = PRODUCT_INDEX_NAME(shopDomain);
 
     // Sanitize filter input to prevent ES query injection
@@ -249,9 +309,9 @@ export class StorefrontSearchRepository {
      * Build base filter queries (common to all aggregations)
      * These filters are always included in aggregation queries
      */
-    const buildBaseMustQueries = (excludeFilterType?: string, excludeHandle?: string): any[] => {
-      const baseMustQueries: any[] = [];
-      const handleMapping = sanitizedFilters ? (sanitizedFilters as any).__handleMapping : undefined;
+    const buildBaseMustQueries = (excludeFilterType?: string, excludeHandle?: string): ESQuery[] => {
+      const baseMustQueries: ESQuery[] = [];
+      const handleMapping = sanitizedFilters ? (sanitizedFilters as SanitizedFilterInputWithMapping).__handleMapping : undefined;
       const handleToValues = handleMapping?.handleToValues || {};
 
       /** Search */
@@ -259,7 +319,7 @@ export class StorefrontSearchRepository {
         baseMustQueries.push({
           multi_match: {
             query: sanitizedFilters.search,
-            fields: ['title^3', 'vendor^2', 'productType', 'tags'],
+            fields: [`${ES_FIELDS.TITLE_KEYWORD}^3`, 'vendor^2', 'productType', ES_FIELDS.TAGS],
             type: 'best_fields',
             operator: 'and',
           },
@@ -267,15 +327,15 @@ export class StorefrontSearchRepository {
       }
 
       const simpleFilters: Record<string, { field: string; values?: any[]; baseFieldKey: string }> = {
-        vendors: { field: 'vendor.keyword', values: sanitizedFilters?.vendors, baseFieldKey: 'VENDOR' },
+        vendors: { field: ES_FIELDS.VENDOR_KEYWORD, values: sanitizedFilters?.vendors, baseFieldKey: 'VENDOR' },
         productTypes: {
-          field: 'productType.keyword',
+          field: ES_FIELDS.PRODUCT_TYPE_KEYWORD,
           values: sanitizedFilters?.productTypes,
           baseFieldKey: 'PRODUCT_TYPE',
         },
-        tags: { field: 'tags', values: sanitizedFilters?.tags, baseFieldKey: 'TAGS' },
+        tags: { field: ES_FIELDS.TAGS, values: sanitizedFilters?.tags, baseFieldKey: 'TAGS' },
         collections: {
-          field: 'collections',
+          field: ES_FIELDS.COLLECTIONS,
           values: sanitizedFilters?.collections,
           baseFieldKey: 'COLLECTION',
         },
@@ -289,7 +349,7 @@ export class StorefrontSearchRepository {
             const { field, baseFieldKey } = simpleFilters[key];
             const baseFieldToHandles = handleMapping?.baseFieldToHandles || {};
             const handlesForField = baseFieldToHandles[baseFieldKey] || [];
-            
+
             // Get values from other handles (not the excluded one)
             const otherHandlesValues: string[] = [];
             for (const handle of handlesForField) {
@@ -297,7 +357,7 @@ export class StorefrontSearchRepository {
                 otherHandlesValues.push(...handleToValues[handle]);
               }
             }
-            
+
             logger.debug(`[getFacets] Processing ${key} filter exclusion`, {
               excludeFilterType,
               excludeHandle,
@@ -305,7 +365,7 @@ export class StorefrontSearchRepository {
               handleToValues,
               otherHandlesValues,
             });
-            
+
             if (otherHandlesValues.length > 0) {
               // Use AND logic for other handles' values
               const clause = {
@@ -330,21 +390,21 @@ export class StorefrontSearchRepository {
           }
           continue;
         }
-        
+
         const { field, values, baseFieldKey } = simpleFilters[key];
         if (hasValues(values)) {
           // Check if multiple handles contributed to this field (AND logic)
           const standardFieldToHandles = handleMapping?.standardFieldToHandles?.[baseFieldKey] || [];
           const hasMultipleHandles = standardFieldToHandles.length > 1;
-          
-          let clause: any;
+
+          let clause: ESQuery;
           if (hasMultipleHandles && values!.length > 1) {
             // Different handles = AND logic: each value must be present
             clause = {
               bool: {
                 must: values!.map((value: string) => ({
                   term: { [field]: value }
-                }))
+                })) as ESQuery[]
               }
             };
             logger.debug(`[getFacets] ${key} filter using AND logic (multiple handles)`, {
@@ -359,7 +419,7 @@ export class StorefrontSearchRepository {
               handles: standardFieldToHandles,
             });
           }
-          
+
           baseMustQueries.push(clause);
         }
       }
@@ -379,9 +439,9 @@ export class StorefrontSearchRepository {
               shouldExclude = true;
             }
           }
-          
+
           if (shouldExclude) continue;
-          
+
           if (!hasValues(values)) continue;
 
           const encodedValues = (values as string[])
@@ -391,7 +451,7 @@ export class StorefrontSearchRepository {
           if (!encodedValues.length) continue;
 
           baseMustQueries.push({
-            terms: { 'optionPairs': encodedValues },
+            terms: { [ES_FIELDS.OPTION_PAIRS]: encodedValues },
           });
         }
       }
@@ -400,26 +460,22 @@ export class StorefrontSearchRepository {
       if (hasValues(sanitizedFilters?.variantOptionKeys)) {
         baseMustQueries.push({
           terms: {
-            'variantOptionKeys.keyword': sanitizedFilters.variantOptionKeys!,
+            [ES_FIELDS.VARIANT_OPTION_KEYS_KEYWORD]: sanitizedFilters.variantOptionKeys!,
           },
         });
       }
 
       /** Product-level Price Range */
-      if (
-        excludeFilterType !== 'price' &&
-        (sanitizedFilters?.priceMin !== undefined ||
-          sanitizedFilters?.priceMax !== undefined)
-      ) {
-        const rangeMust: any[] = [];
+      if (excludeFilterType !== 'price' && (sanitizedFilters?.priceMin !== undefined || sanitizedFilters?.priceMax !== undefined)) {
+        const rangeMust: ESQuery[] = [];
         if (sanitizedFilters.priceMin !== undefined) {
           rangeMust.push({
-            range: { maxPrice: { gte: sanitizedFilters.priceMin } },
+            range: { [ES_FIELDS.MAX_PRICE]: { gte: sanitizedFilters.priceMin } },
           });
         }
         if (sanitizedFilters.priceMax !== undefined) {
           rangeMust.push({
-            range: { minPrice: { lte: sanitizedFilters.priceMax } },
+            range: { [ES_FIELDS.MIN_PRICE]: { lte: sanitizedFilters.priceMax } },
           });
         }
         if (rangeMust.length > 0) {
@@ -433,15 +489,15 @@ export class StorefrontSearchRepository {
           nested: {
             path: 'variants',
             query: {
-              terms: { 'variants.sku': sanitizedFilters.variantSkus! },
+              terms: { [ES_FIELDS.VARIANTS_SKU]: sanitizedFilters.variantSkus! },
             },
           },
         });
       }
 
       // Always include these filters
-      baseMustQueries.push({ term: { 'status': 'ACTIVE' } });
-      baseMustQueries.push({ term: { 'documentType': 'product' } });
+      baseMustQueries.push({ term: { [ES_FIELDS.STATUS]: 'ACTIVE' } });
+      baseMustQueries.push({ term: { [ES_FIELDS.DOCUMENT_TYPE]: 'product' } });
 
       return baseMustQueries;
     };
@@ -450,22 +506,22 @@ export class StorefrontSearchRepository {
      * Build post_filter for a specific filter type (to exclude it from aggregations)
      * If excludeHandle is provided, exclude that handle's values but include other handles' values
      */
-    const buildPostFilter = (filterType: string, excludeHandle?: string): any[] | undefined => {
-      const postFilterQueries: any[] = [];
-      const handleMapping = sanitizedFilters ? (sanitizedFilters as any).__handleMapping : undefined;
+    const buildPostFilter = (filterType: string, excludeHandle?: string): ESQuery[] | undefined => {
+      const postFilterQueries: ESQuery[] = [];
+      const handleMapping = sanitizedFilters ? (sanitizedFilters as SanitizedFilterInputWithMapping).__handleMapping : undefined;
       const handleToValues = handleMapping?.handleToValues || {};
 
       // Handle standard filters
       const simpleFilters: Record<string, { field: string; values?: any[]; baseFieldKey: string }> = {
-        vendors: { field: 'vendor.keyword', values: sanitizedFilters?.vendors, baseFieldKey: 'VENDOR' },
+        vendors: { field: ES_FIELDS.VENDOR_KEYWORD, values: sanitizedFilters?.vendors, baseFieldKey: 'VENDOR' },
         productTypes: {
-          field: 'productType.keyword',
+          field: ES_FIELDS.PRODUCT_TYPE_KEYWORD,
           values: sanitizedFilters?.productTypes,
           baseFieldKey: 'PRODUCT_TYPE',
         },
-        tags: { field: 'tags', values: sanitizedFilters?.tags, baseFieldKey: 'TAGS' },
+        tags: { field: ES_FIELDS.TAGS, values: sanitizedFilters?.tags, baseFieldKey: 'TAGS' },
         collections: {
-          field: 'collections',
+          field: ES_FIELDS.COLLECTIONS,
           values: sanitizedFilters?.collections,
           baseFieldKey: 'COLLECTION',
         },
@@ -473,12 +529,12 @@ export class StorefrontSearchRepository {
 
       if (simpleFilters[filterType]) {
         const { field, values, baseFieldKey } = simpleFilters[filterType];
-        
+
         if (excludeHandle && handleToValues[excludeHandle]) {
           // Excluding a specific handle - include all values except this handle's
           const excludedValues = handleToValues[excludeHandle];
           const otherValues = values ? values.filter(v => !excludedValues.includes(v)) : [];
-          
+
           if (otherValues.length > 0) {
             postFilterQueries.push({ terms: { [field]: otherValues } });
           }
@@ -550,19 +606,19 @@ export class StorefrontSearchRepository {
      * Excludes that filter type from must queries, includes it in post_filter
      * If excludeHandle is provided, excludes that handle's values but includes other handles' values
      */
-    const buildAggregationQuery = (filterType: string, aggConfig: { name: string; field: string; sizeMult?: number; type?: 'terms' | 'stats' | 'option' }, excludeHandle?: string) => {
+    const buildAggregationQuery = (filterType: string, aggConfig: AggregationConfig, excludeHandle?: string) => {
       const mustQueries = buildBaseMustQueries(filterType, excludeHandle);
       const query = mustQueries.length > 0 ? { bool: { must: mustQueries } } : { match_all: {} };
       const postFilterQueries = buildPostFilter(filterType, excludeHandle);
-      
+
       const aggs: Record<string, any> = {};
-      
+
       if (aggConfig.type === 'terms') {
         aggs[aggConfig.name] = {
           terms: {
             field: aggConfig.field,
             size: DEFAULT_BUCKET_SIZE * (aggConfig.sizeMult || 1),
-            order: { _count: 'desc' as const },
+            // order: { _count: 'desc' as const },
           },
         };
       } else if (aggConfig.type === 'stats') {
@@ -571,21 +627,23 @@ export class StorefrontSearchRepository {
         // Option aggregation with prefix filter
         aggs[aggConfig.name] = {
           filter: {
-            prefix: {
-              'optionPairs': `${aggConfig.field}${PRODUCT_OPTION_PAIR_SEPARATOR}`,
-            },
+              prefix: {
+                [ES_FIELDS.OPTION_PAIRS]: `${aggConfig.field}${PRODUCT_OPTION_PAIR_SEPARATOR}`,
+              },
           },
           aggs: {
             values: {
               terms: {
-                field: 'optionPairs',
-                size: DEFAULT_BUCKET_SIZE * 2,
-                order: { _count: 'desc' as const },
+                field: ES_FIELDS.OPTION_PAIRS,
+                size: DEFAULT_BUCKET_SIZE * AGGREGATION_BUCKET_SIZES.TAGS_MULTIPLIER,
+                // order: { _count: 'desc' as const },
               },
             },
           },
         };
       }
+
+
 
       return {
         index,
@@ -616,76 +674,10 @@ export class StorefrontSearchRepository {
     }
 
     if (enabledAggregations.standard.has('tags')) {
-      // Check if multiple handles map to tags field (need separate aggregations per handle)
-      const handleMapping = sanitizedFilters ? (sanitizedFilters as any).__handleMapping : undefined;
-      const tagsHandles = handleMapping?.baseFieldToHandles?.['TAGS'] || [];
-      const handleToValues = handleMapping?.handleToValues || {};
-      
-      if (tagsHandles.length > 1 && filterConfig) {
-        // Multiple handles map to tags - build separate aggregation for each handle
-        // This allows contextual counts (excluding current handle's values, including other handles' values)
-        for (const handle of tagsHandles) {
-          const option = filterConfig.options?.find(opt => opt.handle === handle && isPublishedStatus(opt.status));
-          if (!option) continue;
-          
-          // Build aggregation query that excludes this handle's values but includes other handles' values
-          const excludeHandle = handle;
-          const otherHandlesValues: string[] = [];
-          for (const otherHandle of tagsHandles) {
-            if (otherHandle !== excludeHandle && handleToValues[otherHandle]) {
-              otherHandlesValues.push(...handleToValues[otherHandle]);
-            }
-          }
-          
-          // Create modified filters for this handle's aggregation
-          const handleSpecificFilters = { ...sanitizedFilters };
-          if (otherHandlesValues.length > 0) {
-            handleSpecificFilters.tags = [...new Set(otherHandlesValues)];
-          } else {
-            handleSpecificFilters.tags = undefined;
-          }
-          
-          // Build aggregation excluding this handle (but including other handles' values)
-          // The query should filter by other handles' values, not use post_filter
-          // (post_filter doesn't affect aggregation buckets, only final results)
-          const mustQueries = buildBaseMustQueries('tags', excludeHandle);
-          const query = mustQueries.length > 0 ? { bool: { must: mustQueries } } : { match_all: {} };
-          
-          logger.debug(`[getFacets] Building handle-specific aggregation for ${handle}`, {
-            excludeHandle,
-            otherHandlesValues,
-            mustQueriesCount: mustQueries.length,
-            queryType: mustQueries.length > 0 ? 'bool.must' : 'match_all',
-          });
-          
-          aggregationQueries.push({
-            filterType: `tags:${handle}`, // Use handle-specific filter type for mapping
-            query: {
-              index,
-              size: 0,
-              track_total_hits: false,
-              query,
-              // No post_filter needed - the query already filters correctly
-              aggs: {
-                tags: { // Use standard aggregation name 'tags' so it maps correctly
-                  terms: {
-                    field: 'tags',
-                    size: DEFAULT_BUCKET_SIZE * 2,
-                    order: { _count: 'desc' as const },
-                  },
-                },
-              },
-            },
-            handle, // Store handle for mapping results back to correct filter group
-          });
-        }
-      } else {
-        // Single handle or no handles - use standard aggregation
-        aggregationQueries.push({
-          filterType: 'tags',
-          query: buildAggregationQuery('tags', { name: 'tags', field: 'tags', sizeMult: 2, type: 'terms' }),
-        });
-      }
+      aggregationQueries.push({
+        filterType: 'tags',
+        query: buildAggregationQuery('tags', { name: 'tags', field: 'tags', sizeMult: 2, type: 'terms' }),
+      });
     }
 
     if (enabledAggregations.standard.has('collections')) {
@@ -699,8 +691,9 @@ export class StorefrontSearchRepository {
     if (enabledAggregations.variantOptions.size > 0) {
       for (const [aggName, optionType] of enabledAggregations.variantOptions) {
         aggregationQueries.push({
-          filterType: optionType, // Use optionType as the filter type to exclude
+          filterType: optionType,
           query: buildAggregationQuery(optionType, { name: aggName, field: optionType, type: 'option' }),
+          handle: mapOptionNameToHandle(filterConfig, optionType),
         });
       }
     } else if (!filterConfig || includeAllOptions) {
@@ -710,8 +703,8 @@ export class StorefrontSearchRepository {
       allAggregations.optionPairs = {
         terms: {
           field: 'optionPairs',
-          size: DEFAULT_BUCKET_SIZE * 5,
-          order: { _count: 'desc' as const },
+          size: DEFAULT_BUCKET_SIZE * AGGREGATION_BUCKET_SIZES.TAGS_MULTIPLIER,
+          // order: { _count: 'desc' as const },
         },
       };
       aggregationQueries.push({
@@ -732,7 +725,7 @@ export class StorefrontSearchRepository {
     if (enabledAggregations.standard.has('price')) {
       const mustQueries = buildBaseMustQueries('price');
       const query = mustQueries.length > 0 ? { bool: { must: mustQueries } } : { match_all: {} };
-      allAggregations.price = { stats: { field: 'minPrice' } };
+      allAggregations.price = { stats: { field: ES_FIELDS.MIN_PRICE } };
       aggregationQueries.push({
         filterType: 'price',
         query: {
@@ -763,7 +756,7 @@ export class StorefrontSearchRepository {
       const header: any = { index: query.index };
       // Note: request_cache is not supported in msearch body, only in regular search
       msearchBody.push(header);
-      
+
       // Body: search request
       const body: any = {
         size: query.size,
@@ -779,39 +772,39 @@ export class StorefrontSearchRepository {
 
     // Execute msearch
     let msearchResponse: { responses: any[] };
-    if (msearchBody.length > 0) {
-      msearchResponse = await this.esClient.msearch<unknown, FacetAggregations>({ body: msearchBody });
-    } else {
-      msearchResponse = { responses: [] };
+    try {
+      if (msearchBody.length > 0) {
+        msearchResponse = await this.esClient.msearch<unknown, FacetAggregations>({ body: msearchBody });
+      } else {
+        msearchResponse = { responses: [] };
+      }
+    } catch (error: any) {
+      logger.error('[getFacets] msearch failed', {
+        shop: shopDomain,
+        index,
+        error: error?.message || error,
+        statusCode: error?.statusCode,
+      });
+      // Return empty aggregations instead of throwing
+      return {
+        index,
+        aggregations: {
+          vendors: { buckets: [] },
+          productTypes: { buckets: [] },
+          tags: { buckets: [] },
+          collections: { buckets: [] },
+          optionPairs: { buckets: [] },
+          price: undefined,
+        },
+      };
     }
 
     // Merge aggregation results
-    // For handle-specific aggregations, store them separately to map back to correct filter groups
-    const mergedAggregations: Record<string, any> = {};
-    const handleSpecificAggregations: Record<string, any> = {}; // handle -> aggregation result
-    for (let i = 0; i < aggregationQueries.length; i++) {
-      const { filterType, handle } = aggregationQueries[i];
-      const response = msearchResponse.responses[i];
-      if (response && !response.error && response.aggregations) {
-        if (handle) {
-          // This is a handle-specific aggregation - store it separately
-          // Extract the aggregation result (should be 'tags' key)
-          handleSpecificAggregations[handle] = response.aggregations.tags || response.aggregations[filterType];
-          logger.debug('Stored handle-specific aggregation', {
-            handle,
-            filterType,
-            hasAggregation: !!handleSpecificAggregations[handle],
-          });
-        } else {
-          // Standard aggregation - merge normally
-          Object.assign(mergedAggregations, response.aggregations);
-        }
+    const mergedAggregations: Record<string, unknown> = {};
+    for (const response of msearchResponse.responses ?? []) {
+      if (response?.aggregations) {
+        Object.assign(mergedAggregations, response.aggregations);
       }
-    }
-    
-    // Store handle-specific aggregations in a special key for formatFilters to use
-    if (Object.keys(handleSpecificAggregations).length > 0) {
-      (mergedAggregations as any).__handleSpecificAggregations = handleSpecificAggregations;
     }
 
     logger.debug('Aggregation queries completed', {
@@ -831,14 +824,35 @@ export class StorefrontSearchRepository {
     //
     const aggregations = (response.aggregations || {}) as any;
 
-    const combinedOptionPairs =
-      enabledAggregations.variantOptions.size > 0
-        ? {
-          buckets: Array.from(enabledAggregations.variantOptions.keys()).flatMap(
-            (aggName) => aggregations[aggName]?.values?.buckets || []
-          ),
+    // Combine variant option aggregations and deduplicate by bucket key
+    let combinedOptionPairs: { buckets: Array<{ key: string; doc_count: number }> };
+    if (enabledAggregations.variantOptions.size > 0) {
+      // Collect all buckets from variant option aggregations
+      const allBuckets = Array.from(enabledAggregations.variantOptions.keys()).flatMap(
+        (aggName) => aggregations[aggName]?.values?.buckets || []
+      );
+
+
+      // Deduplicate buckets by key - keep the first occurrence of each unique key
+      // This prevents duplicate buckets from appearing when the same bucket key
+      // appears in multiple aggregation responses
+      const bucketMap = new Map<string, { key: string; doc_count: number }>();
+      for (const bucket of allBuckets) {
+        const key = bucket.key || '';
+        if (!key) continue;
+        // Only add if we haven't seen this key before (keep first occurrence)
+        if (!bucketMap.has(key)) {
+          bucketMap.set(key, { key, doc_count: bucket.doc_count || 0 });
         }
-        : aggregations.optionPairs || { buckets: [] };
+      }
+
+      // Convert map back to buckets array, sorted by count descending
+      combinedOptionPairs = {
+        buckets: Array.from(bucketMap.values()).sort((a, b) => b.doc_count - a.doc_count),
+      };
+    } else {
+      combinedOptionPairs = aggregations.optionPairs || { buckets: [] };
+    }
 
     //
     // Return Facets
@@ -884,8 +898,6 @@ export class StorefrontSearchRepository {
     };
   }
 
-
-
   /**
    * Search products with filters
    * Only calculates aggregations for enabled filter options in filterConfig
@@ -914,20 +926,20 @@ export class StorefrontSearchRepository {
       (sanitizedFilters?.keep || []).map((key) => key.toLowerCase())
     );
     const keepAll = keep.has('__all__');
-    
+
     // Helper to check if a filter should be kept
     // For standard filters, check by key directly
     // For option filters, map option name back to handle and check
     const shouldKeep = (key: string, isOptionFilter: boolean = false) => {
       if (keepAll) return true;
-      
+
       const lowerKey = key.toLowerCase();
-      
+
       // For standard filters, check directly
       if (!isOptionFilter) {
         return keep.has(lowerKey);
       }
-      
+
       // For option filters, we need to map option name back to handle
       // because keep contains handles, but key is the option name
       if (filterConfig) {
@@ -936,7 +948,7 @@ export class StorefrontSearchRepository {
           return keep.has(handle.toLowerCase());
         }
       }
-      
+
       return false;
     };
 
@@ -956,7 +968,7 @@ export class StorefrontSearchRepository {
       const handleMapping = sanitizedFilters ? (sanitizedFilters as any).__handleMapping : undefined;
       const standardFieldToHandles = handleMapping?.standardFieldToHandles?.['VENDOR'] || [];
       const hasMultipleHandles = standardFieldToHandles.length > 1;
-      
+
       let clause: any;
       if (hasMultipleHandles && sanitizedFilters!.vendors.length > 1) {
         // Different handles = AND logic: each value must be present
@@ -979,7 +991,7 @@ export class StorefrontSearchRepository {
           handles: standardFieldToHandles,
         });
       }
-      
+
       if (shouldKeep('vendors')) {
         postFilterQueries.push(clause);
       } else {
@@ -992,7 +1004,7 @@ export class StorefrontSearchRepository {
       const handleMapping = sanitizedFilters ? (sanitizedFilters as any).__handleMapping : undefined;
       const standardFieldToHandles = handleMapping?.standardFieldToHandles?.['PRODUCT_TYPE'] || [];
       const hasMultipleHandles = standardFieldToHandles.length > 1;
-      
+
       let clause: any;
       if (hasMultipleHandles && sanitizedFilters!.productTypes.length > 1) {
         // Different handles = AND logic: each value must be present
@@ -1015,7 +1027,7 @@ export class StorefrontSearchRepository {
           handles: standardFieldToHandles,
         });
       }
-      
+
       if (shouldKeep('productTypes')) {
         postFilterQueries.push(clause);
       } else {
@@ -1029,7 +1041,7 @@ export class StorefrontSearchRepository {
       const handleMapping = sanitizedFilters ? (sanitizedFilters as any).__handleMapping : undefined;
       const standardFieldToHandles = handleMapping?.standardFieldToHandles?.['TAGS'] || [];
       const hasMultipleHandles = standardFieldToHandles.length > 1;
-      
+
       logger.debug('Tags filter handle mapping check', {
         tags: sanitizedFilters!.tags,
         handleMapping: handleMapping ? 'present' : 'missing',
@@ -1037,7 +1049,7 @@ export class StorefrontSearchRepository {
         hasMultipleHandles,
         handleMappingFull: handleMapping,
       });
-      
+
       let clause: any;
       if (hasMultipleHandles && sanitizedFilters!.tags.length > 1) {
         // Different handles = AND logic: each value must be present
@@ -1061,7 +1073,7 @@ export class StorefrontSearchRepository {
           handles: standardFieldToHandles,
         });
       }
-      
+
       if (shouldKeep('tags')) {
         postFilterQueries.push(clause);
       } else {
@@ -1076,7 +1088,7 @@ export class StorefrontSearchRepository {
       const handleMapping = sanitizedFilters ? (sanitizedFilters as any).__handleMapping : undefined;
       const standardFieldToHandles = handleMapping?.standardFieldToHandles?.['COLLECTION'] || [];
       const hasMultipleHandles = standardFieldToHandles.length > 1;
-      
+
       let clause: any;
       if (hasMultipleHandles && sanitizedFilters!.collections.length > 1) {
         // Different handles = AND logic: each value must be present
@@ -1100,7 +1112,7 @@ export class StorefrontSearchRepository {
           handles: standardFieldToHandles,
         });
       }
-      
+
       if (shouldKeep('collections')) {
         postFilterQueries.push(clause);
       } else {
@@ -1135,7 +1147,7 @@ export class StorefrontSearchRepository {
         // optionPairs is an array field (type: keyword), use directly (not .keyword)
         // For array fields in ES, use the field name directly (like tags/collections)
         const termsQuery = {
-          terms: { 'optionPairs': encodedValues },
+          terms: { [ES_FIELDS.OPTION_PAIRS]: encodedValues },
         };
 
         // For filters endpoint, we want to preserve option aggregations even when filtering
@@ -1163,32 +1175,31 @@ export class StorefrontSearchRepository {
       });
     }
 
-    // Track the exact clause used for price filter so we can exclude it
-    // from price-related aggregations (self-exclusion).
-    let productPriceClause: any | null = null;
-
     // Product price range filter (minPrice/maxPrice fields)
+    // A product matches if its price range overlaps with the requested range:
+    // - maxPrice >= priceMin (product's max is at least the requested min)
+    // - minPrice <= priceMax (product's min is at most the requested max)
     if (sanitizedFilters?.priceMin !== undefined || sanitizedFilters?.priceMax !== undefined) {
-      const rangeQuery: any = {};
+      const priceMustQueries: any[] = [];
+      
       if (sanitizedFilters.priceMin !== undefined) {
-        rangeQuery.gte = sanitizedFilters.priceMin;
+        // Product's maxPrice must be >= requested minPrice
+        priceMustQueries.push({
+          range: { [ES_FIELDS.MAX_PRICE]: { gte: sanitizedFilters.priceMin } },
+        });
       }
+      
       if (sanitizedFilters.priceMax !== undefined) {
-        rangeQuery.lte = sanitizedFilters.priceMax;
+        // Product's minPrice must be <= requested maxPrice
+        priceMustQueries.push({
+          range: { [ES_FIELDS.MIN_PRICE]: { lte: sanitizedFilters.priceMax } },
+        });
       }
-      if (Object.keys(rangeQuery).length > 0) {
-        // Use should with nested query to match if any variant price is in range
-        // OR use minPrice/maxPrice fields directly
-        productPriceClause = {
-          bool: {
-            should: [
-              { range: { minPrice: rangeQuery } },
-              { range: { maxPrice: rangeQuery } },
-            ],
-            minimum_should_match: 1,
-          },
-        };
-        mustQueries.push(productPriceClause);
+      
+      if (priceMustQueries.length > 0) {
+        mustQueries.push({
+          bool: { must: priceMustQueries },
+        });
       }
     }
 
@@ -1198,7 +1209,7 @@ export class StorefrontSearchRepository {
         nested: {
           path: 'variants',
           query: {
-            terms: { 'variants.sku': sanitizedFilters!.variantSkus },
+            terms: { [ES_FIELDS.VARIANTS_SKU]: sanitizedFilters!.variantSkus },
           },
         },
       });
@@ -1206,16 +1217,16 @@ export class StorefrontSearchRepository {
 
     // Filter for ACTIVE products only
     mustQueries.push({
-      term: { 'status': 'ACTIVE' },
+      term: { [ES_FIELDS.STATUS]: 'ACTIVE' },
     });
 
     // Filter for product documentType only
     mustQueries.push({
-      term: { 'documentType': 'product' },
+      term: { [ES_FIELDS.DOCUMENT_TYPE]: 'product' },
     });
 
     // Hide out of stock items (from filter configuration settings)
-    if (false && filters?.hideOutOfStockItems) {
+    if (filters?.hideOutOfStockItems) {
       // Filter to only products with at least one variant that has inventory
       mustQueries.push({
         nested: {
@@ -1224,11 +1235,11 @@ export class StorefrontSearchRepository {
             bool: {
               should: [
                 // Variant has availableForSale = true
-                { term: { 'variants.availableForSale': true } },
+                { term: { [ES_FIELDS.VARIANTS_AVAILABLE_FOR_SALE]: true } },
                 // OR variant has inventoryQuantity > 0
-                { range: { 'variants.inventoryQuantity': { gt: 0 } } },
+                { range: { [ES_FIELDS.VARIANTS_INVENTORY_QUANTITY]: { gt: 0 } } },
                 // OR variant has sellableOnlineQuantity > 0
-                { range: { 'variants.sellableOnlineQuantity': { gt: 0 } } },
+                { range: { [ES_FIELDS.VARIANTS_SELLABLE_ONLINE_QUANTITY]: { gt: 0 } } },
               ],
               minimum_should_match: 1,
             },
@@ -1243,59 +1254,59 @@ export class StorefrontSearchRepository {
     let sort: any[] = [];
     if (filters?.sort) {
       const sortParam = filters.sort.toLowerCase().trim();
-      
+
       // Handle "best-selling" sort parameter
       if (sortParam === 'best-selling' || sortParam === 'bestselling') {
         // Sort by bestSellerRank ascending (lower rank = better seller)
         // Use missing: '_last' to handle products without bestSellerRank
-        sort.push({ 
-          bestSellerRank: { 
+        sort.push({
+          [ES_FIELDS.BEST_SELLER_RANK]: {
             order: 'asc',
             missing: '_last'
-          } 
+          }
         });
-      } 
+      }
       // Handle new format: title-ascending, title-descending
       else if (sortParam === 'title-ascending') {
-        sort.push({ 'title.keyword': 'asc' });
+        sort.push({ [ES_FIELDS.TITLE_KEYWORD]: 'asc' });
       }
       else if (sortParam === 'title-descending') {
-        sort.push({ 'title.keyword': 'desc' });
+        sort.push({ [ES_FIELDS.TITLE_KEYWORD]: 'desc' });
       }
       // Handle new format: price-ascending, price-descending
       else if (sortParam === 'price-ascending') {
-        sort.push({ minPrice: 'asc' });
+        sort.push({ [ES_FIELDS.MIN_PRICE]: 'asc' });
       }
       else if (sortParam === 'price-descending') {
-        sort.push({ maxPrice: 'desc' });
+        sort.push({ [ES_FIELDS.MAX_PRICE]: 'desc' });
       }
       // Handle new format: created-ascending, created-descending
       else if (sortParam === 'created-ascending') {
-        sort.push({ createdAt: 'asc' });
+        sort.push({ [ES_FIELDS.CREATED_AT]: 'asc' });
       }
       else if (sortParam === 'created-descending') {
-        sort.push({ createdAt: 'desc' });
+        sort.push({ [ES_FIELDS.CREATED_AT]: 'desc' });
       }
       // Handle legacy price-based sorting (backward compatibility)
       else if (sortParam === 'price:asc' || sortParam === 'price-asc' || sortParam === 'price_low_to_high') {
-        sort.push({ minPrice: 'asc' });
-      } 
+        sort.push({ [ES_FIELDS.MIN_PRICE]: 'asc' });
+      }
       else if (sortParam === 'price:desc' || sortParam === 'price-desc' || sortParam === 'price_high_to_low') {
-        sort.push({ maxPrice: 'desc' });
+        sort.push({ [ES_FIELDS.MAX_PRICE]: 'desc' });
       }
       // Handle legacy createdAt-based sorting (backward compatibility)
       else if (sortParam === 'created:desc' || sortParam === 'created-desc' || sortParam === 'newest') {
-        sort.push({ createdAt: 'desc' });
+        sort.push({ [ES_FIELDS.CREATED_AT]: 'desc' });
       }
       else if (sortParam === 'created:asc' || sortParam === 'created-asc' || sortParam === 'oldest') {
-        sort.push({ createdAt: 'asc' });
+        sort.push({ [ES_FIELDS.CREATED_AT]: 'asc' });
       }
       // Handle legacy title-based sorting (backward compatibility)
       else if (sortParam === 'title:asc' || sortParam === 'title-asc' || sortParam === 'name_asc') {
-        sort.push({ 'title.keyword': 'asc' });
+        sort.push({ [ES_FIELDS.TITLE_KEYWORD]: 'asc' });
       }
       else if (sortParam === 'title:desc' || sortParam === 'title-desc' || sortParam === 'name_desc') {
-        sort.push({ 'title.keyword': 'desc' });
+        sort.push({ [ES_FIELDS.TITLE_KEYWORD]: 'desc' });
       }
       // Handle legacy format: "field:order"
       else {
@@ -1304,20 +1315,20 @@ export class StorefrontSearchRepository {
           // Map field names to correct ES field names
           let sortField;
           if (field === 'price') {
-            sortField = order === 'asc' ? 'minPrice' : 'maxPrice';
+            sortField = order === 'asc' ? ES_FIELDS.MIN_PRICE : ES_FIELDS.MAX_PRICE;
           } else if (field === 'title') {
-            sortField = 'title.keyword'; // Use keyword field for text fields
+            sortField = ES_FIELDS.TITLE_KEYWORD; // Use keyword field for text fields
           } else {
             sortField = field;
           }
           sort.push({ [sortField]: order });
         } else {
           // Default to bestSellerRank if sort param is invalid
-          sort.push({ 
-            bestSellerRank: { 
+          sort.push({
+            [ES_FIELDS.BEST_SELLER_RANK]: {
               order: 'asc',
               missing: '_last'
-            } 
+            }
           });
         }
       }
@@ -1326,19 +1337,19 @@ export class StorefrontSearchRepository {
       // If search query exists, combine relevance score with bestSellerRank
       if (filters?.search) {
         sort.push({ _score: 'desc' });
-        sort.push({ 
-          bestSellerRank: { 
+        sort.push({
+          [ES_FIELDS.BEST_SELLER_RANK]: {
             order: 'asc',
             missing: '_last'
-          } 
+          }
         });
       } else {
         // Default: sort by bestSellerRank ascending
-        sort.push({ 
-          bestSellerRank: { 
+        sort.push({
+          [ES_FIELDS.BEST_SELLER_RANK]: {
             order: 'asc',
             missing: '_last'
-          } 
+          }
         });
       }
     }
@@ -1362,30 +1373,9 @@ export class StorefrontSearchRepository {
       sortFields: sort.map((s: any) => Object.keys(s)[0]),
     });
 
-    // Check if index exists
-    try {
-      const indexExists = await this.esClient.indices.exists({ index });
-      logger.debug('[searchProducts] Index check', {
-        index,
-        exists: indexExists,
-      });
+    // Note: We don't pre-check index existence to avoid race conditions.
+    // The search operation will handle index not found errors appropriately.
 
-      if (!indexExists) {
-        logger.warn('[searchProducts] Index does not exist', { index, shopDomain });
-        return {
-          products: [],
-          total: 0,
-          page: 1,
-          limit,
-          totalPages: 0,
-        };
-      }
-    } catch (error: any) {
-      logger.error('[searchProducts] Error checking index existence', {
-        index,
-        error: error?.message || error,
-      });
-    }
 
     let response;
     try {

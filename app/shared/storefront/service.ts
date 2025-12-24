@@ -25,7 +25,7 @@ export class StorefrontSearchService implements Injectable {
   private readonly log = logger;
   private readonly cache = getCacheService();
 
-  constructor(private repo: StorefrontSearchRepository) {}
+  constructor(private repo: StorefrontSearchRepository) { }
 
   /**
    * Get product filters (facets/aggregations)
@@ -38,7 +38,7 @@ export class StorefrontSearchService implements Injectable {
 
     // Generate filter config hash for cache key
     const filterConfigHash = getFilterConfigHash(filterConfig);
-    
+
     // Try to get from cache first (include filterConfig hash in cache key)
     const cachedAggregations = this.cache.getFilterResults(shop, filters, filterConfigHash);
     if (cachedAggregations) {
@@ -66,14 +66,10 @@ export class StorefrontSearchService implements Injectable {
    * were already computed in a previous products endpoint call (search cache)
    * to avoid redundant ES queries.
    */
-  async getRawAggregations(
-    shop: string,
-    filters?: ProductFilterInput,
-    filterConfig?: Filter | null
-  ): Promise<FacetAggregations> {
+  async getRawAggregations(shop: string, filters?: ProductFilterInput, filterConfig?: Filter | null): Promise<FacetAggregations> {
     // Generate filter config hash for cache key
     const filterConfigHash = getFilterConfigHash(filterConfig);
-    
+
     // Step 1: Check filter cache first (fastest path)
     const cachedAggregations = this.cache.getFilterResults(shop, filters, filterConfigHash);
     if (cachedAggregations) {
@@ -99,29 +95,29 @@ export class StorefrontSearchService implements Injectable {
 
     const cachedSearchResult = this.cache.getSearchResults(shop, commonSearchInput, filterConfigHash);
     if (cachedSearchResult?.filters) {
-      this.log.info('Cache hit for raw aggregations (search cache)', { 
-        shop, 
-        filters, 
+      this.log.info('Cache hit for raw aggregations (search cache)', {
+        shop,
+        filters,
         filterConfigHash,
         source: 'products_endpoint_cache'
       });
-      
+
       // Cache the aggregations in filter cache for future direct lookups
       this.cache.setFilterResults(shop, filters, cachedSearchResult.filters, undefined, filterConfigHash);
-      
+
       return cachedSearchResult.filters;
     }
 
     // Step 3: Cache miss - query ES and cache the result
     this.log.info('Cache miss for raw aggregations, querying ES', { shop, filters, filterConfigHash });
     // For REST endpoint, we want all options when filterConfig is null/undefined
-    // This ensures formatFilters gets all aggregations to work with
+    // This ensures format Filters gets all aggregations to work with
     const includeAllOptions = !filterConfig || !filterConfig.options;
     const { aggregations } = await this.repo.getFacets(shop, filters, filterConfig, includeAllOptions);
-    
+
     // Cache the raw aggregations for future requests
     this.cache.setFilterResults(shop, filters, aggregations, undefined, filterConfigHash);
-    
+
     return aggregations;
   }
 
@@ -136,7 +132,7 @@ export class StorefrontSearchService implements Injectable {
 
     // Generate filter config hash for cache key
     const filterConfigHash = getFilterConfigHash(filterConfig);
-    
+
     // Try to get from cache first (include filterConfig hash in cache key)
     const cachedResult = this.cache.getSearchResults(shop, filters, filterConfigHash);
     if (cachedResult) {

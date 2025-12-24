@@ -1,20 +1,8 @@
 /**
  * Advanced Filter Search
  * 
-**/
-
-// Import quickview functions and types
-import { 
-  createQuickViewButton, 
-  handleQuickViewClick, 
-  createProductModal,
-  type Product,
-  type ProductVariant,
-  type ProductImage,
-  type ProductModalElement,
-  type SliderInstance,
-  type SliderOptions
-} from './quickview.js';
+ * Describe hardcoded values and their means and functionality
+ */
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -108,7 +96,61 @@ interface FilterOption {
   key?: string;
 }
 
-// Product, ProductVariant, ProductImage, ProductModalElement, and SliderInstance types are imported from quickview.ts
+interface ProductImage {
+  url?: string;
+  urlSmall?: string;
+  urlMedium?: string;
+  urlLarge?: string;
+  urlFallback?: string;
+}
+
+interface ProductVariant {
+  id: number | string;
+  available?: boolean;
+  availableForSale?: boolean;
+  price: number | string;
+  compare_at_price?: number | string;
+  option1?: string;
+  option2?: string;
+  option3?: string;
+  options?: string[];
+  featured_image?: {
+    src?: string;
+    url?: string;
+    position?: number;
+    variant_ids?: number[];
+  } | string;
+  image?: string | {
+    url?: string;
+    src?: string;
+  };
+  imageUrl?: string;
+  featuredImage?: {
+    url?: string;
+    src?: string;
+  };
+}
+
+interface Product {
+  id?: string | number;
+  productId?: string | number;
+  gid?: string | number;
+  handle?: string;
+  title?: string;
+  vendor?: string;
+  imageUrl?: string;
+  featuredImage?: ProductImage;
+  minPrice?: string | number;
+  maxPrice?: string | number;
+  totalInventory?: string | number;
+  variants?: ProductVariant[];
+  description?: string;
+  images?: string[];
+  options?: Array<{
+    name: string;
+    values: string[];
+  }>;
+}
 
 interface Collection {
   id?: string | number;
@@ -213,18 +255,37 @@ interface AFSConfig {
   keep?: string[] | typeof SpecialValue.ALL | string | null;
 }
 
-// SliderInstance and ProductModalElement types are imported from quickview.ts
+interface SliderInstance {
+  destroy?: () => void;
+  goToSlide?: (index: number) => void;
+  updateVariantImage?: (variant: ProductVariant, images: string[], variants: ProductVariant[]) => boolean;
+  currentIndex?: number;
+}
+
+interface ProductModalElement extends HTMLDialogElement {
+  _productData?: Product;
+  _currentVariantId?: number | string;
+  _slider?: SliderInstance;
+}
 
 interface FilterItemsElement extends HTMLElement {
   _items?: FilterValue[];
 }
 
-interface AppWindow extends Window {
+interface ShopifyWindow extends Window {
   Shopify?: {
     routes?: {
       root?: string;
     };
   };
+  AFSSlider?: new (container: HTMLElement, options: {
+    thumbnailsPosition?: string;
+    enableKeyboard?: boolean;
+    enableAutoHeight?: boolean;
+    maxHeight?: number;
+    enableMagnifier?: boolean;
+    magnifierZoom?: number;
+  }) => SliderInstance;
   AFS?: AFSInterface;
   DOM?: typeof DOM;
   AFS_State?: AppState;
@@ -246,12 +307,12 @@ interface AppWindow extends Window {
 // We use a type that allows any object structure for logging purposes
 // Note: This intentionally allows any object structure since logging needs flexibility
 // We explicitly include all our custom types plus allow objects with index signatures
-type LoggableData =
-  | string
-  | number
-  | boolean
-  | null
-  | undefined
+type LoggableData = 
+  | string 
+  | number 
+  | boolean 
+  | null 
+  | undefined 
   | Error
   | FiltersState
   | SortState
@@ -670,7 +731,7 @@ const $ = {
   equals: (a: string | number | boolean | string[] | null | undefined, b: string | number | boolean | string[] | null | undefined): boolean => {
     if (a === b) return true;
     if (a === null || a === undefined || b === null || b === undefined) return false;
-
+    
     // For arrays, convert to string representation
     if (Array.isArray(a)) {
       a = a.join(',');
@@ -678,22 +739,22 @@ const $ = {
     if (Array.isArray(b)) {
       b = b.join(',');
     }
-
+    
     // For strings, compare case-insensitively and trimmed
     if (typeof a === 'string' && typeof b === 'string') {
       return a.trim().toLowerCase() === b.trim().toLowerCase();
     }
-
+    
     // For numbers, compare directly
     if (typeof a === 'number' && typeof b === 'number') {
       return a === b;
     }
-
+    
     // For booleans, compare directly
     if (typeof a === 'boolean' && typeof b === 'boolean') {
       return a === b;
     }
-
+    
     // Mixed types: convert both to strings and compare
     return String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
   },
@@ -827,10 +888,15 @@ const Log = {
   },
   init: (enabled?: boolean): void => {
     Log.enabled = enabled !== false;
-    const appName = 'Advanced Filter & Search';
     Log.log(
-      `%c${appName}`,
-      `color: white; background-color: #c21f29; font-size: 16px; font-weight: bold; padding: 4px 8px; border-radius: 4px;`
+      "%c" + "Advanced Filter & Search initialized",
+      "color: #00c853;" +
+      "font-size: 20px;" +
+      "font-weight: bold;" +
+      "background: #0b1e13;" +
+      "padding: 10px 15px;" +
+      "border-radius: 6px;" +
+      "font-family: Arial, sans-serif;"
     );
   }
 };
@@ -992,7 +1058,7 @@ const UrlManager = {
 // ============================================================================
 
 const API = {
-  baseURL: 'https://fstaging.digitalcoo.com',
+  baseURL: 'http://localhost:3554', // Default, should be set via config
   cache: new Map<string, ProductsResponseData>(),
   timestamps: new Map<string, number>(),
   pending: new Map<string, Promise<ProductsResponseData>>(),
@@ -2039,7 +2105,8 @@ const DOM = {
       }
 
       // Add Quick View button - opens product modal
-      const quickViewBtn = createQuickViewButton(p);
+      const shopifyWindow = window as ShopifyWindow;
+      const quickViewBtn = shopifyWindow.AFSQuickView?.createQuickViewButton(p);
       if (quickViewBtn) {
         imgContainer.appendChild(quickViewBtn);
       }
@@ -2844,11 +2911,32 @@ const Filters = {
 // ============================================================================
 // PRODUCT MODAL FUNCTIONS
 // ============================================================================
-// NOTE: Product modal functions have been moved to quickview.ts
-// The functions are imported from quickview.ts module
+// NOTE: Product modal functions have been moved to afs-quickview.ts
+// The functions are available via window.AFSQuickView
 
-// Re-export createProductModal for backward compatibility (if needed elsewhere)
-// The function is already imported from quickview.ts above
+// Type definition for backward compatibility
+async function createProductModal(handle: string, modalId: string): Promise<ProductModalElement> {
+  const shopifyWindow = window as ShopifyWindow;
+  if (shopifyWindow.AFSQuickView?.createProductModal) {
+    return shopifyWindow.AFSQuickView.createProductModal(handle, modalId);
+  }
+  throw new Error('AFSQuickView module not loaded');
+}
+
+// Legacy function stubs for backward compatibility
+function setupModalHandlers(dialog: ProductModalElement, modalId: string, product: Product, formatPrice: (price: number | string) => string): void {
+  // Handled by AFSQuickView module
+}
+
+function updateVariantInModal(dialog: ProductModalElement, modalId: string, variant: ProductVariant, formatPrice: (price: number | string) => string): void {
+  // Handled by AFSQuickView module
+}
+
+function setupCloseHandler(dialog: ProductModalElement): void {
+  // Handled by AFSQuickView module
+}
+
+// NOTE: Modal handler implementations moved to afs-quickview.ts
 
 // ============================================================================
 // QUICK ADD FUNCTIONALITY
@@ -3192,7 +3280,12 @@ const Events = {
         const handle = btn.getAttribute('data-product-handle');
         if (handle) {
           // Use quick view module
-          handleQuickViewClick(handle);
+          const shopifyWindow = window as ShopifyWindow;
+          if (shopifyWindow.AFSQuickView?.handleQuickViewClick) {
+            shopifyWindow.AFSQuickView.handleQuickViewClick(handle);
+          } else {
+            Log.error('AFSQuickView module not loaded');
+          }
         }
       }
     });
@@ -3429,7 +3522,7 @@ interface AFSInterface {
 const AFS: AFSInterface = {
   init(config: AFSConfig = {}): void {
     try {
-      Log.init(config.enableLogging !== undefined ? config.enableLogging : config.debug);
+      Log.init(config.debug);
       Log.info('Initializing AFS', config);
 
       if (config.apiBaseUrl) {
@@ -3497,11 +3590,7 @@ const AFS: AFSInterface = {
       Log.info('Shop set', { shop: State.shop });
       Log.info('Collections set', { collections: State.collections });
 
-      // Support both old and new config property names for backward compatibility
-      const containerSel = config.container || config.containerSelector || '[data-afs-container]';
-      const filtersSel = config.filtersContainer || config.filtersSelector;
-      const productsSel = config.productsContainer || config.productsSelector;
-      DOM.init(containerSel, filtersSel, productsSel);
+      DOM.init(config.containerSelector || '[data-afs-container]', config.filtersSelector, config.productsSelector);
       Log.info('DOM initialized');
 
       // Show loading skeleton immediately on initial load (before API calls)
@@ -3719,13 +3808,13 @@ const AFS: AFSInterface = {
       // Update sort select value (programmatically - won't trigger change event)
       if (DOM.sortSelect) {
         // Handle best-selling sort (no order in value)
-        if ($.isBestSelling(State.sort.field)) {
-          DOM.sortSelect.value = SortField.BEST_SELLING;
-        } else {
-          // Convert to new format: "field-direction" (e.g., "title-ascending")
-          const direction = $.equals(State.sort.order, SortOrder.ASC) ? SortOrder.ASCENDING : SortOrder.DESCENDING;
-          DOM.sortSelect.value = `${State.sort.field}-${direction}`;
-        }
+          if ($.isBestSelling(State.sort.field)) {
+            DOM.sortSelect.value = SortField.BEST_SELLING;
+          } else {
+            // Convert to new format: "field-direction" (e.g., "title-ascending")
+            const direction = $.equals(State.sort.order, SortOrder.ASC) ? SortOrder.ASCENDING : SortOrder.DESCENDING;
+            DOM.sortSelect.value = `${State.sort.field}-${direction}`;
+          }
         Log.debug('Sort select value updated programmatically', { value: DOM.sortSelect.value, sort: State.sort });
       }
 
@@ -3779,20 +3868,20 @@ const AFS: AFSInterface = {
 };
 
 // Export to window
-const appWindow = window as unknown as AppWindow;
-appWindow.DOM = DOM;
-appWindow.AFS_State = State;
-appWindow.AFS_API = API;
-appWindow.AFS_LOG = Log;
-appWindow.QuickAdd = QuickAdd;
-appWindow.$ = $;
-appWindow.Icons = Icons;
-(appWindow as typeof appWindow & { Lang?: typeof Lang }).Lang = Lang;
-(appWindow as typeof appWindow & { SpecialValue?: typeof SpecialValue }).SpecialValue = SpecialValue;
+const shopifyWindow = window as ShopifyWindow;
+shopifyWindow.DOM = DOM;
+shopifyWindow.AFS_State = State;
+shopifyWindow.AFS_API = API;
+shopifyWindow.AFS_LOG = Log;
+shopifyWindow.QuickAdd = QuickAdd;
+shopifyWindow.$ = $;
+shopifyWindow.Icons = Icons;
+(shopifyWindow as typeof shopifyWindow & { Lang?: typeof Lang }).Lang = Lang;
+(shopifyWindow as typeof shopifyWindow & { SpecialValue?: typeof SpecialValue }).SpecialValue = SpecialValue;
 
 // Export
 if (typeof window !== 'undefined') {
-  appWindow.AFS = AFS;
+  shopifyWindow.AFS = AFS;
 } else if (typeof global !== 'undefined') {
   (global as typeof globalThis & { AFS?: AFSInterface }).AFS = AFS;
 }

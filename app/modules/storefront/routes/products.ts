@@ -9,7 +9,6 @@ import { HttpRequest } from '@core/http/http.types';
 import { validateShopDomain } from '@core/http/validation.middleware';
 import { rateLimit } from '@core/security/rate-limit.middleware';
 import { buildSearchInput } from '@modules/storefront/products.helper';
-import { formatFilters } from '@shared/storefront/filter-format.helper';
 import {
   getActiveFilterConfig,
   applyFilterConfigToInput
@@ -45,7 +44,7 @@ export const GET = handler(async (req: HttpRequest) => {
 
   // Format filters with filterConfig settings applied (position sorting, filtering, etc.)
   // This pre-compiles filters on server-side for optimal performance
-  const formattedFilters = result.filters ? formatFilters(result.filters, filterConfig) : [];
+  // const formattedFilters = result.filters ? formatFilters(result.filters, filterConfig) : [];
 
   // Remove empty values from appliedFilters
   // const cleanedAppliedFilters = Object.keys(searchInput || {}).length > 0 ? searchInput : undefined;
@@ -65,9 +64,9 @@ export const GET = handler(async (req: HttpRequest) => {
   };
 
   // Only include filters if they exist and have data
-  if (formattedFilters.length > 0) {
-    responseBody.data.filters = formattedFilters;
-  }
+  // if (formattedFilters.length > 0) {
+  //   responseBody.data.filters = formattedFilters;
+  // }
 
   // Do not send filterConfig in the response, use filters instead to save payload size.
   // Include filter configuration for storefront script

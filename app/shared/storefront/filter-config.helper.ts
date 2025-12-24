@@ -6,10 +6,11 @@
 import { Filter } from '@shared/filters/types';
 import { ProductFilterInput, ProductSearchInput } from './types';
 import { createModuleLogger } from '@shared/utils/logger.util';
-
-const logger = createModuleLogger('products-filter-config-helper');
+import { isPublishedStatus } from '@shared/utils/status.util';
 import crypto from 'crypto';
 import { NO_FILTER_CONFIG_HASH } from '@core/cache/cache.key';
+
+const logger = createModuleLogger('products-filter-config-helper');
 
 const STANDARD_FILTER_MAPPING: Record<string, keyof ProductFilterInput> = {
   vendor: 'vendors',
@@ -53,10 +54,8 @@ function parseMinMaxRange(value: string): { min?: number; max?: number } | null 
   return out;
 }
 
-const normalizeStatus = (status?: string | null) => (status || '').toUpperCase();
 const normalizeChannel = (channel?: string | null) => (channel || '').toLowerCase();
 const normalizeString = (value?: string | null) => (value || '').toLowerCase();
-const isPublishedStatus = (status?: string | null) => normalizeStatus(status) === 'PUBLISHED';
 const isSupportedDeployment = (channel?: string | null) => {
   const normalizedChannel = normalizeChannel(channel);
   return normalizedChannel === 'app' || normalizedChannel === 'theme';
