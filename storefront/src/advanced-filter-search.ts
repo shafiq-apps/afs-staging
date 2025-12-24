@@ -174,6 +174,7 @@ interface FiltersState {
 interface FilterGroupState {
   collapsed?: boolean;
   search?: string;
+  lastUpdated?: number;
 }
 
 interface APIResponse<T> {
@@ -1569,16 +1570,24 @@ const DOM = {
     // Hide filters skeleton when rendering real filters
     this.hideFiltersSkeleton();
 
-    // Save states
+    // Save states with improved persistence
     const states = new Map<string, FilterGroupState>();
     this.filtersContainer.querySelectorAll('.afs-filter-group').forEach(g => {
       const key = g.getAttribute('data-afs-filter-key');
       if (key) {
         const searchInput = g.querySelector<HTMLInputElement>('.afs-filter-group__search-input');
+        const collapsed = g.getAttribute('data-afs-collapsed') === 'true';
+        const search = searchInput?.value || '';
+        
+        // Get existing state to preserve other properties
+        const existingState = states.get(key);
         states.set(key, {
-          collapsed: g.getAttribute('data-afs-collapsed') === 'true',
-          search: searchInput?.value || ''
-        });
+          ...existingState,
+          collapsed,
+          search,
+          // Add timestamp for state freshness tracking
+          lastUpdated: Date.now()
+        } as FilterGroupState & { lastUpdated?: number });
       }
     });
 
@@ -3054,9 +3063,22 @@ const QuickAdd = {
     message.textContent = Lang.messages.addedToCart;
     message.classList.add('afs-quick-add-success--show');
 
-    setTimeout(() => {
+    // Use CSS animation end event instead of fixed timeout
+    const handleAnimationEnd = () => {
       message.classList.remove('afs-quick-add-success--show');
+      message.removeEventListener('animationend', handleAnimationEnd);
+    };
+    
+    // Fallback timeout if animation doesn't fire
+    const timeoutId = setTimeout(() => {
+      message.classList.remove('afs-quick-add-success--show');
+      message.removeEventListener('animationend', handleAnimationEnd);
     }, 3000);
+    
+    message.addEventListener('animationend', () => {
+      clearTimeout(timeoutId);
+      handleAnimationEnd();
+    }, { once: true });
   }
 };
 
@@ -3243,6 +3265,32 @@ const Events = {
         const collapsedState = !collapsed;
         group.setAttribute('data-afs-collapsed', collapsedState ? 'true' : 'false');
 
+        // Persist collapse state in states Map with improved error handling
+        const stateKey = group.getAttribute('data-afs-filter-key');
+        if (stateKey) {
+          try {
+            // Get or create state
+            const state = states.get(stateKey) || {};
+            state.collapsed = collapsedState;
+            state.lastUpdated = Date.now();
+            states.set(stateKey, state);
+            
+            // Also persist to sessionStorage for page refresh persistence
+            try {
+              const stateKey = `afs_filter_state_${group.getAttribute('data-afs-filter-handle')}`;
+              sessionStorage.setItem(stateKey, JSON.stringify({ collapsed: collapsedState }));
+            } catch (e) {
+              // SessionStorage might be disabled, ignore
+              Log.debug('Could not persist to sessionStorage', { error: e });
+            }
+          } catch (error) {
+            Log.error('Failed to persist filter state', { 
+              stateKey, 
+              error: error instanceof Error ? error.message : String(error) 
+            });
+          }
+        }
+
         // Update toggle button aria-expanded
         const toggle = group.querySelector<HTMLButtonElement>('.afs-filter-group__toggle');
         if (toggle) {
@@ -3259,7 +3307,7 @@ const Events = {
         }
 
         // Content visibility is handled by CSS via data-afs-collapsed attribute
-        Log.debug('Filter group toggled', { collapsed: collapsedState });
+        Log.debug('Filter group toggled', { collapsed: collapsedState, stateKey });
       }
       else if (target.closest<HTMLElement>('.afs-product-card__quick-add')) {
         e.preventDefault();
@@ -3379,21 +3427,24 @@ const Events = {
         // (previousSortValue might be null on first interaction)
         if (currentValue && currentValue !== previousSortValue) {
           // Small delay to ensure change event has a chance to fire first
-          setTimeout(() => {
-            // Double-check: if value still doesn't match state, trigger change
-            let currentSortValue: string;
-            if ($.isBestSelling(State.sort.field)) {
-              currentSortValue = SortField.BEST_SELLING;
-            } else {
-              // Convert to new format: "field-direction" (e.g., "title-ascending")
-              const direction = $.equals(State.sort.order, SortOrder.ASC) ? SortOrder.ASCENDING : SortOrder.DESCENDING;
-              currentSortValue = `${State.sort.field}-${direction}`;
-            }
+          // Use requestAnimationFrame for better timing instead of fixed timeout
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              // Double-check: if value still doesn't match state, trigger change
+              let currentSortValue: string;
+              if ($.isBestSelling(State.sort.field)) {
+                currentSortValue = SortField.BEST_SELLING;
+              } else {
+                // Convert to new format: "field-direction" (e.g., "title-ascending")
+                const direction = $.equals(State.sort.order, SortOrder.ASC) ? SortOrder.ASCENDING : SortOrder.DESCENDING;
+                currentSortValue = `${State.sort.field}-${direction}`;
+              }
 
-            if (currentValue !== currentSortValue) {
-              handleSortChange(select);
-            }
-          }, 50);
+              if (currentValue !== currentSortValue) {
+                handleSortChange(select);
+              }
+            });
+          });
         }
         previousSortValue = currentValue;
       }

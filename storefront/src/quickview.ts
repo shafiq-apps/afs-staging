@@ -5,6 +5,8 @@
  * Exports reusable functions for use in advanced-filter-search.ts
  */
 
+import { waitForElement, waitForElements } from './utils/dom-ready';
+
 // ============================================================================
 // TYPE DEFINITIONS
 // ============================================================================
@@ -242,6 +244,16 @@ class AFSSlider {
       }
     }
 
+    // Setup pinch-to-zoom for touch devices
+    if (this.isTouchDevice) {
+      try {
+        this.setupPinchZoom();
+      } catch (e) {
+        console.error('AFSSlider: Error setting up pinch-zoom', e);
+        // Continue anyway - zoom is optional
+      }
+    }
+
     // Show first image
     try {
       this.goToSlide(0);
@@ -328,12 +340,14 @@ class AFSSlider {
             this.nextSlide();
             break;
           case 'Escape':
-            // Reset zoom on escape
+            // Reset zoom on escape using CSS class
             const activeImage = this.images[this.currentIndex];
-            const viewport = this.mainContainer?.querySelector<HTMLElement>('.afs-slider__viewport');
-            if (activeImage && viewport) {
-              activeImage.style.transform = 'scale(1) translate(0, 0)';
-              activeImage.style.transition = 'transform 0.2s ease-out';
+            if (activeImage) {
+              activeImage.classList.remove('afs-slider__image--zoomed');
+              activeImage.classList.add('afs-slider__image--zoom-reset');
+              setTimeout(() => {
+                activeImage.classList.remove('afs-slider__image--zoom-reset');
+              }, 200);
             }
             break;
         }
@@ -420,17 +434,20 @@ class AFSSlider {
       const translateX = -xPercent * (activeImage.offsetWidth * SCALE - rect.width);
       const translateY = -yPercent * (activeImage.offsetHeight * SCALE - rect.height);
 
+      // Use inline transform for zoom (necessary for dynamic pan-zoom)
+      // But use CSS class for transition control
       activeImage.style.transform = `
         scale(${SCALE})
         translate(${translateX / SCALE}px, ${translateY / SCALE}px)
       `;
+      activeImage.classList.add('afs-slider__image--zoomed');
     });
 
     // Mouse enter: enable smooth transition
     viewport.addEventListener('mouseenter', () => {
       const activeImage = this.images[this._currentIndex];
       if (activeImage) {
-        activeImage.style.transition = 'transform 0.05s ease-out';
+        activeImage.classList.add('afs-slider__image--zoomed');
       }
     });
 
@@ -438,9 +455,112 @@ class AFSSlider {
     viewport.addEventListener('mouseleave', () => {
       const activeImage = this.images[this.currentIndex];
       if (activeImage) {
-        activeImage.style.transform = 'scale(1) translate(0, 0)';
-        activeImage.style.transition = 'transform 0.2s ease-out';
+        activeImage.classList.remove('afs-slider__image--zoomed');
+        activeImage.classList.add('afs-slider__image--zoom-reset');
+        // Remove reset class after transition
+        setTimeout(() => {
+          activeImage.classList.remove('afs-slider__image--zoom-reset');
+        }, 200);
       }
+    });
+  }
+
+  /**
+   * Setup pinch-to-zoom for touch devices
+   */
+  private setupPinchZoom(): void {
+    if (!this.mainContainer || !this.isTouchDevice) return;
+
+    const viewport = this.mainContainer.querySelector<HTMLElement>('.afs-slider__viewport');
+    if (!viewport) return;
+
+    let initialDistance = 0;
+    let currentScale = 1;
+    let lastTouchTime = 0;
+    let doubleTapTimeout: ReturnType<typeof setTimeout> | null = null;
+
+    viewport.addEventListener('touchstart', (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        // Pinch gesture
+        e.preventDefault();
+        const touch1 = e.touches[0];
+        const touch2 = e.touches[1];
+        initialDistance = Math.hypot(
+          touch2.clientX - touch1.clientX,
+          touch2.clientY - touch1.clientY
+        );
+        const activeImage = this.images[this._currentIndex];
+        if (activeImage) {
+          // Get current scale from transform
+          const transform = activeImage.style.transform || '';
+          const scaleMatch = transform.match(/scale\(([\d.]+)\)/);
+          currentScale = scaleMatch ? parseFloat(scaleMatch[1]) : 1;
+        }
+      } else if (e.touches.length === 1) {
+        // Single touch - check for double tap
+        const now = Date.now();
+        if (now - lastTouchTime < 300) {
+          // Double tap detected
+          e.preventDefault();
+          if (doubleTapTimeout) clearTimeout(doubleTapTimeout);
+          
+          const activeImage = this.images[this._currentIndex];
+          if (activeImage) {
+            const transform = activeImage.style.transform || '';
+            const scaleMatch = transform.match(/scale\(([\d.]+)\)/);
+            const currentScale = scaleMatch ? parseFloat(scaleMatch[1]) : 1;
+            
+            if (currentScale > 1) {
+              // Reset zoom
+              activeImage.style.transform = 'scale(1) translate(0, 0)';
+              currentScale = 1;
+            } else {
+              // Zoom in
+              const rect = viewport.getBoundingClientRect();
+              const touch = e.touches[0];
+              const x = touch.clientX - rect.left;
+              const y = touch.clientY - rect.top;
+              const zoomScale = 2.5;
+              
+              activeImage.style.transform = `scale(${zoomScale}) translate(${(rect.width / 2 - x) / zoomScale}px, ${(rect.height / 2 - y) / zoomScale}px)`;
+              currentScale = zoomScale;
+            }
+          }
+        } else {
+          lastTouchTime = now;
+        }
+      }
+    }, { passive: false });
+
+    viewport.addEventListener('touchmove', (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        // Pinch gesture
+        e.preventDefault();
+        const touch1 = e.touches[0];
+        const touch2 = e.touches[1];
+        const distance = Math.hypot(
+          touch2.clientX - touch1.clientX,
+          touch2.clientY - touch1.clientY
+        );
+        
+        const scale = Math.max(1, Math.min(4, currentScale * (distance / initialDistance)));
+        const activeImage = this.images[this._currentIndex];
+        
+        if (activeImage) {
+          const rect = viewport.getBoundingClientRect();
+          const centerX = (touch1.clientX + touch2.clientX) / 2 - rect.left;
+          const centerY = (touch1.clientY + touch2.clientY) / 2 - rect.top;
+          
+          const translateX = (rect.width / 2 - centerX) / scale;
+          const translateY = (rect.height / 2 - centerY) / scale;
+          
+          activeImage.style.transform = `scale(${scale}) translate(${translateX}px, ${translateY}px)`;
+        }
+      }
+    }, { passive: false });
+
+    viewport.addEventListener('touchend', () => {
+      initialDistance = 0;
     });
   }
 
@@ -449,22 +569,25 @@ class AFSSlider {
 
     this._currentIndex = index;
 
-    // Update images visibility
+    // Update images visibility - use CSS classes only (inline styles override CSS)
     this.images.forEach((img, i) => {
       if (i === index) {
         img.classList.add('afs-slider__image--active');
-        img.style.display = 'block';
+        // Removed inline style.display - let CSS handle it via --active class
       } else {
         img.classList.remove('afs-slider__image--active');
-        img.style.display = 'none';
+        // Removed inline style.display - let CSS handle it via --active class
       }
     });
 
-    // Reset zoom when slide changes
+    // Reset zoom when slide changes using CSS class
     const activeImage = this.images[this._currentIndex];
     if (activeImage) {
-      activeImage.style.transform = 'scale(1) translate(0, 0)';
-      activeImage.style.transition = 'transform 0.2s ease-out';
+      activeImage.classList.remove('afs-slider__image--zoomed');
+      activeImage.classList.add('afs-slider__image--zoom-reset');
+      setTimeout(() => {
+        activeImage.classList.remove('afs-slider__image--zoom-reset');
+      }, 200);
     }
 
     // Update thumbnails
@@ -689,10 +812,13 @@ class AFSSlider {
       this.keyboardHandler = null;
     }
 
-    // Reset zoom state
+    // Reset zoom state using CSS classes
     this.images.forEach(img => {
-      img.style.transform = 'scale(1) translate(0, 0)';
-      img.style.transition = 'transform 0.2s ease-out';
+      img.classList.remove('afs-slider__image--zoomed');
+      img.classList.add('afs-slider__image--zoom-reset');
+      setTimeout(() => {
+        img.classList.remove('afs-slider__image--zoom-reset');
+      }, 200);
     });
 
     this.isInitialized = false;
@@ -1026,20 +1152,41 @@ export async function createProductModal(handle: string, modalId: string): Promi
     dialog._productData = productData;
     dialog._currentVariantId = currentVariantId || undefined;
 
-    // Initialize slider after DOM is ready
-    setTimeout(() => {
-      const sliderContainer = dialog.querySelector<HTMLElement>(`#${modalId}-slider`);
-      if (sliderContainer) {
-        dialog._slider = new AFSSlider(sliderContainer, {
-          thumbnailsPosition: 'left', // Can be 'top', 'left', 'right', 'bottom'
-          enableKeyboard: true,
-          enableAutoHeight: false, // Disable auto height to prevent shrinking
-          maxHeight: 600, // Fixed max height in pixels
-          enableMagnifier: true, // Enable image magnifier on hover
-          magnifierZoom: 2 // 2x zoom level for magnifier
+    // Initialize slider after DOM is ready - use proper DOM ready check
+    (async () => {
+      try {
+        // Wait for slider container to be in DOM
+        const sliderContainer = await waitForElement(`#${modalId}-slider`, dialog, 3000);
+        
+        // Wait for images to be in DOM
+        const images = await waitForElements(
+          Array.from({ length: 10 }, (_, i) => `.afs-slider__image:nth-child(${i + 1})`),
+          sliderContainer,
+          2000
+        ).catch(() => {
+          // Fallback: get whatever images exist
+          return Array.from(sliderContainer.querySelectorAll<HTMLImageElement>('.afs-slider__image'));
+        });
+
+        if (images.length > 0) {
+          dialog._slider = new AFSSlider(sliderContainer, {
+            thumbnailsPosition: 'left', // Can be 'top', 'left', 'right', 'bottom'
+            enableKeyboard: true,
+            enableAutoHeight: false, // Disable auto height to prevent shrinking
+            maxHeight: 600, // Fixed max height in pixels
+            enableMagnifier: true, // Enable image magnifier on hover
+            magnifierZoom: 2 // 2x zoom level for magnifier
+          });
+        } else {
+          Log.warn('No images found for slider', { modalId });
+        }
+      } catch (error) {
+        Log.error('Failed to initialize slider', { 
+          error: error instanceof Error ? error.message : String(error),
+          modalId 
         });
       }
-    }, 100);
+    })();
 
     // Setup event handlers
     setupModalHandlers(dialog, modalId, productData, formatPrice, utils);

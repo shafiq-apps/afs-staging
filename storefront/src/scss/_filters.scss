@@ -116,7 +116,7 @@
       margin: 0 !important;
       padding: 0 !important;
       overflow: hidden;
-      display: block;
+      // Removed display: block - it prevents proper collapse animation
     }
 
     &__search {

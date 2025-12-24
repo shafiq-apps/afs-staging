@@ -650,7 +650,7 @@ shopify-list-context[type="image"] {
     height: 100%;
     object-fit: cover;
     transform-origin: top left;
-    transition: transform 0.05s ease-out;
+    transition: transform 0.2s ease-out;
     position: relative;
     user-select: none;
     -webkit-user-drag: none;
@@ -658,6 +658,18 @@ shopify-list-context[type="image"] {
 
     &--active {
       display: block;
+    }
+
+    // Zoom states - use classes instead of inline styles
+    &--zoomed {
+      transition: transform 0.05s ease-out;
+      // Use CSS custom properties for dynamic zoom values
+      // These are set via JavaScript but controlled via CSS class
+    }
+
+    &--zoom-reset {
+      transform: scale(1) translate(0, 0) !important;
+      transition: transform 0.2s ease-out !important;
     }
   }
 
