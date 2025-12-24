@@ -13,6 +13,14 @@ import crypto from 'crypto';
 export const NO_FILTER_CONFIG_HASH = 'no-filter';
 
 /**
+ * Cache key version
+ *
+ * Bump this when the search/facet algorithm changes in a way that would make
+ * previously cached results incorrect (e.g., aggregation include/exclude changes).
+ */
+export const CACHE_KEY_VERSION = 'v2';
+
+/**
  * Generate cache key for product search
  * Includes filter config hash to invalidate cache when filter config changes
  */
@@ -21,7 +29,7 @@ export function generateSearchCacheKey(
   filters?: ProductSearchInput,
   filterConfigHash?: string
 ): string {
-  const keyParts = ['search', shopDomain];
+  const keyParts = ['search', CACHE_KEY_VERSION, shopDomain];
   
   // Always include filter config hash in cache key for consistent key structure
   // This ensures cache is invalidated when filter config changes
@@ -102,7 +110,7 @@ export function generateFilterCacheKey(
   filters?: ProductFilterInput,
   filterConfigHash?: string
 ): string {
-  const keyParts = ['filters', shopDomain];
+  const keyParts = ['filters', CACHE_KEY_VERSION, shopDomain];
   
   // Always include filter config hash in cache key for consistent key structure
   // This ensures cache is invalidated when filter config changes
@@ -165,9 +173,8 @@ export function generateFilterCacheKey(
  * Updated to match keys with cfg: prefix
  */
 export function generateCacheKeyPattern(type: 'search' | 'filters', shopDomain: string): string {
-  // Pattern must match: type:shopDomain:cfg:*:*
-  // This accounts for the cfg: prefix in cache keys
-  return `${type}:${shopDomain}:cfg:*`;
+  // Pattern must match: type:version:shopDomain:cfg:*
+  return `${type}:${CACHE_KEY_VERSION}:${shopDomain}:cfg:*`;
 }
 
 /**
