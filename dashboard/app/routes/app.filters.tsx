@@ -39,8 +39,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   await authenticate.admin(request);
 
   // GraphQL endpoint URL - server-side only
-  const GRAPHQL_ENDPOINT =
-    process.env.GRAPHQL_ENDPOINT || "http://localhost:3554/graphql";
+  const GRAPHQL_ENDPOINT = process.env.GRAPHQL_ENDPOINT || "http://localhost:3554/graphql";
 
   try {
     // Get shop from session or request

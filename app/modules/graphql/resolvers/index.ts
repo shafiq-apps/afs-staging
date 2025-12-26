@@ -16,6 +16,7 @@ import { productsResolvers } from './products.resolvers';
 import { filtersResolvers } from './filters.resolvers';
 import { cacheResolvers } from './cache.resolvers';
 import { webhooksResolvers } from './webhooks.resolvers';
+import { subscriptionsResolvers } from './subscriptions.resolvers';
 
 /**
  * Array of manual resolver objects
@@ -28,6 +29,7 @@ export const resolvers: any[] = [
   filtersResolvers,  // Manual filter resolvers
   cacheResolvers,    // Cache admin/debug resolvers
   webhooksResolvers, // Webhook processing resolvers
+  subscriptionsResolvers, // Subscription resolvers
   // Add more manual resolvers here as needed
 ];
 

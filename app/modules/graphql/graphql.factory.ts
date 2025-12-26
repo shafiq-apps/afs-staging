@@ -619,6 +619,7 @@ export function createGraphQLModule(
       error: error?.message || error,
       stack: error?.stack,
     });
+    console.log(error)
     throw new Error(`Failed to create GraphQL module: ${error?.message || error}`);
   }
 }

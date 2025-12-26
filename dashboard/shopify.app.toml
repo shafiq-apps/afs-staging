@@ -46,6 +46,10 @@ api_version = "2026-01"
   uri = "/webhooks/collections/delete"
   topics = [ "collections/delete" ]
 
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/app_subscriptions/update"
+  topics = [ "app_subscriptions/update" ]
+  
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
 scopes = "read_locales,read_online_store_pages,read_products,read_themes,write_online_store_pages,write_products"

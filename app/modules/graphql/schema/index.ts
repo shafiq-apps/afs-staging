@@ -14,6 +14,7 @@ import { productsSchema } from './products.schema';
 import { filtersSchema } from './filters.schema';
 import { cacheSchema } from './cache.schema';
 import { webhooksSchema } from './webhooks.schema';
+import { subscriptionSchema } from './subscriptions.schema';
 // Example:
 // import { settingsSchema } from './settings.schema';
 
@@ -32,6 +33,7 @@ export const schemas: string[] = [
   filtersSchema, // Filter types with Query and Mutation
   cacheSchema, // Cache admin/debug endpoints
   webhooksSchema, // Webhook processing mutations
+  subscriptionSchema, // Subscription types and mutations
   // Add schema strings here
   // Example: settingsSchema,
 ];

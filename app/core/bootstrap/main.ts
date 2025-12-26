@@ -16,6 +16,7 @@ import { defaultSecurity } from '@core/security/default-security.middleware';
 import { errorHandler } from '@core/http/http.errors';
 import { configureStaticFiles } from '@core/http/static.middleware';
 import cors from "cors";
+import { createSubscriptionModule } from '@modules/subscriptions/subscriptions.factory.js';
 
 const logger = createModuleLogger('bootstrap');
 
@@ -85,11 +86,14 @@ export async function bootstrap() {
   const productsModule = createProductsModule(esClient);
   const shopsModule = createShopsModule(esClient);
   const filtersModule = createFiltersModule(esClient);
+  const subscriptionsModule = createSubscriptionModule(esClient);
   
   // Initialize GraphQL module
   const graphqlModule = createGraphQLModule(esClient, {
     productsService: productsModule.service,
     shopsRepository: shopsModule.repository,
+    filtersRepository: filtersModule.repository,
+    subscriptionsRepository: subscriptionsModule.repository,
   });
   
   // Initialize webhook worker for async processing
@@ -113,6 +117,7 @@ export async function bootstrap() {
     req.shopsRepository = shopsModule.repository;
     req.filtersRepository = filtersModule.repository;
     req.graphqlService = graphqlModule.service;
+    req.subscriptionsRepository = subscriptionsModule.repository;
     req.esClient = esClient; // Inject ES client for GraphQL resolvers
     // req.usersService = usersModule.service;
     next();
