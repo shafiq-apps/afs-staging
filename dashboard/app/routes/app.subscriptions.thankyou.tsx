@@ -82,11 +82,9 @@ export default function SubscriptionThankYou() {
         >
           {success ? (
             <s-stack direction="block" gap="base">
-              <s-heading>🎉 Subscription successful!</s-heading>
+              <s-heading>Subscription successful!</s-heading>
               <s-text>
-                Your plan{" "}
-                <s-text type="strong">{planId || "selected plan"}</s-text> has
-                been activated.
+                Your plan has been activated.
               </s-text>
             </s-stack>
           ) : (
