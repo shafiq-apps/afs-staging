@@ -15,7 +15,7 @@ import {
   StoredSubscription,
   StoredSubscriptionLineItem,
 } from './subscriptions.type';
-import { APP_SUBSCRIPTION_STATUS_QUERY } from './subscriptions.graphql';
+import { APP_SUBSCRIPTION_QUERY } from './subscriptions.graphql';
 
 const logger = createModuleLogger('subscriptions-repository');
 
@@ -61,8 +61,7 @@ export class SubscriptionsRepository {
    * Get subscription by ID for a shop
    */
   async getSubscription(
-    shop: string,
-    id: string
+    shop: string
   ): Promise<StoredSubscription | null> {
     try {
       const index = SUBSCRIPTIONS_INDEX_NAME;
@@ -75,21 +74,12 @@ export class SubscriptionsRepository {
               {
                 bool: {
                   should: [
-                    { term: { 'shop.keyword': shop } },
-                    { term: { shop } },
+                    { term: { 'id.keyword': shop } },
+                    { term: { id: shop } },
                   ],
                   minimum_should_match: 1,
                 },
-              },
-              {
-                bool: {
-                  should: [
-                    { term: { 'id.keyword': id } },
-                    { term: { id } },
-                  ],
-                  minimum_should_match: 1,
-                },
-              },
+              }
             ],
           },
         },
@@ -105,7 +95,6 @@ export class SubscriptionsRepository {
       if (error.statusCode === 404) return null;
       logger.error('Error getting subscription', {
         shop,
-        id,
         error: error?.message || error,
       });
       throw error;
@@ -165,124 +154,66 @@ export class SubscriptionsRepository {
   }
 
   /**
-   * Create and store a new subscription record
-   */
-  async createSubscription(
-    shop: string,
-    data: Omit<StoredSubscription, 'id' | 'createdAt' | 'updatedAt'>
-  ): Promise<StoredSubscription> {
-    try {
-      const index = SUBSCRIPTIONS_INDEX_NAME;
-      const id = uuidv4();
-      const now = new Date().toISOString();
-
-      const subscription: StoredSubscription = {
-        id,
-        shop,
-        shopifySubscriptionId: data.shopifySubscriptionId,
-        name: data.name,
-        status: data.status,
-        confirmationUrl: data.confirmationUrl ?? null,
-        test: data.test ?? false,
-        lineItems: data.lineItems || [],
-        createdAt: now,
-        updatedAt: null,
-      };
-
-      await this.esClient.index({
-        index,
-        id,
-        document: subscription,
-      });
-
-      logger.info('Subscription created', {
-        shop,
-        id,
-        shopifySubscriptionId: subscription.shopifySubscriptionId,
-        status: subscription.status,
-      });
-
-      return subscription;
-    } catch (error: any) {
-      logger.error('Error creating subscription', {
-        shop,
-        error: error?.message || error,
-      });
-      throw error;
-    }
-  }
-
-  /**
- * Update subscription status by fetching latest state from Shopify
+ * Create or update subscription by fetching latest data from Shopify
  * This prevents client-side tampering.
  */
-  async updateSubscriptionStatus(
-    shop: string,
-    id: string
-  ): Promise<StoredSubscription> {
+  async createOrUpdateSubscription(shop: string, shopifySubscriptionId: string ): Promise<StoredSubscription> {
     try {
       const index = SUBSCRIPTIONS_INDEX_NAME;
-
-      const existing = await this.getSubscription(shop, id);
-      if (!existing) {
-        throw new Error(`Subscription ${id} not found for shop ${shop}`);
-      }
-
-      // 🔐 Fetch latest status from Shopify
       const shopifyRes = await this.post<{
-        appSubscription: {
+        node: {
           id: string;
-          status: string;
           name: string;
-          lineItems: Array<{
-            id: string;
-            plan?: { pricingDetails?: any };
-          }>;
+          status: string;
+          test: boolean;
+          lineItems: any[]
+          createdAt: string;
         } | null;
       }>(shop, {
-        query: APP_SUBSCRIPTION_STATUS_QUERY,
+        query: APP_SUBSCRIPTION_QUERY,
         variables: {
-          id: existing.shopifySubscriptionId,
+          shopifySubscriptionId: shopifySubscriptionId, // must be gid://shopify/AppSubscription/...
         },
       });
 
       if (shopifyRes.errors?.length) {
         logger.error('Errors fetching subscription from Shopify', {
           shop,
-          id,
+          shopifySubscriptionId: shopifySubscriptionId,
           errors: shopifyRes.errors,
         });
+        console.log(shopifyRes.errors)
         throw new Error('Failed to fetch subscription from Shopify');
       }
 
-      const remote = shopifyRes.data?.appSubscription;
+      const remote = shopifyRes.data?.node;
       if (!remote) {
         throw new Error(
-          `Shopify subscription not found: ${existing.shopifySubscriptionId}`
+          `Shopify subscription not found: ${shopifySubscriptionId}`
         );
       }
 
       const updated: StoredSubscription = {
-        ...existing,
-        name: remote.name ?? existing.name,
-        status: remote.status, // authoritative status
-        lineItems: remote.lineItems.map(li => ({
-          id: li.id,
-          pricingDetails: li.plan?.pricingDetails,
-        })),
+        ...remote,
+        name: remote.name,
+        status: remote.status,
+        test: remote.test,
         updatedAt: new Date().toISOString(),
+        shopifySubscriptionId: remote.id || shopifySubscriptionId,
+        createdAt: remote.createdAt || new Date().toISOString(),
+        lineItems: remote.lineItems || [],
       };
 
       await this.esClient.index({
         index,
-        id,
-        document: updated,
+        id: shop,
+        document: updated
       });
 
       logger.info('Subscription status synced from Shopify', {
         shop,
-        id,
-        shopifyId: existing.shopifySubscriptionId,
+        id: remote.id,
+        shopifySubscriptionId: shopifySubscriptionId,
         status: updated.status,
       });
 
@@ -290,13 +221,14 @@ export class SubscriptionsRepository {
     } catch (error: any) {
       logger.error('Error syncing subscription status from Shopify', {
         shop,
-        id,
+        id: shopifySubscriptionId,
         error: error?.message || error,
         stack: error?.stack,
       });
       throw error;
     }
   }
+
 
 
   /**
@@ -306,7 +238,7 @@ export class SubscriptionsRepository {
     try {
       const index = SUBSCRIPTIONS_INDEX_NAME;
 
-      const existing = await this.getSubscription(shop, id);
+      const existing = await this.getSubscription(shop);
       if (!existing) return false;
 
       await this.esClient.delete({ index, id });

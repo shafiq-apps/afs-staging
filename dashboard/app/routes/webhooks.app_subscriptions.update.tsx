@@ -33,8 +33,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         const query = `
             mutation UpdateSubscriptionStatus($id: String!) {
                 updateSubscriptionStatus(id: $id) {
-                    success
-                    message
+                  id
+                  shop
+                  shopifySubscriptionId
+                  status
+                  updatedAt
                 }
             }
         `;

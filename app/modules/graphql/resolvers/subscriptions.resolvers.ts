@@ -140,29 +140,6 @@ export const subscriptionsResolvers = {
           logger.warn('Shopify returned user errors', { errors: payload.errors, shop, name });
         }
 
-        const subscriptionData = payload.data?.appSubscriptionCreate.appSubscription;
-
-        // Persist to Elasticsearch if subscription exists
-        if (subscriptionData) {
-          await repo.createSubscription(shop, {
-            shop,
-            shopifySubscriptionId: subscriptionData.id,
-            name: subscriptionData.name,
-            status: subscriptionData.status || 'PENDING',
-            confirmationUrl: subscriptionData.confirmationUrl,
-            lineItems: subscriptionData.lineItems.map((li) => ({
-              id: li.id,
-              pricingDetails: li.plan?.pricingDetails || {},
-            })),
-            test: test ?? false,
-          });
-
-          logger.info('Subscription saved to ES', {
-            shop,
-            shopifyId: subscriptionData.id,
-          });
-        }
-
         return payload.data?.appSubscriptionCreate;
       } catch (error: any) {
         logger.error('Error in appSubscriptionCreate resolver', {
@@ -188,7 +165,7 @@ export const subscriptionsResolvers = {
         logger.log('Fetching subscriptions', { shop });
         
         const repo = getSubscriptionsRepository(context);
-        const results = await repo.updateSubscriptionStatus(shop, args.id);
+        const results = await repo.createOrUpdateSubscription(shop, args.id);
         return results;
       } catch (error: any) {
         logger.error('Error in subscriptions query', {

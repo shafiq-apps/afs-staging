@@ -101,8 +101,7 @@ export interface StoredSubscriptionLineItem {
 }
 
 export interface StoredSubscription {
-  id: string; // internal ES id
-  shop: string;
+  id: string; // internal shop identifier
   shopifySubscriptionId: string;
   name: string;
   status: string;

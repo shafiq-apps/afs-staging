@@ -86,7 +86,7 @@ export async function bootstrap() {
   const productsModule = createProductsModule(esClient);
   const shopsModule = createShopsModule(esClient);
   const filtersModule = createFiltersModule(esClient);
-  const subscriptionsModule = createSubscriptionModule(esClient);
+  const subscriptionsModule = createSubscriptionModule(esClient, shopsModule.repository);
   
   // Initialize GraphQL module
   const graphqlModule = createGraphQLModule(esClient, {

@@ -36,18 +36,40 @@ export const APP_SUBSCRIPTION_CREATE_MUTATION = `
     }
 `;
 
-export const APP_SUBSCRIPTION_STATUS_QUERY = `
-    query GetAppSubscription($id: ID!) {
-        appSubscription(id: $id) {
-            id
-            status
-            name
-            createdAt
-            updatedAt
-            lineItems {
+export const APP_SUBSCRIPTION_QUERY = `
+    query AppSubscriptionById($shopifySubscriptionId: ID!) {
+        node(id: $shopifySubscriptionId) {
+            ... on AppSubscription {
                 id
-                plan {
-                    pricingDetails
+                name
+                status
+                test
+                createdAt
+                lineItems {
+                    id
+                    plan {
+                        pricingDetails {
+                            __typename
+                            ... on AppRecurringPricing {
+                                interval
+                                price {
+                                    amount
+                                    currencyCode
+                                }
+                            }
+                            ... on AppUsagePricing {
+                                terms
+                                cappedAmount {
+                                    amount
+                                    currencyCode
+                                }
+                                balanceUsed {
+                                    amount
+                                    currencyCode
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
