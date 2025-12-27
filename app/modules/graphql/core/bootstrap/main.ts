@@ -17,7 +17,6 @@ import { errorHandler } from '@core/http/http.errors';
 import { configureStaticFiles } from '@core/http/static.middleware';
 import cors from "cors";
 import { createSubscriptionModule } from '@modules/subscriptions/subscriptions.factory.js';
-import { createSubscriptionPlansModule } from '@modules/subscription-plans/subscription-plans.factory.js';
 
 const logger = createModuleLogger('bootstrap');
 
@@ -88,7 +87,6 @@ export async function bootstrap() {
   const shopsModule = createShopsModule(esClient);
   const filtersModule = createFiltersModule(esClient);
   const subscriptionsModule = createSubscriptionModule(esClient, shopsModule.repository);
-  const subscriptionPlansModule = createSubscriptionPlansModule(esClient);
   
   // Initialize GraphQL module
   const graphqlModule = createGraphQLModule(esClient, {
@@ -96,7 +94,6 @@ export async function bootstrap() {
     shopsRepository: shopsModule.repository,
     filtersRepository: filtersModule.repository,
     subscriptionsRepository: subscriptionsModule.repository,
-    subscriptionPlansModule: subscriptionPlansModule.repository
   });
   
   // Initialize webhook worker for async processing
@@ -122,7 +119,6 @@ export async function bootstrap() {
     req.graphqlService = graphqlModule.service;
     req.subscriptionsRepository = subscriptionsModule.repository;
     req.esClient = esClient; // Inject ES client for GraphQL resolvers
-    req.subscriptionPlansRepository = subscriptionPlansModule.repository;
     // req.usersService = usersModule.service;
     next();
   });

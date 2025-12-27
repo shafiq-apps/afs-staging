@@ -39,9 +39,10 @@ interface HomePageData {
   error?: string;
 }
 
+
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
-
+  
   const GRAPHQL_ENDPOINT =
     process.env.GRAPHQL_ENDPOINT || "http://localhost:3554/graphql";
 

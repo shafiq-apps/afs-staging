@@ -12,3 +12,4 @@ export const BEST_SELLER_COLLECTION_INDEX = 'best_seller_collections';
 export const COLLECTION_UNUSED_DELETE_DAYS = 30;
 
 export const SUBSCRIPTIONS_INDEX_NAME = 'app_subscriptions';
+export const SUBSCRIPTION_PLANS_INDEX_NAME = 'app_subscription_plans';

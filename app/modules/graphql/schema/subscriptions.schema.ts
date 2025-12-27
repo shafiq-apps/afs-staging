@@ -83,8 +83,7 @@ export const subscriptionSchema = `
   }
 
   type StoredSubscription {
-    id: ID!                     # internal ES id
-    shop: String!
+    id: ID!
     shopifySubscriptionId: ID!
     name: String!
     status: String!
@@ -95,13 +94,37 @@ export const subscriptionSchema = `
     updatedAt: String
   }
 
+  type SubscriptionPlan {
+    id: ID!
+    name: String!
+    handle: String!
+    description: String
+    productLimit: Int!
+    price: Money!
+    interval: AppRecurringPricingInterval!
+    test: Boolean!
+    createdAt: String!
+    updatedAt: String
+  }
+
+  input CreateSubscriptionPlanInput {
+    name: String!
+    handle: String!
+    description: String
+    productLimit: Int!
+    price: MoneyInput!
+    interval: AppRecurringPricingInterval!
+    test: Boolean
+  }
+
   # -------------------
   # Queries & Mutations
   # -------------------
 
   type Query {
-    subscription(id: ID!): StoredSubscription!
-    subscriptions: [StoredSubscription!]!
+    subscription: SubscriptionPlan!
+    subscriptionPlans: [SubscriptionPlan!]!
+    subscriptionPlan(id: ID!): SubscriptionPlan
   }
 
   type Mutation {
@@ -115,5 +138,7 @@ export const subscriptionSchema = `
     ): AppSubscriptionCreatePayload!
 
     updateSubscriptionStatus(id: String!): StoredSubscription!
+    createSubscriptionPlan(input: CreateSubscriptionPlanInput!): SubscriptionPlan!
+    deleteSubscriptionPlan(id: String!): Boolean!
   }
 `;

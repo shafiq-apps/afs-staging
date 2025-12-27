@@ -69,25 +69,19 @@ export class SubscriptionsRepository {
       const response = await this.esClient.search({
         index,
         query: {
-          bool: {
-            must: [
-              {
-                bool: {
-                  should: [
-                    { term: { 'id.keyword': shop } },
-                    { term: { id: shop } },
-                  ],
-                  minimum_should_match: 1,
-                },
-              }
-            ],
-          },
+          "term": {
+            "_id": {
+              "value": shop
+            }
+          }
         },
-        size: 1,
+        size: 1
       });
 
       if (response.hits.hits.length > 0) {
-        return this.normalize(response.hits.hits[0]._source as any);
+        const hits = this.normalize(response.hits.hits[0]._source as any);
+        console.log("hits", hits);
+        return hits;
       }
 
       return null;
@@ -102,62 +96,10 @@ export class SubscriptionsRepository {
   }
 
   /**
-   * List all subscriptions for a shop
-   */
-  async listSubscriptions(
-    shop: string
-  ): Promise<{ subscriptions: StoredSubscription[]; total: number }> {
-    try {
-      const index = SUBSCRIPTIONS_INDEX_NAME;
-
-      const response = await this.esClient.search({
-        index,
-        query: {
-          bool: {
-            must: [
-              {
-                bool: {
-                  should: [
-                    { term: { 'shop.keyword': shop } },
-                    { term: { shop } },
-                  ],
-                  minimum_should_match: 1,
-                },
-              },
-            ],
-          },
-        },
-        size: 10000,
-        sort: [{ createdAt: { order: 'desc' } }],
-      });
-
-      const total =
-        typeof response.hits.total === 'number'
-          ? response.hits.total
-          : response.hits.total?.value || 0;
-
-      const subscriptions = response.hits.hits.map(hit =>
-        this.normalize(hit._source as any)
-      );
-
-      return { subscriptions, total };
-    } catch (error: any) {
-      if (error.statusCode === 404) {
-        return { subscriptions: [], total: 0 };
-      }
-      logger.error('Error listing subscriptions', {
-        shop,
-        error: error?.message || error,
-      });
-      throw error;
-    }
-  }
-
-  /**
  * Create or update subscription by fetching latest data from Shopify
  * This prevents client-side tampering.
  */
-  async createOrUpdateSubscription(shop: string, shopifySubscriptionId: string ): Promise<StoredSubscription> {
+  async createOrUpdateSubscription(shop: string, shopifySubscriptionId: string): Promise<StoredSubscription> {
     try {
       const index = SUBSCRIPTIONS_INDEX_NAME;
       const shopifyRes = await this.post<{

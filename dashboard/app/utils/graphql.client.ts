@@ -1,16 +1,21 @@
 /**
  * GraphQL Client Utility
  * Helper for making GraphQL requests from dashboard routes
- */
+*/
 
 const GRAPHQL_ENDPOINT = process.env.GRAPHQL_ENDPOINT || "http://localhost:3554/graphql";
 
-/**
- * Make GraphQL request
- */
+const graphqlEndpointWithShop = (shop: string) => {
+  return `${GRAPHQL_ENDPOINT}?shop=${encodeURIComponent(shop)}`;
+}
+
 export async function graphqlRequest(query: string, variables?: any): Promise<any> {
+  let endpoint = GRAPHQL_ENDPOINT;
+  if (variables?.shop) {
+    endpoint = graphqlEndpointWithShop(variables.shop);
+  }
   try {
-    const response = await fetch(GRAPHQL_ENDPOINT, {
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -21,11 +26,7 @@ export async function graphqlRequest(query: string, variables?: any): Promise<an
       }),
     });
 
-    if (!response.ok) {
-      throw new Error(`GraphQL request failed: ${response.statusText}`);
-    }
-
-    const result = await response.json();
+    const result = await response.json().then((data) => data).catch(() => ({}));
 
     if (result.errors && result.errors.length > 0) {
       throw new Error(result.errors[0].message || 'GraphQL error');
@@ -33,7 +34,6 @@ export async function graphqlRequest(query: string, variables?: any): Promise<an
 
     return result.data;
   } catch (error: any) {
-    throw error;
+    return null;
   }
 }
-

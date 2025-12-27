@@ -8,6 +8,7 @@ import { createModuleLogger } from '@shared/utils/logger.util';
 import { SubscriptionsRepository } from '@modules/subscriptions/subscriptions.repository';
 import { ShopsRepository } from '@modules/shops/shops.repository';
 import { APP_SUBSCRIPTION_CREATE_MUTATION } from '@modules/subscriptions/subscriptions.graphql';
+import { SubscriptionPlansRepository } from '@modules/subscription-plans/subscription-plans.repository';
 
 const logger = createModuleLogger('subscriptions-resolvers');
 
@@ -32,15 +33,14 @@ function getSubscriptionsRepository(context: GraphQLContext): SubscriptionsRepos
 
 export const subscriptionsResolvers = {
   Query: {
-    async subscription(parent: any, args: { id: string }, context: GraphQLContext) {
+    async subscription(parent: any, args: any, context: GraphQLContext) {
       try {
-        const { id } = args;
         const { shop } = context.req.query as any;
-        if (!shop || !id) throw new Error('Shop and id are required');
+        if (!shop) throw new Error('Shop and id are required');
 
-        logger.log('Fetching subscription', { shop, id });
+        logger.log('Fetching subscription', { shop });
         const repo = getSubscriptionsRepository(context);
-        return await repo.getSubscription(shop, id);
+        return await repo.getSubscription(shop);
       } catch (error: any) {
         logger.error('Error in subscription query', {
           error: error?.message || error,
@@ -50,43 +50,19 @@ export const subscriptionsResolvers = {
         throw error;
       }
     },
-    async subscriptions(parent: any, args: {}, context: GraphQLContext) {
-      try {
-        const { shop } = context.req.query as any;
-        if (!shop) throw new Error('Shop is required');
 
-        logger.log('Fetching subscriptions', { shop });
-        console.log('Fetching subscriptions for shop:', shop);
-        const repo = getSubscriptionsRepository(context);
-        const results = await repo.listSubscriptions(shop);
-        return results.subscriptions;
-      } catch (error: any) {
-        logger.error('Error in subscriptions query', {
-          error: error?.message || error,
-          stack: error?.stack,
-          args,
-        });
-        throw error;
-      }
+    subscriptionPlans: async (parent, args, context: GraphQLContext) => {
+      const repo = new SubscriptionPlansRepository(context.req.esClient);
+      return repo.list();
+    },
+    subscriptionPlan: async (parent, args, context: GraphQLContext) => {
+      const repo = new SubscriptionPlansRepository(context.req.esClient);
+      return repo.get(args.id);
     },
   },
 
   Mutation: {
-    /**
-     * Create Shopify app subscription and persist in ES
-    */
-    async appSubscriptionCreate(
-      parent: any,
-      args: {
-        name: string;
-        returnUrl: string;
-        lineItems: any[];
-        trialDays?: number;
-        test?: boolean;
-        replacementBehavior?: string;
-      },
-      context: GraphQLContext
-    ) {
+    async appSubscriptionCreate(parent: any, args: { name: string; returnUrl: string; lineItems: any[]; trialDays?: number; test?: boolean; replacementBehavior?: string; }, context: GraphQLContext) {
       try {
         const { name, returnUrl, lineItems, trialDays, test, replacementBehavior } = args;
 
@@ -151,19 +127,13 @@ export const subscriptionsResolvers = {
       }
     },
 
-    async updateSubscriptionStatus(
-      parent: any,
-      args: {
-        id: string;
-      },
-      context: GraphQLContext
-    ) {
+    async updateSubscriptionStatus( parent: any, args: { id: string; },  context: GraphQLContext ) {
       try {
         const { shop } = context.req.query as any;
         if (!shop) throw new Error('Shop is required');
 
         logger.log('Fetching subscriptions', { shop });
-        
+
         const repo = getSubscriptionsRepository(context);
         const results = await repo.createOrUpdateSubscription(shop, args.id);
         return results;
@@ -175,7 +145,15 @@ export const subscriptionsResolvers = {
         });
         throw error;
       }
-    }
+    },
+    createSubscriptionPlan: async (parent, args, context: GraphQLContext) => {
+      const repo = new SubscriptionPlansRepository(context.req.esClient);
+      return repo.create(args.input);
+    },
+    deleteSubscriptionPlan: async (parent, args, context: GraphQLContext) => {
+      const repo = new SubscriptionPlansRepository(context.req.esClient);
+      return repo.delete(args.id);
+    },
 
   },
 };

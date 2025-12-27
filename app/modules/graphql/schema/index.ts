@@ -34,7 +34,7 @@ export const schemas: string[] = [
   cacheSchema, // Cache admin/debug endpoints
   webhooksSchema, // Webhook processing mutations
   subscriptionSchema, // Subscription types and mutations
-  // Add schema strings here
+  
   // Example: settingsSchema,
 ];
 
