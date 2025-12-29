@@ -126,18 +126,6 @@ export async function bootstrap() {
   // Load routes automatically from modules
   await loadRoutes(app);
 
-  // Also load root routes (optional)
-  try {
-    // Use dynamic import with runtime path construction for ES modules
-    // @ts-ignore - routes/index is optional and may not exist
-    const rootRoutes = await import('../../routes/index.js');
-    if (rootRoutes?.GET) {
-      app.get('/', rootRoutes.GET);
-    }
-  } catch (error) {
-    // Root routes file is optional - ignore if it doesn't exist
-  }
-
   // Error handler (must be last)
   app.use(errorHandler);
 

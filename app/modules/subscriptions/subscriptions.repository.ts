@@ -45,7 +45,6 @@ export class SubscriptionsRepository {
   private normalize(data: any): StoredSubscription {
     return {
       id: data.id,
-      shop: data.shop,
       shopifySubscriptionId: data.shopifySubscriptionId,
       name: data.name,
       status: data.status,
