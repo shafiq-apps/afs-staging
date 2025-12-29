@@ -4,6 +4,7 @@ import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { graphqlRequest } from "app/graphql.server";
 import { useEffect } from "react";
+import { isTrue } from "app/utils/equal";
 
 interface Money {
   amount: number;
@@ -102,17 +103,17 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     // Subscribe the user (server-side)
     const response = await graphqlRequest(`
       mutation AppSubscriptionCreate(
-          $planId: String!
+        $planId: String!
       ){
-          appSubscriptionCreate(
-              planId: $planId
-          ) {
-              confirmationUrl
-              userErrors {
-                  field
-                  message
-              }
+        appSubscriptionCreate(
+          planId: $planId
+        ) {
+          confirmationUrl
+          userErrors {
+            field
+            message
           }
+        }
       }`,
       {
         planId, shop
@@ -131,7 +132,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
 export default function PricingPage() {
   const { error, plans, productsCount, subscriptionPlan } = useLoaderData<PricingLoaderData>();
-  const navigate = useNavigate();
   const location = useLocation();
   const fetcher = useFetcher();
 
@@ -250,7 +250,7 @@ export default function PricingPage() {
                       <s-button
                         variant={isPopular ? "primary" : "secondary"}
                         onClick={() => handleSubscribePlan(plan.id)}
-                        disabled={fetcher.state !== "idle"}
+                        disabled={fetcher.state !== "idle" || isTrue(productsCount.count,"greaterThan",plan.productLimit)}
                       >
                         {fetcher.state !== "idle" ? "Processing..." : `Get started with ${plan.name}`}
                       </s-button>

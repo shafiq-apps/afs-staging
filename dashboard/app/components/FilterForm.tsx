@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { useTranslation } from "../utils/translations";
 import { generateFilterHandle } from "../utils/id-generator";
-import { deepEqual } from "../utils/deep-equal";
+import { deepEqual } from "../utils/equal";
 import {
   DisplayType,
   SelectionType,
