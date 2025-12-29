@@ -3,8 +3,7 @@ import { useLoaderData, useLocation, useFetcher, useNavigate, redirect } from "r
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { graphqlRequest } from "app/graphql.server";
-import { subscribePlan } from "app/subscription.server";
-import { useCallback, useEffect } from "react";
+import { useEffect } from "react";
 
 interface Money {
   amount: number;
