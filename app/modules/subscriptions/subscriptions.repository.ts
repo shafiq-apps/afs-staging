@@ -80,7 +80,6 @@ export class SubscriptionsRepository {
 
       if (response.hits.hits.length > 0) {
         const hits = this.normalize(response.hits.hits[0]._source as any);
-        console.log("hits", hits);
         return hits;
       }
 

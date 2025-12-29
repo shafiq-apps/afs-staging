@@ -9,6 +9,8 @@ import { SubscriptionsRepository } from '@modules/subscriptions/subscriptions.re
 import { ShopsRepository } from '@modules/shops/shops.repository';
 import { APP_SUBSCRIPTION_CREATE_MUTATION } from '@modules/subscriptions/subscriptions.graphql';
 import { SubscriptionPlansRepository } from '@modules/subscription-plans/subscription-plans.repository';
+import { normalizeShopName } from '@shared/utils/shop.util';
+import { v4 as uuidv4 } from 'uuid';
 
 const logger = createModuleLogger('subscriptions-resolvers');
 
@@ -62,34 +64,63 @@ export const subscriptionsResolvers = {
   },
 
   Mutation: {
-    async appSubscriptionCreate(parent: any, args: { name: string; returnUrl: string; lineItems: any[]; trialDays?: number; test?: boolean; replacementBehavior?: string; }, context: GraphQLContext) {
+    async appSubscriptionCreate(
+      parent: any,
+      args: {
+        planId: string;
+      },
+      context: GraphQLContext
+    ) {
       try {
-        const { name, returnUrl, lineItems, trialDays, test, replacementBehavior } = args;
+        const { planId } = args;
 
-        if (!name || !returnUrl || !lineItems?.length) {
-          throw new Error('name, returnUrl and lineItems are required');
+        if (!planId) {
+          throw new Error('planId is required');
         }
 
-        const { shop } = (context.req.query as any);
+        const { shop } = context.req.query as any;
         if (!shop) throw new Error('Shop not found in request context');
 
-        logger.log('Creating Shopify app subscription', {
+        logger.log('Creating Shopify app subscription from plan', {
           shop,
-          name,
-          trialDays,
-          test,
-          replacementBehavior,
+          planId
         });
+
+        // Fetch trusted plan from your ES repository
+        const plansRepo = new SubscriptionPlansRepository(context.req.esClient);
+        const plan = await plansRepo.get(planId);
+
+        if (!plan) {
+          throw new Error(`Subscription plan not found: ${planId}`);
+        }
+
+        // Build lineItems ONLY from server-side plan
+        const lineItems = [
+          {
+            plan: {
+              appRecurringPricingDetails: {
+                price: {
+                  amount: plan.price.amount,
+                  currencyCode: plan.price.currencyCode,
+                },
+                interval: plan.interval, // EVERY_30_DAYS | ANNUAL
+              },
+            },
+          },
+        ];
 
         const repo = getSubscriptionsRepository(context);
 
+        const timestamps = Date.now();
+
+        const returnUrl = `https://admin.shopify.com/store/${normalizeShopName(shop)}/apps/${process.env.SHOPIFY_APP_HANDLE}/app/subscriptions/thankyou?timestamps=${timestamps}&shop=${encodeURIComponent(shop)}`
+
         const variables = {
-          name,
-          returnUrl,
+          name: plan.name,
           lineItems,
-          trialDays,
-          test,
-          replacementBehavior,
+          returnUrl,
+          trialDays: parseInt(process.env.SHOPIFY_APP_SUBSCRIPTIONS_TRIAL_DAYS, 10)??21,
+          test: process.env.SHOPIFY_APP_SUBSCRIPTIONS_TEST_MODE === 'true',
         };
 
         const payload = await repo.post<{
@@ -99,7 +130,10 @@ export const subscriptionsResolvers = {
               name: string;
               status: string;
               confirmationUrl: string;
-              lineItems: { id: string; plan: { pricingDetails: any } }[];
+              lineItems: {
+                id: string;
+                plan: { pricingDetails: any };
+              }[];
             } | null;
             userErrors: { field?: string[]; message: string }[];
           };
@@ -112,8 +146,12 @@ export const subscriptionsResolvers = {
           throw new Error('Invalid response from Shopify');
         }
 
-        if (payload.errors?.length) {
-          logger.warn('Shopify returned user errors', { errors: payload.errors, shop, name });
+        if (payload.data?.appSubscriptionCreate?.userErrors?.length) {
+          logger.warn('Shopify returned user errors', {
+            errors: payload.data.appSubscriptionCreate.userErrors,
+            shop,
+            planId,
+          });
         }
 
         return payload.data?.appSubscriptionCreate;
@@ -127,7 +165,7 @@ export const subscriptionsResolvers = {
       }
     },
 
-    async updateSubscriptionStatus( parent: any, args: { id: string; },  context: GraphQLContext ) {
+    async updateSubscriptionStatus(parent: any, args: { id: string; }, context: GraphQLContext) {
       try {
         const { shop } = context.req.query as any;
         if (!shop) throw new Error('Shop is required');

@@ -3,8 +3,8 @@ export const subscriptionSchema = `
   scalar URL
 
   type UserError {
-    field: [String!]
-    message: String!
+    field: [String]
+    message: String
   }
 
   enum AppSubscriptionReplacementBehavior {
@@ -68,7 +68,7 @@ export const subscriptionSchema = `
   }
 
   type AppSubscriptionCreatePayload {
-    userErrors: [UserError!]!
+    userErrors: [UserError]
     appSubscription: AppSubscription
     confirmationUrl: URL
   }
@@ -129,12 +129,7 @@ export const subscriptionSchema = `
 
   type Mutation {
     appSubscriptionCreate(
-      name: String!
-      returnUrl: URL!
-      lineItems: [AppSubscriptionLineItemInput!]!
-      trialDays: Int
-      test: Boolean
-      replacementBehavior: AppSubscriptionReplacementBehavior
+      planId: String!
     ): AppSubscriptionCreatePayload!
 
     updateSubscriptionStatus(id: String!): StoredSubscription!

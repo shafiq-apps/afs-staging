@@ -1,8 +1,10 @@
-import type { LoaderFunctionArgs, HeadersFunction } from "react-router";
-import { useLoaderData, useNavigate, useLocation } from "react-router";
+import type { LoaderFunctionArgs, ActionFunctionArgs, HeadersFunction } from "react-router";
+import { useLoaderData, useLocation, useFetcher, useNavigate, redirect } from "react-router";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { graphqlRequest } from "app/graphql.server";
+import { subscribePlan } from "app/subscription.server";
+import { useCallback, useEffect } from "react";
 
 interface Money {
   amount: number;
@@ -77,21 +79,73 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     subscriptionPlan: SubscriptionPlan;
   }>(query, { shop });
 
-  console.log("res.subscriptionPlan", res.subscriptionPlan);
-
   return {
     plans: res.subscriptionPlans,
     subscriptionPlan: res.subscriptionPlan,
     error: null,
     productsCount
   };
-  
+
+};
+
+export const action = async ({ request }: ActionFunctionArgs) => {
+  const { session } = await authenticate.admin(request);
+  const shop = session?.shop || "";
+
+  const formData = await request.formData();
+  const planId = formData.get("planId") as string;
+
+  if (!planId) {
+    return { error: "planId is required" };
+  }
+
+  try {
+    // Subscribe the user (server-side)
+    const response = await graphqlRequest(`
+      mutation AppSubscriptionCreate(
+          $planId: String!
+      ){
+          appSubscriptionCreate(
+              planId: $planId
+          ) {
+              confirmationUrl
+              userErrors {
+                  field
+                  message
+              }
+          }
+      }`,
+      {
+        planId, shop
+      });
+
+
+    if (response?.appSubscriptionCreate?.confirmationUrl) {
+      return { confirmationUrl: response?.appSubscriptionCreate?.confirmationUrl };
+    }
+
+    return { error: "Unable to create subscription" };
+  } catch (error: any) {
+    return { error: error?.message || "Unknown error" };
+  }
 };
 
 export default function PricingPage() {
   const { error, plans, productsCount, subscriptionPlan } = useLoaderData<PricingLoaderData>();
   const navigate = useNavigate();
   const location = useLocation();
+  const fetcher = useFetcher();
+
+  useEffect(() => {
+    if (fetcher.data?.confirmationUrl) {
+      const url = fetcher.data.confirmationUrl;
+      if (window.top !== window.self) {
+        (window.top as Window).location.href = url;
+      } else {
+        window.location.href = url;
+      }
+    }
+  }, [fetcher.data])
 
   const formatPrice = (price: Money) => {
     return new Intl.NumberFormat("en-US", {
@@ -102,6 +156,14 @@ export default function PricingPage() {
 
   const intervalLabel = (interval: string) => interval === "EVERY_30_DAYS" ? "month" : "year";
 
+  const handleSubscribePlan = (planId: string) => {
+    fetcher.submit(
+      { planId },
+      { method: "post" }
+    );
+  };
+
+
   return (
     <s-page
       key={`pricing-${location.pathname}`}
@@ -111,7 +173,6 @@ export default function PricingPage() {
       <s-section>
         <s-stack direction="block" gap="large">
           <s-stack direction="block" gap="small">
-            <s-heading>Simple, transparent pricing {subscriptionPlan?.name}</s-heading>
             <s-text tone="auto">
               Pick a plan that grows with your store. Upgrade or cancel anytime.
             </s-text>
@@ -129,7 +190,7 @@ export default function PricingPage() {
           >
             {plans.map((plan: SubscriptionPlan) => {
               const isPopular = plan.handle === "premium-25"; // mark your best plan
-              const isCurrent = subscriptionPlan &&  plan?.name?.toLowerCase() === subscriptionPlan?.name?.toLowerCase();
+              const isCurrent = subscriptionPlan && plan?.name?.toLowerCase() === subscriptionPlan?.name?.toLowerCase();
 
               return (
                 <s-grid-item key={plan.id}>
@@ -189,11 +250,10 @@ export default function PricingPage() {
                       {/* CTA */}
                       <s-button
                         variant={isPopular ? "primary" : "secondary"}
-                        onClick={() =>
-                          navigate(`/app/subscribe?plan=${plan.handle}`)
-                        }
+                        onClick={() => handleSubscribePlan(plan.id)}
+                        disabled={fetcher.state !== "idle"}
                       >
-                        Get started with {plan.name}
+                        {fetcher.state !== "idle" ? "Processing..." : `Get started with ${plan.name}`}
                       </s-button>
                     </s-stack>
                   </s-box>

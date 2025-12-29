@@ -5,7 +5,6 @@ export const APP_SUBSCRIPTION_CREATE_MUTATION = `
         $lineItems: [AppSubscriptionLineItemInput!]!
         $trialDays: Int
         $test: Boolean
-        $replacementBehavior: AppSubscriptionReplacementBehavior
     ) {
         appSubscriptionCreate(
             name: $name
@@ -13,7 +12,6 @@ export const APP_SUBSCRIPTION_CREATE_MUTATION = `
             lineItems: $lineItems
             trialDays: $trialDays
             test: $test
-            replacementBehavior: $replacementBehavior
         ) {
             userErrors {
                 field
