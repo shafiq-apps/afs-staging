@@ -1,6 +1,7 @@
 import type { ActionFunctionArgs } from "react-router";
 import { authenticate } from "../shopify.server";
 import { graphqlRequest } from "../utils/graphql.client";
+import { UPDATE_SUBSCRIPTION_STATUS_MUTATION } from "app/graphql/subscriptions.mutation";
 
 // Simple logger for dashboard webhooks
 // No-op logger - logging removed per user request
@@ -28,20 +29,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     // Process webhook via GraphQL API
     try {
-      const query = `
-            mutation UpdateSubscriptionStatus($id: String!) {
-              updateSubscriptionStatus(
-                id: $id
-              ) {
-                id
-                status
-                updatedAt
-              }
-            }
-        `;
 
       if (app_subscription && app_subscription.admin_graphql_api_id && app_subscription.status === "ACTIVE") {
-        const result = await graphqlRequest(query, { id: app_subscription.admin_graphql_api_id, shop });
+        const result = await graphqlRequest(UPDATE_SUBSCRIPTION_STATUS_MUTATION, { id: app_subscription.admin_graphql_api_id, shop });
         console.log("GraphQL response for app_subscription update:", result);
       }
       else{

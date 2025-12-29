@@ -2,6 +2,8 @@ import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
 import { useLoaderData } from "react-router";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
+import { graphqlRequest } from "app/graphql.server";
+import { UPDATE_SUBSCRIPTION_STATUS_MUTATION } from "app/graphql/subscriptions.mutation";
 
 interface LoaderData {
   success: boolean;
@@ -24,37 +26,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     return { success: false, error: "Missing charge_id" } satisfies LoaderData;
   }
 
-  const GRAPHQL_ENDPOINT = process.env.GRAPHQL_ENDPOINT || "http://localhost:3554/graphql";
-
   try {
-    const mutation = `
-      mutation UpdateSubscriptionStatus($id: String!) {
-        updateSubscriptionStatus(
-          id: $id
-        ) {
-          id
-          status
-          updatedAt
-        }
-      }
-    `;
-
-    const res = await fetch(`${GRAPHQL_ENDPOINT}?shop=${session.shop}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        query: mutation,
-        variables: {
-          id: `gid://shopify/AppSubscription/${chargeId}`,
-        },
-      }),
-    });
-
-    const result = await res.json();
-
-    if (result.errors) {
-      throw new Error(result.errors[0]?.message || "GraphQL error");
-    }
+  
+    await graphqlRequest(UPDATE_SUBSCRIPTION_STATUS_MUTATION, { id: `gid://shopify/AppSubscription/${chargeId}`, shop: session.shop });
 
     return {
       success: true,
@@ -69,7 +43,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export default function SubscriptionThankYou() {
-  const { success, planId, error } = useLoaderData<typeof loader>();
+  const { success, error } = useLoaderData<typeof loader>();
 
   return (
     <s-page heading="Thank you" data-page-id="subscription-thankyou">
@@ -84,7 +58,7 @@ export default function SubscriptionThankYou() {
             <s-stack direction="block" gap="base">
               <s-heading>Subscription successful!</s-heading>
               <s-text>
-                Your plan has been activated.
+                Your plan has been upgraded.
               </s-text>
             </s-stack>
           ) : (

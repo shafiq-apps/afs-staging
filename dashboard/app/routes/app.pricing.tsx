@@ -1,37 +1,13 @@
 import type { LoaderFunctionArgs, ActionFunctionArgs, HeadersFunction } from "react-router";
-import { useLoaderData, useLocation, useFetcher, useNavigate } from "react-router";
+import { useLoaderData, useLocation, useFetcher } from "react-router";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { graphqlRequest } from "app/graphql.server";
 import { useEffect, useState } from "react";
 import { isTrue } from "app/utils/equal";
-
-interface Money {
-  amount: number;
-  currencyCode: string;
-}
-
-interface SubscriptionPlan {
-  id: string;
-  name: string;
-  handle: string;
-  description: string;
-  productLimit: number;
-  price: Money;
-  interval: "EVERY_30_DAYS" | "ANNUAL";
-}
-
-interface ProductsCount {
-  count: number;
-  precision: string;
-}
-
-interface PricingLoaderData {
-  plans: SubscriptionPlan[];
-  error: string | null;
-  productsCount: ProductsCount;
-  subscriptionPlan: SubscriptionPlan
-}
+import { CREATE_APP_SUBSCRIPTION_MUTATION } from "app/graphql/subscriptions.mutation";
+import { FETCH_BILLING_PLANS_AND_SUBSCRIPTION } from "app/graphql/subscriptions.query";
+import { Money, PricingLoaderData, Subscription } from "app/types/Subscriptions";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
@@ -52,40 +28,17 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     data: { productsCount: { count: 0, precision: "EXACT" } },
   }));
 
-  const query = `
-    query {
-      subscriptionPlans {
-        id
-        name
-        handle
-        description
-        productLimit
-        price {
-          amount
-          currencyCode
-        }
-        interval
-      }
-      subscription {
-        id
-        name
-        test
-      }
-    }
-  `;
-
   const res = await graphqlRequest<{
-    subscriptionPlans: SubscriptionPlan[];
-    subscription: SubscriptionPlan;
-  }>(query, { shop });
+    subscriptionPlans: Subscription[];
+    subscription: Subscription;
+  }>(FETCH_BILLING_PLANS_AND_SUBSCRIPTION, { shop });
 
   return {
-    plans: res.subscriptionPlans,
-    subscriptionPlan: res.subscription,
+    subscriptionPlans: res.subscriptionPlans,
+    subscription: res.subscription,
     error: null,
     productsCount
   };
-
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -101,25 +54,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   try {
     // Subscribe the user (server-side)
-    const response = await graphqlRequest(`
-      mutation AppSubscriptionCreate(
-        $planId: String!
-      ){
-        appSubscriptionCreate(
-          planId: $planId
-        ) {
-          confirmationUrl
-          userErrors {
-            field
-            message
-          }
-        }
-      }`,
-      {
-        planId, shop
-      });
-
-
+    const response = await graphqlRequest(CREATE_APP_SUBSCRIPTION_MUTATION,{  planId, shop });
     if (response?.appSubscriptionCreate?.confirmationUrl) {
       return { confirmationUrl: response?.appSubscriptionCreate?.confirmationUrl };
     }
@@ -131,7 +66,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function PricingPage() {
-  const { error, plans, productsCount, subscriptionPlan } = useLoaderData<PricingLoaderData>();
+  const { error, subscriptionPlans, productsCount, subscription } = useLoaderData<PricingLoaderData>();
   const location = useLocation();
   const fetcher = useFetcher();
   const [selectedplan, setSelectedPlan] = useState<String|null>(null);
@@ -188,9 +123,9 @@ export default function PricingPage() {
             gridTemplateColumns="repeat(auto-fit, minmax(280px, 1fr))"
             gap="base"
           >
-            {plans.map((plan: SubscriptionPlan) => {
+            {subscriptionPlans.map((plan: Subscription) => {
               const isPopular = plan.handle === "premium-25";
-              const isCurrent = isTrue(plan?.name, "equals", subscriptionPlan?.name);
+              const isCurrent = isTrue(plan?.name, "equals", subscription?.name);
               const ineligiblePlan = isTrue(productsCount.count,"greaterThan",plan.productLimit);
               return (
                 <s-grid-item key={plan.id}>

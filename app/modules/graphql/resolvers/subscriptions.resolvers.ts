@@ -10,7 +10,6 @@ import { ShopsRepository } from '@modules/shops/shops.repository';
 import { APP_SUBSCRIPTION_CREATE_MUTATION } from '@modules/subscriptions/subscriptions.graphql';
 import { SubscriptionPlansRepository } from '@modules/subscription-plans/subscription-plans.repository';
 import { normalizeShopName } from '@shared/utils/shop.util';
-import { v4 as uuidv4 } from 'uuid';
 
 const logger = createModuleLogger('subscriptions-resolvers');
 

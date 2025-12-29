@@ -1,23 +1,20 @@
 // app/utils/subscription.server.ts
 
 import { graphqlRequest } from "./graphql.server";
-import { SubscriptionPlan } from "./types/PricingTypes";
+import { FETCH_BILLING_PLANS_AND_SUBSCRIPTION, FETCH_CURRENT_SUBSCRIPTION } from "./graphql/subscriptions.query";
+import { Subscription } from "./types/Subscriptions";
 
-export async function checkSubscription(shop: string): Promise<SubscriptionPlan | null> {
+
+export async function checkSubscription(shop: string): Promise<Subscription | null> {
   try {
-    const query = `
-      query {
-        subscription {
-          id
-          name
-          test
-        }
-      }
-    `;
-    const res = await graphqlRequest<{ subscription: SubscriptionPlan | null }>(query, { shop });
+    const res = await graphqlRequest<{ subscription: Subscription | null }>(FETCH_CURRENT_SUBSCRIPTION, { shop });
     return res.subscription || null;
   } catch (e) {
     console.error("Failed to check subscription", e);
     return null;
   }
+}
+
+export async function fetchSubscriptionWithPlans(params:{shop: string}): Promise<{ subscriptionPlans: Subscription[]; subscription: Subscription; }> {
+  return await graphqlRequest(FETCH_BILLING_PLANS_AND_SUBSCRIPTION, { shop: params.shop });
 }

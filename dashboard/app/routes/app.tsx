@@ -1,5 +1,5 @@
 import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
-import { Outlet, useLoaderData, useRouteError, useLocation } from "react-router";
+import { Outlet, useLoaderData, useRouteError, useLocation, useNavigate } from "react-router";
 import { useEffect } from "react";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { AppProvider } from "@shopify/shopify-app-react-router/react";
@@ -7,8 +7,9 @@ import { AppProvider } from "@shopify/shopify-app-react-router/react";
 import { authenticate } from "../shopify.server";
 import { ShopProvider, type ShopLocaleData } from "../contexts/ShopContext";
 import { useTranslation } from "app/utils/translations";
-import { SubscriptionProvider } from "app/contexts/SubscriptionContext";
-import { MasterLayout } from "app/layouts/MasterLayout";
+import { graphqlRequest } from "app/graphql.server";
+import { Subscription } from "app/types/Subscriptions";
+import { FETCH_CURRENT_SUBSCRIPTION } from "app/graphql/subscriptions.query";
 
 const SHOP_DATA_CACHE_KEY = "shop_locale_data";
 const CACHE_DURATION = 1000 * 60 * 60; // 1 hour
@@ -20,7 +21,7 @@ interface CachedShopData {
 
 function getCachedShopData(): ShopLocaleData | null {
   if (typeof window === "undefined") return null;
-  
+
   try {
     const cached = sessionStorage.getItem(SHOP_DATA_CACHE_KEY);
     if (!cached) return null;
@@ -43,7 +44,7 @@ function getCachedShopData(): ShopLocaleData | null {
 
 function setCachedShopData(data: ShopLocaleData): void {
   if (typeof window === "undefined") return;
-  
+
   try {
     const cache: CachedShopData = {
       data,
@@ -134,12 +135,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         });
 
         const shopResult = await shopResponse.json();
-        
+
         if (shopResult.data?.shop) {
           const shopData = shopResult.data.shop;
           // Shop exists - check if it's a new installation (no installedAt or very recent)
           isNewInstallation = !shopData.installedAt || (new Date(shopData.installedAt).getTime() > Date.now() - 60000); // Installed less than 1 minute ago
-          
+
           // Access token is available in shopData.accessToken (if not filtered)
           // This will be used by the session storage adapter
         } else {
@@ -155,13 +156,18 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     // Continue with null shopData - will use defaults
   }
 
-  return { apiKey, shopData, shop, isNewInstallation };
+  const res = await graphqlRequest<{
+    subscription: Subscription;
+  }>(FETCH_CURRENT_SUBSCRIPTION, { shop });
+
+  return { apiKey, shopData, shop, isNewInstallation, subscription: res.subscription };
 };
 
 export default function App() {
-  const { apiKey, shopData, shop } = useLoaderData<typeof loader>();
+  const { apiKey, shopData, subscription } = useLoaderData<typeof loader>();
   const location = useLocation();
-  
+  const navigate = useNavigate();
+
   const { t } = useTranslation();
 
   // Cache shop data on client side
@@ -179,7 +185,7 @@ export default function App() {
       // Find all slot elements
       const allPrimaryActions = document.querySelectorAll('[slot="primary-action"]');
       const allBreadcrumbs = document.querySelectorAll('[slot="breadcrumb-actions"]');
-      
+
       // Remove slots that are orphaned (not inside any s-page)
       // DO NOT remove slots that are inside a valid s-page
       allPrimaryActions.forEach(el => {
@@ -189,7 +195,7 @@ export default function App() {
           el.remove();
         }
       });
-      
+
       allBreadcrumbs.forEach(el => {
         const parentPage = el.closest('s-page');
         if (!parentPage) {
@@ -202,14 +208,28 @@ export default function App() {
     return () => clearTimeout(timeoutId);
   }, [location.pathname]);
 
+  useEffect(() => {
+    if (!subscription || subscription?.status !== "ACTIVE" && location.pathname !== "/app/pricing") {
+      navigate("/app/pricing?module=subscription&action=choose&force=true", { replace: true });
+    }
+  }, [subscription, location.pathname]);
+
   return (
     <AppProvider embedded apiKey={apiKey}>
       <ShopProvider shopData={effectiveShopData} isLoading={!effectiveShopData}>
-        <SubscriptionProvider>
-          <MasterLayout>
-            <Outlet />
-          </MasterLayout>
-        </SubscriptionProvider>
+        <s-app-nav>
+          {
+            subscription && subscription?.status === "ACTIVE" && (
+              <>
+                <s-link href="/app">{t("navigation.home")}</s-link>
+                <s-link href="/app/filters">{t("navigation.filters")}</s-link>
+                <s-link href="/app/indexing">{t("navigation.indexing")}</s-link>
+              </>
+            )
+          }
+          <s-link href="/app/pricing">{t("navigation.pricing")}</s-link>
+        </s-app-nav>
+        <Outlet />
       </ShopProvider>
     </AppProvider>
   );

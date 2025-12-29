@@ -62,7 +62,8 @@ export class SubscriptionPlansRepository {
 
     async delete(id: string): Promise<boolean> {
         try {
-            await this.es.delete({ index: SUBSCRIPTION_PLANS_INDEX_NAME, id });
+            const re = await this.es.delete({ index: SUBSCRIPTION_PLANS_INDEX_NAME, id });
+            console.log("res", re);
             return true;
         } catch {
             return false;

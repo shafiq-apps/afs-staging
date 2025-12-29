@@ -39,7 +39,6 @@ interface HomePageData {
   error?: string;
 }
 
-
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
   
