@@ -190,6 +190,7 @@ export default function PricingPage() {
             {plans.map((plan: SubscriptionPlan) => {
               const isPopular = plan.handle === "premium-25";
               const isCurrent = isTrue(plan?.name, "equals", subscriptionPlan?.name);
+              const ineligiblePlan = isTrue(productsCount.count,"greaterThan",plan.productLimit);
               return (
                 <s-grid-item key={plan.id}>
                   <s-box
@@ -254,7 +255,7 @@ export default function PricingPage() {
                       <s-button
                         variant={isPopular ? "primary" : "secondary"}
                         onClick={() => handleSubscribePlan(plan.id)}
-                        disabled={fetcher.state !== "idle" || isCurrent}
+                        disabled={fetcher.state !== "idle" || isCurrent || ineligiblePlan}
                       >
                         {isCurrent ?'Already subscribed':fetcher.state !== "idle" ? "Processing..." : `Get started with ${plan.name}`}
                       </s-button>
