@@ -122,8 +122,8 @@ export const subscriptionSchema = `
   # -------------------
 
   type Query {
-    subscription: SubscriptionPlan!
-    subscriptionPlans: [SubscriptionPlan!]!
+    subscription: SubscriptionPlan
+    subscriptionPlans: [SubscriptionPlan!]
     subscriptionPlan(id: ID!): SubscriptionPlan
   }
 
