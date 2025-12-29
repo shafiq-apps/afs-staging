@@ -96,14 +96,15 @@ export const subscriptionSchema = `
 
   type SubscriptionPlan {
     id: ID!
-    name: String!
-    handle: String!
+    name: String
+    handle: String
     description: String
-    productLimit: Int!
-    price: Money!
-    interval: AppRecurringPricingInterval!
-    test: Boolean!
-    createdAt: String!
+    status: String
+    productLimit: Int
+    price: Money
+    interval: AppRecurringPricingInterval
+    test: Boolean
+    createdAt: String
     updatedAt: String
   }
 

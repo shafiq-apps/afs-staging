@@ -116,13 +116,14 @@ export class SubscriptionsRepository {
         },
       });
 
+      console.log("shopifyRes",Date.now(), shopifyRes);
+
       if (shopifyRes.errors?.length) {
         logger.error('Errors fetching subscription from Shopify', {
           shop,
           shopifySubscriptionId: shopifySubscriptionId,
           errors: shopifyRes.errors,
         });
-        console.log(shopifyRes.errors)
         throw new Error('Failed to fetch subscription from Shopify');
       }
 
@@ -132,6 +133,8 @@ export class SubscriptionsRepository {
           `Shopify subscription not found: ${shopifySubscriptionId}`
         );
       }
+
+      console.log("remote", remote)
 
       const updated: StoredSubscription = {
         ...remote,
@@ -156,6 +159,8 @@ export class SubscriptionsRepository {
         shopifySubscriptionId: shopifySubscriptionId,
         status: updated.status,
       });
+
+      console.log("Updated", updated);
 
       return updated;
     } catch (error: any) {

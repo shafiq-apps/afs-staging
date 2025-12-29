@@ -7,6 +7,8 @@ import { AppProvider } from "@shopify/shopify-app-react-router/react";
 import { authenticate } from "../shopify.server";
 import { ShopProvider, type ShopLocaleData } from "../contexts/ShopContext";
 import { useTranslation } from "app/utils/translations";
+import { SubscriptionProvider } from "app/contexts/SubscriptionContext";
+import { MasterLayout } from "app/layouts/MasterLayout";
 
 const SHOP_DATA_CACHE_KEY = "shop_locale_data";
 const CACHE_DURATION = 1000 * 60 * 60; // 1 hour
@@ -203,14 +205,11 @@ export default function App() {
   return (
     <AppProvider embedded apiKey={apiKey}>
       <ShopProvider shopData={effectiveShopData} isLoading={!effectiveShopData}>
-        <s-app-nav>
-          <s-link href="/app">{t("navigation.home")}</s-link>
-          <s-link href="/app/filters">{t("navigation.filters")}</s-link>
-          <s-link href="/app/indexing">{t("navigation.indexing")}</s-link>
-          <s-link href="/app/pricing">{t("navigation.pricing")}</s-link>
-        </s-app-nav>
-        
-        <Outlet />
+        <SubscriptionProvider>
+          <MasterLayout>
+            <Outlet />
+          </MasterLayout>
+        </SubscriptionProvider>
       </ShopProvider>
     </AppProvider>
   );

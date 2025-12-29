@@ -5,8 +5,8 @@ import { graphqlRequest } from "../utils/graphql.client";
 // Simple logger for dashboard webhooks
 // No-op logger - logging removed per user request
 const logger = {
-  info: (...args: any) => {},
-  error: (...args: any) => {},
+  info: (...args: any) => { },
+  error: (...args: any) => { },
 };
 
 /**
@@ -17,45 +17,37 @@ const logger = {
 export const action = async ({ request }: ActionFunctionArgs) => {
   try {
     const { shop, topic, payload } = await authenticate.webhook(request);
-    const GRAPHQL_ENDPOINT = process.env.GRAPHQL_ENDPOINT || "http://localhost:3554/graphql";
 
-    console.log("app.subscriptions.update.tsx", shop, topic, payload);
-    
+    const { app_subscription } = payload;
+
     logger.info('Product update webhook received', {
       shop,
       topic,
-      productId: payload?.id,
-      productTitle: payload?.title,
+      app_subscription: app_subscription
     });
 
     // Process webhook via GraphQL API
     try {
-        const query = `
+      const query = `
             mutation UpdateSubscriptionStatus($id: String!) {
-                updateSubscriptionStatus(id: $id) {
-                  id
-                  shop
-                  shopifySubscriptionId
-                  status
-                  updatedAt
-                }
+              updateSubscriptionStatus(
+                id: $id
+              ) {
+                id
+                status
+                updatedAt
+              }
             }
         `;
-    
-        const response = await fetch(GRAPHQL_ENDPOINT, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                query,
-                variables: { shop },
-            }),
-        });
-    
-        const result = await response.json();
-        console.log("GraphQL response for filters:", result);
-    
+
+      if (app_subscription && app_subscription.admin_graphql_api_id && app_subscription.status === "ACTIVE") {
+        const result = await graphqlRequest(query, { id: app_subscription.admin_graphql_api_id, shop });
+        console.log("GraphQL response for app_subscription update:", result);
+      }
+      else{
+        console.log("Subscription Invalid:", app_subscription);
+      }
+
     } catch (graphqlError: any) {
       // Log GraphQL error but don't fail the webhook
       logger.error('Error processing webhook via GraphQL', {
@@ -75,7 +67,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       error: error?.message || error,
       stack: error?.stack,
     });
-    
+
     // Return 200 to prevent Shopify from retrying
     return new Response(JSON.stringify({ success: false, error: error?.message }), {
       status: 200,
@@ -83,4 +75,3 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     });
   }
 };
-
