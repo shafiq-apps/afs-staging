@@ -76,12 +76,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   const res = await graphqlRequest<{
     subscriptionPlans: SubscriptionPlan[];
-    subscriptionPlan: SubscriptionPlan;
+    subscription: SubscriptionPlan;
   }>(query, { shop });
 
   return {
     plans: res.subscriptionPlans,
-    subscriptionPlan: res.subscriptionPlan,
+    subscriptionPlan: res.subscription,
     error: null,
     productsCount
   };
@@ -188,9 +188,8 @@ export default function PricingPage() {
             gap="base"
           >
             {plans.map((plan: SubscriptionPlan) => {
-              const isPopular = plan.handle === "premium-25"; // mark your best plan
-              const isCurrent = subscriptionPlan && plan?.name?.toLowerCase() === subscriptionPlan?.name?.toLowerCase();
-
+              const isPopular = plan.handle === "premium-25";
+              const isCurrent = isTrue(plan?.name, "equals", subscriptionPlan?.name);
               return (
                 <s-grid-item key={plan.id}>
                   <s-box
@@ -204,9 +203,14 @@ export default function PricingPage() {
                       <s-stack direction="block" gap="small">
                         <s-stack direction="inline" gap="small" alignItems="center">
                           <s-heading>{plan.name}</s-heading>
-                          {isPopular && (
+                          {isPopular && !isCurrent && (
                             <s-badge tone="success">Most popular</s-badge>
                           )}
+                          {
+                            isCurrent && (
+                              <s-badge tone="success">Your Plan</s-badge>
+                            )
+                          }
                         </s-stack>
 
                         <s-text tone="auto">
@@ -250,9 +254,9 @@ export default function PricingPage() {
                       <s-button
                         variant={isPopular ? "primary" : "secondary"}
                         onClick={() => handleSubscribePlan(plan.id)}
-                        disabled={fetcher.state !== "idle" || isTrue(productsCount.count,"greaterThan",plan.productLimit)}
+                        disabled={fetcher.state !== "idle" || isCurrent}
                       >
-                        {fetcher.state !== "idle" ? "Processing..." : `Get started with ${plan.name}`}
+                        {isCurrent ?'Already subscribed':fetcher.state !== "idle" ? "Processing..." : `Get started with ${plan.name}`}
                       </s-button>
                     </s-stack>
                   </s-box>
