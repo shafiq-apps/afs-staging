@@ -3,7 +3,7 @@ import { useLoaderData, useLocation, useFetcher, useNavigate } from "react-route
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { graphqlRequest } from "app/graphql.server";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { isTrue } from "app/utils/equal";
 
 interface Money {
@@ -134,6 +134,7 @@ export default function PricingPage() {
   const { error, plans, productsCount, subscriptionPlan } = useLoaderData<PricingLoaderData>();
   const location = useLocation();
   const fetcher = useFetcher();
+  const [selectedplan, setSelectedPlan] = useState<String|null>(null);
 
   useEffect(() => {
     if (fetcher.data?.confirmationUrl) {
@@ -156,12 +157,12 @@ export default function PricingPage() {
   const intervalLabel = (interval: string) => interval === "EVERY_30_DAYS" ? "month" : "year";
 
   const handleSubscribePlan = (planId: string) => {
+    setSelectedPlan(planId);
     fetcher.submit(
       { planId },
       { method: "post" }
     );
   };
-
 
   return (
     <s-page
@@ -257,7 +258,7 @@ export default function PricingPage() {
                         onClick={() => handleSubscribePlan(plan.id)}
                         disabled={fetcher.state !== "idle" || isCurrent || ineligiblePlan}
                       >
-                        {isCurrent ?'Already subscribed':fetcher.state !== "idle" ? "Processing..." : `Get started with ${plan.name}`}
+                        { ineligiblePlan? 'This plan is unsupported':isCurrent ?'Already subscribed': fetcher.state !== "idle" && selectedplan === plan.id ? "Processing..." : `Get started with ${plan.name}`}
                       </s-button>
                     </s-stack>
                   </s-box>
