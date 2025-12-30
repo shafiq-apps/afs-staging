@@ -3,6 +3,22 @@ export interface Money {
   currencyCode: string;
 }
 
+export enum AppSubscriptionStatus {
+  ACTIVE = "ACTIVE",
+  CANCELLED = "CANCELLED",
+  DECLINED = "DECLINED",
+  EXPIRED = "EXPIRED",
+  FROZEN = "FROZEN",
+  PENDING = "PENDING",
+}
+
+
+export interface ShopifyActiveSubscriptions {
+  id: string;
+  name: string;
+  status: AppSubscriptionStatus
+}
+
 export interface Subscription {
   id: string;
   name: string;
@@ -23,7 +39,8 @@ export interface PricingLoaderData {
   subscriptionPlans: Subscription[];
   error: string | null;
   productsCount: ProductsCount;
-  subscription: Subscription
+  subscription: Subscription;
+  activeSubscriptions: ShopifyActiveSubscriptions[]
 }
 
 

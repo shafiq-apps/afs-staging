@@ -8,8 +8,10 @@ import { authenticate } from "../shopify.server";
 import { ShopProvider, type ShopLocaleData } from "../contexts/ShopContext";
 import { useTranslation } from "app/utils/translations";
 import { graphqlRequest } from "app/graphql.server";
-import { Subscription } from "app/types/Subscriptions";
+import { AppSubscriptionStatus, ShopifyActiveSubscriptions, Subscription } from "app/types/Subscriptions";
 import { FETCH_CURRENT_SUBSCRIPTION } from "app/graphql/subscriptions.query";
+import { isTrue } from "app/utils/equal";
+import { UPDATE_SUBSCRIPTION_STATUS_MUTATION } from "app/graphql/subscriptions.mutation";
 
 const SHOP_DATA_CACHE_KEY = "shop_locale_data";
 const CACHE_DURATION = 1000 * 60 * 60; // 1 hour
@@ -58,16 +60,15 @@ function setCachedShopData(data: ShopLocaleData): void {
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
 
-  // eslint-disable-next-line no-undef
-  const apiKey = process.env.SHOPIFY_API_KEY || "";
-  const shop = session?.shop || "";
+  const apiKey = process.env.SHOPIFY_API_KEY ?? "";
+  const shop = session?.shop ?? "";
 
   let shopData: ShopLocaleData | null = null;
   let isNewInstallation = false;
 
+  /* ---------------- SHOP LOCALE DATA ---------------- */
   try {
-    // Fetch shop locale data
-    const shopQuery = `
+    const response = await admin.graphql(`
       query GetShopLocaleData {
         shop {
           ianaTimezone
@@ -87,153 +88,216 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           published
         }
       }
-    `;
+    `);
 
-    const response = await admin.graphql(shopQuery);
     const result = await response.json();
 
-    if (result.data) {
-      const primaryLocale = result.data.shopLocales?.find(
-        (loc: any) => loc.primary
-      )?.locale || "en";
+    if (result?.data) {
+      const primaryLocale =
+        result.data.shopLocales?.find((l: any) => l.primary)?.locale ?? "en";
 
       shopData = {
-        ianaTimezone: result.data.shop?.ianaTimezone || "UTC",
-        timezoneAbbreviation: result.data.shop?.timezoneAbbreviation || "UTC",
-        currencyCode: result.data.shop?.currencyCode || "USD",
-        currencyFormats: result.data.shop?.currencyFormats || {},
+        ianaTimezone: result.data.shop?.ianaTimezone ?? "UTC",
+        timezoneAbbreviation: result.data.shop?.timezoneAbbreviation ?? "UTC",
+        currencyCode: result.data.shop?.currencyCode ?? "USD",
+        currencyFormats: result.data.shop?.currencyFormats ?? {},
         primaryLocale,
-        locales: result.data.shopLocales || [],
+        locales: result.data.shopLocales ?? [],
         shopName: result.data.shop?.name,
         myshopifyDomain: result.data.shop?.myshopifyDomain,
       };
     }
-
-    // Query shop data from GraphQL to get access token and install status
-    if (shop) {
-      try {
-        const GRAPHQL_ENDPOINT = process.env.GRAPHQL_ENDPOINT || "http://localhost:3554/graphql";
-        const shopQuery = `
-          query GetShop($domain: String!) {
-            shop(domain: $domain) {
-              shop
-              isActive
-              installedAt
-              accessToken
-              scopes
-            }
-          }
-        `;
-
-        const shopResponse = await fetch(GRAPHQL_ENDPOINT, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            query: shopQuery,
-            variables: { domain: shop },
-          }),
-        });
-
-        const shopResult = await shopResponse.json();
-
-        if (shopResult.data?.shop) {
-          const shopData = shopResult.data.shop;
-          // Shop exists - check if it's a new installation (no installedAt or very recent)
-          isNewInstallation = !shopData.installedAt || (new Date(shopData.installedAt).getTime() > Date.now() - 60000); // Installed less than 1 minute ago
-
-          // Access token is available in shopData.accessToken (if not filtered)
-          // This will be used by the session storage adapter
-        } else {
-          // Shop doesn't exist - it's a new installation
-          isNewInstallation = true;
-        }
-      } catch (error: any) {
-        // If we can't check, assume it's not a new installation to be safe
-        isNewInstallation = false;
-      }
-    }
-  } catch (error: any) {
-    // Continue with null shopData - will use defaults
+  } catch {
+    // Fail silently — defaults will be used
   }
 
-  const res = await graphqlRequest<{
-    subscription: Subscription;
-  }>(FETCH_CURRENT_SUBSCRIPTION, { shop });
+  /* ---------------- INSTALLATION CHECK ---------------- */
+  if (shop) {
+    try {
+      const GRAPHQL_ENDPOINT =
+        process.env.GRAPHQL_ENDPOINT ?? "http://localhost:3554/graphql";
 
-  return { apiKey, shopData, shop, isNewInstallation, subscription: res.subscription };
+      const response = await fetch(GRAPHQL_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query: `
+            query GetShop($domain: String!) {
+              shop(domain: $domain) {
+                installedAt
+              }
+            }
+          `,
+          variables: { domain: shop },
+        }),
+      });
+
+      const result = await response.json();
+      const installedAt = result?.data?.shop?.installedAt;
+
+      isNewInstallation =
+        !installedAt ||
+        new Date(installedAt).getTime() > Date.now() - 60_000;
+    } catch {
+      isNewInstallation = false;
+    }
+  }
+
+  /* ---------------- SHOPIFY SUBSCRIPTIONS ---------------- */
+  const shopifyResponse = await admin.graphql(`
+    query GetRecurringApplicationCharges {
+      currentAppInstallation {
+        activeSubscriptions {
+          id
+          name
+          status
+        }
+      }
+    }
+  `);
+
+  const shopifyJson = await shopifyResponse.json();
+
+  const activeSubscriptions: ShopifyActiveSubscriptions[] = shopifyJson?.data?.currentAppInstallation?.activeSubscriptions ?? [];
+
+  const hasActiveSubscription = activeSubscriptions.some(sub => sub.status === AppSubscriptionStatus.ACTIVE);
+
+  /* ---------------- DB SUBSCRIPTION ---------------- */
+  let subscriptionResult = await graphqlRequest<{ subscription: Subscription; }>(FETCH_CURRENT_SUBSCRIPTION, { shop });
+
+  const isSubscriptionActiveInDB = subscriptionResult.subscription?.status === AppSubscriptionStatus.ACTIVE;
+
+  /* ---------------- SYNC DB WITH SHOPIFY ---------------- */
+  if (hasActiveSubscription && !isSubscriptionActiveInDB) {
+    const activeChargeId = activeSubscriptions.find(
+      sub => sub.status === AppSubscriptionStatus.ACTIVE
+    )?.id;
+
+    if (activeChargeId) {
+      await graphqlRequest(UPDATE_SUBSCRIPTION_STATUS_MUTATION, {
+        id: activeChargeId,
+        shop,
+      });
+
+      // Correct refetch (overwrite previous result)
+      subscriptionResult = await graphqlRequest<{
+        subscription: Subscription;
+      }>(FETCH_CURRENT_SUBSCRIPTION, { shop });
+    }
+  }
+
+  /* ---------------- RETURN ---------------- */
+  return {
+    apiKey,
+    shop,
+    shopData,
+    isNewInstallation,
+    subscription: subscriptionResult.subscription ?? null,
+    activeSubscriptions,
+  };
 };
 
 export default function App() {
-  const { apiKey, shopData, subscription } = useLoaderData<typeof loader>();
+  const { apiKey, shopData, subscription, activeSubscriptions } = useLoaderData<typeof loader>();
+
   const location = useLocation();
   const navigate = useNavigate();
-
   const { t } = useTranslation();
 
-  // Cache shop data on client side
-  if (typeof window !== "undefined" && shopData) {
-    setCachedShopData(shopData);
-  }
+  /* ---------------- SUBSCRIPTION HELPERS ---------------- */
+  const hasActiveShopifySubscription = activeSubscriptions.some(sub => sub.status === AppSubscriptionStatus.ACTIVE);
 
-  // Try to get cached data if server data is not available
-  const effectiveShopData = shopData || (typeof window !== "undefined" ? getCachedShopData() : null);
+  const isSubscriptionActiveInDB = subscription?.status === AppSubscriptionStatus.ACTIVE;
 
-  // Global cleanup: Clear orphaned slots on every navigation
+  const isOnPricingPage = location.pathname === "/app/pricing";
+
+  /* ---------------- CLIENT-SIDE SHOP DATA CACHE ---------------- */
   useEffect(() => {
-    // Small delay to let the new page render first
+    if (shopData) {
+      setCachedShopData(shopData);
+    }
+  }, [shopData]);
+
+  const effectiveShopData = shopData ?? (typeof window !== "undefined" ? getCachedShopData() : null);
+
+  /* ---------------- GLOBAL SLOT CLEANUP ---------------- */
+  useEffect(() => {
     const timeoutId = setTimeout(() => {
-      // Find all slot elements
-      const allPrimaryActions = document.querySelectorAll('[slot="primary-action"]');
-      const allBreadcrumbs = document.querySelectorAll('[slot="breadcrumb-actions"]');
+      const primaryActions = document.querySelectorAll(
+        '[slot="primary-action"]'
+      );
+      const breadcrumbs = document.querySelectorAll(
+        '[slot="breadcrumb-actions"]'
+      );
 
-      // Remove slots that are orphaned (not inside any s-page)
-      // DO NOT remove slots that are inside a valid s-page
-      allPrimaryActions.forEach(el => {
-        const parentPage = el.closest('s-page');
-        if (!parentPage) {
-          // Only remove if it's truly orphaned (not inside any s-page)
+      [...primaryActions, ...breadcrumbs].forEach(el => {
+        if (!el.closest("s-page")) {
           el.remove();
         }
       });
-
-      allBreadcrumbs.forEach(el => {
-        const parentPage = el.closest('s-page');
-        if (!parentPage) {
-          // Only remove if it's truly orphaned (not inside any s-page)
-          el.remove();
-        }
-      });
-    }, 200); // Increased delay to ensure buttons are rendered
+    }, 200);
 
     return () => clearTimeout(timeoutId);
   }, [location.pathname]);
 
+  /* ---------------- SUBSCRIPTION REDIRECT LOGIC ---------------- */
   useEffect(() => {
-    if (!subscription || subscription?.status !== "ACTIVE" && location.pathname !== "/app/pricing") {
+    // If Shopify has no active subscription, force pricing page
+    if (!hasActiveShopifySubscription && !isOnPricingPage) {
       navigate("/app/pricing?module=subscription&action=choose&force=true", { replace: true });
     }
-  }, [subscription, location.pathname]);
+  }, [
+    hasActiveShopifySubscription,
+    isOnPricingPage,
+    navigate,
+  ]);
 
+  /* ---------------- RENDER ---------------- */
   return (
     <AppProvider embedded apiKey={apiKey}>
-      <ShopProvider shopData={effectiveShopData} isLoading={!effectiveShopData}>
+      <ShopProvider
+        shopData={effectiveShopData}
+        isLoading={!effectiveShopData}
+      >
         <s-app-nav>
-          {
-            subscription && subscription?.status === "ACTIVE" && (
-              <>
-                <s-link href="/app">{t("navigation.home")}</s-link>
-                <s-link href="/app/filters">{t("navigation.filters")}</s-link>
-                <s-link href="/app/indexing">{t("navigation.indexing")}</s-link>
-              </>
-            )
-          }
+          {hasActiveShopifySubscription && (
+            <>
+              <s-link href="/app">{t("navigation.home")}</s-link>
+              <s-link href="/app/filters">{t("navigation.filters")}</s-link>
+              <s-link href="/app/indexing">{t("navigation.indexing")}</s-link>
+            </>
+          )}
           <s-link href="/app/pricing">{t("navigation.pricing")}</s-link>
         </s-app-nav>
+          {
+            !hasActiveShopifySubscription && (
+              <s-page >
+                <s-banner heading="Manage Your Subscription" tone="warning">
+                    Please keep your subscription plan active to continue using the application.
+                    <s-button
+                      slot="secondary-actions"
+                      variant="secondary"
+                      href="/app/pricing"
+                    >
+                      View pricing
+                    </s-button>
+                    <s-button
+                      slot="secondary-actions"
+                      variant="secondary"
+                      href="javascript:void(0)"
+                    >
+                      Read more
+                    </s-button>
+                  </s-banner>
+              </s-page>
+            )
+          }
         <Outlet />
       </ShopProvider>
     </AppProvider>
   );
 }
+
 
 // Shopify needs React Router to catch some thrown responses, so that their headers are included in the response.
 export function ErrorBoundary() {

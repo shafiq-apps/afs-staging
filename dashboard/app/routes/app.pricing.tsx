@@ -7,21 +7,41 @@ import { useEffect, useState } from "react";
 import { isTrue } from "app/utils/equal";
 import { CREATE_APP_SUBSCRIPTION_MUTATION } from "app/graphql/subscriptions.mutation";
 import { FETCH_BILLING_PLANS_AND_SUBSCRIPTION } from "app/graphql/subscriptions.query";
-import { Money, PricingLoaderData, Subscription } from "app/types/Subscriptions";
+import { AppSubscriptionStatus, Money, ShopifyActiveSubscriptions, Subscription } from "app/types/Subscriptions";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
   const shop = session?.shop || "";
 
-  const response = await admin.graphql(
-    `
-      query {
-        productsCount(query: "limit:null") {
-          count
-          precision
+  const graphql_response = await admin.graphql(
+    `query GetRecurringApplicationCharges {
+      currentAppInstallation {
+        activeSubscriptions {
+          id
+          name
+          status
         }
       }
-    `
+    }`
+  );
+
+  const { data: { currentAppInstallation: { activeSubscriptions } } } = await graphql_response.json().catch(e => {
+    return {
+      data: {
+        currentAppInstallation: {
+          activeSubscriptions: []
+        }
+      }
+    }
+  });
+
+  const response = await admin.graphql(
+    `query {
+      productsCount(query: "limit:null") {
+        count
+        precision
+      }
+    }`
   );
 
   const { data: { productsCount } } = await response.json().catch(() => ({
@@ -37,7 +57,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     subscriptionPlans: res.subscriptionPlans,
     subscription: res.subscription,
     error: null,
-    productsCount
+    productsCount,
+    activeSubscriptions
   };
 };
 
@@ -54,7 +75,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   try {
     // Subscribe the user (server-side)
-    const response = await graphqlRequest(CREATE_APP_SUBSCRIPTION_MUTATION,{  planId, shop });
+    const response = await graphqlRequest(CREATE_APP_SUBSCRIPTION_MUTATION, { planId, shop });
     if (response?.appSubscriptionCreate?.confirmationUrl) {
       return { confirmationUrl: response?.appSubscriptionCreate?.confirmationUrl };
     }
@@ -66,10 +87,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function PricingPage() {
-  const { error, subscriptionPlans, productsCount, subscription } = useLoaderData<PricingLoaderData>();
+  const { error, subscriptionPlans, productsCount, subscription, activeSubscriptions } = useLoaderData<typeof loader>();
   const location = useLocation();
   const fetcher = useFetcher();
-  const [selectedplan, setSelectedPlan] = useState<String|null>(null);
+  const [selectedplan, setSelectedPlan] = useState<String | null>(null);
 
   useEffect(() => {
     if (fetcher.data?.confirmationUrl) {
@@ -99,6 +120,12 @@ export default function PricingPage() {
     );
   };
 
+  const isActuallySubscribed = (activeSubscriptions: ShopifyActiveSubscriptions[]): boolean => {
+    return activeSubscriptions.some(sub =>
+      isTrue(sub.status, "equals", AppSubscriptionStatus.ACTIVE)
+    );
+  };
+
   return (
     <s-page
       key={`pricing-${location.pathname}`}
@@ -125,8 +152,8 @@ export default function PricingPage() {
           >
             {subscriptionPlans.map((plan: Subscription) => {
               const isPopular = plan.handle === "premium-25";
-              const isCurrent = isTrue(plan?.name, "equals", subscription?.name);
-              const ineligiblePlan = isTrue(productsCount.count,"greaterThan",plan.productLimit);
+              const isCurrent = isActuallySubscribed(activeSubscriptions) && isTrue(plan?.name, "equals", subscription?.name);
+              const ineligiblePlan = isTrue(productsCount.count, "greaterThan", plan.productLimit);
               return (
                 <s-grid-item key={plan.id}>
                   <s-box
@@ -193,7 +220,7 @@ export default function PricingPage() {
                         onClick={() => handleSubscribePlan(plan.id)}
                         disabled={fetcher.state !== "idle" || isCurrent || ineligiblePlan}
                       >
-                        { ineligiblePlan? 'This plan is unsupported':isCurrent ?'Already subscribed': fetcher.state !== "idle" && selectedplan === plan.id ? "Processing..." : `Get started with ${plan.name}`}
+                        {ineligiblePlan ? 'This plan is unsupported' : isCurrent ? 'Already subscribed' : fetcher.state !== "idle" && selectedplan === plan.id ? "Processing..." : `Get started with ${plan.name}`}
                       </s-button>
                     </s-stack>
                   </s-box>
