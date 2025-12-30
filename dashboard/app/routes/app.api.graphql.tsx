@@ -19,7 +19,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     let endpoint = process.env.GRAPHQL_ENDPOINT || "http://localhost:3554/graphql";;
     if (shop) {
-        endpoint = `?shop=${shop}`;
+        endpoint = endpoint+`?shop=${shop}`;
     }
 
     const body = await request.json();
