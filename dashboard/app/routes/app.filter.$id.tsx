@@ -32,7 +32,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   const shop = session.shop;
 
   const filterQuery = `
-    query GetFilter($shop: String!, $id: String!) {
+    query GetFilterAndStorefrontFilters($shop: String!, $id: String!) {
       filter(shop: $shop, id: $id) {
         id
         title
@@ -105,43 +105,20 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
           showClearAllButton
         }
       }
+    storefrontFilters(shop: $shop) {
+      vendors { value count }
+      productTypes { value count }
+      tags { value count }
+      collections { value count }
+      options
+      priceRange { min max }
     }
-  `;
-
-  const storefrontQuery = `
-    query GetStorefrontFilters($shop: String!) {
-      storefrontFilters(shop: $shop) {
-        vendors { value count }
-        productTypes { value count }
-        tags { value count }
-        collections { value count }
-        options
-        priceRange { min max }
-      }
-    }
-  `;
-
-  const [filterRes, storefrontRes] = await Promise.all([
-    fetch(GRAPHQL_ENDPOINT, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ query: filterQuery, variables: { shop, id: filterId } }),
-    }),
-    fetch(GRAPHQL_ENDPOINT, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ query: storefrontQuery, variables: { shop } }),
-    }),
-  ]);
-
-  const filterJson = await filterRes.json();
-  const storefrontJson = await storefrontRes.json();
-
-  if (filterJson.errors) {
-    throw new Response(filterJson.errors[0].message, { status: 500 });
   }
+  `;
 
-  const filter = filterJson.data.filter;
+  const response = await graphqlRequest(filterQuery, { shop, id: filterId });
+
+  const filter = response?.filter ?? {};
 
   // Normalize allowedCollections IDs - ensure id is normalized and gid is set
   if (filter.allowedCollections && Array.isArray(filter.allowedCollections)) {
@@ -186,7 +163,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     filter,
     shop,
     graphqlEndpoint: GRAPHQL_ENDPOINT,
-    storefrontFilters: storefrontJson.data?.storefrontFilters ?? null,
+    storefrontFilters: response?.storefrontFilters ?? null,
   };
 };
 
