@@ -267,16 +267,6 @@ export default function EditFilterPage() {
         Filters
       </s-link>
 
-      <s-button
-        slot="primary-action"
-        variant="primary"
-        onClick={handleSaveClick}
-        loading={isSaving}
-        disabled={isSaving}
-      >
-        Save
-      </s-button>
-
       <FilterForm
         ref={formRef}
         mode={PageMode.EDIT}

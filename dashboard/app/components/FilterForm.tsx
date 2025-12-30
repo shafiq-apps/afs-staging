@@ -1199,9 +1199,25 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
     return getAvailableDisplayTypes(optionType);
   };
 
+  const saveButton = (
+    <s-stack alignItems="end">
+      <s-button
+        loading={isSaving}
+        disabled={isSaving}
+        type="submit"
+        variant="primary"
+      >
+        Save Filter
+      </s-button>
+    </s-stack>
+  );
+
   return (
     <form id="filter-form">
-      <s-stack direction="block" gap="base">
+
+      {saveButton}
+
+      <s-stack direction="block" gap="base" padding="base none large none">
         {/* Basic Information */}
         <s-section>
           <s-stack direction="block" gap="base">
@@ -2056,6 +2072,8 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
           </s-box>
         </s-modal>
       )}
+
+      {saveButton}
     </form>
   );
 });
