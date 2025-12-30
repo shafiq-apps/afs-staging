@@ -7,12 +7,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 
 import { authenticate } from "../shopify.server";
-import FilterForm, {
-  PageMode,
-  type FilterFormHandle,
-} from "../components/FilterForm";
+import FilterForm from "../components/FilterForm";
 import { useTranslation } from "app/utils/translations";
-import { PaginationType, SortOrder } from "app/utils/filter.enums";
+import { FilterFormHandle, PageMode, PaginationType, SortOrder } from "app/utils/filter.enums";
 import { normalizeShopifyId } from "app/utils/normalize-shopify-id";
 
 /* ======================================================
