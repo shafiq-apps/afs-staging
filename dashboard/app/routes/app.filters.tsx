@@ -110,7 +110,7 @@ export default function FiltersPage() {
   const location = useLocation();
   const { t } = useTranslation();
   const revalidator = useRevalidator();
-  
+
   const [filters, setFilters] = useState<Filter[]>(initialFilters);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [filterToDelete, setFilterToDelete] = useState<Filter | null>(null);
@@ -125,7 +125,7 @@ export default function FiltersPage() {
   // This ensures that when coming back from create/edit, we have the latest data
   // Use location.key to track actual navigation events and prevent infinite loops
   const prevLocationKey = useRef<string | undefined>(location.key);
-  
+
   useEffect(() => {
     // Only revalidate if we actually navigated to this page (location.key changed)
     // This prevents infinite loops from revalidator being in dependencies
@@ -168,7 +168,7 @@ export default function FiltersPage() {
             modal.show();
           } else {
             // Fallback: trigger command programmatically
-            const event = new CustomEvent('command', { 
+            const event = new CustomEvent('command', {
               bubbles: true,
               detail: { command: '--show' }
             });
@@ -220,7 +220,7 @@ export default function FiltersPage() {
         }
       `;
 
-              const response = await fetch("/app/api/graphql", {
+      const response = await fetch("/app/api/graphql", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -268,8 +268,8 @@ export default function FiltersPage() {
     if (filter.targetScope === TargetScope.ALL || filter.targetScope === "all") {
       return t("filters.collectionDisplay.all");
     } else if (
-      filter.targetScope === TargetScope.ENTITLED || 
-      filter.targetScope === "entitled" || 
+      filter.targetScope === TargetScope.ENTITLED ||
+      filter.targetScope === "entitled" ||
       filter.targetScope === "specific" // Legacy value support
     ) {
       // Show collection count when targetScope is entitled/specific
@@ -285,17 +285,22 @@ export default function FiltersPage() {
     return t("filters.collectionDisplay.none");
   };
 
-  return (
-    <s-page key={`filters-${location.pathname}`} heading={t("filters.pageTitle")} data-page-id="filters">
+  const actionButton = (
+    <s-stack alignItems="end">
       <s-button
         key="create-filter-button"
-        slot="primary-action"
         variant="primary"
         onClick={handleCreateClick}
         icon="plus"
       >
         {t("filters.createFilter")}
       </s-button>
+    </s-stack>
+  )
+
+  return (
+    <s-page key={`filters-${location.pathname}`} heading={t("filters.pageTitle")} data-page-id="filters">
+      
 
       {error && (
         <s-section>
@@ -317,10 +322,10 @@ export default function FiltersPage() {
                   inlineSize="120px"
                   blockSize="120px"
                 >
-                  <div style={{ 
-                    display: "flex", 
-                    alignItems: "center", 
-                    justifyContent: "center", 
+                  <div style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
                     height: "100%"
                   }}>
                     <s-icon type="filter" />
@@ -346,6 +351,8 @@ export default function FiltersPage() {
           </s-grid>
         </s-section>
       ) : (
+        <s-stack rowGap="base">
+          {actionButton}
         <s-section padding="none">
           <s-table>
             <s-table-header-row>
@@ -362,7 +369,7 @@ export default function FiltersPage() {
                   </s-table-cell>
                   <s-table-cell>
                     {filter.status && (
-                      <s-badge 
+                      <s-badge
                         tone={filter.status === "PUBLISHED" ? "success" : "warning"}
                       >
                         {filter.status === "PUBLISHED" ? "Published" : "Unpublished"}
@@ -400,6 +407,7 @@ export default function FiltersPage() {
             </s-table-body>
           </s-table>
         </s-section>
+        </s-stack>
       )}
 
       {/* Delete Confirmation Modal */}
@@ -411,20 +419,20 @@ export default function FiltersPage() {
             </s-text>
           </s-stack>
         )}
-          <s-button
-            slot="primary-action"
-            variant="primary"
-            tone="critical"
-            onClick={async (e) => {
-              e.preventDefault();
-              await handleDeleteConfirm();
-            }}
-            commandFor="delete-modal"
-            command="--hide"
-            loading={isDeleting}
-          >
-            {t("filters.deleteModal.confirm")}
-          </s-button>
+        <s-button
+          slot="primary-action"
+          variant="primary"
+          tone="critical"
+          onClick={async (e) => {
+            e.preventDefault();
+            await handleDeleteConfirm();
+          }}
+          commandFor="delete-modal"
+          command="--hide"
+          loading={isDeleting}
+        >
+          {t("filters.deleteModal.confirm")}
+        </s-button>
         <s-button
           slot="secondary-actions"
           variant="secondary"
@@ -439,6 +447,7 @@ export default function FiltersPage() {
           {t("filters.deleteModal.cancel")}
         </s-button>
       </s-modal>
+
     </s-page>
   );
 }
