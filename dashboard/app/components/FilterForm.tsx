@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback, useImperativeHandle, forwardRef } from "react";
+import { useState, useEffect, useCallback, forwardRef } from "react";
 import { useNavigate, useLocation } from "react-router";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { useTranslation } from "../utils/translations";
 import { generateFilterHandle } from "../utils/id-generator";
-import { deepEqual } from "../utils/equal";
+import { deepEqual, isTrue } from "../utils/equal";
 import { DisplayType, SelectionType, FilterOptionStatus, FilterStatus, PaginationType, DeploymentChannel, TargetScope, FilterOrientation, DefaultView, toDisplayType, toSelectionType, toSortOrder, toFilterOptionStatus, toFilterStatus, toPaginationType, toTextTransform, toDeploymentChannel, toTargetScope, toFilterOrientation, toDefaultView, PageMode, FilterFormHandle, FilterState, FilterFormProps, CollectionReference, FilterOption } from "../utils/filter.enums";
 import { DEFAULT_FILTER_OPTION, DEFAULT_FILTER, PRICE_FILTER_DEFAULTS, getBaseOptionType, getOptionType, getAvailableSelectionTypes, getAvailableDisplayTypes, SORT_TYPES_MAPPINGS, OPTION_TYPES } from "../utils/filter.constants";
 import { normalizeShopifyId } from "app/utils/normalize-shopify-id";
@@ -16,7 +16,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
   shop,
   graphqlEndpoint,
   storefrontFilters,
-  onSavingChange
+  onSavingChange,
 }, ref) {
   const navigate = useNavigate();
   const shopify = useAppBridge();
@@ -34,7 +34,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [generalSettingsExpanded, setGeneralSettingsExpanded] = useState<boolean>(false);
-  
+
   // Default filter state
   const defaultFilterState: FilterState = {
     title: "",
@@ -192,14 +192,14 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
       const settings: any = initialFilter.settings || {};
       const productDisplay: any = settings.productDisplay || {};
       const pagination: any = settings.pagination || {};
-      
+
       // Normalize allowedCollections IDs and ensure gid is set
       const normalizedAllowedCollections = (initialFilter.allowedCollections || []).map((collection: any) => {
         // Normalize the id field (handle both GID and numeric formats)
         const normalizedId = normalizeShopifyId(collection.id);
         // Use gid if available, otherwise try to reconstruct from id
         const gid = collection.gid || (collection.id?.startsWith('gid://') ? collection.id : `gid://shopify/Collection/${normalizedId}`);
-        
+
         return {
           id: normalizedId, // Always use normalized ID for storage/comparison
           gid: gid, // Keep GID format for Shopify picker
@@ -256,7 +256,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
         showSortOptions: DEFAULT_FILTER.showSortOptions,
       };
       setFilterState(createState);
-      
+
       // Auto-populate filter options from storefrontFilters
       if (storefrontFilters && filterOptions.length === 0) {
         const autoOptions: FilterOption[] = [];
@@ -440,7 +440,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
               // Backend does case-insensitive matching but expects original case for consistency
               // ES stores optionPairs in original case, so we preserve it here
               const variantOptionKey = optionKey.trim();
-              
+
               autoOptions.push({
                 handle: generateFilterHandle(optionKey),
                 position: position++,
@@ -478,7 +478,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
         }
 
         updateFilterState({ filterOptions: autoOptions });
-        
+
         // Set initial state with auto-populated options for create mode
         const createInitState: FilterState = {
           ...defaultFilterState,
@@ -566,9 +566,9 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
   // Detect changes using deepEqual
   useEffect(() => {
     if (!initialFilterState) return;
-    
+
     const changed = !deepEqual(filterState, initialFilterState);
-    
+
     // Show/hide save bar based on changes
     // Use a small delay to ensure the form element is in the DOM
     const timeoutId = setTimeout(() => {
@@ -612,9 +612,9 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
   // Function to revert all changes to initial state
   const revertToInitialState = useCallback(() => {
     if (!initialFilterState) return;
-    
+
     setFilterState(JSON.parse(JSON.stringify(initialFilterState)));
-    
+
     // Remove data-save-bar to hide the save bar
     const form = document.querySelector('form[data-save-bar]') as HTMLFormElement;
     if (form) {
@@ -676,16 +676,16 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
       filterOptions: filterOptions.map((opt) => {
         if (opt.handle === handle) {
           const updated = { ...opt, [field]: value };
-          
+
           // When optionType changes, update handle and baseOptionType
           if (field === "optionType") {
             // Check if option was expanded before regenerating handle
             const wasExpanded = expandedOptions.has(handle);
-            
+
             // Regenerate handle based on new optionType
             const newHandle = generateFilterHandle(value as string);
             updated.handle = newHandle;
-            
+
             // Update expandedOptions set with new handle if it was expanded
             if (wasExpanded) {
               setExpandedOptions((prev) => {
@@ -695,18 +695,18 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                 return newSet;
               });
             }
-            
+
             // Update baseOptionType based on new optionType
             // This uses FacetAggregations structure to map optionType to baseOptionType
             // Standard types (Price, Vendor, ProductType, Tags, Collection) map to themselves
             // All variant options (Color, Size, etc.) map to "Option"
             updated.baseOptionType = getBaseOptionType(value as string);
-            
+
             // Price-specific updates
             // Normalize both values for comparison
             const normalizedNewValue = getOptionType(value as string);
             const normalizedOldValue = getOptionType(opt.optionType);
-            
+
             if (normalizedNewValue === "Price") {
               updated.selectionType = SelectionType.RANGE;
               updated.displayType = DisplayType.RANGE;
@@ -719,7 +719,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                 updated.displayType = DisplayType.CHECKBOX;
               }
             }
-            
+
             // Update variantOptionKey for variant options
             // For standard types (PRICE, VENDOR, PRODUCT_TYPE, TAGS, COLLECTION), variantOptionKey should be undefined
             // For variant options (Color, Size, etc.), variantOptionKey should be the optionType in original case
@@ -728,7 +728,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
             // Standard types are: PRICE, VENDOR, PRODUCT_TYPE, TAGS, COLLECTION
             // OPTION is for variant options (Color, Size, etc.)
             const isStandardType = baseOptionType !== "OPTION";
-            
+
             if (isStandardType) {
               // Standard types don't need variantOptionKey
               updated.variantOptionKey = undefined;
@@ -745,7 +745,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
               updated.displayType = DisplayType.CHECKBOX;
             }
           }
-          
+
           return updated;
         }
         return opt;
@@ -767,8 +767,8 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
     const option = filterOptions.find((opt) => opt.handle === handle);
     if (option) {
       const currentStatus = toFilterOptionStatus(option.status);
-      const newStatus = currentStatus === FilterOptionStatus.PUBLISHED 
-        ? FilterOptionStatus.UNPUBLISHED 
+      const newStatus = currentStatus === FilterOptionStatus.PUBLISHED
+        ? FilterOptionStatus.UNPUBLISHED
         : FilterOptionStatus.PUBLISHED;
       handleUpdateOption(handle, "status", newStatus);
     }
@@ -776,10 +776,10 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
 
   const getAvailableValues = (optionType: string): Array<{ value: string; count: number }> => {
     if (!storefrontFilters) return [];
-    
+
     // Normalize optionType using getOptionType to ensure consistent matching
     const normalizedOptionType = getOptionType(optionType);
-    
+
     switch (normalizedOptionType) {
       case "Price":
         // Price doesn't have a list of values, it's a range
@@ -835,7 +835,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
   const handleDrop = (e: React.DragEvent, dropIndex: number) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     if (draggedIndex === null || draggedIndex === dropIndex) {
       setDraggedIndex(null);
       setDragOverIndex(null);
@@ -844,15 +844,15 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
 
     const newOptions = [...filterOptions];
     const draggedItem = newOptions[draggedIndex];
-    
+
     newOptions.splice(draggedIndex, 1);
     newOptions.splice(dropIndex, 0, draggedItem);
-    
+
     const updatedOptions = newOptions.map((option, index) => ({
       ...option,
       position: index,
     }));
-    
+
     updateFilterState({ filterOptions: updatedOptions });
     setDraggedIndex(null);
     setDragOverIndex(null);
@@ -885,13 +885,13 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
         paginationType,
         ...cleanOption
       } = option;
-      
+
       // Ensure baseOptionType is set correctly based on optionType
       const finalBaseOptionType = baseOptionType || getBaseOptionType(option.optionType);
-      
+
       // Build optionSettings object according to new schema structure
       const optionSettings: any = {};
-      
+
       if (finalBaseOptionType) optionSettings.baseOptionType = finalBaseOptionType;
       if (removeSuffix && removeSuffix.length > 0) optionSettings.removeSuffix = removeSuffix;
       if (replaceText && replaceText.length > 0) optionSettings.replaceText = replaceText;
@@ -907,7 +907,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
       if (menus && menus.length > 0) optionSettings.menus = menus;
       if (textTransform) optionSettings.textTransform = toTextTransform(textTransform);
       if (paginationType) optionSettings.paginationType = toPaginationType(paginationType);
-      
+
       return {
         ...cleanOption,
         tooltipContent: option.tooltipContent ?? "",
@@ -924,92 +924,12 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
     });
   };
 
-  // Expose save function and state via ref
-  useImperativeHandle(ref, () => ({
-    save: handleSaveInternal
-  }));
+  // Build payload object synchronously from current state
+  const buildPayload = () => {
+    const normalizedOptions = normalizeFilterOptions(filterOptions);
 
-  const handleSaveInternal = async (e?: React.FormEvent) => {
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-
-    // Guard against multiple simultaneous save attempts
-    if (isSaving) {
-      return;
-    }
-
-    // Validation
-    let hasError = false;
-    const errors: string[] = [];
-    setTitleError("");
-    setOptionsError("");
-    setCollectionsError("");
-
-    if (!title.trim()) {
-      const errorMsg = "Filter title is required";
-      setTitleError(errorMsg);
-      errors.push(errorMsg);
-      hasError = true;
-    }
-
-    // Validate collections when targetScope is "entitled" (specific collections)
-    if (targetScope === TargetScope.ENTITLED && allowedCollections.length === 0) {
-      const errorMsg = "At least one collection must be selected when using specific collections";
-      setCollectionsError(errorMsg);
-      errors.push(errorMsg);
-      hasError = true;
-    }
-
-    const activeOptions = filterOptions.filter(opt => toFilterOptionStatus(opt.status) === FilterOptionStatus.PUBLISHED);
-    if (activeOptions.length === 0) {
-      const errorMsg = "At least one filter option must be active";
-      setOptionsError(errorMsg);
-      errors.push(errorMsg);
-      hasError = true;
-    }
-
-    if (hasError) {
-      // Show validation errors to user
-      const errorMessage = errors.join('. ');
-      shopify.toast.show(`Please fix the following errors: ${errorMessage}`, { isError: true });
-      
-      // Scroll to first error field
-      if (titleError || !title.trim()) {
-        const titleInput = document.getElementById(titleInputId);
-        if (titleInput) {
-          titleInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          titleInput.focus();
-        }
-      }
-      return;
-    }
-
-    setIsSaving(true);
-    onSavingChange?.(true);
-
-    try {
-      if (!shop) {
-        const errorMsg = "Shop information is missing";
-        shopify.toast.show(errorMsg, { isError: true });
-        setIsSaving(false);
-        onSavingChange?.(false);
-        return;
-      }
-
-      if (!graphqlEndpoint) {
-        const errorMsg = "GraphQL endpoint is not configured";
-        shopify.toast.show(errorMsg, { isError: true });
-        setIsSaving(false);
-        onSavingChange?.(false);
-        return;
-      }
-
-      const normalizedOptions = normalizeFilterOptions(filterOptions);
-
-      const mutation = mode === PageMode.CREATE 
-        ? `
+    const mutation = mode === PageMode.CREATE
+      ? `
           mutation CreateFilter($shop: String!, $input: CreateFilterInput!) {
             createFilter(shop: $shop, input: $input) {
               id
@@ -1030,7 +950,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
             }
           }
         `
-        : `
+      : `
           mutation UpdateFilter($shop: String!, $id: String!, $input: CreateFilterInput!) {
             updateFilter(shop: $shop, id: $id, input: $input) {
               id
@@ -1052,135 +972,129 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
           }
         `;
 
-      const input: any = {
-        title: title.trim(),
-        description: description.trim() || undefined,
-        status: toFilterStatus(status),
-        filterType: filterType.trim() || undefined,
-        targetScope: targetScope,
-        allowedCollections: targetScope === TargetScope.ENTITLED ? allowedCollections : [],
-        options: normalizedOptions,
-        deploymentChannel: deploymentChannel,
-        tags: tags.length > 0 ? tags : undefined,
-        settings: {
-          displayQuickView,
-          displayItemsCount,
-          displayVariantInsteadOfProduct,
-          defaultView: defaultView,
-          filterOrientation: filterOrientation,
-          displayCollectionImage,
-          hideOutOfStockItems,
-          onLaptop: onLaptop || undefined,
-          onTablet: onTablet || undefined,
-          onMobile: onMobile || undefined,
-          productDisplay: {
-            gridColumns,
-            showProductCount,
-            showSortOptions,
-            defaultSort,
-          },
-          pagination: {
-            type: paginationType,
-            itemsPerPage,
-            showPageInfo,
-            pageInfoFormat: pageInfoFormat || undefined,
-          },
-          showFilterCount,
-          showActiveFilters,
-          showResetButton,
-          showClearAllButton,
+    const input: any = {
+      title: title.trim(),
+      description: description.trim() || undefined,
+      status: toFilterStatus(status),
+      filterType: filterType.trim() || undefined,
+      targetScope: targetScope,
+      allowedCollections: targetScope === TargetScope.ENTITLED ? allowedCollections : [],
+      options: normalizedOptions,
+      deploymentChannel: deploymentChannel,
+      tags: tags.length > 0 ? tags : undefined,
+      settings: {
+        displayQuickView,
+        displayItemsCount,
+        displayVariantInsteadOfProduct,
+        defaultView: defaultView,
+        filterOrientation: filterOrientation,
+        displayCollectionImage,
+        hideOutOfStockItems,
+        onLaptop: onLaptop || undefined,
+        onTablet: onTablet || undefined,
+        onMobile: onMobile || undefined,
+        productDisplay: {
+          gridColumns,
+          showProductCount,
+          showSortOptions,
+          defaultSort,
         },
-      };
+        pagination: {
+          type: paginationType,
+          itemsPerPage,
+          showPageInfo,
+          pageInfoFormat: pageInfoFormat || undefined,
+        },
+        showFilterCount,
+        showActiveFilters,
+        showResetButton,
+        showClearAllButton,
+      },
+    };
 
-      const variables: any = mode === PageMode.CREATE 
-        ? { input }
-        : { id: initialFilter?.id, input };
+    const variables: any = mode === PageMode.CREATE ? { input } : { id: initialFilter?.id, input };
 
-      // Use server-side API route (handles authentication and shop injection)
-      const response = await fetch("/app/api/graphql", {
+    return { mutation, variables };
+  };
+
+  // Called when the HTML form is submitted; synchronously populate hidden payload and allow the browser to post
+  const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault(); // Always prevent default upfront
+
+    // Reset previous errors
+    setTitleError("");
+    setOptionsError("");
+    setCollectionsError("");
+
+    let hasError = false;
+
+    // Client-side validation
+    if (!title.trim()) {
+      setTitleError("Filter title is required");
+      hasError = true;
+    }
+
+    if (targetScope === TargetScope.ENTITLED && allowedCollections.length === 0) {
+      setCollectionsError("At least one collection must be selected when using specific collections");
+      hasError = true;
+    }
+
+    const activeOptions = filterOptions.filter(
+      (opt) => toFilterOptionStatus(opt.status) === FilterOptionStatus.PUBLISHED
+    );
+    if (activeOptions.length === 0) {
+      setOptionsError("At least one filter option must be active");
+      hasError = true;
+    }
+
+    if (hasError) {
+      shopify.toast.show("Please fix the following errors", { isError: true });
+      return;
+    }
+
+    // Build payload
+    const { mutation, variables } = buildPayload();
+    const payload = {
+      mode: mode,
+      id: initialFilter?.id || null,
+      mutation,
+      variables,
+      shop: shop
+    };
+
+    setIsSaving(true);
+
+    try {
+      // POST to Remix action
+      const response = await fetch(window.location.pathname, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
+          "Content-Type": "application/json", // Send JSON so action can parse it
+          Accept: "application/json",
         },
-        body: JSON.stringify({
-          mutation,
-          variables,
-        }),
+        credentials: "same-origin",
+        body: JSON.stringify({ payload }),
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        let errorMessage = `Failed to ${mode === PageMode.CREATE ? "create" : "update"} filter`;
-        try {
-          const errorData = JSON.parse(errorText);
-          errorMessage = errorData.error || errorData.message || errorMessage;
-        } catch {
-          errorMessage = errorText || errorMessage;
-        }
-        shopify.toast.show(errorMessage, { isError: true });
-        setIsSaving(false);
-        onSavingChange?.(false);
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok || data?.success === false) {
+        const message = data?.error || data?.message || `Failed to ${mode === PageMode.CREATE ? "create" : "update"} filter`;
+        shopify.toast.show(message, { isError: true });
         return;
       }
 
-      const result = await response.json();
-
-      if (result.error || (result.errors && result.errors.length > 0)) {
-        const errorMessage = result.error || result.errors?.[0]?.message || `Failed to ${mode === PageMode.CREATE ? "create" : "update"} filter`;
-        shopify.toast.show(errorMessage, { isError: true });
-      } else if (result.createFilter || result.updateFilter) {
-        shopify.toast.show(`Filter ${mode === PageMode.CREATE ? "created" : "updated"} successfully`);
-        
-        // Programmatically dismiss the save bar
-        const dismissSaveBar = () => {
-          // Try to find and hide the save bar element directly
-          const saveBar = document.querySelector('s-save-bar');
-          if (saveBar) {
-            (saveBar as any).style.display = 'none';
-            (saveBar as any).hidden = true;
-            // Try to call dismiss method if it exists
-            if (typeof (saveBar as any).dismiss === 'function') {
-              (saveBar as any).dismiss();
-            }
-          }
-          
-          const form = document.querySelector('form[data-save-bar]') as HTMLFormElement;
-          if (form) {
-            // Remove data-save-bar attribute to dismiss the save bar
-            form.removeAttribute('data-save-bar');
-            
-            // Dispatch dismiss event
-            const dismissEvent = new CustomEvent('shopify:save-bar:dismiss', { bubbles: true });
-            form.dispatchEvent(dismissEvent);
-          }
-        };
-        
-        // Dismiss save bar immediately
-        dismissSaveBar();
-        
-        // Use a small delay to ensure toast is shown and save bar is dismissed before navigation
-        setTimeout(() => {
-          // Dismiss save bar again before navigation to ensure it's gone
-          dismissSaveBar();
-          
-          if (mode === PageMode.CREATE) {
-            navigate("/app/filters");
-          } else {
-            // For edit mode, stay on the page but refresh the data
-            // window.location.reload();
-          }
-        }, 100);
-      } else {
-        shopify.toast.show(`Failed to ${mode === PageMode.CREATE ? "create" : "update"} filter: Unexpected response`, { isError: true });
+      shopify.toast.show(`Filter ${mode === PageMode.CREATE ? "created" : "updated"} successfully`);
+      if (isTrue(mode, "equals", PageMode.CREATE)) {
+        navigate(`/app/filters?shop=${shop}`);
       }
-    } catch (error: any) {
-      const errorMessage = error?.message || error?.toString() || `Failed to ${mode === PageMode.CREATE ? "create" : "update"} filter`;
-      shopify.toast.show(errorMessage, { isError: true });
+    } catch (err: any) {
+      shopify.toast.show(err?.message || "Failed to submit filter", { isError: true });
     } finally {
       setIsSaving(false);
-      onSavingChange?.(false);
     }
   };
+
 
   const handleCancelConfirm = () => {
     setCancelModalOpen(false);
@@ -1213,7 +1127,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
   );
 
   return (
-    <form id="filter-form">
+    <form id="filter-form" onSubmit={handleFormSubmit}>
 
       {saveButton}
 
@@ -1288,12 +1202,12 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                                 updateFilterState({ allowedCollections: allowedCollections.filter(c => c.id !== collection.id) });
                                 if (collectionsError) setCollectionsError("");
                               }}
-                              style={{ 
-                                marginLeft: "8px", 
-                                background: "none", 
-                                border: "none", 
-                                cursor: "pointer", 
-                                padding: "0", 
+                              style={{
+                                marginLeft: "8px",
+                                background: "none",
+                                border: "none",
+                                cursor: "pointer",
+                                padding: "0",
                                 fontSize: "16px",
                                 lineHeight: "1"
                               }}
@@ -1358,7 +1272,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                           }}
                         />
                       )}
-                      
+
                       <div
                         draggable
                         onDragStart={() => handleDragStart(index)}
@@ -1384,18 +1298,18 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                         >
                           <s-stack direction="block" gap="base">
                             {/* Option Header - Single Row */}
-                            <div 
-                              style={{ 
-                                display: "flex", 
-                                alignItems: "center", 
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
                                 gap: "12px",
                                 cursor: isDragging ? 'grabbing' : 'grab',
                                 userSelect: 'none',
                               }}
                               onMouseDown={(e) => e.stopPropagation()}
                             >
-                              <s-icon 
-                                type="drag-handle" 
+                              <s-icon
+                                type="drag-handle"
                                 color="subdued"
                                 size="small"
                               />
@@ -1447,7 +1361,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                                       <s-stack direction="block" gap="base">
                                         {!isPriceFilter(option.optionType) && (
                                           <>
-                                          <s-choice-list
+                                            <s-choice-list
                                               label="Selection Type"
                                               values={[option.selectionType]}
                                               onChange={(e: any) => {
@@ -1457,12 +1371,12 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                                               name="selectionType"
                                             >
                                               {selectionTypes.map((type: string) => (
-                                                <s-choice 
-                                                  key={type} 
-                                                  value={type} 
+                                                <s-choice
+                                                  key={type}
+                                                  value={type}
                                                   selected={option.selectionType === type}
                                                 >
-                                                  { type.charAt(0).toUpperCase() + type.slice(1).toLowerCase() }
+                                                  {type.charAt(0).toUpperCase() + type.slice(1).toLowerCase()}
                                                 </s-choice>
                                               ))}
                                             </s-choice-list>
@@ -1477,13 +1391,13 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                                               name="displayType"
                                             >
                                               {displayTypes.map((type: string) => (
-                                                <s-choice 
-                                                  key={type} 
-                                                  value={type} 
+                                                <s-choice
+                                                  key={type}
+                                                  value={type}
                                                   selected={option.displayType === type}
                                                   disabled={option.selectionType !== SelectionType.SINGLE && DisplayType.RADIO === type}
                                                 >
-                                                  { type.charAt(0).toUpperCase() + type.slice(1).toLowerCase().replace('_', ' ') }
+                                                  {type.charAt(0).toUpperCase() + type.slice(1).toLowerCase().replace('_', ' ')}
                                                 </s-choice>
                                               ))}
                                             </s-choice-list>
@@ -1564,8 +1478,8 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                                             availableValues={availableValues}
                                           />
                                           <span style={{ fontSize: '12px', color: 'var(--p-color-text-subdued)' }}>
-                                            {option.allowedOptions.length === 0 
-                                              ? "All values will be shown" 
+                                            {option.allowedOptions.length === 0
+                                              ? "All values will be shown"
                                               : `Only ${option.allowedOptions.length} selected value(s) will be shown`}
                                           </span>
                                         </s-stack>
@@ -1589,12 +1503,12 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                                             name="sortBy"
                                           >
                                             {SORT_TYPES_MAPPINGS.map((type: any) => (
-                                              <s-choice 
-                                                key={type.value} 
-                                                value={type.value} 
+                                              <s-choice
+                                                key={type.value}
+                                                value={type.value}
                                                 selected={option.sortBy === type.value}
                                               >
-                                                { type.label }
+                                                {type.label}
                                               </s-choice>
                                             ))}
                                           </s-choice-list>
@@ -1686,11 +1600,11 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                                           <s-text tone="auto">
                                             Total available values: <strong>{availableValues.length.toLocaleString()}</strong>
                                           </s-text>
-                                          <div 
-                                            style={{ 
-                                              display: "flex", 
-                                              flexWrap: "wrap", 
-                                              gap: "6px", 
+                                          <div
+                                            style={{
+                                              display: "flex",
+                                              flexWrap: "wrap",
+                                              gap: "6px",
                                               padding: "12px",
                                               border: "1px solid var(--p-color-border-subdued)",
                                               borderRadius: "4px",
@@ -1753,12 +1667,12 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                                     </s-stack>
                                   </s-box>
                                 </s-stack>
-                                </s-box>
+                              </s-box>
                             )}
                           </s-stack>
                         </s-box>
                       </div>
-                      
+
                       {/* Drop Indicator Below */}
                       {showDropBelow && (
                         <div
@@ -1792,95 +1706,95 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
         </s-section>
 
         {/* General Settings - Collapsed by Default */}
-        { false && (
-        <s-section>
-          <s-box padding="base" borderWidth="base" borderRadius="base" background="subdued">
-            <div 
-              style={{ 
-                display: "flex", 
-                justifyContent: "space-between", 
-                alignItems: "center",
-                cursor: "pointer"
-              }}
-              onClick={() => setGeneralSettingsExpanded(!generalSettingsExpanded)}
-            >
-              <s-heading>General Settings</s-heading>
-              <s-button
-                variant="tertiary"
-                icon={generalSettingsExpanded ? "chevron-up" : "chevron-down"}
-                onClick={(e: any) => {
-                  e.stopPropagation();
-                  setGeneralSettingsExpanded(!generalSettingsExpanded);
+        {false && (
+          <s-section>
+            <s-box padding="base" borderWidth="base" borderRadius="base" background="subdued">
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  cursor: "pointer"
                 }}
+                onClick={() => setGeneralSettingsExpanded(!generalSettingsExpanded)}
               >
-                {generalSettingsExpanded ? "Hide" : "Show"}
-              </s-button>
-            </div>
-            {generalSettingsExpanded && (
-              <div style={{ marginTop: "16px" }}>
-                <s-stack direction="block" gap="base">
-                  
-                  {/* Section 1: Layout & Position */}
-                  <s-box padding="base" borderWidth="base" borderRadius="base" background="subdued">
-                    <s-stack direction="block" gap="base">
-                      <s-heading>Layout & Position</s-heading>
+                <s-heading>General Settings</s-heading>
+                <s-button
+                  variant="tertiary"
+                  icon={generalSettingsExpanded ? "chevron-up" : "chevron-down"}
+                  onClick={(e: any) => {
+                    e.stopPropagation();
+                    setGeneralSettingsExpanded(!generalSettingsExpanded);
+                  }}
+                >
+                  {generalSettingsExpanded ? "Hide" : "Show"}
+                </s-button>
+              </div>
+              {generalSettingsExpanded && (
+                <div style={{ marginTop: "16px" }}>
+                  <s-stack direction="block" gap="base">
+
+                    {/* Section 1: Layout & Position */}
+                    <s-box padding="base" borderWidth="base" borderRadius="base" background="subdued">
                       <s-stack direction="block" gap="base">
-                        <s-choice-list
-                          label="Filter Position"
-                          values={[filterOrientation]}
-                          onChange={(e: any) => {
-                            const value = e.currentTarget?.values?.[0];
-                            if (value) updateFilterState({ filterOrientation: toFilterOrientation(value) });
-                          }}
-                          name="FilterPosition"
-                        >
-                          <s-choice value={FilterOrientation.VERTICAL} selected={filterOrientation === FilterOrientation.VERTICAL}>
-                            Vertical (Sidebar)
-                          </s-choice>
-                          <s-choice disabled value={FilterOrientation.HORIZONTAL} selected={filterOrientation === FilterOrientation.HORIZONTAL}>
-                            Horizontal (Top Bar)
-                          </s-choice>
-                        </s-choice-list>
-
-                        <s-choice-list
-                          label="Default Product View"
-                          values={[defaultView]}
-                          onChange={(e: any) => {
-                            const value = e.currentTarget?.values?.[0];
-                            if (value) updateFilterState({ defaultView: toDefaultView(value) });
-                          }}
-                          name="DefaultProductView"
-                        >
-                          <s-choice disabled value={DefaultView.GRID} selected={defaultView === DefaultView.GRID}>
-                            Grid View
-                          </s-choice>
-                          <s-choice disabled value={DefaultView.LIST} selected={defaultView === DefaultView.LIST}>
-                            List View
-                          </s-choice>
-                        </s-choice-list>
-
-                        {defaultView === DefaultView.GRID && (
+                        <s-heading>Layout & Position</s-heading>
+                        <s-stack direction="block" gap="base">
                           <s-choice-list
-                            label="Products per Row"
-                            values={[gridColumns.toString()]}
+                            label="Filter Position"
+                            values={[filterOrientation]}
                             onChange={(e: any) => {
                               const value = e.currentTarget?.values?.[0];
-                              if (value) updateFilterState({ gridColumns: parseInt(value) });
+                              if (value) updateFilterState({ filterOrientation: toFilterOrientation(value) });
                             }}
-                            name="ProductsPerRow"
+                            name="FilterPosition"
                           >
-                            <s-choice value="2" selected={gridColumns === 2}>2 columns</s-choice>
-                            <s-choice value="3" selected={gridColumns === 3}>3 columns</s-choice>
-                            <s-choice value="4" selected={gridColumns === 4}>4 columns</s-choice>
-                            <s-choice value="5" selected={gridColumns === 5}>5 columns</s-choice>
+                            <s-choice value={FilterOrientation.VERTICAL} selected={filterOrientation === FilterOrientation.VERTICAL}>
+                              Vertical (Sidebar)
+                            </s-choice>
+                            <s-choice disabled value={FilterOrientation.HORIZONTAL} selected={filterOrientation === FilterOrientation.HORIZONTAL}>
+                              Horizontal (Top Bar)
+                            </s-choice>
                           </s-choice-list>
-                        )}
-                      </s-stack>
-                    </s-stack>
-                  </s-box>
 
-                  {/* Section 2: Product Display */}
-                  {/* <s-box padding="base" borderWidth="base" borderRadius="base" background="subdued">
+                          <s-choice-list
+                            label="Default Product View"
+                            values={[defaultView]}
+                            onChange={(e: any) => {
+                              const value = e.currentTarget?.values?.[0];
+                              if (value) updateFilterState({ defaultView: toDefaultView(value) });
+                            }}
+                            name="DefaultProductView"
+                          >
+                            <s-choice disabled value={DefaultView.GRID} selected={defaultView === DefaultView.GRID}>
+                              Grid View
+                            </s-choice>
+                            <s-choice disabled value={DefaultView.LIST} selected={defaultView === DefaultView.LIST}>
+                              List View
+                            </s-choice>
+                          </s-choice-list>
+
+                          {defaultView === DefaultView.GRID && (
+                            <s-choice-list
+                              label="Products per Row"
+                              values={[gridColumns.toString()]}
+                              onChange={(e: any) => {
+                                const value = e.currentTarget?.values?.[0];
+                                if (value) updateFilterState({ gridColumns: parseInt(value) });
+                              }}
+                              name="ProductsPerRow"
+                            >
+                              <s-choice value="2" selected={gridColumns === 2}>2 columns</s-choice>
+                              <s-choice value="3" selected={gridColumns === 3}>3 columns</s-choice>
+                              <s-choice value="4" selected={gridColumns === 4}>4 columns</s-choice>
+                              <s-choice value="5" selected={gridColumns === 5}>5 columns</s-choice>
+                            </s-choice-list>
+                          )}
+                        </s-stack>
+                      </s-stack>
+                    </s-box>
+
+                    {/* Section 2: Product Display */}
+                    {/* <s-box padding="base" borderWidth="base" borderRadius="base" background="subdued">
                     <s-stack direction="block" gap="base">
                       <s-heading>Product Display</s-heading>
                       <s-stack direction="block" gap="base">
@@ -1910,136 +1824,136 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                     </s-stack>
                   </s-box> */}
 
-                  {/* Section 3: Pagination */}
-                  <s-box padding="base" borderWidth="base" borderRadius="base" background="subdued">
-                    <s-stack direction="block" gap="base">
-                      <s-heading>Pagination</s-heading>
+                    {/* Section 3: Pagination */}
+                    <s-box padding="base" borderWidth="base" borderRadius="base" background="subdued">
                       <s-stack direction="block" gap="base">
-                        <s-choice-list
-                          label="Pagination Type"
-                          values={[paginationType]}
-                          onChange={(e: any) => {
-                            const value = e.currentTarget?.values?.[0];
-                            if (value) updateFilterState({ paginationType: toPaginationType(value) });
-                          }}
-                          name="PaginationType"
-                        >
-                          <s-choice value={PaginationType.PAGES} selected={paginationType === PaginationType.PAGES}>Pages (1, 2, 3...)</s-choice>
-                          <s-choice value={PaginationType.LOAD_MORE} selected={paginationType === PaginationType.LOAD_MORE}>Load More Button</s-choice>
-                          <s-choice value={PaginationType.INFINITE_SCROLL} selected={paginationType === PaginationType.INFINITE_SCROLL}>Infinite Scroll</s-choice>
-                        </s-choice-list>
-                        <s-switch
-                          label="Show page info (e.g., 'Showing 1-24 of 120 products')"
-                          checked={showPageInfo}
-                          onChange={(e: any) => updateFilterState({ showPageInfo: e.target.checked })}
-                        />
-                        {showPageInfo && (
-                          <s-text-field
-                            label="Page Info Format (optional)"
-                            value={pageInfoFormat}
-                            onChange={(e: any) => updateFilterState({ pageInfoFormat: e.target.value })}
-                            placeholder="e.g., 'Showing {start}-{end} of {total}'"
+                        <s-heading>Pagination</s-heading>
+                        <s-stack direction="block" gap="base">
+                          <s-choice-list
+                            label="Pagination Type"
+                            values={[paginationType]}
+                            onChange={(e: any) => {
+                              const value = e.currentTarget?.values?.[0];
+                              if (value) updateFilterState({ paginationType: toPaginationType(value) });
+                            }}
+                            name="PaginationType"
+                          >
+                            <s-choice value={PaginationType.PAGES} selected={paginationType === PaginationType.PAGES}>Pages (1, 2, 3...)</s-choice>
+                            <s-choice value={PaginationType.LOAD_MORE} selected={paginationType === PaginationType.LOAD_MORE}>Load More Button</s-choice>
+                            <s-choice value={PaginationType.INFINITE_SCROLL} selected={paginationType === PaginationType.INFINITE_SCROLL}>Infinite Scroll</s-choice>
+                          </s-choice-list>
+                          <s-switch
+                            label="Show page info (e.g., 'Showing 1-24 of 120 products')"
+                            checked={showPageInfo}
+                            onChange={(e: any) => updateFilterState({ showPageInfo: e.target.checked })}
                           />
-                        )}
+                          {showPageInfo && (
+                            <s-text-field
+                              label="Page Info Format (optional)"
+                              value={pageInfoFormat}
+                              onChange={(e: any) => updateFilterState({ pageInfoFormat: e.target.value })}
+                              placeholder="e.g., 'Showing {start}-{end} of {total}'"
+                            />
+                          )}
+                        </s-stack>
                       </s-stack>
-                    </s-stack>
-                  </s-box>
+                    </s-box>
 
-                  {/* Section 4: Filter UI Options */}
-                  <s-box padding="base" borderWidth="base" borderRadius="base" background="subdued">
-                    <s-stack direction="block" gap="base">
-                      <s-heading>Filter UI Options</s-heading>
+                    {/* Section 4: Filter UI Options */}
+                    <s-box padding="base" borderWidth="base" borderRadius="base" background="subdued">
                       <s-stack direction="block" gap="base">
-                        <s-switch
-                          label="Show filter count badges"
-                          checked={showFilterCount}
-                          onChange={(e: any) => updateFilterState({ showFilterCount: e.target.checked })}
-                        />
-                        <s-switch
-                          label="Show active filters summary"
-                          checked={showActiveFilters}
-                          onChange={(e: any) => updateFilterState({ showActiveFilters: e.target.checked })}
-                        />
-                        <s-switch
-                          label="Show 'Reset Filters' button"
-                          checked={showResetButton}
-                          onChange={(e: any) => updateFilterState({ showResetButton: e.target.checked })}
-                        />
-                        <s-switch
-                          label="Show 'Clear All' button"
-                          checked={showClearAllButton}
-                          onChange={(e: any) => updateFilterState({ showClearAllButton: e.target.checked })}
-                        />
+                        <s-heading>Filter UI Options</s-heading>
+                        <s-stack direction="block" gap="base">
+                          <s-switch
+                            label="Show filter count badges"
+                            checked={showFilterCount}
+                            onChange={(e: any) => updateFilterState({ showFilterCount: e.target.checked })}
+                          />
+                          <s-switch
+                            label="Show active filters summary"
+                            checked={showActiveFilters}
+                            onChange={(e: any) => updateFilterState({ showActiveFilters: e.target.checked })}
+                          />
+                          <s-switch
+                            label="Show 'Reset Filters' button"
+                            checked={showResetButton}
+                            onChange={(e: any) => updateFilterState({ showResetButton: e.target.checked })}
+                          />
+                          <s-switch
+                            label="Show 'Clear All' button"
+                            checked={showClearAllButton}
+                            onChange={(e: any) => updateFilterState({ showClearAllButton: e.target.checked })}
+                          />
+                        </s-stack>
                       </s-stack>
-                    </s-stack>
-                  </s-box>
+                    </s-box>
 
-                  {/* Section 5: Product Display Options */}
-                  <s-box padding="base" borderWidth="base" borderRadius="base" background="subdued">
-                    <s-stack direction="block" gap="base">
-                      <s-heading>Product Display Options</s-heading>
+                    {/* Section 5: Product Display Options */}
+                    <s-box padding="base" borderWidth="base" borderRadius="base" background="subdued">
                       <s-stack direction="block" gap="base">
-                        <s-switch
-                          label="Display quick view"
-                          checked={displayQuickView}
-                          onChange={(e: any) => updateFilterState({ displayQuickView: e.target.checked })}
-                        />
-                        <s-switch
-                          label="Display items count"
-                          checked={displayItemsCount}
-                          onChange={(e: any) => updateFilterState({ displayItemsCount: e.target.checked })}
-                        />
-                        <s-switch
-                          label="Display variant instead of product"
-                          checked={displayVariantInsteadOfProduct}
-                          onChange={(e: any) => updateFilterState({ displayVariantInsteadOfProduct: e.target.checked })}
-                        />
-                        <s-switch
-                          label="Display collection image"
-                          checked={displayCollectionImage}
-                          onChange={(e: any) => updateFilterState({ displayCollectionImage: e.target.checked })}
-                        />
-                        <s-switch
-                          label="Hide out of stock items"
-                          checked={hideOutOfStockItems}
-                          onChange={(e: any) => updateFilterState({ hideOutOfStockItems: e.target.checked })}
-                        />
+                        <s-heading>Product Display Options</s-heading>
+                        <s-stack direction="block" gap="base">
+                          <s-switch
+                            label="Display quick view"
+                            checked={displayQuickView}
+                            onChange={(e: any) => updateFilterState({ displayQuickView: e.target.checked })}
+                          />
+                          <s-switch
+                            label="Display items count"
+                            checked={displayItemsCount}
+                            onChange={(e: any) => updateFilterState({ displayItemsCount: e.target.checked })}
+                          />
+                          <s-switch
+                            label="Display variant instead of product"
+                            checked={displayVariantInsteadOfProduct}
+                            onChange={(e: any) => updateFilterState({ displayVariantInsteadOfProduct: e.target.checked })}
+                          />
+                          <s-switch
+                            label="Display collection image"
+                            checked={displayCollectionImage}
+                            onChange={(e: any) => updateFilterState({ displayCollectionImage: e.target.checked })}
+                          />
+                          <s-switch
+                            label="Hide out of stock items"
+                            checked={hideOutOfStockItems}
+                            onChange={(e: any) => updateFilterState({ hideOutOfStockItems: e.target.checked })}
+                          />
+                        </s-stack>
                       </s-stack>
-                    </s-stack>
-                  </s-box>
+                    </s-box>
 
-                  {/* Section 6: Responsive Display Settings */}
-                  <s-box padding="base" borderWidth="base" borderRadius="base" background="subdued">
-                    <s-stack direction="block" gap="base">
-                      <s-heading>Responsive Display Settings</s-heading>
+                    {/* Section 6: Responsive Display Settings */}
+                    <s-box padding="base" borderWidth="base" borderRadius="base" background="subdued">
                       <s-stack direction="block" gap="base">
-                        <s-text-field
-                          label="On Laptop"
-                          value={onLaptop}
-                          onChange={(e: any) => updateFilterState({ onLaptop: e.target.value })}
-                          placeholder="e.g., sidebar, top-bar"
-                        />
-                        <s-text-field
-                          label="On Tablet"
-                          value={onTablet}
-                          onChange={(e: any) => updateFilterState({ onTablet: e.target.value })}
-                          placeholder="e.g., sidebar, top-bar"
-                        />
-                        <s-text-field
-                          label="On Mobile"
-                          value={onMobile}
-                          onChange={(e: any) => updateFilterState({ onMobile: e.target.value })}
-                          placeholder="e.g., sidebar, top-bar"
-                        />
+                        <s-heading>Responsive Display Settings</s-heading>
+                        <s-stack direction="block" gap="base">
+                          <s-text-field
+                            label="On Laptop"
+                            value={onLaptop}
+                            onChange={(e: any) => updateFilterState({ onLaptop: e.target.value })}
+                            placeholder="e.g., sidebar, top-bar"
+                          />
+                          <s-text-field
+                            label="On Tablet"
+                            value={onTablet}
+                            onChange={(e: any) => updateFilterState({ onTablet: e.target.value })}
+                            placeholder="e.g., sidebar, top-bar"
+                          />
+                          <s-text-field
+                            label="On Mobile"
+                            value={onMobile}
+                            onChange={(e: any) => updateFilterState({ onMobile: e.target.value })}
+                            placeholder="e.g., sidebar, top-bar"
+                          />
+                        </s-stack>
                       </s-stack>
-                    </s-stack>
-                  </s-box>
+                    </s-box>
 
-                </s-stack>
-              </div>
-            )}
-          </s-box>
-        </s-section>
+                  </s-stack>
+                </div>
+              )}
+            </s-box>
+          </s-section>
         )}
 
       </s-stack>

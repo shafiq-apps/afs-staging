@@ -232,9 +232,9 @@ export interface FilterFormProps {
       showClearAllButton?: boolean;
     };
   } | null;
-  shop: string;
-  graphqlEndpoint: string;
-  storefrontFilters: StorefrontFilterData | null;
+  shop?: string;
+  graphqlEndpoint?: string;
+  storefrontFilters?: StorefrontFilterData | null;
   onSavingChange?: (isSaving: boolean) => void;
 }
 

@@ -1,4 +1,5 @@
 import type {
+  ActionFunction,
   HeadersFunction,
   LoaderFunctionArgs,
 } from "react-router";
@@ -11,6 +12,7 @@ import FilterForm from "../components/FilterForm";
 import { useTranslation } from "app/utils/translations";
 import { FilterFormHandle, PageMode, PaginationType, SortOrder } from "app/utils/filter.enums";
 import { normalizeShopifyId } from "app/utils/normalize-shopify-id";
+import { graphqlRequest } from "app/graphql.server";
 
 /* ======================================================
    LOADER
@@ -186,6 +188,21 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     graphqlEndpoint: GRAPHQL_ENDPOINT,
     storefrontFilters: storefrontJson.data?.storefrontFilters ?? null,
   };
+};
+
+
+export const action: ActionFunction = async ({ request }) => {
+  const { payload } = await request.json();
+  
+  const { mode, id, mutation, variables, shop } = payload;
+
+  try {
+    const result = await graphqlRequest(mutation, {...variables, shop});
+
+    return { success: true, data: result }
+  } catch (err: any) {
+    return { success: false, error: err.message }
+  }
 };
 
 /* ======================================================
