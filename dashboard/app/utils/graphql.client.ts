@@ -28,8 +28,6 @@ export async function graphqlRequest(query: string, variables?: any): Promise<an
 
     const result = await response.json().then((data) => data).catch(() => ({}));
 
-    console.log("result", result)
-
     if (result.errors && result.errors.length > 0) {
       throw new Error(result.errors[0].message || 'GraphQL error');
     }

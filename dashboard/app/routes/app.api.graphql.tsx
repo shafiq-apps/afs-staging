@@ -2,8 +2,7 @@ import type { ActionFunctionArgs } from "react-router";
 import { authenticate } from "../shopify.server";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const GRAPHQL_ENDPOINT = process.env.GRAPHQL_ENDPOINT || "http://localhost:3554/graphql";
-
+  
   try {
     const { session } = await authenticate.admin(request);
     const shop = session?.shop || "";
@@ -16,6 +15,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           headers: { "Content-Type": "application/json" }
         }
       );
+    }
+
+    let endpoint = process.env.GRAPHQL_ENDPOINT || "http://localhost:3554/graphql";;
+    if (shop) {
+        endpoint = `?shop=${shop}`;
     }
 
     const body = await request.json();
@@ -37,7 +41,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       shop,
     };
 
-    const response = await fetch(GRAPHQL_ENDPOINT, {
+    const response = await fetch(endpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
