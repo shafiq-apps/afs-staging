@@ -5,13 +5,10 @@ import type {
 import { useLoaderData, useLocation } from "react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { boundary } from "@shopify/shopify-app-react-router/server";
-
 import { authenticate } from "../shopify.server";
-import FilterForm, {
-  PageMode,
-  type FilterFormHandle,
-} from "../components/FilterForm";
+import FilterForm from "../components/FilterForm";
 import { useTranslation } from "app/utils/translations";
+import { FilterFormHandle, PageMode } from "app/utils/filter.enums";
 
 /* ======================================================
    LOADER
@@ -132,16 +129,6 @@ export default function CreateFilterPage() {
       <s-link slot="breadcrumb-actions" href="/app/filters">
         Filters
       </s-link>
-
-      <s-button
-        slot="primary-action"
-        variant="primary"
-        onClick={handleSaveClick}
-        loading={isSaving}
-        disabled={isSaving}
-      >
-        Save
-      </s-button>
 
       <FilterForm
         ref={formRef}

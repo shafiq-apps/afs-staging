@@ -136,7 +136,8 @@ export const OPTION_TYPES = [
   "Tags",
   "Collection",
   "Metafield",
-] as const;
+  "Availability",
+];
 
 /**
  * Available target scopes

@@ -3,6 +3,8 @@
  * Enum values matching the GraphQL schema in app/modules/graphql/schema/filters.schema.ts
  */
 
+import { StorefrontFilterData } from "./filter.constants";
+
 export enum DisplayType {
   LIST = "LIST",
   DROPDOWN = "DROPDOWN",
@@ -76,6 +78,164 @@ export enum FilterOrientation {
 export enum DefaultView {
   GRID = "grid",
   LIST = "list",
+}
+
+export enum PageMode {
+  CREATE = "CREATE",
+  EDIT = "EDIT",
+}
+
+export interface FilterOption {
+  // Identification
+  handle: string;
+  position: number;
+  
+  // Basic Configuration
+  label: string;
+  optionType: string;
+  status: string;
+  
+  // Display Configuration
+  displayType: string;
+  selectionType: string;
+  
+  // Value Selection & Filtering
+  baseOptionType?: string;
+  allowedOptions: string[];
+  filterByPrefix: string[];
+  removePrefix: string[];
+  removeSuffix: string[];
+  replaceText: Array<{ from: string; to: string }>;
+  
+  // Value Grouping & Normalization
+  groupBySimilarValues: boolean;
+  valueNormalization: Record<string, string>;
+  
+  // Display Options
+  collapsed: boolean;
+  searchable: boolean;
+  showTooltip: boolean;
+  tooltipContent: string;
+  showCount: boolean;
+  
+  // Sorting
+  sortBy: string;
+  manualSortedValues: string[];
+  
+  // Advanced
+  textTransform: string;
+  paginationType: string;
+  groups: string[];
+  menus: string[];
+  showMenu: boolean;
+  
+  // Price-specific
+  minPrice?: number;
+  maxPrice?: number;
+  
+  // Performance Optimization: Pre-computed variant option keys
+  variantOptionKey?: string;
+}
+
+export interface CollectionReference {
+  label: string;
+  value: string;
+  id: string;
+  gid: string;
+}
+
+export interface MenuTreeNode {
+  id: string;
+  label: string;
+  children?: MenuTreeNode[];
+}
+
+
+export interface FilterFormHandle {
+  save: () => Promise<void>;
+}
+
+// Combined filter state type - all filter-related state in one object
+export interface FilterState {
+  title: string;
+  description: string;
+  status: FilterStatus;
+  filterType: string;
+  targetScope: TargetScope;
+  allowedCollections: CollectionReference[];
+  filterOptions: FilterOption[];
+  deploymentChannel: DeploymentChannel;
+  tags: string[];
+  filterOrientation: FilterOrientation;
+  defaultView: DefaultView;
+  showFilterCount: boolean;
+  showActiveFilters: boolean;
+  gridColumns: number;
+  showProductCount: boolean;
+  showSortOptions: boolean;
+  displayQuickView: boolean;
+  displayItemsCount: boolean;
+  displayVariantInsteadOfProduct: boolean;
+  displayCollectionImage: boolean;
+  hideOutOfStockItems: boolean;
+  onLaptop: string;
+  onTablet: string;
+  onMobile: string;
+  defaultSort: string;
+  paginationType: PaginationType;
+  itemsPerPage: number;
+  showPageInfo: boolean;
+  pageInfoFormat: string;
+  showResetButton: boolean;
+  showClearAllButton: boolean;
+}
+
+export interface FilterFormProps {
+  mode: PageMode;
+  initialFilter?: {
+    id?: string;
+    title: string;
+    description?: string;
+    status: string;
+    filterType?: string;
+    targetScope: string | TargetScope;
+    allowedCollections: CollectionReference[];
+    options: FilterOption[];
+    deploymentChannel?: string | DeploymentChannel;
+    tags?: string[];
+    settings?: {
+      displayQuickView?: boolean;
+      displayItemsCount?: boolean;
+      displayVariantInsteadOfProduct?: boolean;
+      defaultView?: string;
+      filterOrientation?: string;
+      displayCollectionImage?: boolean;
+      hideOutOfStockItems?: boolean;
+      onLaptop?: string;
+      onTablet?: string;
+      onMobile?: string;
+      productDisplay?: {
+        gridColumns?: number;
+        showProductCount?: boolean;
+        showSortOptions?: boolean;
+        defaultSort?: string;
+      };
+      pagination?: {
+        type?: string;
+        itemsPerPage?: number;
+        showPageInfo?: boolean;
+        pageInfoFormat?: string;
+      };
+      showFilterCount?: boolean;
+      showActiveFilters?: boolean;
+      showResetButton?: boolean;
+      showClearAllButton?: boolean;
+    };
+  } | null;
+  shop: string;
+  graphqlEndpoint: string;
+  storefrontFilters: StorefrontFilterData | null;
+  onSavingChange?: (isSaving: boolean) => void;
 }
 
 /**
