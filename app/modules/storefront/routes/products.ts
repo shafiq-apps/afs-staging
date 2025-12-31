@@ -9,12 +9,18 @@ import { HttpRequest } from '@core/http/http.types';
 import { validateShopDomain } from '@core/http/validation.middleware';
 import { rateLimit } from '@core/security/rate-limit.middleware';
 import { buildSearchInput } from '@modules/storefront/products.helper';
+import { RATE_LIMIT } from '@shared/constants/app.constant';
 import {
   getActiveFilterConfig,
   applyFilterConfigToInput
 } from '@shared/storefront/filter-config.helper';
 
-export const middleware = [validateShopDomain(), rateLimit()];
+export const middleware = [
+  validateShopDomain(),
+  rateLimit({
+    max: RATE_LIMIT['STOREFRONT.PRODUCTS']
+  })
+];
 
 export const GET = handler(async (req: HttpRequest) => {
   const shop = req.query.shop as string;

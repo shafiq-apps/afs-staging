@@ -4,6 +4,7 @@
  */
 
 import { HttpRequest, HttpResponse, HttpNextFunction } from '@core/http/http.types';
+import { RATE_LIMIT } from '@shared/constants/app.constant';
 import { createModuleLogger } from '@shared/utils/logger.util';
 
 const logger = createModuleLogger('rate-limit');
@@ -92,9 +93,9 @@ export function rateLimit(options: RateLimitOptions = {}) {
   validateOptions(options);
 
   const {
-    windowMs = 60000,
-    max = 100,
-    message = 'Too many requests, please try again later',
+    windowMs = RATE_LIMIT.DEFAULT.BUCKET_DURATION_MS,
+    max = RATE_LIMIT.DEFAULT.MAX,
+    message = 'Too many requests',
     skipSuccessfulRequests = false,
     skipFailedRequests = false,
     keyGenerator = (req: HttpRequest) => {

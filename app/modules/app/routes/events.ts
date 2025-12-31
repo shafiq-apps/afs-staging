@@ -18,6 +18,7 @@ import { IndexingLockService } from '@modules/indexing/indexing.lock.service';
 import { IndexerCheckpointService } from '@modules/indexing/indexing.checkpoint.service';
 import { SHOPS_INDEX_NAME } from '@shared/constants/es.constant';
 import { performUninstallCleanup } from '@modules/webhooks/webhooks.uninstall.service';
+import { RATE_LIMIT } from '@shared/constants/app.constant';
 
 const logger = createModuleLogger('app-events');
 
@@ -36,8 +37,8 @@ export const middleware = [
     },
   }),
   rateLimit({
-    windowMs: 60000,
-    max: 1000,
+    windowMs: RATE_LIMIT.EVENTS.BUCKET_DURATION_MS,
+    max: RATE_LIMIT.EVENTS.MAX,
     message: 'Too many event requests',
   }),
 ];

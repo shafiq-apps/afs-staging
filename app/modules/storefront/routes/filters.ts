@@ -23,10 +23,17 @@ import {
   applyFilterConfigToInput,
   formatFilterConfigForStorefront,
 } from '@shared/storefront/filter-config.helper';
+import { RATE_LIMIT } from '@shared/constants/app.constant';
 
 const logger = createModuleLogger('ProductFiltersRoute');
 
-export const middleware = [validateShopDomain(), rateLimit()];
+export const middleware = [
+  validateShopDomain(),
+  rateLimit({
+    max: RATE_LIMIT['STOREFRONT.FILTERS'],
+    message: "Too many storefront requests"
+  })
+];
 
 export const GET = handler(async (req: HttpRequest) => {
   // Shop is already validated and normalized by validation middleware

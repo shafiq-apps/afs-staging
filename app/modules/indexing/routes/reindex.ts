@@ -16,10 +16,17 @@ import { ShopsRepository } from '@modules/shops/shops.repository';
 import { getProductMapping } from '@shared/storefront/mapping';
 import { IndexingLockService } from '../indexing.lock.service';
 import { IndexerCheckpointService } from '../indexing.checkpoint.service';
+import { RATE_LIMIT } from '@shared/constants/app.constant';
 
 const logger = createModuleLogger('admin:reindex');
 
-export const middleware = [validateShopDomain(), rateLimit({ windowMs: 60000, max: 5 })];
+export const middleware = [
+  validateShopDomain(),
+  rateLimit({
+    windowMs: RATE_LIMIT.REINDEXING.BUCKET_DURATION_MS,
+    max: RATE_LIMIT.REINDEXING.MAX
+  })
+];
 
 export const POST = handler(async (req: HttpRequest) => {
   const shopParam = (req.query.shop as string) || (req.query.shop_domain as string);

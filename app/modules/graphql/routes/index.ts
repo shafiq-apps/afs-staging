@@ -6,10 +6,11 @@
 
 import { handler } from '@core/http/http.handler';
 import { HttpRequest } from '@core/http/http.types';
-import { validate } from '@core/http/validation.middleware';
+import { validate, validateShopDomain } from '@core/http/validation.middleware';
 import { rateLimit } from '@core/security/rate-limit.middleware';
 import { createModuleLogger } from '@shared/utils/logger.util';
 import { GraphQLRequest, GraphQLContext } from '../graphql.type';
+import { RATE_LIMIT } from '@shared/constants/app.constant';
 
 const logger = createModuleLogger('graphql-route');
 
@@ -17,6 +18,7 @@ const logger = createModuleLogger('graphql-route');
  * Middleware for GraphQL endpoint
  */
 export const middleware = [
+  validateShopDomain(),
   validate({
     body: {
       query: {
@@ -34,8 +36,7 @@ export const middleware = [
     },
   }),
   rateLimit({
-    windowMs: 60000, // 1 minute
-    max: 1000, // 1000 requests per minute
+    max: RATE_LIMIT['GRAPHQL.ENDPOINT'],
     message: 'Too many GraphQL requests',
   }),
 ];
