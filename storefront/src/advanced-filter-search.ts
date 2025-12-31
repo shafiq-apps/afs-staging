@@ -1059,7 +1059,9 @@ const UrlManager = {
 // ============================================================================
 
 const API = {
-  baseURL: 'http://localhost:3554', // Default, should be set via config
+  baseURL: 'https://fstaging.digitalcoo.com',
+  __v: 'v2.0.1',
+  __id: '31-12-2025',
   cache: new Map<string, ProductsResponseData>(),
   timestamps: new Map<string, number>(),
   pending: new Map<string, Promise<ProductsResponseData>>(),
@@ -1111,6 +1113,8 @@ const API = {
    * we only need to check if cpid exists and if it's not already in collection filter handle
    */
   shouldSendCpid(filters: FiltersState): boolean {
+    return State.selectedCollection && State.selectedCollection.id?true:false;
+
     if (!State.selectedCollection?.id) {
       return false; // No cpid to send
     }
@@ -2660,7 +2664,7 @@ const clearCpidIfFiltersPresent = (filters: FiltersState): void => {
   });
 
   if (hasFilters) {
-    State.selectedCollection.id = null;
+    // State.selectedCollection.id = null;
     Log.debug('Filters present, cleared cpid', { filters });
   }
 };
@@ -2690,7 +2694,7 @@ const Filters = {
 
       // If unchecking (removing) and the value matches cpid, clear cpid
       if (isActive && String(normalized) === String(originalCpid)) {
-        State.selectedCollection.id = null;
+        // State.selectedCollection.id = null;
         Log.debug('Collection filter unchecked (was cpid), cleared cpid', {
           handle,
           value: normalized,
@@ -2699,7 +2703,7 @@ const Filters = {
       }
       // Also check if cpid is no longer in the filter values after toggle
       else if (!filterValues.some(v => String(v) === String(originalCpid))) {
-        State.selectedCollection.id = null;
+        // State.selectedCollection.id = null;
         Log.debug('Collection filter toggled, cpid no longer in values, cleared cpid', {
           handle,
           value: normalized,
@@ -2717,7 +2721,7 @@ const Filters = {
     }
 
     // Clear cpid if filters are present (other than page, sort, size, limit)
-    clearCpidIfFiltersPresent(State.filters);
+    // clearCpidIfFiltersPresent(State.filters);
 
     State.pagination.page = 1;
 
@@ -2771,7 +2775,7 @@ const Filters = {
     }
 
     // Clear cpid if filters are present (other than page, sort, size, limit)
-    clearCpidIfFiltersPresent(State.filters);
+    // clearCpidIfFiltersPresent(State.filters);
 
     State.pagination.page = 1;
 
@@ -3142,7 +3146,7 @@ const Events = {
         State.filters = { vendor: [], productType: [], tags: [], collections: [], search: '', priceRange: null };
         // Clear cpid when clearing all filters
         if (State.selectedCollection?.id) {
-          State.selectedCollection.id = null;
+          // State.selectedCollection.id = null;
           Log.debug('Clear All: cleared cpid');
         }
         State.pagination.page = 1;
@@ -3172,7 +3176,7 @@ const Events = {
         // Special-case: applied chips for non-toggle filters
         if ($.equals(key, FilterKey.CPID)) {
           if (State.selectedCollection?.id) {
-            State.selectedCollection.id = null;
+            // State.selectedCollection.id = null;
             Log.debug('cpid removed, cleared selectedCollection');
           }
           UrlManager.update(State.filters, State.pagination, State.sort);
@@ -3273,7 +3277,7 @@ const Events = {
             const cpidInValues = Array.isArray(filterValues) &&
               filterValues.some(v => String(v) === String(originalCpid));
             if (cpidInValues) {
-              State.selectedCollection.id = null;
+              // State.selectedCollection.id = null;
               Log.debug('Collection filter cleared (contained cpid), cleared cpid', {
                 handle,
                 cpid: originalCpid
@@ -3736,7 +3740,7 @@ const AFS: AFSInterface = {
       });
 
       // Clear cpid if filters are present (other than page, sort, size, limit)
-      clearCpidIfFiltersPresent(State.filters);
+      // clearCpidIfFiltersPresent(State.filters);
 
       Log.info('Loading filters...', { shop: State.shop, filters: State.filters });
       let filtersData: FiltersResponseData;
