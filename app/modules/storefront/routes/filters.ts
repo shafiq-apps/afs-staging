@@ -30,7 +30,8 @@ const logger = createModuleLogger('ProductFiltersRoute');
 export const middleware = [
   validateShopDomain(),
   rateLimit({
-    max: RATE_LIMIT['STOREFRONT.FILTERS'],
+    max: RATE_LIMIT.STOREFRONT_FILTERS.MAX,
+    windowMs: RATE_LIMIT.STOREFRONT_FILTERS.BUCKET_DURATION_MS,
     message: "Too many storefront requests"
   })
 ];

@@ -9,6 +9,7 @@ import { boundary } from "@shopify/shopify-app-react-router/server";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { useTranslation } from "../utils/translations";
 import { TargetScope } from "../utils/filter.enums";
+import { graphqlRequest } from "app/graphql.server";
 
 interface CollectionReference {
   label: string;
@@ -36,14 +37,13 @@ interface FiltersData {
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  await authenticate.admin(request);
+  const { session } = await authenticate.admin(request);
 
   // GraphQL endpoint URL - server-side only
   const GRAPHQL_ENDPOINT = process.env.GRAPHQL_ENDPOINT || "http://localhost:3554/graphql";
 
   try {
     // Get shop from session or request
-    const { session } = await authenticate.admin(request);
     const shop = session?.shop || "";
 
     // GraphQL query to fetch all filters
@@ -69,18 +69,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       }
     `;
 
-    const response = await fetch(GRAPHQL_ENDPOINT, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        query,
-        variables: { shop },
-      }),
-    });
-
-    const result = await response.json();
+    const result = await graphqlRequest(query, { shop });
 
     if (result.errors) {
       return {
@@ -90,8 +79,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     }
 
     return {
-      filters: result.data?.filters?.filters || [],
-      total: result.data?.filters?.total || 0,
+      filters: result?.filters?.filters || [],
+      total: result?.filters?.total || 0,
       error: undefined,
       shop,
     } as FiltersData;
@@ -227,7 +216,7 @@ export default function FiltersPage() {
         },
         body: JSON.stringify({
           mutation,
-          variables: { id: filterToDelete.id },
+          variables: { id: filterToDelete.id, shop },
         }),
       });
 

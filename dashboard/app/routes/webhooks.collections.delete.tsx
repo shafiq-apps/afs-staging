@@ -58,6 +58,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           collectionHandle,
           isBestSellerCollection,
         },
+        shop
       };
 
       const result = await graphqlRequest(mutation, variables);

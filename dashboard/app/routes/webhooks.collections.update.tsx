@@ -60,6 +60,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           isBestSellerCollection,
           sortOrderUpdated: payload?.sort_order !== undefined,
         },
+        shop
       };
 
       const result = await graphqlRequest(mutation, variables);

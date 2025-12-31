@@ -8,6 +8,7 @@ import { securityHeaders } from './security-headers.middleware';
 import { requestSizeLimit } from './request-size.middleware';
 import { rateLimit, getClientIp } from './rate-limit.middleware';
 import { createModuleLogger } from '@shared/utils/logger.util';
+import { RATE_LIMIT } from '@shared/constants/app.constant';
 
 const logger = createModuleLogger('security');
 
@@ -18,8 +19,8 @@ export function defaultSecurityMiddleware() {
   const securityHeadersMw = securityHeaders();
   const requestSizeLimitMw = requestSizeLimit();
   const rateLimitMw = rateLimit({
-    windowMs: 60000,
-    max: 1000,
+    windowMs: RATE_LIMIT.DEFAULT.BUCKET_DURATION_MS,
+    max: RATE_LIMIT.DEFAULT.MAX,
     message: 'API rate limit exceeded, please try again later',
     keyGenerator: (req: HttpRequest) => {
       const ip = getClientIp(req);

@@ -47,6 +47,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           productId: payload?.id?.toString(),
           productGid: payload?.admin_graphql_api_id,
         },
+        shop
       };
 
       const result = await graphqlRequest(mutation, variables);

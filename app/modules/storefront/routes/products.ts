@@ -18,7 +18,9 @@ import {
 export const middleware = [
   validateShopDomain(),
   rateLimit({
-    max: RATE_LIMIT['STOREFRONT.PRODUCTS']
+    max: RATE_LIMIT.STOREFRONT_PRODUCTS.MAX,
+    windowMs: RATE_LIMIT.STOREFRONT_PRODUCTS.BUCKET_DURATION_MS,
+    message: "Too many storefront requests"
   })
 ];
 

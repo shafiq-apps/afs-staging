@@ -50,6 +50,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           productTitle: payload?.title,
           productHandle: payload?.handle,
         },
+        shop
       };
 
       const result = await graphqlRequest(mutation, variables);

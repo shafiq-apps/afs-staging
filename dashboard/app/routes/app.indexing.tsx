@@ -9,6 +9,7 @@ import { boundary } from "@shopify/shopify-app-react-router/server";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { useTranslation } from "../utils/translations";
 import { useShop } from "../contexts/ShopContext";
+import { graphqlRequest } from "app/graphql.server";
 
 interface IndexingFailedItem {
   id: string;
@@ -33,15 +34,13 @@ interface IndexingStatus {
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  await authenticate.admin(request);
+  const { session } = await authenticate.admin(request);
 
   // GraphQL endpoint URL - server-side only
-  const GRAPHQL_ENDPOINT =
-    process.env.GRAPHQL_ENDPOINT || "http://localhost:3554/graphql";
+  const GRAPHQL_ENDPOINT = process.env.GRAPHQL_ENDPOINT || "http://localhost:3554/graphql";
 
   try {
     // Get shop from session
-    const { session } = await authenticate.admin(request);
     const shop = session?.shop || "";
 
     // GraphQL query to fetch indexing status
@@ -69,18 +68,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       }
     `;
 
-    const response = await fetch(GRAPHQL_ENDPOINT, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        query,
-        variables: { shop },
-      }),
-    });
-
-    const result = await response.json();
+    const result = await graphqlRequest(query,{ shop });
 
     if (result.errors) {
       // Return default status if query fails
@@ -99,8 +87,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
     return {
       indexingStatus: {
-        ...result.data?.indexingStatus,
-        shop: result.data?.indexingStatus?.shop || shop,
+        ...result?.indexingStatus,
+        shop: result?.indexingStatus?.shop || shop,
       } as IndexingStatus,
       error: undefined,
     };
@@ -177,8 +165,10 @@ export default function IndexingPage() {
         credentials: "same-origin",
         signal: abortController.signal,
         body: JSON.stringify({
-          mutation: query, // API route accepts both queries and mutations in the 'mutation' field
-          variables: {},
+          mutation: query,
+          variables: {
+            shop
+          },
         }),
       });
 
@@ -210,7 +200,7 @@ export default function IndexingPage() {
     }
   };
 
-  const startPolling = (shop: string, delay: number = 0) => {
+  const startPolling = (shop: string, delay: number = 3000) => {
     if (isPolling) return; // Already polling
 
     // Reset polling attempts counter
@@ -388,7 +378,9 @@ export default function IndexingPage() {
         credentials: "same-origin",
         body: JSON.stringify({
           mutation,
-          variables: {},
+          variables: {
+            shop
+          },
         }),
       });
 
@@ -409,9 +401,9 @@ export default function IndexingPage() {
       if (result.reindexProducts) {
         if (result.reindexProducts.success) {
           shopify.toast.show(result.reindexProducts.message || "Reindexing started successfully. Monitoring progress...");
-          // Start polling after 3 seconds delay
+          // Start polling after 5 seconds delay
           if (shop) {
-            startPolling(shop, 3000); // 3 seconds delay
+            startPolling(shop, 5000); // 5 seconds delay
           } else {
             // If no shop, try to get it from the current status or reload
             setTimeout(() => {
@@ -424,9 +416,9 @@ export default function IndexingPage() {
         }
       } else {
         shopify.toast.show("Reindexing started successfully. Monitoring progress...");
-        // Start polling after 3 seconds delay
+        // Start polling after 5 seconds delay
         if (shop) {
-          startPolling(shop, 3000); // 3 seconds delay
+          startPolling(shop, 5000); // 5 seconds delay
         } else {
           setTimeout(() => {
             navigate("/app/indexing", { replace: true });

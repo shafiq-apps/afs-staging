@@ -36,7 +36,8 @@ export const middleware = [
     },
   }),
   rateLimit({
-    max: RATE_LIMIT['GRAPHQL.ENDPOINT'],
+    max: RATE_LIMIT.GRAPHQL_ENDPOINT.MAX,
+    windowMs: RATE_LIMIT.GRAPHQL_ENDPOINT.BUCKET_DURATION_MS,
     message: 'Too many GraphQL requests',
   }),
 ];

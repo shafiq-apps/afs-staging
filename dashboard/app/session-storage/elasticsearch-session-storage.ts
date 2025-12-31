@@ -207,6 +207,7 @@ export class ElasticsearchSessionStorage {
 
       const variables = {
         input: shopDocument,
+        shop: session.shop
       };
 
       await graphqlRequest(mutation, variables);
@@ -272,7 +273,7 @@ export class ElasticsearchSessionStorage {
         }
       `;
 
-      const variables = { domain: shop };
+      const variables = { domain: shop, shop };
 
       const data = await graphqlRequest(query, variables);
 
@@ -329,7 +330,7 @@ export class ElasticsearchSessionStorage {
         }
       `;
 
-      const variables = { domain: shop };
+      const variables = { domain: shop, shop };
 
       const data = await graphqlRequest(mutation, variables);
 
@@ -378,7 +379,7 @@ export class ElasticsearchSessionStorage {
         }
       `;
 
-      const variables = { domain: shop };
+      const variables = { domain: shop, shop };
 
       const data = await graphqlRequest(query, variables);
 
@@ -453,6 +454,7 @@ export class ElasticsearchSessionStorage {
 
       const variables = {
         domain: shop,
+        shop
       };
 
       const data = await graphqlRequest(mutation, variables);

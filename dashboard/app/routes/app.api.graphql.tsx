@@ -2,7 +2,7 @@ import type { ActionFunctionArgs } from "react-router";
 import { authenticate } from "../shopify.server";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  
+
   try {
     const { session } = await authenticate.admin(request);
     const shop = session?.shop || "";
@@ -10,7 +10,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     if (!shop) {
       return new Response(
         JSON.stringify({ error: "Shop information is missing" }),
-        { 
+        {
           status: 400,
           headers: { "Content-Type": "application/json" }
         }
@@ -19,7 +19,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     let endpoint = process.env.GRAPHQL_ENDPOINT || "http://localhost:3554/graphql";;
     if (shop) {
-        endpoint = endpoint+`?shop=${shop}`;
+      endpoint = endpoint + `?shop=${shop}`;
     }
 
     const body = await request.json();
@@ -28,7 +28,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     if (!mutation || !variables) {
       return new Response(
         JSON.stringify({ error: "Mutation and variables are required" }),
-        { 
+        {
           status: 400,
           headers: { "Content-Type": "application/json" }
         }
@@ -56,7 +56,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       const errorText = await response.text();
       return new Response(
         JSON.stringify({ error: `GraphQL request failed: ${response.statusText}` }),
-        { 
+        {
           status: response.status,
           headers: { "Content-Type": "application/json" }
         }
@@ -67,11 +67,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     if (result.errors) {
       return new Response(
-        JSON.stringify({ 
+        JSON.stringify({
           error: result.errors[0]?.message || "GraphQL mutation failed",
-          errors: result.errors 
+          errors: result.errors
         }),
-        { 
+        {
           status: 400,
           headers: { "Content-Type": "application/json" }
         }
@@ -80,7 +80,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     return new Response(
       JSON.stringify(result.data),
-      { 
+      {
         status: 200,
         headers: { "Content-Type": "application/json" }
       }
@@ -88,7 +88,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   } catch (error: any) {
     return new Response(
       JSON.stringify({ error: error.message || "Internal server error" }),
-      { 
+      {
         status: 500,
         headers: { "Content-Type": "application/json" }
       }

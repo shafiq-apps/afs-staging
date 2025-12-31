@@ -165,7 +165,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   /* ---------------- DB SUBSCRIPTION ---------------- */
   let subscriptionResult = await graphqlRequest<{ subscription: Subscription; }>(FETCH_CURRENT_SUBSCRIPTION, { shop });
 
-  const isSubscriptionActiveInDB = subscriptionResult.subscription?.status === AppSubscriptionStatus.ACTIVE;
+  const isSubscriptionActiveInDB = subscriptionResult?.subscription?.status === AppSubscriptionStatus.ACTIVE;
 
   /* ---------------- SYNC DB WITH SHOPIFY ---------------- */
   if (hasActiveSubscription && !isSubscriptionActiveInDB) {
@@ -192,7 +192,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     shop,
     shopData,
     isNewInstallation,
-    subscription: subscriptionResult.subscription ?? null,
+    subscription: subscriptionResult?.subscription ?? null,
     activeSubscriptions,
   };
 };

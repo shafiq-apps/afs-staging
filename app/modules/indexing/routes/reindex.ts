@@ -24,7 +24,8 @@ export const middleware = [
   validateShopDomain(),
   rateLimit({
     windowMs: RATE_LIMIT.REINDEXING.BUCKET_DURATION_MS,
-    max: RATE_LIMIT.REINDEXING.MAX
+    max: RATE_LIMIT.REINDEXING.MAX,
+    message: "Too many reindexing requests"
   })
 ];
 
