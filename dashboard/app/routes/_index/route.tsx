@@ -35,7 +35,7 @@ export default function App() {
 
     if (regex.test(trimmed)) {
       setIsValid(true);
-      setMessage("Looks good ✅");
+      setMessage("Looks good");
     } else {
       setIsValid(false);
       if (!trimmed.includes(".myshopify.com")) {
