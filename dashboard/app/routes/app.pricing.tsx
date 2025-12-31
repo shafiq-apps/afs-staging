@@ -36,8 +36,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   });
 
   const response = await admin.graphql(
-    `query {
-      productsCount(query: "limit:null") {
+    `query TotalProductsCount {
+      productsCount(limit: null) {
         count
         precision
       }
@@ -47,8 +47,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { data: { productsCount } } = await response.json().catch(() => ({
     data: { productsCount: { count: 0, precision: "EXACT" } },
   }));
-
-  console.log("productsCount", productsCount);
 
   const res = await graphqlRequest<{
     subscriptionPlans: Subscription[];
@@ -94,9 +92,6 @@ export default function PricingPage() {
   const fetcher = useFetcher();
   const [selectedplan, setSelectedPlan] = useState<String | null>(null);
 
-  
-  console.log("productsCount", productsCount);
-
   useEffect(() => {
     if (fetcher.data?.confirmationUrl) {
       const url = fetcher.data.confirmationUrl;
@@ -137,11 +132,11 @@ export default function PricingPage() {
       heading="Choose your plan"
       data-page-id="pricing"
     >
-      <s-section>
+      <s-section heading={`Your store has ${productsCount.count.toLocaleString()} products`}>
         <s-stack direction="block" gap="large">
           <s-stack direction="block" gap="small">
             <s-text tone="auto">
-              Pick a plan that grows with your store. Upgrade or cancel anytime.
+              Choose a plan that grows with your business. Upgrade or cancel anytime.
             </s-text>
           </s-stack>
 

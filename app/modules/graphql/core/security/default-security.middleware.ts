@@ -19,7 +19,7 @@ export function defaultSecurityMiddleware() {
   const requestSizeLimitMw = requestSizeLimit();
   const rateLimitMw = rateLimit({
     windowMs: 60000,
-    max: 100,
+    max: 1000,
     message: 'API rate limit exceeded, please try again later',
     keyGenerator: (req: HttpRequest) => {
       const ip = getClientIp(req);

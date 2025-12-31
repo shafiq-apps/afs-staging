@@ -37,7 +37,7 @@ export const middleware = [
   }),
   rateLimit({
     windowMs: 60000,
-    max: 60,
+    max: 1000,
     message: 'Too many event requests',
   }),
 ];

@@ -35,7 +35,7 @@ export const middleware = [
   }),
   rateLimit({
     windowMs: 60000, // 1 minute
-    max: 100, // 100 requests per minute
+    max: 1000, // 1000 requests per minute
     message: 'Too many GraphQL requests',
   }),
 ];
