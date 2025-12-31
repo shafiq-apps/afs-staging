@@ -48,6 +48,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     data: { productsCount: { count: 0, precision: "EXACT" } },
   }));
 
+  console.log("productsCount", productsCount);
+
   const res = await graphqlRequest<{
     subscriptionPlans: Subscription[];
     subscription: Subscription;
@@ -91,6 +93,9 @@ export default function PricingPage() {
   const location = useLocation();
   const fetcher = useFetcher();
   const [selectedplan, setSelectedPlan] = useState<String | null>(null);
+
+  
+  console.log("productsCount", productsCount);
 
   useEffect(() => {
     if (fetcher.data?.confirmationUrl) {

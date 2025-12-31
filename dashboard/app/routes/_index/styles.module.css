@@ -2,8 +2,8 @@
    PAGE ROOT
 ========================= */
 body {
-  margin: 0px;
-  padding: 0px;
+  margin: 0;
+  padding: 0;
 }
 
 .index {
@@ -14,6 +14,12 @@ body {
   position: relative;
   overflow: hidden;
   font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  background:
+    radial-gradient(circle at 15% 20%, #ff0303, transparent 40%),
+    radial-gradient(circle at 85% 25%, #01de52, transparent 40%),
+    radial-gradient(circle at 70% 75%, #015ef4, transparent 45%),
+    radial-gradient(circle at 30% 70%, #a10352, transparent 40%),
+    radial-gradient(circle at 50% 40%, #6b05ca, transparent 45%);
 }
 
 /* =========================
@@ -24,11 +30,11 @@ body {
   position: absolute;
   inset: -50%;
   background:
-    radial-gradient(circle at 15% 20%, #ef4444, transparent 40%), 
-    radial-gradient(circle at 85% 25%, #22c55e, transparent 40%), 
-    radial-gradient(circle at 70% 75%, #3b82f6, transparent 45%), 
-    radial-gradient(circle at 30% 70%, #eab308, transparent 40%), 
-    radial-gradient(circle at 50% 40%, #a855f7, transparent 45%);
+    radial-gradient(circle at 15% 20%, #f14a4a, transparent 40%),
+    radial-gradient(circle at 85% 25%, #38f47d, transparent 40%),
+    radial-gradient(circle at 70% 75%, #2f7af3, transparent 45%),
+    radial-gradient(circle at 30% 70%, #738b03, transparent 40%),
+    radial-gradient(circle at 50% 40%, #5d00b4, transparent 45%);
   animation: gradientMove 26s linear infinite;
   filter: blur(70px);
   z-index: 0;
@@ -57,11 +63,16 @@ body {
   opacity: 0.6;
   user-select: none;
   pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+
+.tag.attached {
+  animation: none !important;
 }
 
 @keyframes floatTag {
   0%   { transform: translateY(0) translateX(0); opacity:0; }
-  10%  { opacity:0.6; }
+  10%  { opacity:0.5; }
   50%  { transform: translateY(-100px) translateX(50px); opacity:0.8; }
   100% { transform: translateY(-200px) translateX(-50px); opacity:0; }
 }
@@ -100,7 +111,7 @@ body {
   max-width: 420px;
   padding: 3rem 2.5rem;
   border-radius: 1.5rem;
-  background: rgba(255,255,255,0.9);
+  background: rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(16px);
   box-shadow: 0 25px 50px rgba(0,0,0,0.25);
   display: grid;
