@@ -61,14 +61,16 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
 
   const apiKey = process.env.SHOPIFY_API_KEY ?? "";
+
   const shop = session?.shop ?? "";
 
   let shopData: ShopLocaleData | null = null;
   let isNewInstallation = false;
 
-  /* ---------------- SHOP LOCALE DATA ---------------- */
   try {
-    const response = await admin.graphql(`
+    /* ---------------- SHOP LOCALE DATA ---------------- */
+    try {
+      const response = await admin.graphql(`
       query GetShopLocaleData {
         shop {
           ianaTimezone
@@ -90,111 +92,116 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       }
     `);
 
-    const result = await response.json();
+      const result = await response.json();
 
-    if (result?.data) {
-      const primaryLocale =
-        result.data.shopLocales?.find((l: any) => l.primary)?.locale ?? "en";
+      if (result?.data) {
+        const primaryLocale =
+          result.data.shopLocales?.find((l: any) => l.primary)?.locale ?? "en";
 
-      shopData = {
-        ianaTimezone: result.data.shop?.ianaTimezone ?? "UTC",
-        timezoneAbbreviation: result.data.shop?.timezoneAbbreviation ?? "UTC",
-        currencyCode: result.data.shop?.currencyCode ?? "USD",
-        currencyFormats: result.data.shop?.currencyFormats ?? {},
-        primaryLocale,
-        locales: result.data.shopLocales ?? [],
-        shopName: result.data.shop?.name,
-        myshopifyDomain: result.data.shop?.myshopifyDomain,
-      };
+        shopData = {
+          ianaTimezone: result.data.shop?.ianaTimezone ?? "UTC",
+          timezoneAbbreviation: result.data.shop?.timezoneAbbreviation ?? "UTC",
+          currencyCode: result.data.shop?.currencyCode ?? "USD",
+          currencyFormats: result.data.shop?.currencyFormats ?? {},
+          primaryLocale,
+          locales: result.data.shopLocales ?? [],
+          shopName: result.data.shop?.name,
+          myshopifyDomain: result.data.shop?.myshopifyDomain,
+        };
+      }
+    } catch {
+      // Fail silently — defaults will be used
     }
-  } catch {
-    // Fail silently — defaults will be used
-  }
 
-  /* ---------------- INSTALLATION CHECK ---------------- */
-  if (shop) {
-    try {
-      const GRAPHQL_ENDPOINT =
-        process.env.GRAPHQL_ENDPOINT ?? "http://localhost:3554/graphql";
-
-      const response = await fetch(GRAPHQL_ENDPOINT, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          query: `
-            query GetShop($domain: String!) {
-              shop(domain: $domain) {
+    /* ---------------- INSTALLATION CHECK ---------------- */
+    if (shop) {
+      try {
+        const gquery = `
+            query GetShop($shop: String!) {
+              shop(domain: $shop) {
                 installedAt
               }
             }
-          `,
-          variables: { domain: shop },
-        }),
-      });
+          `;
+        const response = await graphqlRequest(gquery, { shop }).catch(e => { });
 
-      const result = await response.json();
-      const installedAt = result?.data?.shop?.installedAt;
+        const installedAt = response?.shop?.installedAt;
 
-      isNewInstallation =
-        !installedAt ||
-        new Date(installedAt).getTime() > Date.now() - 60_000;
-    } catch {
-      isNewInstallation = false;
-    }
-  }
-
-  /* ---------------- SHOPIFY SUBSCRIPTIONS ---------------- */
-  const shopifyResponse = await admin.graphql(`
-    query GetRecurringApplicationCharges {
-      currentAppInstallation {
-        activeSubscriptions {
-          id
-          name
-          status
-        }
+        isNewInstallation = !installedAt || new Date(installedAt).getTime() > Date.now() - 60000;
+      } catch {
+        isNewInstallation = false;
       }
     }
-  `);
 
-  const shopifyJson = await shopifyResponse.json();
+    /* ---------------- SHOPIFY SUBSCRIPTIONS ---------------- */
+    const shopifyResponse = await admin.graphql(`
+      query GetRecurringApplicationCharges {
+        currentAppInstallation {
+          activeSubscriptions {
+            id
+            name
+            status
+          }
+        }
+      }
+    `);
 
-  const activeSubscriptions: ShopifyActiveSubscriptions[] = shopifyJson?.data?.currentAppInstallation?.activeSubscriptions ?? [];
+    const shopifyJson = await shopifyResponse.json();
 
-  const hasActiveSubscription = activeSubscriptions.some(sub => sub.status === AppSubscriptionStatus.ACTIVE);
+    const activeSubscriptions: ShopifyActiveSubscriptions[] = shopifyJson?.data?.currentAppInstallation?.activeSubscriptions ?? [];
 
-  /* ---------------- DB SUBSCRIPTION ---------------- */
-  let subscriptionResult = await graphqlRequest<{ subscription: Subscription; }>(FETCH_CURRENT_SUBSCRIPTION, { shop });
+    const hasActiveSubscription = activeSubscriptions.some(sub => sub.status === AppSubscriptionStatus.ACTIVE);
 
-  const isSubscriptionActiveInDB = subscriptionResult?.subscription?.status === AppSubscriptionStatus.ACTIVE;
+    /* ---------------- DB SUBSCRIPTION ---------------- */
+    let subscriptionResult = await graphqlRequest<{ subscription: Subscription; }>(FETCH_CURRENT_SUBSCRIPTION, { shop }).catch(e => {
+      return {
+        subscription: null,
+      }
+    });
 
-  /* ---------------- SYNC DB WITH SHOPIFY ---------------- */
-  if (hasActiveSubscription && !isSubscriptionActiveInDB) {
-    const activeChargeId = activeSubscriptions.find(
-      sub => sub.status === AppSubscriptionStatus.ACTIVE
-    )?.id;
+    const isSubscriptionActiveInDB = subscriptionResult?.subscription?.status === AppSubscriptionStatus.ACTIVE;
 
-    if (activeChargeId) {
-      await graphqlRequest(UPDATE_SUBSCRIPTION_STATUS_MUTATION, {
-        id: activeChargeId,
-        shop,
-      });
+    /* ---------------- SYNC DB WITH SHOPIFY ---------------- */
+    if (hasActiveSubscription && !isSubscriptionActiveInDB) {
+      const activeChargeId = activeSubscriptions.find(
+        sub => sub.status === AppSubscriptionStatus.ACTIVE
+      )?.id;
 
-      // Correct refetch (overwrite previous result)
-      subscriptionResult = await graphqlRequest<{
-        subscription: Subscription;
-      }>(FETCH_CURRENT_SUBSCRIPTION, { shop });
+      if (activeChargeId) {
+        await graphqlRequest(UPDATE_SUBSCRIPTION_STATUS_MUTATION, {
+          id: activeChargeId,
+          shop,
+        });
+
+        // Correct refetch (overwrite previous result)
+        subscriptionResult = await graphqlRequest<{ subscription: Subscription; }>(FETCH_CURRENT_SUBSCRIPTION, { shop }).catch(e =>{
+          return {
+            subscription: null
+          }
+        });
+      }
     }
-  }
+    /* ---------------- RETURN ---------------- */
+    return {
+      apiKey,
+      shop,
+      shopData,
+      isNewInstallation,
+      subscription: subscriptionResult?.subscription ?? null,
+      activeSubscriptions,
+    };
 
-  /* ---------------- RETURN ---------------- */
-  return {
-    apiKey,
-    shop,
-    shopData,
-    isNewInstallation,
-    subscription: subscriptionResult?.subscription ?? null,
-    activeSubscriptions,
-  };
+  } catch (error) {
+    console.log(error);
+    return {
+      apiKey,
+      shop,
+      shopData,
+      isNewInstallation,
+      subscription: null,
+      activeSubscriptions: [],
+    };
+  }
 };
 
 export default function App() {
@@ -269,29 +276,29 @@ export default function App() {
           )}
           <s-link href="/app/pricing">{t("navigation.pricing")}</s-link>
         </s-app-nav>
-          {
-            !hasActiveShopifySubscription && (
-              <s-page >
-                <s-banner heading="Manage Your Subscription" tone="warning">
-                    Please keep your subscription plan active to continue using the application.
-                    <s-button
-                      slot="secondary-actions"
-                      variant="secondary"
-                      href="/app/pricing"
-                    >
-                      View pricing
-                    </s-button>
-                    <s-button
-                      slot="secondary-actions"
-                      variant="secondary"
-                      href="javascript:void(0)"
-                    >
-                      Read more
-                    </s-button>
-                  </s-banner>
-              </s-page>
-            )
-          }
+        {
+          !hasActiveShopifySubscription && (
+            <s-page >
+              <s-banner heading="Manage Your Subscription" tone="warning">
+                Please keep your subscription plan active to continue using the application.
+                <s-button
+                  slot="secondary-actions"
+                  variant="secondary"
+                  href="/app/pricing"
+                >
+                  View pricing
+                </s-button>
+                <s-button
+                  slot="secondary-actions"
+                  variant="secondary"
+                  href="javascript:void(0)"
+                >
+                  Read more
+                </s-button>
+              </s-banner>
+            </s-page>
+          )
+        }
         <Outlet />
       </ShopProvider>
     </AppProvider>

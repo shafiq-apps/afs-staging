@@ -20,7 +20,7 @@ export const middleware = [
   rateLimit({
     max: RATE_LIMIT.STOREFRONT_PRODUCTS.MAX,
     windowMs: RATE_LIMIT.STOREFRONT_PRODUCTS.BUCKET_DURATION_MS,
-    message: "Too many storefront requests"
+    message: "Too many storefront request"
   })
 ];
 

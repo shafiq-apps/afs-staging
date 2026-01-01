@@ -1061,7 +1061,7 @@ const UrlManager = {
 const API = {
   baseURL: 'https://fstaging.digitalcoo.com/storefront', // Default, should be set via config
   __v: 'v2.0.1',
-  __id: '31-12-2025',
+  __id: '01-01-2026',
   cache: new Map<string, ProductsResponseData>(),
   timestamps: new Map<string, number>(),
   pending: new Map<string, Promise<ProductsResponseData>>(),

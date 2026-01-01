@@ -51,7 +51,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const res = await graphqlRequest<{
     subscriptionPlans: Subscription[];
     subscription: Subscription;
-  }>(FETCH_BILLING_PLANS_AND_SUBSCRIPTION, { shop });
+  }>(FETCH_BILLING_PLANS_AND_SUBSCRIPTION, { shop }).catch(e => {
+    return {
+      subscriptionPlans: [], subscription: null
+    }
+  });
 
   return {
     subscriptionPlans: res.subscriptionPlans,
