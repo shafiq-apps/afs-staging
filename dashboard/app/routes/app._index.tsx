@@ -6,6 +6,7 @@ import { useLoaderData, useNavigate, useLocation } from "react-router";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { useShop } from "../contexts/ShopContext";
+import { graphqlRequest } from "app/graphql.server";
 
 interface Filter {
   id: string;
@@ -40,35 +41,23 @@ interface HomePageData {
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { admin, session } = await authenticate.admin(request);
-  
-  const GRAPHQL_ENDPOINT =
-    process.env.GRAPHQL_ENDPOINT || "http://localhost:3554/graphql";
-
+  const { session } = await authenticate.admin(request);
   try {
     const shop = session?.shop || "";
-    const apiKey = process.env.SHOPIFY_API_KEY || "";
 
-    // Fetch filters
-    const filtersQuery = `
+    const gquery = `
       query GetFilters($shop: String!) {
         filters(shop: $shop) {
           filters {
-            id
-            title
-            status
-            targetScope
-            createdAt
-            updatedAt
+          id
+          title
+          status
+          targetScope
+          createdAt
+          updatedAt
           }
           total
         }
-      }
-    `;
-
-    // Fetch indexing status
-    const indexingQuery = `
-      query GetIndexingStatus($shop: String!) {
         indexingStatus(shop: $shop) {
           shop
           status
@@ -82,35 +71,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       }
     `;
 
-    // Fetch both in parallel
-    const [filtersResponse, indexingResponse] = await Promise.all([
-      fetch(GRAPHQL_ENDPOINT, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          query: filtersQuery,
-          variables: { shop },
-        }),
-      }),
-      fetch(GRAPHQL_ENDPOINT, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          query: indexingQuery,
-          variables: { shop },
-        }),
-      }),
-    ]);
-
-    const filtersResult = await filtersResponse.json();
-    const indexingResult = await indexingResponse.json();
-
-    const filters = filtersResult.data?.filters?.filters || [];
-    const totalFilters = filtersResult.data?.filters?.total || filters.length;
+    const response = await graphqlRequest(gquery, {shop});
+    const filters = response?.filters?.filters || [];
+    const totalFilters = filters?.total || filters.length;
     const publishedFilters = filters.filter((f: Filter) => f.status === "published").length;
-    const draftFilters = filters.filter((f: Filter) => f.status === "draft").length;
+    const draftFilters = filters?.filter((f: Filter) => f.status === "draft").length;
 
-    const indexingStatus: IndexingStatus = indexingResult.data?.indexingStatus || {
+    const indexingStatus: IndexingStatus = response?.indexingStatus || {
       shop,
       status: "not_started",
       totalIndexed: 0,
@@ -125,7 +92,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       draftFilters,
       indexingStatus,
       shopInfo: { shop },
-      apiKey,
       error: undefined,
     } as HomePageData;
   } catch (error: any) {
@@ -141,7 +107,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         totalFailed: 0,
         progress: 0,
       },
-      apiKey: process.env.SHOPIFY_API_KEY || "",
       error: error.message || "Failed to fetch data",
     } as HomePageData;
   }
@@ -154,8 +119,6 @@ export default function Index() {
     publishedFilters,
     draftFilters,
     indexingStatus,
-    shopInfo,
-    apiKey,
     error,
   } = useLoaderData<typeof loader>();
   const navigate = useNavigate();

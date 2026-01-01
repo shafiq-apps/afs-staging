@@ -130,13 +130,11 @@ export const SORT_TYPES_MAPPINGS: Record<string, string>[] = [
  * Available option types
  */
 export const OPTION_TYPES = [
-  "Price",
+  "Collection",
   "Vendor",
   "ProductType",
   "Tags",
-  "Collection",
-  "Metafield",
-  "Availability",
+  "Price",
 ];
 
 /**

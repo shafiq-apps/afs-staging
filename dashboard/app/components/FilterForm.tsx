@@ -14,9 +14,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
   mode,
   initialFilter,
   shop,
-  graphqlEndpoint,
-  storefrontFilters,
-  onSavingChange,
+  storefrontFilters
 }, ref) {
   const navigate = useNavigate();
   const shopify = useAppBridge();
@@ -256,7 +254,6 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
         showSortOptions: DEFAULT_FILTER.showSortOptions,
       };
       setFilterState(createState);
-
       // Auto-populate filter options from storefrontFilters
       if (storefrontFilters && filterOptions.length === 0) {
         const autoOptions: FilterOption[] = [];

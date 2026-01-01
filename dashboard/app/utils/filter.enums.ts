@@ -233,9 +233,7 @@ export interface FilterFormProps {
     };
   } | null;
   shop?: string;
-  graphqlEndpoint?: string;
   storefrontFilters?: StorefrontFilterData | null;
-  onSavingChange?: (isSaving: boolean) => void;
 }
 
 /**

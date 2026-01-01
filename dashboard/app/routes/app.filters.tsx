@@ -142,7 +142,6 @@ export default function FiltersPage() {
     };
   }, []);
 
-
   // Show modal when filterToDelete is set
   useEffect(() => {
     if (filterToDelete && deleteModalOpen) {
@@ -256,11 +255,8 @@ export default function FiltersPage() {
     // Use enum values for comparison (also handle legacy "specific" value)
     if (filter.targetScope === TargetScope.ALL || filter.targetScope === "all") {
       return t("filters.collectionDisplay.all");
-    } else if (
-      filter.targetScope === TargetScope.ENTITLED ||
-      filter.targetScope === "entitled" ||
-      filter.targetScope === "specific" // Legacy value support
-    ) {
+    }
+    else if (filter.targetScope === TargetScope.ENTITLED) {
       // Show collection count when targetScope is entitled/specific
       if (filter.allowedCollections && filter.allowedCollections.length > 0) {
         if (filter.allowedCollections.length === 1) {

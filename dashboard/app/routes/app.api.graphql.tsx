@@ -1,97 +1,25 @@
 import type { ActionFunctionArgs } from "react-router";
-import { authenticate } from "../shopify.server";
+import { graphqlRequest } from "app/graphql.server";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
+  const body = await request.json();
+  const { mutation, variables } = body;
 
-  try {
-    const { session } = await authenticate.admin(request);
-    const shop = session?.shop || "";
-
-    if (!shop) {
-      return new Response(
-        JSON.stringify({ error: "Shop information is missing" }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json" }
-        }
-      );
-    }
-
-    let endpoint = process.env.GRAPHQL_ENDPOINT || "http://localhost:3554/graphql";;
-    if (shop) {
-      endpoint = endpoint + `?shop=${shop}`;
-    }
-
-    const body = await request.json();
-    const { mutation, variables } = body;
-
-    if (!mutation || !variables) {
-      return new Response(
-        JSON.stringify({ error: "Mutation and variables are required" }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json" }
-        }
-      );
-    }
-
-    // Ensure shop is included in variables
-    const finalVariables = {
-      ...variables,
-      shop,
-    };
-
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        query: mutation,
-        variables: finalVariables,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      return new Response(
-        JSON.stringify({ error: `GraphQL request failed: ${response.statusText}` }),
-        {
-          status: response.status,
-          headers: { "Content-Type": "application/json" }
-        }
-      );
-    }
-
-    const result = await response.json();
-
-    if (result.errors) {
-      return new Response(
-        JSON.stringify({
-          error: result.errors[0]?.message || "GraphQL mutation failed",
-          errors: result.errors
-        }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json" }
-        }
-      );
-    }
-
+  if (!mutation || !variables) {
     return new Response(
-      JSON.stringify(result.data),
+      JSON.stringify({ error: "Mutation and variables are required" }),
       {
-        status: 200,
-        headers: { "Content-Type": "application/json" }
-      }
-    );
-  } catch (error: any) {
-    return new Response(
-      JSON.stringify({ error: error.message || "Internal server error" }),
-      {
-        status: 500,
+        status: 400,
         headers: { "Content-Type": "application/json" }
       }
     );
   }
+  const result = await graphqlRequest(mutation, variables);
+  return new Response(
+    JSON.stringify(result),
+    {
+      status: 200,
+      headers: { "Content-Type": "application/json" }
+    }
+  );
 };

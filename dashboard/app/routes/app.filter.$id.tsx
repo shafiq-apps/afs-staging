@@ -21,8 +21,7 @@ import { graphqlRequest } from "app/graphql.server";
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
 
-  const GRAPHQL_ENDPOINT =
-    process.env.GRAPHQL_ENDPOINT ?? "http://localhost:3554/graphql";
+  const GRAPHQL_ENDPOINT = process.env.GRAPHQL_ENDPOINT ?? "http://localhost:3554/graphql";
 
   const filterId = params.id;
   if (!filterId) {
@@ -266,7 +265,6 @@ export default function EditFilterPage() {
         mode={PageMode.EDIT}
         initialFilter={filter}
         shop={shop}
-        graphqlEndpoint={graphqlEndpoint}
         storefrontFilters={storefrontFilters}
         onSavingChange={handleSavingChange}
       />
