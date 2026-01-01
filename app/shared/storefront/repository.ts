@@ -782,7 +782,7 @@ export class StorefrontSearchRepository {
       msearchBody.push(body);
     }
 
-    console.log(JSON.stringify(msearchBody, null, 1));
+    // console.log(JSON.stringify(msearchBody, null, 1));
 
     // Execute msearch
     let msearchResponse: { responses: any[] };
