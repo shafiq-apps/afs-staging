@@ -18,6 +18,6 @@ export const normalizeStatus = (status?: string | null): string => {
  * @returns True if status is PUBLISHED (case-insensitive)
  */
 export const isPublishedStatus = (status?: string | null): boolean => {
-  return normalizeStatus(status) === 'PUBLISHED';
+  return normalizeStatus(status) === normalizeStatus('PUBLISHED');
 };
 

@@ -9,6 +9,7 @@ import { createModuleLogger } from '@shared/utils/logger.util';
 import { isPublishedStatus } from '@shared/utils/status.util';
 import crypto from 'crypto';
 import { NO_FILTER_CONFIG_HASH } from '@core/cache/cache.key';
+import { normalizeString } from '@shared/utils/normalize.util';
 
 const logger = createModuleLogger('products-filter-config-helper');
 
@@ -59,13 +60,6 @@ function parseMinMaxRange(value: string): { min?: number; max?: number } | null 
 
   return out;
 }
-
-const normalizeChannel = (channel?: string | null) => (channel || '').toLowerCase();
-const normalizeString = (value?: string | null) => (value || '').toLowerCase();
-const isSupportedDeployment = (channel?: string | null) => {
-  const normalizedChannel = normalizeChannel(channel);
-  return normalizedChannel === 'app' || normalizedChannel === 'theme';
-};
 
 /**
  * Derive variantOptionKey at runtime from filter config option
@@ -179,7 +173,7 @@ export async function getActiveFilterConfig(
     
     // Filter to only published filters with supported deployment channels
     const publishedFilters = (filters || []).filter(
-      (f) => isPublishedStatus(f.status) && isSupportedDeployment(f.deploymentChannel)
+      (f) => isPublishedStatus(f.status)
     );
 
     if (publishedFilters.length === 0) {
@@ -196,7 +190,7 @@ export async function getActiveFilterConfig(
       const collectionSpecificFilters = publishedFilters.filter((f) => {
         // Use normalized comparison for targetScope (handles both 'entitled' and legacy 'specific')
         const normalizedScope = normalizeString(f.targetScope);
-        const isEntitled = normalizedScope === 'entitled' || normalizedScope === 'specific';
+        const isEntitled = normalizedScope === 'entitled';
         if (!isEntitled) return false;
         
         // Check if collection is in allowedCollections array
@@ -210,7 +204,7 @@ export async function getActiveFilterConfig(
 
       if (collectionSpecificFilters.length > 0) {
         // Among collection-specific filters, prioritize by filterType
-        const customFilter = collectionSpecificFilters.find((f) => normalizeString(f.filterType) === FILTER_TYPE.CUSTOM);
+        const customFilter = collectionSpecificFilters.find((f) => normalizeString(f.filterType) === normalizeString(FILTER_TYPE.CUSTOM));
         if (customFilter) {
           logger.log('Collection-specific custom filter found', {
             shop,
@@ -222,7 +216,7 @@ export async function getActiveFilterConfig(
           return customFilter;
         }
 
-        const defaultFilter = collectionSpecificFilters.find((f) => normalizeString(f.filterType) === FILTER_TYPE.DEFAULT);
+        const defaultFilter = collectionSpecificFilters.find((f) => normalizeString(f.filterType) === normalizeString(FILTER_TYPE.DEFAULT));
         if (defaultFilter) {
           logger.log('Collection-specific default filter found', {
             shop,
@@ -242,30 +236,26 @@ export async function getActiveFilterConfig(
           filterId: collectionSpecificFilters[0].id,
           title: collectionSpecificFilters[0].title,
         });
-        return collectionSpecificFilters[0];
+        return collectionSpecificFilters?.[0]??null;
       }
       
       // If no collection-specific filter found, return null
       // Frontend will render fallback products
-      logger.log('No filter found for collection, returning null for fallback products', {
+      logger.log('No filter found for collection, checking all collection\'s filters', {
         shop,
         collectionId: targetCollectionId,
         cpid,
         totalFilters: publishedFilters.length,
       });
-      return null;
     }
 
     // Priority 2: Filters with targetScope === 'all' (filters for all collections)
     // Only return these if no collection-specific filter was found
-    const allScopeFilters = publishedFilters.filter((f) => {
-      const normalizedScope = normalizeString(f.targetScope);
-      return normalizedScope === 'all';
-    });
-    
+    const allScopeFilters = publishedFilters.filter((f) => normalizeString(f.targetScope) === normalizeString('all'));
+
     if (allScopeFilters.length > 0) {
       // Among all-scope filters, prioritize by filterType
-      const customFilter = allScopeFilters.find((f) => normalizeString(f.filterType) === FILTER_TYPE.CUSTOM);
+      const customFilter = allScopeFilters.find((f) => normalizeString(f.filterType) === normalizeString(FILTER_TYPE.CUSTOM));
       if (customFilter) {
         logger.log('All-scope custom filter found', {
           shop,
@@ -276,7 +266,7 @@ export async function getActiveFilterConfig(
         return customFilter;
       }
 
-      const defaultFilter = allScopeFilters.find((f) => normalizeString(f.filterType) === FILTER_TYPE.DEFAULT);
+      const defaultFilter = allScopeFilters.find((f) => normalizeString(f.filterType) === normalizeString(FILTER_TYPE.DEFAULT));
       if (defaultFilter) {
         logger.log('All-scope default filter found', {
           shop,
@@ -298,7 +288,7 @@ export async function getActiveFilterConfig(
     }
 
     // Priority 3: Custom published filter (fallback, any scope)
-    const customFilter = publishedFilters.find((f) => normalizeString(f.filterType) === FILTER_TYPE.CUSTOM);
+    const customFilter = publishedFilters.find((f) => normalizeString(f.filterType) === normalizeString(FILTER_TYPE.CUSTOM));
     if (customFilter) {
       logger.log('Custom published filter found (fallback)', {
         shop,

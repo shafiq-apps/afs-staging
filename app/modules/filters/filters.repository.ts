@@ -239,7 +239,7 @@ export class FiltersRepository {
             ]
           }
         },
-        size: 10000, // Get all filters for this shop
+        size: 100, // Get all filters for this shop
         // Don't sort - let the application sort after normalization if needed
         // This avoids issues with missing field mappings
       });

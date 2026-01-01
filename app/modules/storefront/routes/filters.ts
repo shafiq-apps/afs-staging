@@ -21,7 +21,6 @@ import { formatFilters } from '@shared/storefront/filter-format.helper';
 import {
   getActiveFilterConfig,
   applyFilterConfigToInput,
-  formatFilterConfigForStorefront,
 } from '@shared/storefront/filter-config.helper';
 import { RATE_LIMIT } from '@shared/constants/app.constant';
 
@@ -145,7 +144,6 @@ export const GET = handler(async (req: HttpRequest) => {
   return {
     success: true,
     data: {
-      // filterConfig: filterConfig ? formatFilterConfigForStorefront(filterConfig) : null, // --> REMOVED (to save payload size)
       filters: formattedFilters, // Pre-compiled filter aggregations (facets) with settings applied
       appliedFilters: cleanedAppliedFilters,
     }
