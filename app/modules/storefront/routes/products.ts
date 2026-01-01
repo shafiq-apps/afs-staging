@@ -67,7 +67,6 @@ export const GET = handler(async (req: HttpRequest) => {
         limit: result.limit,
         totalPages: result.totalPages,
       },
-      // appliedFilters: cleanedAppliedFilters,
     },
   };
 

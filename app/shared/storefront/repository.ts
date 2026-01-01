@@ -476,12 +476,12 @@ export class StorefrontSearchRepository {
         const rangeMust: ESQuery[] = [];
         if (sanitizedFilters.priceMin !== undefined) {
           rangeMust.push({
-            range: { [ES_FIELDS.MAX_PRICE]: { gte: sanitizedFilters.priceMin } },
+            range: { [ES_FIELDS.MIN_PRICE]: { gte: sanitizedFilters.priceMin } },
           });
         }
         if (sanitizedFilters.priceMax !== undefined) {
           rangeMust.push({
-            range: { [ES_FIELDS.MIN_PRICE]: { lte: sanitizedFilters.priceMax } },
+            range: { [ES_FIELDS.MAX_PRICE]: { lte: sanitizedFilters.priceMax } },
           });
         }
         if (rangeMust.length > 0) {
@@ -634,9 +634,9 @@ export class StorefrontSearchRepository {
         const optionPrefix = `${aggConfig.field}${PRODUCT_OPTION_PAIR_SEPARATOR}`;
         aggs[aggConfig.name] = {
           filter: {
-              prefix: {
-                [ES_FIELDS.OPTION_PAIRS]: optionPrefix,
-              },
+            prefix: {
+              [ES_FIELDS.OPTION_PAIRS]: optionPrefix,
+            },
           },
           aggs: {
             values: {
@@ -736,7 +736,8 @@ export class StorefrontSearchRepository {
     if (enabledAggregations.standard.has('price')) {
       const mustQueries = buildBaseMustQueries('price');
       const query = mustQueries.length > 0 ? { bool: { must: mustQueries } } : { match_all: {} };
-      allAggregations.price = { stats: { field: ES_FIELDS.MIN_PRICE } };
+      allAggregations.minPrice = { min: { field: ES_FIELDS.MIN_PRICE } };
+      allAggregations.maxPrice = { max: { field: ES_FIELDS.MAX_PRICE } };
       aggregationQueries.push({
         filterType: 'price',
         query: {
@@ -744,7 +745,7 @@ export class StorefrontSearchRepository {
           size: 0,
           track_total_hits: false,
           query,
-          aggs: { price: allAggregations.price },
+          aggs: { minPrice: allAggregations.minPrice, maxPrice: allAggregations.maxPrice },
         },
       });
     }
@@ -780,6 +781,8 @@ export class StorefrontSearchRepository {
       }
       msearchBody.push(body);
     }
+
+    // console.log(JSON.stringify(msearchBody, null, 1));
 
     // Execute msearch
     let msearchResponse: { responses: any[] };
@@ -843,7 +846,6 @@ export class StorefrontSearchRepository {
         (aggName) => aggregations[aggName]?.values?.buckets || []
       );
 
-
       // Deduplicate buckets by key - keep the first occurrence of each unique key
       // This prevents duplicate buckets from appearing when the same bucket key
       // appears in multiple aggregation responses
@@ -895,16 +897,11 @@ export class StorefrontSearchRepository {
 
         optionPairs: combinedOptionPairs,
 
-        price:
-          enabledAggregations.standard.has('price') &&
-            aggregations.price &&
-            (aggregations.price.min != null ||
-              aggregations.price.max != null)
-            ? {
-              min: aggregations.price.min ?? 0,
-              max: aggregations.price.max ?? 0,
-            }
-            : undefined,
+        price: enabledAggregations.standard.has('price') && aggregations.minPrice && (aggregations.minPrice.value != null || aggregations.maxPrice.value != null)
+          ? {
+            min: aggregations.minPrice.value ?? 0,
+            max: aggregations.maxPrice.value ?? 0,
+          }: undefined,
       },
     };
   }
@@ -1190,23 +1187,32 @@ export class StorefrontSearchRepository {
     // A product matches if its price range overlaps with the requested range:
     // - maxPrice >= priceMin (product's max is at least the requested min)
     // - minPrice <= priceMax (product's min is at most the requested max)
-    if (sanitizedFilters?.priceMin !== undefined || sanitizedFilters?.priceMax !== undefined) {
+    if (!isNaN(sanitizedFilters?.priceMin) || !isNaN(sanitizedFilters?.priceMax)) {
       const priceMustQueries: any[] = [];
-      
+
+      // if both minPrice and maxprice are present in the request query 
       if (sanitizedFilters.priceMin !== undefined) {
         // Product's maxPrice must be >= requested minPrice
         priceMustQueries.push({
-          range: { [ES_FIELDS.MAX_PRICE]: { gte: sanitizedFilters.priceMin } },
+          range: {
+            [ES_FIELDS.MIN_PRICE]: {
+              gte: sanitizedFilters.priceMin
+            }
+          },
         });
       }
-      
+
       if (sanitizedFilters.priceMax !== undefined) {
         // Product's minPrice must be <= requested maxPrice
         priceMustQueries.push({
-          range: { [ES_FIELDS.MIN_PRICE]: { lte: sanitizedFilters.priceMax } },
+          range: {
+            [ES_FIELDS.MAX_PRICE]: {
+              lte: sanitizedFilters.priceMax,
+            }
+          },
         });
       }
-      
+
       if (priceMustQueries.length > 0) {
         mustQueries.push({
           bool: { must: priceMustQueries },
@@ -1384,9 +1390,9 @@ export class StorefrontSearchRepository {
       sortFields: sort.map((s: any) => Object.keys(s)[0]),
     });
 
+
     // Note: We don't pre-check index existence to avoid race conditions.
     // The search operation will handle index not found errors appropriately.
-
 
     let response;
     try {
