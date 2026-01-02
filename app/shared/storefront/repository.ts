@@ -1184,9 +1184,6 @@ export class StorefrontSearchRepository {
     }
 
     // Product price range filter (minPrice/maxPrice fields)
-    // A product matches if its price range overlaps with the requested range:
-    // - maxPrice >= priceMin (product's max is at least the requested min)
-    // - minPrice <= priceMax (product's min is at most the requested max)
     if (!isNaN(sanitizedFilters?.priceMin) || !isNaN(sanitizedFilters?.priceMax)) {
       const priceMustQueries: any[] = [];
 
@@ -1195,7 +1192,7 @@ export class StorefrontSearchRepository {
         // Product's maxPrice must be >= requested minPrice
         priceMustQueries.push({
           range: {
-            [ES_FIELDS.MIN_PRICE]: {
+            [ES_FIELDS.MAX_PRICE]: {
               gte: sanitizedFilters.priceMin
             }
           },
@@ -1206,7 +1203,7 @@ export class StorefrontSearchRepository {
         // Product's minPrice must be <= requested maxPrice
         priceMustQueries.push({
           range: {
-            [ES_FIELDS.MAX_PRICE]: {
+            [ES_FIELDS.MIN_PRICE]: {
               lte: sanitizedFilters.priceMax,
             }
           },
@@ -1390,6 +1387,7 @@ export class StorefrontSearchRepository {
       sortFields: sort.map((s: any) => Object.keys(s)[0]),
     });
 
+    console.log(JSON.stringify(query, null,4));
 
     // Note: We don't pre-check index existence to avoid race conditions.
     // The search operation will handle index not found errors appropriately.

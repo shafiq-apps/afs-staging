@@ -1113,25 +1113,9 @@ const API = {
    * we only need to check if cpid exists and if it's not already in collection filter handle
    */
   shouldSendCpid(filters: FiltersState): boolean {
-    if (!State.selectedCollection?.id) {
-      return false; // No cpid to send
-    }
-
-    // Check if cpid collection ID is already in collection filter handle
-    const hasCollectionFilterWithCpid = Object.keys(filters || {}).some(key => {
-      const metadata = State.filterMetadata.get(key);
-      const isCollectionFilter = ($.isCollectionOptionType(metadata?.optionType) || $.isCollectionKey(key));
-      if (isCollectionFilter && Array.isArray(filters[key]) && filters[key].length > 0) {
-        // Check if cpid collection ID is in the collection filter values
-        return (filters[key] as string[]).some(v => String(v) === String(State.selectedCollection.id));
-      }
-      return false;
-    });
-
-    // Don't send cpid if it's already in collection filter
-    // If cpid exists and filters are present, clearCpidIfFiltersPresent() would have cleared it
-    // So if we reach here and cpid exists, it means no filters are present (clean page)
-    return !hasCollectionFilterWithCpid;
+    // For the server-managed CPID approach we always send CPID when present.
+    // The server will decide how to apply it; client must never expose it in URL/UI.
+    return !!State.selectedCollection?.id;
   },
 
   async products(filters: FiltersState, pagination: PaginationState, sort: SortState): Promise<ProductsResponseData> {
@@ -1806,6 +1790,11 @@ const DOM = {
     // Check both optionType and type to handle different filter configurations
     const isCollectionFilter = ($.isCollectionOptionType(config?.optionType) || $.isCollectionKey(handle));
     if (isCollectionFilter && State.collections && Array.isArray(State.collections)) {
+      // Hide CPID's collection from the UI so users cannot toggle it. If the
+      // item's value equals the server-provided selectedCollection.id, skip it.
+      if (State.selectedCollection?.id && String(value) === String(State.selectedCollection.id)) {
+        return null;
+      }
       // Collection IDs are already numeric strings, just convert to string for comparison
       const collection = State.collections.find(c => {
         const cId = String(c.id || c.gid || c.collectionId || '');
@@ -2321,29 +2310,8 @@ const DOM = {
       }
     });
 
-    // Also show cpid if it exists and collection filter is not in filters
-    if (State.selectedCollection?.id) {
-      const hasCollectionFilter = Object.keys(filters).some(key => {
-        const metadata = State.filterMetadata.get(key);
-        return ($.isCollectionOptionType(metadata?.optionType) || $.isCollectionKey(key)) &&
-          Array.isArray(filters[key]) &&
-          (filters[key] as string[]).includes(String(State.selectedCollection.id));
-      });
-
-      if (!hasCollectionFilter) {
-        // Find collection name from State.collections
-        const collection = State.collections?.find(c => {
-          const cId = String(c.id || c.gid || c.collectionId || '');
-          return cId && String(cId) === String(State.selectedCollection.id);
-        });
-        const collectionName = collection?.title || collection?.label || collection?.name || 'Collection';
-        activeFilters.push({
-          handle: FilterKey.CPID,
-          label: `${Lang.labels.collection}${collectionName}`,
-          value: String(State.selectedCollection.id)
-        });
-      }
-    }
+    // CPID is intentionally hidden from the applied-filters UI. It is managed
+    // server-side and should not appear as a removable chip in the browser.
 
     if (activeFilters.length === 0) return;
 
@@ -2662,8 +2630,9 @@ const clearCpidIfFiltersPresent = (filters: FiltersState): void => {
   });
 
   if (hasFilters) {
-    State.selectedCollection.id = null;
-    Log.debug('Filters present, cleared cpid', { filters });
+    // Keep CPID hidden and managed server-side. Do NOT clear it when client
+    // filters are present — we will send CPID in background API requests instead.
+    Log.debug('Filters present, keeping cpid (server-managed)', { filters });
   }
 };
 
@@ -2881,29 +2850,8 @@ const Filters = {
           const priceFilter = State.availableFilters.find(f => $.isPriceRangeOptionType(f.optionType));
           State.priceRangeHandle = priceFilter?.handle || State.priceRangeHandle;
 
-          // Convert cpid to collection filter handle if collection filter exists and cpid is not already in filters
-          if (State.selectedCollection?.id) {
-            // Find collection filter handle from available filters
-            const collectionFilter = State.availableFilters.find(f =>
-              f.optionType === 'Collection' ||
-              $.isCollectionKey(f.queryKey) ||
-              $.isCollectionKey(f.handle)
-            );
-
-            if (collectionFilter) {
-              const collectionHandle = collectionFilter.handle || collectionFilter.queryKey || 'collections';
-              // Check if collection filter already has this ID
-              const existingCollectionValues = (State.filters[collectionHandle] as string[]) || [];
-              if (!existingCollectionValues.includes(String(State.selectedCollection.id))) {
-                // Add cpid as collection filter
-                State.filters[collectionHandle] = [...existingCollectionValues, String(State.selectedCollection.id)];
-                Log.debug('Converted cpid to collection filter', {
-                  cpid: State.selectedCollection.id,
-                  handle: collectionHandle
-                });
-              }
-            }
-          }
+                // Note: CPID is intentionally NOT converted into a client-side collection
+                // filter. CPID is kept server-side and sent in background API requests only.
 
           DOM.renderFilters(State.availableFilters);
         }
@@ -3142,11 +3090,10 @@ const Events = {
       if (action === 'clear-all') {
         // Reset to initial state (standard filters only, handles will be removed dynamically)
         State.filters = { vendor: [], productType: [], tags: [], collections: [], search: '', priceRange: null };
-        // Clear cpid when clearing all filters
-        if (State.selectedCollection?.id) {
-          State.selectedCollection.id = null;
-          Log.debug('Clear All: cleared cpid');
-        }
+          // Keep CPID when clearing client-visible filters; CPID is server-managed
+          if (State.selectedCollection?.id) {
+            Log.debug('Clear All: keeping server-managed cpid (not exposed to UI)');
+          }
         State.pagination.page = 1;
         UrlManager.update(State.filters, State.pagination, State.sort);
         // Scroll to top when clearing all filters
@@ -3787,32 +3734,9 @@ const AFS: AFSInterface = {
         }
       }
 
-      // After filters are loaded, update State.filters with cpid conversion if needed
-      // Convert cpid to collection filter handle if collection filter exists
-      if (State.selectedCollection?.id) {
-        const collectionFilter = State.availableFilters.find(f =>
-          f.optionType === 'Collection' ||
-          $.isCollectionKey(f.queryKey) ||
-          $.isCollectionKey(f.handle)
-        );
-
-        if (collectionFilter) {
-          const collectionHandle = collectionFilter.handle || collectionFilter.queryKey || 'collections';
-          // Check if collection filter already has this ID in State.filters
-          const existingCollectionValues = (State.filters[collectionHandle] as string[]) || [];
-          if (!existingCollectionValues.includes(String(State.selectedCollection.id))) {
-            // Add cpid as collection filter
-            if (!State.filters[collectionHandle]) {
-              State.filters[collectionHandle] = [];
-            }
-            (State.filters[collectionHandle] as string[]).push(String(State.selectedCollection.id));
-            Log.debug('Converted cpid to collection filter', {
-              cpid: State.selectedCollection.id,
-              handle: collectionHandle
-            });
-          }
-        }
-      }
+      // Note: CPID is intentionally NOT converted into a client-side collection
+      // filter during load. CPID remains server-managed and will be sent in
+      // background API requests; it must not be exposed in the URL or UI.
 
       // Set keep from URL params
       if (urlParams.keep !== undefined) {
