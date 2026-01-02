@@ -308,12 +308,12 @@ interface ShopifyWindow extends Window {
 // We use a type that allows any object structure for logging purposes
 // Note: This intentionally allows any object structure since logging needs flexibility
 // We explicitly include all our custom types plus allow objects with index signatures
-type LoggableData = 
-  | string 
-  | number 
-  | boolean 
-  | null 
-  | undefined 
+type LoggableData =
+  | string
+  | number
+  | boolean
+  | null
+  | undefined
   | Error
   | FiltersState
   | SortState
@@ -732,7 +732,7 @@ const $ = {
   equals: (a: string | number | boolean | string[] | null | undefined, b: string | number | boolean | string[] | null | undefined): boolean => {
     if (a === b) return true;
     if (a === null || a === undefined || b === null || b === undefined) return false;
-    
+
     // For arrays, convert to string representation
     if (Array.isArray(a)) {
       a = a.join(',');
@@ -740,22 +740,22 @@ const $ = {
     if (Array.isArray(b)) {
       b = b.join(',');
     }
-    
+
     // For strings, compare case-insensitively and trimmed
     if (typeof a === 'string' && typeof b === 'string') {
       return a.trim().toLowerCase() === b.trim().toLowerCase();
     }
-    
+
     // For numbers, compare directly
     if (typeof a === 'number' && typeof b === 'number') {
       return a === b;
     }
-    
+
     // For booleans, compare directly
     if (typeof a === 'boolean' && typeof b === 'boolean') {
       return a === b;
     }
-    
+
     // Mixed types: convert both to strings and compare
     return String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
   },
@@ -1398,14 +1398,14 @@ const DOM = {
     if (!main.parentNode) this.container.appendChild(main);
 
     // Only querySelector if selector is provided and not empty
-    this.filtersContainer = (filtersSel && filtersSel.trim() !== '') 
+    this.filtersContainer = (filtersSel && filtersSel.trim() !== '')
       ? document.querySelector<HTMLElement>(filtersSel) || null
       : null;
-    
+
     if (!this.filtersContainer) {
       this.filtersContainer = $.el('div', 'afs-filters-container');
     }
-    
+
     if (!this.filtersContainer.parentNode && main) main.appendChild(this.filtersContainer);
 
     // Ensure filters are closed by default on mobile
@@ -1444,14 +1444,14 @@ const DOM = {
     }
 
     // Only querySelector if selector is provided and not empty
-    this.productsContainer = (productsSel && productsSel.trim() !== '') 
+    this.productsContainer = (productsSel && productsSel.trim() !== '')
       ? document.querySelector<HTMLElement>(productsSel) || null
       : null;
-    
+
     if (!this.productsContainer) {
       this.productsContainer = $.el('div', 'afs-products-container');
     }
-    
+
     if (!this.productsContainer.parentNode && main) main.appendChild(this.productsContainer);
 
     this.productsInfo = $.el('div', 'afs-products-info');
@@ -1587,7 +1587,7 @@ const DOM = {
         const searchInput = g.querySelector<HTMLInputElement>('.afs-filter-group__search-input');
         const collapsed = g.getAttribute('data-afs-collapsed') === 'true';
         const search = searchInput?.value || '';
-        
+
         // Get existing state to preserve other properties
         const existingState = states.get(key);
         states.set(key, {
@@ -2463,7 +2463,7 @@ const DOM = {
     if (!this.productsContainer) {
       // Try to find it in the container
       this.productsContainer = this.container?.querySelector<HTMLElement>('.afs-products-container') || null;
-      
+
       // If still not found, create it
       if (!this.productsContainer && this.container) {
         const main = this.container.querySelector<HTMLElement>('.afs-main-content');
@@ -2473,7 +2473,7 @@ const DOM = {
         }
       }
     }
-    
+
     if (!this.productsContainer) {
       // Last resort: log to console
       Log.error('Cannot show error: productsContainer not found', { message });
@@ -2850,8 +2850,8 @@ const Filters = {
           const priceFilter = State.availableFilters.find(f => $.isPriceRangeOptionType(f.optionType));
           State.priceRangeHandle = priceFilter?.handle || State.priceRangeHandle;
 
-                // Note: CPID is intentionally NOT converted into a client-side collection
-                // filter. CPID is kept server-side and sent in background API requests only.
+          // Note: CPID is intentionally NOT converted into a client-side collection
+          // filter. CPID is kept server-side and sent in background API requests only.
 
           DOM.renderFilters(State.availableFilters);
         }
@@ -3058,13 +3058,13 @@ const QuickAdd = {
       message.classList.remove('afs-quick-add-success--show');
       message.removeEventListener('animationend', handleAnimationEnd);
     };
-    
+
     // Fallback timeout if animation doesn't fire
     const timeoutId = setTimeout(() => {
       message.classList.remove('afs-quick-add-success--show');
       message.removeEventListener('animationend', handleAnimationEnd);
     }, 3000);
-    
+
     message.addEventListener('animationend', () => {
       clearTimeout(timeoutId);
       handleAnimationEnd();
@@ -3090,10 +3090,10 @@ const Events = {
       if (action === 'clear-all') {
         // Reset to initial state (standard filters only, handles will be removed dynamically)
         State.filters = { vendor: [], productType: [], tags: [], collections: [], search: '', priceRange: null };
-          // Keep CPID when clearing client-visible filters; CPID is server-managed
-          if (State.selectedCollection?.id) {
-            Log.debug('Clear All: keeping server-managed cpid (not exposed to UI)');
-          }
+        // Keep CPID when clearing client-visible filters; CPID is server-managed
+        if (State.selectedCollection?.id) {
+          Log.debug('Clear All: keeping server-managed cpid (not exposed to UI)');
+        }
         State.pagination.page = 1;
         UrlManager.update(State.filters, State.pagination, State.sort);
         // Scroll to top when clearing all filters
@@ -3263,7 +3263,7 @@ const Events = {
             state.collapsed = collapsedState;
             state.lastUpdated = Date.now();
             states.set(stateKey, state);
-            
+
             // Also persist to sessionStorage for page refresh persistence
             try {
               const stateKey = `afs_filter_state_${group.getAttribute('data-afs-filter-handle')}`;
@@ -3273,9 +3273,9 @@ const Events = {
               Log.debug('Could not persist to sessionStorage', { error: e });
             }
           } catch (error) {
-            Log.error('Failed to persist filter state', { 
-              stateKey, 
-              error: error instanceof Error ? error.message : String(error) 
+            Log.error('Failed to persist filter state', {
+              stateKey,
+              error: error instanceof Error ? error.message : String(error)
             });
           }
         }
@@ -3451,9 +3451,8 @@ const Events = {
       if (params.keep !== undefined) {
         if (params.keep === SpecialValue.ALL || (typeof params.keep === 'string' && $.equals(params.keep, SpecialValue.ALL))) {
           State.keep = SpecialValue.ALL;
-        } else if (Array.isArray(params.keep) && params.keep.length > 0) {
-          State.keep = params.keep;
-        } else {
+        }
+        else {
           State.keep = null;
         }
       }
@@ -3489,8 +3488,8 @@ const Events = {
         const raw = String(priceRangeFilterValue[0] || '');
         const parts = raw.split('-');
         if (parts.length === 2) {
-          const min = parts[0].trim() ? parseFloat(parts[0]) : undefined;
-          const max = parts[1].trim() ? parseFloat(parts[1]) : undefined;
+          const min = parts[0].trim() ? parseInt(parts[0],10) : undefined;
+          const max = parts[1].trim() ? parseInt(parts[1], 10) : undefined;
           const hasMin = typeof min === 'number' && !isNaN(min) && min >= 0;
           const hasMax = typeof max === 'number' && !isNaN(max) && max >= 0;
           if (hasMin || hasMax) {
@@ -3634,7 +3633,7 @@ const AFS: AFSInterface = {
       const containerSelector = config.containerSelector || (config as any).container || '[data-afs-container]';
       const filtersSelector = config.filtersSelector || (config as any).filtersContainer;
       const productsSelector = config.productsSelector || (config as any).productsContainer;
-      
+
       DOM.init(containerSelector, filtersSelector, productsSelector);
       Log.info('DOM initialized');
 
@@ -3720,8 +3719,8 @@ const AFS: AFSInterface = {
         const raw = String(priceRangeFilterValue[0] || '');
         const parts = raw.split('-');
         if (parts.length === 2) {
-          const min = parts[0].trim() ? parseFloat(parts[0]) : undefined;
-          const max = parts[1].trim() ? parseFloat(parts[1]) : undefined;
+          const min = parts[0].trim() ? parseInt(parts[0], 10) : undefined;
+          const max = parts[1].trim() ? parseInt(parts[1], 10) : undefined;
           const hasMin = typeof min === 'number' && !isNaN(min) && min >= 0;
           const hasMax = typeof max === 'number' && !isNaN(max) && max >= 0;
           if (hasMin || hasMax) {
@@ -3830,13 +3829,13 @@ const AFS: AFSInterface = {
       // Update sort select value (programmatically - won't trigger change event)
       if (DOM.sortSelect) {
         // Handle best-selling sort (no order in value)
-          if ($.isBestSelling(State.sort.field)) {
-            DOM.sortSelect.value = SortField.BEST_SELLING;
-          } else {
-            // Convert to new format: "field-direction" (e.g., "title-ascending")
-            const direction = $.equals(State.sort.order, SortOrder.ASC) ? SortOrder.ASCENDING : SortOrder.DESCENDING;
-            DOM.sortSelect.value = `${State.sort.field}-${direction}`;
-          }
+        if ($.isBestSelling(State.sort.field)) {
+          DOM.sortSelect.value = SortField.BEST_SELLING;
+        } else {
+          // Convert to new format: "field-direction" (e.g., "title-ascending")
+          const direction = $.equals(State.sort.order, SortOrder.ASC) ? SortOrder.ASCENDING : SortOrder.DESCENDING;
+          DOM.sortSelect.value = `${State.sort.field}-${direction}`;
+        }
         Log.debug('Sort select value updated programmatically', { value: DOM.sortSelect.value, sort: State.sort });
       }
 
