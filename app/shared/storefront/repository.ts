@@ -5,7 +5,7 @@
 
 import { Client } from '@elastic/elasticsearch';
 import { createModuleLogger } from '@shared/utils/logger.util';
-import { sanitizeFilterInput } from '@shared/utils/sanitizer.util';
+import { escapeRegex, sanitizeFilterInput } from '@shared/utils/sanitizer.util';
 import { isPublishedStatus } from '@shared/utils/status.util';
 import {
   ProductFilterInput,
@@ -28,12 +28,6 @@ const logger = createModuleLogger('storefront-repository');
 
 const hasValues = (arr?: string[]) => Array.isArray(arr) && arr.length > 0;
 const DEFAULT_BUCKET_SIZE = AGGREGATION_BUCKET_SIZES.DEFAULT;
-
-function escapeRegex(input: string): string {
-  // Escape regex metacharacters for ES include/exclude patterns.
-  // Ref: Java regex syntax (used by Elasticsearch).
-  return String(input).replace(/[\\.^$|?*+()[\]{}]/g, '\\$&');
-}
 
 /**
  * Aggregation mapping result

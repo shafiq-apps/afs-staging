@@ -294,11 +294,19 @@ export function sanitizeFilterInput(input: {
 }
 
 /**
- * Escape special characters for regex
+ * Escapes a string so it can safely be used in a RegExp pattern.
+ * Handles all special regex characters: . * + ? ^ $ { } ( ) | [ ] \ -
+ * @param input - The string to escape
+ * @returns The escaped string
  */
 export function escapeRegex(input: string): string {
-  return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  // List of special regex characters to escape, including dash '-' and closing bracket ']'
+  const specialChars = /[.*+?^${}()|[\]\\]/g;
+
+  // Replace each special character with a backslash-escaped version
+  return String(input).replace(specialChars, '\\$&');
 }
+
 
 /**
  * Validate ES query structure (basic check)
