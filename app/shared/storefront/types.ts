@@ -242,3 +242,76 @@ export interface ProductSearchResult {
   filters?: FacetAggregations;
 }
 
+
+/**
+ * Aggregation mapping result
+ * Contains both standard aggregations and variant option-specific aggregations
+ */
+export interface AggregationMapping {
+  standard: Set<string>; // Standard aggregations: vendors, tags, collections, etc.
+  variantOptions: Map<string, string>; // Map of aggregation name -> optionType (e.g., "option.Color" -> "Color")
+}
+
+/**
+ * Elasticsearch Query Types
+ * Type definitions for ES query structures to replace 'any' types
+ */
+export interface ESTermQuery {
+  term: Record<string, string | number | boolean>;
+}
+
+export interface ESTermsQuery {
+  terms: Record<string, string[]>;
+}
+
+export interface ESRangeQuery {
+  range: Record<string, { gte?: number; lte?: number; gt?: number }>;
+}
+
+export interface ESBoolQuery {
+  bool: {
+    must?: ESQuery[];
+    should?: ESQuery[];
+    minimum_should_match?: number;
+  };
+}
+
+export interface ESNestedQuery {
+  nested: {
+    path: string;
+    query: ESQuery;
+  };
+}
+
+export interface ESMultiMatchQuery {
+  multi_match: {
+    query: string;
+    fields: string[];
+    type: string;
+    operator: string;
+  };
+}
+
+export interface ESMatchAllQuery {
+  match_all: Record<string, never>;
+}
+
+export type ESQuery = ESTermQuery | ESTermsQuery | ESRangeQuery | ESBoolQuery | ESNestedQuery | ESMultiMatchQuery | ESMatchAllQuery;
+
+export interface AggregationConfig {
+  name: string;
+  field: string;
+  sizeMult?: number;
+  type?: 'terms' | 'stats' | 'option';
+}
+
+export interface HandleMapping {
+  handleToBaseField?: Record<string, string>;
+  baseFieldToHandles?: Record<string, string[]>;
+  handleToValues?: Record<string, string[]>;
+  standardFieldToHandles?: Record<string, string[]>;
+}
+
+export interface SanitizedFilterInputWithMapping extends ProductFilterInput {
+  __handleMapping?: HandleMapping;
+}

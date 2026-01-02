@@ -12,7 +12,11 @@ import {
   ProductSearchInput,
   ProductSearchResult,
   FacetAggregations,
-  shopifyProduct
+  shopifyProduct,
+  AggregationMapping,
+  ESQuery,
+  SanitizedFilterInputWithMapping,
+  AggregationConfig
 } from './types';
 import {
   PRODUCT_INDEX_NAME,
@@ -28,79 +32,6 @@ const logger = createModuleLogger('storefront-repository');
 
 const hasValues = (arr?: string[]) => Array.isArray(arr) && arr.length > 0;
 const DEFAULT_BUCKET_SIZE = AGGREGATION_BUCKET_SIZES.DEFAULT;
-
-/**
- * Aggregation mapping result
- * Contains both standard aggregations and variant option-specific aggregations
- */
-interface AggregationMapping {
-  standard: Set<string>; // Standard aggregations: vendors, tags, collections, etc.
-  variantOptions: Map<string, string>; // Map of aggregation name -> optionType (e.g., "option.Color" -> "Color")
-}
-
-/**
- * Elasticsearch Query Types
- * Type definitions for ES query structures to replace 'any' types
- */
-interface ESTermQuery {
-  term: Record<string, string | number | boolean>;
-}
-
-interface ESTermsQuery {
-  terms: Record<string, string[]>;
-}
-
-interface ESRangeQuery {
-  range: Record<string, { gte?: number; lte?: number; gt?: number }>;
-}
-
-interface ESBoolQuery {
-  bool: {
-    must?: ESQuery[];
-    should?: ESQuery[];
-    minimum_should_match?: number;
-  };
-}
-
-interface ESNestedQuery {
-  nested: {
-    path: string;
-    query: ESQuery;
-  };
-}
-
-interface ESMultiMatchQuery {
-  multi_match: {
-    query: string;
-    fields: string[];
-    type: string;
-    operator: string;
-  };
-}
-
-interface ESMatchAllQuery {
-  match_all: Record<string, never>;
-}
-
-type ESQuery = ESTermQuery | ESTermsQuery | ESRangeQuery | ESBoolQuery | ESNestedQuery | ESMultiMatchQuery | ESMatchAllQuery;
-
-interface AggregationConfig {
-  name: string;
-  field: string;
-  sizeMult?: number;
-  type?: 'terms' | 'stats' | 'option';
-}
-
-interface HandleMapping {
-  handleToBaseField?: Record<string, string>;
-  baseFieldToHandles?: Record<string, string[]>;
-  handleToValues?: Record<string, string[]>;
-  standardFieldToHandles?: Record<string, string[]>;
-}
-
-interface SanitizedFilterInputWithMapping extends ProductFilterInput {
-  __handleMapping?: HandleMapping;
-}
 
 /**
  * Determine which aggregations should be calculated based on filter configuration
@@ -566,7 +497,6 @@ export class StorefrontSearchRepository {
     //   AGGREGATIONS (Auto-Exclude Approach)
     // -----------------------
     //
-
     const enabledAggregations = getEnabledAggregations(filterConfig, includeAllOptions);
     const allAggregations: Record<string, any> = {};
 
