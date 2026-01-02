@@ -3488,7 +3488,7 @@ const Events = {
         const raw = String(priceRangeFilterValue[0] || '');
         const parts = raw.split('-');
         if (parts.length === 2) {
-          const min = parts[0].trim() ? parseInt(parts[0],10) : undefined;
+          const min = parts[0].trim() ? parseInt(parts[0], 10) : undefined;
           const max = parts[1].trim() ? parseInt(parts[1], 10) : undefined;
           const hasMin = typeof min === 'number' && !isNaN(min) && min >= 0;
           const hasMax = typeof max === 'number' && !isNaN(max) && max >= 0;
