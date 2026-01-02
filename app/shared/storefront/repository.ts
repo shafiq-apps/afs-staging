@@ -474,14 +474,14 @@ export class StorefrontSearchRepository {
       /** Product-level Price Range */
       if (excludeFilterType !== 'price' && (sanitizedFilters?.priceMin !== undefined || sanitizedFilters?.priceMax !== undefined)) {
         const rangeMust: ESQuery[] = [];
-        if (sanitizedFilters.priceMin !== undefined) {
+        if (sanitizedFilters.priceMin !== undefined && !isNaN(sanitizedFilters.priceMin)) {
           rangeMust.push({
-            range: { [ES_FIELDS.MIN_PRICE]: { gte: sanitizedFilters.priceMin } },
+            range: { [ES_FIELDS.MAX_PRICE]: { gte: sanitizedFilters.priceMin } },
           });
         }
-        if (sanitizedFilters.priceMax !== undefined) {
+        if (sanitizedFilters.priceMax !== undefined && !isNaN(sanitizedFilters.priceMax)) {
           rangeMust.push({
-            range: { [ES_FIELDS.MAX_PRICE]: { lte: sanitizedFilters.priceMax } },
+            range: { [ES_FIELDS.MIN_PRICE]: { lte: sanitizedFilters.priceMax } },
           });
         }
         if (rangeMust.length > 0) {
