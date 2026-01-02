@@ -77,7 +77,7 @@ class ESServiceRegistry {
    */
   register(key: string, service: GraphQLESService): void {
     this.services.set(key, service);
-    logger.debug(`Registered ES service: ${key}`);
+    logger.info(`Registered ES service: ${key}`);
   }
 
   /**

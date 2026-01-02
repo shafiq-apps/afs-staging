@@ -192,7 +192,7 @@ export class FiltersRepository {
       // Try to get from cache first
       const cached = cacheService.getFilterList(shop, cpid);
       if (cached) {
-        logger.log('Filter list cache hit', { shop, cpid: cpid || 'none', count: cached.filters.length });
+        logger.info('Filter list cache hit', { shop, cpid: cpid || 'none', count: cached.filters.length });
         return cached;
       }
 
@@ -202,7 +202,7 @@ export class FiltersRepository {
         const cachedAll = cacheService.getFilterList(shop);
         if (cachedAll && cachedAll.filters.length === 1) {
           // Only one filter exists, cache is valid for all cpids
-          logger.log('Reusing single filter cache for different cpid', { 
+          logger.info('Reusing single filter cache for different cpid', { 
             shop, 
             cpid, 
             filterId: cachedAll.filters[0].id 
@@ -217,7 +217,7 @@ export class FiltersRepository {
 
       const index = FILTERS_INDEX_NAME;
       
-      logger.log('Listing filters for shop', { shop, index, cpid: cpid || 'none' });
+      logger.info('Listing filters for shop', { shop, index, cpid: cpid || 'none' });
       
       // Use must with term query for exact shop matching
       // Try both shop.keyword (if keyword subfield exists) and shop (direct keyword field)
@@ -263,7 +263,7 @@ export class FiltersRepository {
       // Log sample shop values from results for debugging
       const sampleShops = response.hits.hits.slice(0, 3).map((hit: any) => hit._source?.shop).filter(Boolean);
       
-      logger.log('Filters list result', { 
+      logger.info('Filters list result', { 
         shop, 
         count: filters.length, 
         total,
@@ -284,14 +284,14 @@ export class FiltersRepository {
       // This allows reusing the cache when cpid changes but there's only one filter
       if (filters.length === 1) {
         cacheService.setFilterList(shop, result, undefined);
-        logger.log('Single filter cached for all cpids', { shop, filterId: filters[0].id });
+        logger.info('Single filter cached for all cpids', { shop, filterId: filters[0].id });
       }
       
       return result;
     } catch (error: any) {
       if (error.statusCode === 404) {
         // Index doesn't exist yet, return empty
-        logger.log('Filters index does not exist', { shop, index: FILTERS_INDEX_NAME });
+        logger.info('Filters index does not exist', { shop, index: FILTERS_INDEX_NAME });
         return { filters: [], total: 0 };
       }
       logger.error('Error listing filters', { shop, error: error?.message || error, stack: error?.stack });
@@ -546,7 +546,7 @@ export class FiltersRepository {
     try {
       const index = FILTERS_INDEX_NAME;
       
-      logger.log('Deleting all filters for shop', { shop });
+      logger.info('Deleting all filters for shop', { shop });
       
       // Use delete by query to remove all filters for this shop
       const response = await this.esClient.deleteByQuery({
@@ -589,7 +589,7 @@ export class FiltersRepository {
     } catch (error: any) {
       if (error.statusCode === 404) {
         // Index doesn't exist, no filters to delete
-        logger.log('Filters index does not exist', { shop });
+        logger.info('Filters index does not exist', { shop });
         return 0;
       }
       logger.error('Error deleting all filters for shop', { shop, error: error?.message || error });

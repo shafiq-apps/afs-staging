@@ -128,7 +128,7 @@ function attachResolversToSchema(schema: GraphQLSchema, resolvers: any): GraphQL
     const queryFields = queryType.getFields();
     const availableFields = Object.keys(queryFields);
     
-    logger.debug('Query type fields', { 
+    logger.info('Query type fields', { 
       availableFields,
       resolverKeys: Object.keys(resolvers.Query),
     });
@@ -143,7 +143,7 @@ function attachResolversToSchema(schema: GraphQLSchema, resolvers: any): GraphQL
           // Wrap resolver to add logging
           const resolverFn = resolvers.Query[fieldName];
           (queryFields[fieldName] as any).resolve = async (...args: any[]) => {
-            logger.log(`Query.${fieldName} called`, {
+            logger.info(`Query.${fieldName} called`, {
               fieldName,
               argsCount: args.length,
               hasParent: !!args[0],
@@ -153,7 +153,7 @@ function attachResolversToSchema(schema: GraphQLSchema, resolvers: any): GraphQL
               argValues: args[1],
             });
             
-            logger.log(`Resolver called for Query.${fieldName}`, {
+            logger.info(`Resolver called for Query.${fieldName}`, {
               fieldName,
               argsCount: args.length,
               hasParent: !!args[0],
@@ -165,7 +165,7 @@ function attachResolversToSchema(schema: GraphQLSchema, resolvers: any): GraphQL
             try {
               const result = await resolverFn(...args);
               
-              logger.log(`Query.${fieldName} result`, {
+              logger.info(`Query.${fieldName} result`, {
                 fieldName,
                 hasResult: !!result,
                 resultType: typeof result,
@@ -173,7 +173,7 @@ function attachResolversToSchema(schema: GraphQLSchema, resolvers: any): GraphQL
                 isUndefined: result === undefined,
               });
               
-              logger.log(`Resolver result for Query.${fieldName}`, {
+              logger.info(`Resolver result for Query.${fieldName}`, {
                 fieldName,
                 hasResult: !!result,
                 resultType: typeof result,
@@ -196,7 +196,7 @@ function attachResolversToSchema(schema: GraphQLSchema, resolvers: any): GraphQL
             }
           };
           
-          logger.log('Attached resolver to Query field', { 
+          logger.info('Attached resolver to Query field', { 
             fieldName,
             hadOriginalResolver: !!existingResolver,
             newResolverType: typeof resolverFn,
@@ -290,7 +290,7 @@ function attachResolversToSchema(schema: GraphQLSchema, resolvers: any): GraphQL
             if (fields[fieldName] && resolvers[key][fieldName]) {
               try {
                 (fields[fieldName] as any).resolve = resolvers[key][fieldName];
-                logger.debug('Attached resolver to type field', { type: key, fieldName });
+                logger.info('Attached resolver to type field', { type: key, fieldName });
               } catch (error: any) {
                 logger.error('Failed to attach resolver to type field', {
                   type: key,
@@ -301,13 +301,13 @@ function attachResolversToSchema(schema: GraphQLSchema, resolvers: any): GraphQL
             }
           });
         } else {
-          logger.debug('Type is not an ObjectType, skipping field resolver attachment', {
+          logger.info('Type is not an ObjectType, skipping field resolver attachment', {
             type: key,
             typeKind: type.constructor.name,
           });
         }
       } else {
-        logger.debug('Type not found in schema', { type: key });
+        logger.info('Type not found in schema', { type: key });
       }
     }
   });
@@ -418,7 +418,7 @@ function combineSchemas(schemas: string[]): GraphQLSchema {
             queryFields.push(...fields);
           } else if (inMutation) {
             const fields = currentBlock.slice(1, -1).filter(l => l.trim() && !l.trim().startsWith('#'));
-            logger.debug('Extracting mutation fields', {
+            logger.info('Extracting mutation fields', {
               blockLength: currentBlock.length,
               fieldsFound: fields.length,
               fields: fields,
@@ -545,7 +545,7 @@ export function createGraphQLModule(
     // Each schema must have its own resolver file in resolvers/
     let resolversToUse: any[];
     if (resolverObjects.length > 0) {
-      logger.log('Using manual resolvers (found in resolvers/index.ts)', {
+      logger.info('Using manual resolvers (found in resolvers/index.ts)', {
         resolverCount: resolverObjects.length,
         resolverNames: resolverObjects.map((r: any) => ({
           queries: Object.keys(r.Query || {}),
@@ -560,7 +560,7 @@ export function createGraphQLModule(
       resolversToUse = [];
     }
 
-    logger.log('Loading GraphQL schemas and resolvers', {
+    logger.info('Loading GraphQL schemas and resolvers', {
       schemaCount: schemasToUse.length,
       manualResolverCount: resolverObjects.length,
       totalQueries: resolversToUse.reduce((sum, r) => sum + Object.keys(r.Query || {}).length, 0),
@@ -582,7 +582,7 @@ export function createGraphQLModule(
     }
 
     // Manually attach resolvers to schema
-    logger.debug('Attaching resolvers to schema', {
+    logger.info('Attaching resolvers to schema', {
       resolverKeys: Object.keys(combinedResolvers),
       queryResolvers: combinedResolvers.Query ? Object.keys(combinedResolvers.Query) : [],
       mutationResolvers: combinedResolvers.Mutation ? Object.keys(combinedResolvers.Mutation) : [],

@@ -105,7 +105,7 @@ export class GraphQLHandler {
         variables[fieldName] = value;
       }
 
-      logger.debug(`Executing read query for ${type}`, { query: query.trim(), variables, dataKey });
+      logger.info(`Executing read query for ${type}`, { query: query.trim(), variables, dataKey });
 
       if (!this.graphqlService) {
         logger.error(`GraphQL service not available for ${type}`);
@@ -136,7 +136,7 @@ export class GraphQLHandler {
       }
 
       const data = result.data?.[dataKey] || null;
-      logger.debug(`Read result for ${type}`, { 
+      logger.info(`Read result for ${type}`, { 
         dataKey, 
         hasData: !!data,
         dataKeys: data ? Object.keys(data) : [],

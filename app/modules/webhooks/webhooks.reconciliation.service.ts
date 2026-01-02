@@ -122,7 +122,7 @@ export class WebhookReconciliationService {
             id: product.id,
             refresh: false,
           });
-          logger.log('Product deleted from index', { shop, productId: product.id });
+          logger.info('Product deleted from index', { shop, productId: product.id });
         } catch (error: any) {
           if (error.statusCode !== 404) {
             result.errors.push(`Failed to delete product ${product.id}: ${error?.message}`);

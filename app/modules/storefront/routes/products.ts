@@ -38,7 +38,9 @@ export const GET = handler(async (req: HttpRequest) => {
   // Get active filter configuration
   let filterConfig = null;
   if (filtersRepository) {
-    filterConfig = await getActiveFilterConfig(filtersRepository, shop);
+    const collectionId = (req.query.collection as string) || searchInput?.collections?.[0];
+    const cpid = typeof req.query.cpid === 'string' ? req.query.cpid.trim() : searchInput?.cpid;
+    filterConfig = await getActiveFilterConfig(filtersRepository, shop, collectionId, cpid);
     
     // Apply filter configuration to search input
     if (filterConfig) {

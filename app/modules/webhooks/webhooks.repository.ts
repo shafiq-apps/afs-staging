@@ -95,7 +95,7 @@ export class WebhooksRepository {
             number_of_replicas: 0,
           },
         });
-        logger.log('Webhook queue index created');
+        logger.info('Webhook queue index created');
       }
     } catch (error: any) {
       logger.warn('Failed to ensure webhook queue index exists', error?.message || error);
@@ -145,7 +145,7 @@ export class WebhooksRepository {
       refresh: false, // Don't wait for refresh for performance
     });
 
-    logger.log('Webhook event queued', {
+    logger.info('Webhook event queued', {
       webhookId,
       topic: input.topic,
       shop: input.shop,
@@ -218,7 +218,7 @@ export class WebhooksRepository {
         refresh: false,
       });
 
-      logger.log('Webhook status updated', { id, status });
+      logger.info('Webhook status updated', { id, status });
     } catch (error: any) {
       if (error.statusCode !== 404) {
         logger.error('Error updating webhook status', {
@@ -267,7 +267,7 @@ export class WebhooksRepository {
         refresh: false,
       });
 
-      logger.log('Webhook queued for retry', { id, retryCount: newRetryCount });
+      logger.info('Webhook queued for retry', { id, retryCount: newRetryCount });
       return true;
     } catch (error: any) {
       logger.error('Error retrying webhook', {
@@ -400,7 +400,7 @@ export class WebhooksRepository {
       });
 
       const deleted = response.deleted || 0;
-      logger.log('Cleaned up old webhooks', { deleted, ttlDays });
+      logger.info('Cleaned up old webhooks', { deleted, ttlDays });
       return deleted;
     } catch (error: any) {
       logger.error('Error cleaning up old webhooks', error?.message || error);

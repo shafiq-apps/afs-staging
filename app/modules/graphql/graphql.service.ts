@@ -148,7 +148,7 @@ export class GraphQLService {
     context: GraphQLContext
   ): Promise<GraphQLExecutionResult> {
     try {
-      logger.debug('Executing GraphQL query with graphql library', {
+      logger.info('Executing GraphQL query with graphql library', {
         hasSchema: !!this.schema,
         hasResolvers: !!this.resolvers,
         hasContext: !!context,
@@ -165,7 +165,7 @@ export class GraphQLService {
         // rootValue is not needed - resolvers are attached to schema
       });
 
-      logger.debug('GraphQL library execution completed', {
+      logger.info('GraphQL library execution completed', {
         hasData: !!result.data,
         hasErrors: !!result.errors,
         dataKeys: result.data ? Object.keys(result.data) : [],

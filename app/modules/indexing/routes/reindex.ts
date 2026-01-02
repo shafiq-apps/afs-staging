@@ -49,7 +49,7 @@ export const POST = handler(async (req: HttpRequest) => {
   }
 
   // Verify shop exists and has access token
-  logger.log(`Looking up shop in ES: ${shopParam}`);
+  logger.info(`Looking up shop in ES: ${shopParam}`);
   const shop = await shopsRepository.getShop(shopParam);
   
   if (!shop) {
@@ -60,7 +60,7 @@ export const POST = handler(async (req: HttpRequest) => {
     };
   }
 
-  logger.log(`Shop found in ES`, {
+  logger.info(`Shop found in ES`, {
     shop: shop.shop,
     hasAccessToken: !!shop.accessToken,
     isActive: shop.isActive,
@@ -140,7 +140,7 @@ export const POST = handler(async (req: HttpRequest) => {
   // Start indexing in background and return 202 Accepted
   (async () => {
     try {
-      logger.log(`Starting background reindex for shop=${shopParam}`, {
+      logger.info(`Starting background reindex for shop=${shopParam}`, {
         shop: shop.shop,
         hasToken: !!shop.accessToken,
       });
@@ -161,7 +161,7 @@ export const POST = handler(async (req: HttpRequest) => {
       // Force save immediately to make status visible
       await checkpointService.forceSave();
       
-      logger.log(`Indexing status set to in_progress for shop=${shopParam}`);
+      logger.info(`Indexing status set to in_progress for shop=${shopParam}`);
       
       const deps: BulkIndexerDependencies = {
         esClient,
@@ -173,13 +173,13 @@ export const POST = handler(async (req: HttpRequest) => {
         shop: shopParam,
       };
 
-      logger.log('Creating ProductBulkIndexer instance...');
+      logger.info('Creating ProductBulkIndexer instance...');
       const indexer = new ProductBulkIndexer(opts, deps);
       
-      logger.log('Starting indexer.run()...');
+      logger.info('Starting indexer.run()...');
       await indexer.run();
       
-      logger.log(`Background reindex finished successfully for shop=${shopParam}`);
+      logger.info(`Background reindex finished successfully for shop=${shopParam}`);
     } catch (err: any) {
       logger.error(`Background reindex error for shop=${shopParam}`, {
         error: err?.message || err,
@@ -189,7 +189,7 @@ export const POST = handler(async (req: HttpRequest) => {
       // Always release the lock when done
       try {
         await lockService.releaseLock(shopParam);
-        logger.log(`Indexing lock released for shop=${shopParam}`);
+        logger.info(`Indexing lock released for shop=${shopParam}`);
       } catch (releaseError: any) {
         logger.warn(`Error releasing lock for shop=${shopParam}`, {
           error: releaseError?.message || releaseError,

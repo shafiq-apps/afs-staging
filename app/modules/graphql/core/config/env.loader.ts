@@ -86,7 +86,7 @@ export function loadEnv(options: EnvLoaderOptions = {}): void {
         logger.info('Loaded .env file');
       }
     } else {
-      logger.debug('.env file not found, skipping');
+      logger.info('.env file not found, skipping');
     }
   }
 
@@ -100,7 +100,7 @@ export function loadEnv(options: EnvLoaderOptions = {}): void {
       logger.info(`Loaded .env.${env} file`);
     }
   } else {
-    logger.debug(`.env.${env} file not found, skipping`);
+    logger.info(`.env.${env} file not found, skipping`);
   }
 
   // Log loaded environment (without sensitive data)

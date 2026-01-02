@@ -78,7 +78,7 @@ export class WebhookWorkerService {
         return;
       }
 
-      logger.log('Processing webhook batch', { count: pendingWebhooks.length });
+      logger.info('Processing webhook batch', { count: pendingWebhooks.length });
 
       // Process webhooks in parallel (with concurrency limit)
       const concurrency = 3;
@@ -100,7 +100,7 @@ export class WebhookWorkerService {
         });
       }
 
-      logger.log('Webhook batch processed', { count: pendingWebhooks.length });
+      logger.info('Webhook batch processed', { count: pendingWebhooks.length });
     } catch (error: any) {
       logger.error('Error processing pending webhooks', {
         error: error?.message || error,
@@ -235,7 +235,7 @@ export class WebhookWorkerService {
       refresh: true, // Refresh for immediate visibility
     });
 
-    logger.log('Product indexed from webhook', {
+    logger.info('Product indexed from webhook', {
       shop,
       productId: productDoc.productId,
       productGid: docId,
@@ -262,14 +262,14 @@ export class WebhookWorkerService {
         refresh: true,
       });
 
-      logger.log('Product deleted from index', {
+      logger.info('Product deleted from index', {
         shop,
         productId: docId,
       });
     } catch (error: any) {
       if (error.statusCode === 404) {
         // Product already deleted, that's fine
-        logger.log('Product already deleted from index', {
+        logger.info('Product already deleted from index', {
           shop,
           productId: docId,
         });
@@ -285,7 +285,7 @@ export class WebhookWorkerService {
   private async processCollectionUpdateWebhook(webhook: WebhookEvent): Promise<void> {
     const { shop, isBestSellerCollection, sortOrderUpdated } = webhook;
 
-    logger.log('Processing collection update webhook', {
+    logger.info('Processing collection update webhook', {
       shop,
       isBestSellerCollection,
       sortOrderUpdated,
@@ -309,7 +309,7 @@ export class WebhookWorkerService {
   private async processCollectionDeleteWebhook(webhook: WebhookEvent): Promise<void> {
     const { shop, isBestSellerCollection } = webhook;
 
-    logger.log('Processing collection delete webhook', {
+    logger.info('Processing collection delete webhook', {
       shop,
       isBestSellerCollection,
     });

@@ -56,7 +56,7 @@ export async function performUninstallCleanup(
       cleanupResults.shopIndexDeleted = true;
       logger.info(`Product index deleted for shop: ${shop}`, { indexName: productIndexName });
     } else {
-      logger.log(`Product index does not exist for shop: ${shop}`, { indexName: productIndexName });
+      logger.info(`Product index does not exist for shop: ${shop}`, { indexName: productIndexName });
     }
   } catch (error: any) {
     logger.error(`Error deleting product index for shop: ${shop}`, {

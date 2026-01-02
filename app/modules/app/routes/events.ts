@@ -133,7 +133,7 @@ export const POST = handler(async (req: HttpRequest) => {
               return;
             }
 
-            logger.log(`Starting background reindex for new installation: shop=${shop}`);
+            logger.info(`Starting background reindex for new installation: shop=${shop}`);
             
             const productMapping = getProductMapping();
             const checkpointService = new IndexerCheckpointService(esClient, shop, 2000);
@@ -148,7 +148,7 @@ export const POST = handler(async (req: HttpRequest) => {
             });
             await checkpointService.forceSave();
             
-            logger.log(`Indexing status set to in_progress for shop=${shop}`);
+            logger.info(`Indexing status set to in_progress for shop=${shop}`);
             
             const deps: BulkIndexerDependencies = {
               esClient,
@@ -160,13 +160,13 @@ export const POST = handler(async (req: HttpRequest) => {
               shop: shop,
             };
 
-            logger.log('Creating ProductBulkIndexer instance...');
+            logger.info('Creating ProductBulkIndexer instance...');
             const indexer = new ProductBulkIndexer(opts, deps);
             
-            logger.log('Starting indexer.run()...');
+            logger.info('Starting indexer.run()...');
             await indexer.run();
             
-            logger.log(`Background reindex finished successfully for shop=${shop}`);
+            logger.info(`Background reindex finished successfully for shop=${shop}`);
           } catch (err: any) {
             logger.error(`Background reindex error for shop=${shop}`, {
               error: err?.message || err,
@@ -178,7 +178,7 @@ export const POST = handler(async (req: HttpRequest) => {
               const esClient = getESClient();
               const lockService = new IndexingLockService(esClient);
               await lockService.releaseLock(shop);
-              logger.log(`Indexing lock released for shop=${shop}`);
+              logger.info(`Indexing lock released for shop=${shop}`);
             } catch (releaseError: any) {
               logger.warn(`Error releasing lock for shop=${shop}`, {
                 error: releaseError?.message || releaseError,

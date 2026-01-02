@@ -36,8 +36,8 @@ export class StorefrontSearchService implements Injectable {
       throw new Error('Shop parameter is required');
     }
 
-    // Generate filter config hash for cache key
-    const filterConfigHash = getFilterConfigHash(filterConfig);
+    // Generate filter config hash for cache key (include runtime filters)
+    const filterConfigHash = getFilterConfigHash(filterConfig, filters);
 
     // Try to get from cache first (include filterConfig hash in cache key)
     const cachedAggregations = this.cache.getFilterResults(shop, filters, filterConfigHash);
@@ -67,8 +67,8 @@ export class StorefrontSearchService implements Injectable {
    * to avoid redundant ES queries.
    */
   async getRawAggregations(shop: string, filters?: ProductFilterInput, filterConfig?: Filter | null): Promise<FacetAggregations> {
-    // Generate filter config hash for cache key
-    const filterConfigHash = getFilterConfigHash(filterConfig);
+    // Generate filter config hash for cache key (include runtime filters)
+    const filterConfigHash = getFilterConfigHash(filterConfig, filters);
 
     // Step 1: Check filter cache first (fastest path)
     const cachedAggregations = this.cache.getFilterResults(shop, filters, filterConfigHash);
@@ -131,7 +131,7 @@ export class StorefrontSearchService implements Injectable {
     }
 
     // Generate filter config hash for cache key
-    const filterConfigHash = getFilterConfigHash(filterConfig);
+    const filterConfigHash = getFilterConfigHash(filterConfig, filters);
 
     // Try to get from cache first (include filterConfig hash in cache key)
     const cachedResult = this.cache.getSearchResults(shop, filters, filterConfigHash);

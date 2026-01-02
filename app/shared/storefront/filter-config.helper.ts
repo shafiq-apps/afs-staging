@@ -177,7 +177,7 @@ export async function getActiveFilterConfig(
     );
 
     if (publishedFilters.length === 0) {
-      logger.log('No published filter configuration found', { shop, cpid });
+      logger.info('No published filter configuration found', { shop, cpid });
       return null;
     }
 
@@ -206,7 +206,7 @@ export async function getActiveFilterConfig(
         // Among collection-specific filters, prioritize by filterType
         const customFilter = collectionSpecificFilters.find((f) => normalizeString(f.filterType) === normalizeString(FILTER_TYPE.CUSTOM));
         if (customFilter) {
-          logger.log('Collection-specific custom filter found', {
+          logger.info('Collection-specific custom filter found', {
             shop,
             collectionId: targetCollectionId,
             cpid,
@@ -218,7 +218,7 @@ export async function getActiveFilterConfig(
 
         const defaultFilter = collectionSpecificFilters.find((f) => normalizeString(f.filterType) === normalizeString(FILTER_TYPE.DEFAULT));
         if (defaultFilter) {
-          logger.log('Collection-specific default filter found', {
+          logger.info('Collection-specific default filter found', {
             shop,
             collectionId: targetCollectionId,
             cpid,
@@ -229,7 +229,7 @@ export async function getActiveFilterConfig(
         }
 
         // Return first collection-specific filter
-        logger.log('Collection-specific filter found', {
+        logger.info('Collection-specific filter found', {
           shop,
           collectionId: targetCollectionId,
           cpid,
@@ -241,7 +241,7 @@ export async function getActiveFilterConfig(
       
       // If no collection-specific filter found, return null
       // Frontend will render fallback products
-      logger.log('No filter found for collection, checking all collection\'s filters', {
+      logger.info('No filter found for collection, checking all collection\'s filters', {
         shop,
         collectionId: targetCollectionId,
         cpid,
@@ -257,7 +257,7 @@ export async function getActiveFilterConfig(
       // Among all-scope filters, prioritize by filterType
       const customFilter = allScopeFilters.find((f) => normalizeString(f.filterType) === normalizeString(FILTER_TYPE.CUSTOM));
       if (customFilter) {
-        logger.log('All-scope custom filter found', {
+        logger.info('All-scope custom filter found', {
           shop,
           filterId: customFilter.id,
           title: customFilter.title,
@@ -268,7 +268,7 @@ export async function getActiveFilterConfig(
 
       const defaultFilter = allScopeFilters.find((f) => normalizeString(f.filterType) === normalizeString(FILTER_TYPE.DEFAULT));
       if (defaultFilter) {
-        logger.log('All-scope default filter found', {
+        logger.info('All-scope default filter found', {
           shop,
           filterId: defaultFilter.id,
           title: defaultFilter.title,
@@ -278,7 +278,7 @@ export async function getActiveFilterConfig(
       }
 
       // Return first all-scope filter
-      logger.log('All-scope filter found', {
+      logger.info('All-scope filter found', {
         shop,
         filterId: allScopeFilters[0].id,
         title: allScopeFilters[0].title,
@@ -290,7 +290,7 @@ export async function getActiveFilterConfig(
     // Priority 3: Custom published filter (fallback, any scope)
     const customFilter = publishedFilters.find((f) => normalizeString(f.filterType) === normalizeString(FILTER_TYPE.CUSTOM));
     if (customFilter) {
-      logger.log('Custom published filter found (fallback)', {
+      logger.info('Custom published filter found (fallback)', {
         shop,
         filterId: customFilter.id,
         title: customFilter.title,
@@ -302,7 +302,7 @@ export async function getActiveFilterConfig(
     // Priority 4: Default published filter (fallback, any scope)
     const defaultFilter = publishedFilters.find((f) => normalizeString(f.filterType) === FILTER_TYPE.DEFAULT);
     if (defaultFilter) {
-      logger.log('Default published filter found (fallback)', {
+      logger.info('Default published filter found (fallback)', {
         shop,
         filterId: defaultFilter.id,
         title: defaultFilter.title,
@@ -313,7 +313,7 @@ export async function getActiveFilterConfig(
 
     // Priority 5: Any published filter (last resort)
     const anyFilter = publishedFilters[0];
-    logger.log('Using first available published filter (last resort)', {
+    logger.info('Using first available published filter (last resort)', {
       shop,
       filterId: anyFilter.id,
       title: anyFilter.title,
@@ -555,7 +555,7 @@ export function applyFilterConfigToInput(
           }
         }
         
-        logger.debug('Mapping option key to name', {
+        logger.info('Mapping option key to name', {
           queryKey,
           optionName,
           values,
@@ -594,7 +594,7 @@ export function applyFilterConfigToInput(
           mappedOptions[optionName] = values;
         }
       } else {
-        logger.debug('Skipping option key - not in filter config', {
+        logger.info('Skipping option key - not in filter config', {
           queryKey,
           values,
         });
@@ -639,7 +639,7 @@ export function applyFilterConfigToInput(
         if (parsed) {
           if (parsed.min !== undefined) (result as any).priceMin = parsed.min;
           if (parsed.max !== undefined) (result as any).priceMax = parsed.max;
-          logger.debug('Converted price range option to priceMin/priceMax', {
+          logger.info('Converted price range option to priceMin/priceMax', {
             optionName,
             value: first,
             priceMin: (result as any).priceMin,
@@ -664,7 +664,7 @@ export function applyFilterConfigToInput(
               ? result.cpid.split('/').pop() || result.cpid
               : result.cpid;
             
-            logger.debug('Skipping collection option conversion - cpid takes precedence', {
+            logger.info('Skipping collection option conversion - cpid takes precedence', {
               optionName,
               cpid: result.cpid,
               cpidCollectionId,
@@ -737,7 +737,7 @@ export function applyFilterConfigToInput(
             const existing = result[standardField] || [];
             result[standardField] = [...new Set([...existing, ...values])];
             
-            logger.debug('Converted standard filter from options to dedicated field', {
+            logger.info('Converted standard filter from options to dedicated field', {
               optionName,
               standardField,
               values,
@@ -853,11 +853,11 @@ export function applyFilterConfigToInput(
  * @param filterConfig - The filter configuration to hash, or null if no filter
  * @returns A hash string representing the filter configuration state
  */
-export function getFilterConfigHash(filterConfig: Filter | null): string {
+export function getFilterConfigHash(filterConfig: Filter | null, filters?: ProductSearchInput): string {
   if (!filterConfig) {
     return NO_FILTER_CONFIG_HASH;
   }
-  
+
   // Ensure we have a valid timestamp (fallback to current time if both are missing)
   const updatedAt = filterConfig.updatedAt || filterConfig.createdAt || new Date().toISOString();
   
@@ -887,11 +887,42 @@ export function getFilterConfigHash(filterConfig: Filter | null): string {
       })
       .sort((a, b) => a.handle.localeCompare(b.handle)) || [],
   };
-  
+
+  // Include selected parts of the runtime `filters` that affect results and aggregations
+  // Normalize: sort option keys and their values to ensure consistent hashing
+  if (filters) {
+    const normalizedFilters: any = {};
+
+    if (filters.options && typeof filters.options === 'object') {
+      const opts: Record<string, string[]> = {};
+      Object.keys(filters.options).sort().forEach((k) => {
+        const vals = Array.isArray(filters.options![k]) ? filters.options![k].filter(Boolean).map(String) : [];
+        opts[k] = [...new Set(vals)].sort();
+      });
+      normalizedFilters.options = opts;
+    }
+
+    if (filters.collections && Array.isArray(filters.collections)) {
+      normalizedFilters.collections = [...new Set(filters.collections)].map(String).sort();
+    }
+
+    if (filters.cpid) normalizedFilters.cpid = filters.cpid;
+    if ((filters as any).priceMin !== undefined) normalizedFilters.priceMin = (filters as any).priceMin;
+    if ((filters as any).priceMax !== undefined) normalizedFilters.priceMax = (filters as any).priceMax;
+    if (filters.keep && Array.isArray(filters.keep)) normalizedFilters.keep = [...new Set(filters.keep)].map(String).sort();
+    if ((filters as any).q) normalizedFilters.q = (filters as any).q;
+    if ((filters as any).sort) normalizedFilters.sort = (filters as any).sort;
+
+    // Attach normalized filters to hash input only if non-empty
+    if (Object.keys(normalizedFilters).length > 0) {
+      (hashData as any).filters = normalizedFilters;
+    }
+  }
+
   const hashString = JSON.stringify(hashData);
   const hash = crypto.createHash('md5').update(hashString).digest('hex').substring(0, 12);
   
-  logger.debug('Filter config hash generated', {
+  logger.info('Filter config hash generated', {
     filterId: filterConfig.id,
     hash,
     version: filterConfig.version,

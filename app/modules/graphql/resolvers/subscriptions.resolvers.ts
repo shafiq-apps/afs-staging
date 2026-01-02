@@ -39,7 +39,7 @@ export const subscriptionsResolvers = {
         const { shop } = context.req.query as any;
         if (!shop) throw new Error('Shop and id are required');
 
-        logger.log('Fetching subscription', { shop });
+        logger.info('Fetching subscription', { shop });
         const repo = getSubscriptionsRepository(context);
         return await repo.getSubscription(shop);
       } catch (error: any) {
@@ -80,7 +80,7 @@ export const subscriptionsResolvers = {
         const { shop } = context.req.query as any;
         if (!shop) throw new Error('Shop not found in request context');
 
-        logger.log('Creating Shopify app subscription from plan', {
+        logger.info('Creating Shopify app subscription from plan', {
           shop,
           planId
         });
@@ -169,7 +169,7 @@ export const subscriptionsResolvers = {
         const { shop } = context.req.query as any;
         if (!shop) throw new Error('Shop is required');
 
-        logger.log('Fetching subscriptions', { shop });
+        logger.info('Fetching subscriptions', { shop });
 
         const repo = getSubscriptionsRepository(context);
         const results = await repo.createOrUpdateSubscription(shop, args.id);

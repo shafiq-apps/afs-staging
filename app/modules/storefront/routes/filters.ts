@@ -42,7 +42,7 @@ export const GET = handler(async (req: HttpRequest) => {
   // Build filter input from request query parameters
   let filterInput = buildFilterInput(req.query);
 
-  logger.log(`Fetching storefront filters for shop=${shopParam}`, filterInput ? `with filters=${JSON.stringify(filterInput)}` : '');
+  logger.info(`Fetching storefront filters for shop=${shopParam}`, filterInput ? `with filters=${JSON.stringify(filterInput)}` : '');
 
   // Get services from request (injected by bootstrap/factory)
   const productsService = (req as any).productsService;
@@ -63,7 +63,7 @@ export const GET = handler(async (req: HttpRequest) => {
     filterConfig = await getActiveFilterConfig(filtersRepository, shopParam, collectionId, cpid);
 
     if (filterConfig) {
-      logger.log('Active filter configuration found', {
+      logger.info('Active filter configuration found', {
         shop: shopParam,
         filterId: filterConfig.id,
         title: filterConfig.title,
@@ -79,7 +79,7 @@ export const GET = handler(async (req: HttpRequest) => {
         filterInput = applyFilterConfigToInput(filterConfig, filterInput, collection);
       }
     } else {
-      logger.log('No active filter configuration found for shop', { shop: shopParam });
+      logger.info('No active filter configuration found for shop', { shop: shopParam });
     }
   } else {
     logger.warn('Filters repository not available', { shop: shopParam });
@@ -101,7 +101,7 @@ export const GET = handler(async (req: HttpRequest) => {
     filterConfig
   );
 
-  logger.debug('Raw aggregations from repository', {
+  logger.info('Raw aggregations from repository', {
     shop: shopParam,
     hasVendors: !!aggregations?.vendors?.buckets?.length,
     hasProductTypes: !!aggregations?.productTypes?.buckets?.length,
@@ -124,7 +124,7 @@ export const GET = handler(async (req: HttpRequest) => {
   // For REST endpoint, pass null as filterConfig to formatFilters to get ALL filters (not just configured ones)
   const formattedFilters = formatFilters(aggregations, filterConfig)
 
-  logger.debug('Formatted filters', {
+  logger.info('Formatted filters', {
     shop: shopParam,
     filterCount: formattedFilters.length,
     optionFilters: formattedFilters.filter((filter) => filter.type === 'option').length,

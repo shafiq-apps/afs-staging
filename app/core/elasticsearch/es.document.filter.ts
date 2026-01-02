@@ -150,7 +150,7 @@ export function filterFields(doc: any, allowedFields: string[]): any {
     if (allowedSet.has(key)) {
       filtered[key] = value;
     } else {
-      logger.debug(`Filtering out field: ${key}`);
+      logger.info(`Filtering out field: ${key}`);
     }
   }
 

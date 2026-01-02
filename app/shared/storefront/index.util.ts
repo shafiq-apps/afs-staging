@@ -25,7 +25,7 @@ export async function ensureProductIndex(esClient: Client, shop: string): Promis
     const exists = await esClient.indices.exists({ index: indexName });
 
     if (!exists) {
-      logger.log(`Creating product index: ${indexName}`);
+      logger.info(`Creating product index: ${indexName}`);
       
       await esClient.indices.create({
         index: indexName,
@@ -45,7 +45,7 @@ export async function ensureProductIndex(esClient: Client, shop: string): Promis
         },
       } as any);
 
-      logger.log(`Product index created: ${indexName}`);
+      logger.info(`Product index created: ${indexName}`);
     } else {
       // Check if we need to update settings
       try {
@@ -54,7 +54,7 @@ export async function ensureProductIndex(esClient: Client, shop: string): Promis
         const fieldLimitNum = typeof fieldLimit === 'string' ? parseInt(fieldLimit, 10) : (fieldLimit as number);
 
         if (!fieldLimitNum || fieldLimitNum < 5000) {
-          logger.log(`Updating field limit for index: ${indexName}`);
+          logger.info(`Updating field limit for index: ${indexName}`);
           await esClient.indices.putSettings({
             index: indexName,
             body: {
@@ -67,7 +67,7 @@ export async function ensureProductIndex(esClient: Client, shop: string): Promis
               },
             },
           } as any);
-          logger.log(`Field limit updated to 5000 for: ${indexName}`);
+          logger.info(`Field limit updated to 5000 for: ${indexName}`);
         }
       } catch (error: any) {
         logger.warn(`Failed to update index settings: ${error?.message || error}`);
@@ -76,7 +76,7 @@ export async function ensureProductIndex(esClient: Client, shop: string): Promis
   } catch (error: any) {
     // Handle race condition where index is created concurrently
     if (error.meta?.body?.error?.type === 'resource_already_exists_exception') {
-      logger.debug(`Index already exists (concurrent creation): ${indexName}`);
+      logger.info(`Index already exists (concurrent creation): ${indexName}`);
       return;
     }
     logger.error(`Failed to ensure product index: ${indexName}`, error?.message || error);

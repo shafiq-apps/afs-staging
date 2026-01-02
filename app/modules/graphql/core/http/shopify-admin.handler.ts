@@ -70,7 +70,7 @@ export class ShopifyAdminHandler {
    * Get shop access token from ES
    */
   private async getShopAccessToken(shop: string): Promise<string> {
-    logger.debug(`Getting shop access token for: ${shop}`);
+    logger.info(`Getting shop access token for: ${shop}`);
     
     try {
       const shopData = await this.shopsRepository.getShop(shop);
@@ -80,7 +80,7 @@ export class ShopifyAdminHandler {
         throw new Error(`Shop not found: ${shop}`);
       }
 
-      logger.debug(`Shop found in ES`, {
+      logger.info(`Shop found in ES`, {
         shop: shopData.shop,
         isActive: shopData.isActive,
         hasAccessToken: !!shopData.accessToken,
@@ -96,7 +96,7 @@ export class ShopifyAdminHandler {
         throw new Error(`Missing access token for shop: ${shop}`);
       }
 
-      logger.debug(`Access token retrieved successfully for: ${shop}`);
+      logger.info(`Access token retrieved successfully for: ${shop}`);
       return shopData.accessToken;
     } catch (error: any) {
       logger.error(`Failed to get shop access token`, {
@@ -163,16 +163,16 @@ export class ShopifyAdminHandler {
   ): Promise<ShopifyAdminResponse<T>> {
     const { shop, query, variables, ...axiosConfig } = config;
 
-    logger.debug(`Making Shopify request`, {
+    logger.info(`Making Shopify request`, {
       shop,
       hasQuery: !!query,
       method: axiosConfig.method || (query ? 'POST' : 'GET'),
     });
 
     try {
-      logger.debug(`Creating axios instance for shop: ${shop}`);
+      logger.info(`Creating axios instance for shop: ${shop}`);
       const axiosInstance = await this.createShopAxiosInstance(shop);
-      logger.debug(`Axios instance created successfully`);
+      logger.info(`Axios instance created successfully`);
       
       let attempt = 0;
       let throttleRetries = 0; // Track throttling retries separately to prevent infinite loops
@@ -180,7 +180,7 @@ export class ShopifyAdminHandler {
       while (attempt < this.maxRetries) {
         attempt++;
         
-        logger.debug(`Request attempt ${attempt}/${this.maxRetries}`, { 
+        logger.info(`Request attempt ${attempt}/${this.maxRetries}`, { 
           shop,
           throttleRetries,
         });
@@ -198,7 +198,7 @@ export class ShopifyAdminHandler {
             timeout: 300000, // 5 minutes timeout for bulk operations
           };
 
-          logger.debug(`Sending ${method} request to ${endpoint}`, {
+          logger.info(`Sending ${method} request to ${endpoint}`, {
             shop,
             attempt,
             hasQuery: !!query,
@@ -209,7 +209,7 @@ export class ShopifyAdminHandler {
           const response = await axiosInstance.request<T>(requestConfig);
           const duration = Date.now() - startTime;
           
-          logger.debug(`Received response`, {
+          logger.info(`Received response`, {
             status: response.status,
             statusText: response.statusText,
             hasData: !!response.data,
@@ -425,7 +425,7 @@ export class ShopifyAdminHandler {
     query: string,
     variables?: any
   ): Promise<ShopifyAdminResponse<T>> {
-    logger.debug(`GraphQL request`, { shop, hasVariables: !!variables });
+    logger.info(`GraphQL request`, { shop, hasVariables: !!variables });
     return this.request<T>({
       shop,
       query,

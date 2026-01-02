@@ -51,10 +51,10 @@ export const filtersResolvers = {
           throw new Error('Shop and ID are required');
         }
 
-        logger.log('Getting filter by ID', { shop, id });
+        logger.info('Getting filter by ID', { shop, id });
         const repo = getFiltersRepository(context);
         const filter = await repo.getFilter(shop, id);
-        logger.log('Filter lookup result', { shop, id, found: !!filter });
+        logger.info('Filter lookup result', { shop, id, found: !!filter });
         return filter;
       } catch (error: any) {
         logger.error('Error in filter resolver', {
@@ -76,10 +76,10 @@ export const filtersResolvers = {
           throw new Error('Shop is required');
         }
 
-        logger.log('Listing filters', { shop });
+        logger.info('Listing filters', { shop });
         const repo = getFiltersRepository(context);
         const result = await repo.listFilters(shop);
-        logger.log('Filters list result', { shop, count: result.filters.length, total: result.total });
+        logger.info('Filters list result', { shop, count: result.filters.length, total: result.total });
         return result;
       } catch (error: any) {
         logger.error('Error in filters resolver', {
@@ -107,11 +107,11 @@ export const filtersResolvers = {
           throw new Error('Shop and input are required');
         }
 
-        logger.log('Creating filter', { shop, title: input.title });
+        logger.info('Creating filter', { shop, title: input.title });
         const repo = getFiltersRepository(context);
         // Don't spread shop into input - the repository method handles it
         const filter = await repo.createFilter(shop, input);
-        logger.log('Filter created', { shop, id: filter.id, title: filter.title });
+        logger.info('Filter created', { shop, id: filter.id, title: filter.title });
         return filter;
       } catch (error: any) {
         logger.error('Error in createFilter resolver', {
@@ -137,10 +137,10 @@ export const filtersResolvers = {
           throw new Error('Shop, ID, and input are required');
         }
 
-        logger.log('Updating filter', { shop, id });
+        logger.info('Updating filter', { shop, id });
         const repo = getFiltersRepository(context);
         const filter = await repo.updateFilter(shop, id, input);
-        logger.log('Filter updated', { shop, id, title: filter.title });
+        logger.info('Filter updated', { shop, id, title: filter.title });
         return filter;
       } catch (error: any) {
         logger.error('Error in updateFilter resolver', {
@@ -166,10 +166,10 @@ export const filtersResolvers = {
           throw new Error('Shop and ID are required');
         }
 
-        logger.log('Deleting filter', { shop, id });
+        logger.info('Deleting filter', { shop, id });
         const repo = getFiltersRepository(context);
         const deleted = await repo.deleteFilter(shop, id);
-        logger.log('Filter deletion result', { shop, id, deleted });
+        logger.info('Filter deletion result', { shop, id, deleted });
         return deleted;
       } catch (error: any) {
         logger.error('Error in deleteFilter resolver', {

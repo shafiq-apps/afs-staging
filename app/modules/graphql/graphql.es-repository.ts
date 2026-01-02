@@ -29,7 +29,7 @@ export class GraphQLESRepository {
    */
   async getById(id: string): Promise<any | null> {
     try {
-      logger.log(`Getting document by ID from ${this.index}`, { id });
+      logger.info(`Getting document by ID from ${this.index}`, { id });
       
       const response = await this.esClient.get({
         index: this.index,
@@ -37,7 +37,7 @@ export class GraphQLESRepository {
       });
 
       if (response.found && response._source) {
-        logger.log(`Document found by ID in ${this.index}`, { 
+        logger.info(`Document found by ID in ${this.index}`, { 
           id,
           hasSource: !!response._source,
           sourceKeys: response._source ? Object.keys(response._source) : [],
@@ -45,11 +45,11 @@ export class GraphQLESRepository {
         return response._source;
       }
 
-      logger.log(`Document not found by ID in ${this.index}`, { id, found: response.found });
+      logger.info(`Document not found by ID in ${this.index}`, { id, found: response.found });
       return null;
     } catch (error: any) {
       if (error.statusCode === 404) {
-        logger.log(`Document not found (404) in ${this.index}`, { id });
+        logger.info(`Document not found (404) in ${this.index}`, { id });
         return null;
       }
       logger.error(`Error getting document from ${this.index}`, {
@@ -66,7 +66,7 @@ export class GraphQLESRepository {
    */
   async getByField(fieldName: string, value: string): Promise<any | null> {
     try {
-      logger.log(`Getting document by field from ${this.index}`, { field: fieldName, value });
+      logger.info(`Getting document by field from ${this.index}`, { field: fieldName, value });
       
       // Dynamic field lookup - try multiple field variants automatically
       // ES uses different field mappings: fieldName, fieldName.keyword, fieldName.raw, etc.
@@ -97,7 +97,7 @@ export class GraphQLESRepository {
         } as any,
       });
 
-      logger.log(`Field lookup result from ${this.index}`, {
+      logger.info(`Field lookup result from ${this.index}`, {
         field: fieldName,
         value,
         hits: response.hits.hits.length,
@@ -107,7 +107,7 @@ export class GraphQLESRepository {
 
       if (response.hits.hits.length > 0) {
         const source = response.hits.hits[0]._source;
-        logger.log(`Document found by field in ${this.index}`, {
+        logger.info(`Document found by field in ${this.index}`, {
           field: fieldName,
           value,
           hasSource: !!source,
@@ -116,7 +116,7 @@ export class GraphQLESRepository {
         return source;
       }
 
-      logger.log(`Document not found by field in ${this.index}`, { field: fieldName, value });
+      logger.info(`Document not found by field in ${this.index}`, { field: fieldName, value });
       return null;
     } catch (error: any) {
       logger.error(`Error getting document by field from ${this.index}`, {
@@ -277,7 +277,7 @@ export class GraphQLESRepository {
 
       await this.esClient.index(indexParams);
 
-      logger.debug(`Document created in ${this.index}`, { id: indexParams.id });
+      logger.info(`Document created in ${this.index}`, { id: indexParams.id });
 
       // Return the created document
       return id ? await this.getById(id) : document;
@@ -311,7 +311,7 @@ export class GraphQLESRepository {
         refresh: true,
       });
 
-      logger.debug(`Document updated in ${this.index}`, { id });
+      logger.info(`Document updated in ${this.index}`, { id });
 
       return updated;
     } catch (error: any) {
@@ -334,7 +334,7 @@ export class GraphQLESRepository {
         refresh: true,
       });
 
-      logger.debug(`Document deleted from ${this.index}`, { id });
+      logger.info(`Document deleted from ${this.index}`, { id });
       return true;
     } catch (error: any) {
       if (error.statusCode === 404) {

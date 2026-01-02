@@ -196,7 +196,7 @@ export class StorefrontSearchRepository {
     // Sanitize filter input to prevent ES query injection
     const sanitizedFilters = filters ? sanitizeFilterInput(filters) : undefined;
 
-    logger.debug('Filter input after sanitization', {
+    logger.info('Filter input after sanitization', {
       shop: shopDomain,
       hasFilters: !!filters,
       hasSanitizedFilters: !!sanitizedFilters,
@@ -258,7 +258,7 @@ export class StorefrontSearchRepository {
               }
             }
 
-            logger.debug(`[getFacets] Processing ${key} filter exclusion`, {
+            logger.info(`[getFacets] Processing ${key} filter exclusion`, {
               excludeFilterType,
               excludeHandle,
               handlesForField,
@@ -276,13 +276,13 @@ export class StorefrontSearchRepository {
                 }
               };
               baseMustQueries.push(clause);
-              logger.debug(`[getFacets] Including other handles' values for ${key} (excluding handle ${excludeHandle})`, {
+              logger.info(`[getFacets] Including other handles' values for ${key} (excluding handle ${excludeHandle})`, {
                 otherHandlesValues,
                 excludedHandle: excludeHandle,
                 clause,
               });
             } else {
-              logger.debug(`[getFacets] No other handles' values for ${key} (excluding handle ${excludeHandle})`, {
+              logger.info(`[getFacets] No other handles' values for ${key} (excluding handle ${excludeHandle})`, {
                 excludeHandle,
                 handlesForField,
               });
@@ -307,14 +307,14 @@ export class StorefrontSearchRepository {
                 })) as ESQuery[]
               }
             };
-            logger.debug(`[getFacets] ${key} filter using AND logic (multiple handles)`, {
+            logger.info(`[getFacets] ${key} filter using AND logic (multiple handles)`, {
               values,
               handles: standardFieldToHandles,
             });
           } else {
             // Same handle or single value = OR logic: any value can match
             clause = { terms: { [field]: values! } };
-            logger.debug(`[getFacets] ${key} filter using OR logic (same handle or single value)`, {
+            logger.info(`[getFacets] ${key} filter using OR logic (same handle or single value)`, {
               values,
               handles: standardFieldToHandles,
             });
@@ -644,7 +644,7 @@ export class StorefrontSearchRepository {
     }
 
     // Execute all aggregation queries in parallel using msearch
-    logger.debug('Executing aggregation queries with auto-exclude', {
+    logger.info('Executing aggregation queries with auto-exclude', {
       shop: shopDomain,
       index,
       aggregationQueriesCount: aggregationQueries.length,
@@ -714,7 +714,7 @@ export class StorefrontSearchRepository {
       }
     }
 
-    logger.debug('Aggregation queries completed', {
+    logger.info('Aggregation queries completed', {
       shop: shopDomain,
       mergedAggregationsKeys: Object.keys(mergedAggregations),
       responsesCount: msearchResponse.responses.length,
@@ -880,14 +880,14 @@ export class StorefrontSearchRepository {
             }))
           }
         };
-        logger.debug('Vendors filter using AND logic (multiple handles)', {
+        logger.info('Vendors filter using AND logic (multiple handles)', {
           vendors: sanitizedFilters!.vendors,
           handles: standardFieldToHandles,
         });
       } else {
         // Same handle or single value = OR logic: any value can match
         clause = { terms: { 'vendor.keyword': sanitizedFilters!.vendors } };
-        logger.debug('Vendors filter using OR logic (same handle or single value)', {
+        logger.info('Vendors filter using OR logic (same handle or single value)', {
           vendors: sanitizedFilters!.vendors,
           handles: standardFieldToHandles,
         });
@@ -916,14 +916,14 @@ export class StorefrontSearchRepository {
             }))
           }
         };
-        logger.debug('ProductTypes filter using AND logic (multiple handles)', {
+        logger.info('ProductTypes filter using AND logic (multiple handles)', {
           productTypes: sanitizedFilters!.productTypes,
           handles: standardFieldToHandles,
         });
       } else {
         // Same handle or single value = OR logic: any value can match
         clause = { terms: { 'productType.keyword': sanitizedFilters!.productTypes } };
-        logger.debug('ProductTypes filter using OR logic (same handle or single value)', {
+        logger.info('ProductTypes filter using OR logic (same handle or single value)', {
           productTypes: sanitizedFilters!.productTypes,
           handles: standardFieldToHandles,
         });
@@ -943,7 +943,7 @@ export class StorefrontSearchRepository {
       const standardFieldToHandles = handleMapping?.standardFieldToHandles?.['TAGS'] || [];
       const hasMultipleHandles = standardFieldToHandles.length > 1;
 
-      logger.debug('Tags filter handle mapping check', {
+      logger.info('Tags filter handle mapping check', {
         tags: sanitizedFilters!.tags,
         handleMapping: handleMapping ? 'present' : 'missing',
         standardFieldToHandles,
@@ -962,14 +962,14 @@ export class StorefrontSearchRepository {
             }))
           }
         };
-        logger.debug('Tags filter using AND logic (multiple handles)', {
+        logger.info('Tags filter using AND logic (multiple handles)', {
           tags: sanitizedFilters!.tags,
           handles: standardFieldToHandles,
         });
       } else {
         // Same handle or single value = OR logic: any value can match
         clause = { terms: { 'tags': sanitizedFilters!.tags } };
-        logger.debug('Tags filter using OR logic (same handle or single value)', {
+        logger.info('Tags filter using OR logic (same handle or single value)', {
           tags: sanitizedFilters!.tags,
           handles: standardFieldToHandles,
         });
@@ -1000,7 +1000,7 @@ export class StorefrontSearchRepository {
             }))
           }
         };
-        logger.debug('Collections filter using AND logic (multiple handles)', {
+        logger.info('Collections filter using AND logic (multiple handles)', {
           collections: sanitizedFilters!.collections,
           handles: standardFieldToHandles,
         });
@@ -1008,7 +1008,7 @@ export class StorefrontSearchRepository {
         // Same handle or single value = OR logic: any value can match
         // The terms query will match any value in the array
         clause = { terms: { 'collections': sanitizedFilters!.collections } };
-        logger.debug('Collections filter using OR logic (same handle or single value)', {
+        logger.info('Collections filter using OR logic (same handle or single value)', {
           collections: sanitizedFilters!.collections,
           handles: standardFieldToHandles,
         });
@@ -1037,7 +1037,7 @@ export class StorefrontSearchRepository {
 
         if (!encodedValues.length) continue;
 
-        logger.debug('Encoding option filter for ES query', {
+        logger.info('Encoding option filter for ES query', {
           optionName,
           values,
           encodedValues,
@@ -1056,13 +1056,13 @@ export class StorefrontSearchRepository {
         // Use post_filter for option filters to preserve aggregations
         if (shouldKeep(optionName, true) || keepAll) {
           postFilterQueries.push(termsQuery);
-          logger.debug('Option filter added to post_filter (preserve aggregations)', {
+          logger.info('Option filter added to post_filter (preserve aggregations)', {
             optionName,
             encodedValues,
           });
         } else {
           mustQueries.push(termsQuery);
-          logger.debug('Option filter added to must query (affects aggregations)', {
+          logger.info('Option filter added to must query (affects aggregations)', {
             optionName,
             encodedValues,
           });
@@ -1272,7 +1272,7 @@ export class StorefrontSearchRepository {
      * includeFilters=true, instead of relying on aggregations from this search request.
      */
 
-    logger.debug('[searchProducts] Executing ES query', {
+    logger.info('[searchProducts] Executing ES query', {
       index,
       from,
       size: limit,
@@ -1280,11 +1280,10 @@ export class StorefrontSearchRepository {
       sortFields: sort.map((s: any) => Object.keys(s)[0]),
     });
 
-    console.log(JSON.stringify(query, null, 4));
+    // console.log(JSON.stringify(query, null, 4));
 
     // Note: We don't pre-check index existence to avoid race conditions.
     // The search operation will handle index not found errors appropriately.
-
     let response;
     try {
       response = await this.esClient.search<shopifyProduct, FacetAggregations>({

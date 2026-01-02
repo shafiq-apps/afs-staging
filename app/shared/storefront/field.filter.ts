@@ -66,7 +66,7 @@ export function filterProductFields(doc: any): shopifyProduct {
   const filteredFieldCount = Object.keys(filtered).length;
   
   if (originalFieldCount > filteredFieldCount) {
-    logger.debug(`Filtered product document: ${originalFieldCount} -> ${filteredFieldCount} fields`, {
+    logger.info(`Filtered product document: ${originalFieldCount} -> ${filteredFieldCount} fields`, {
       productId: doc.productId || doc.id,
       removedFields: originalFieldCount - filteredFieldCount,
     });

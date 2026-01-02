@@ -100,7 +100,7 @@ export function sanitizeTermsArray(terms: any, maxItems = MAX_TERMS_ARRAY_ITEMS,
   
   // Log summary if any terms were rejected
   if (rejectedTerms.length > 0 && array.length > 0) {
-    logger.debug('Some filter terms were rejected during sanitization', {
+    logger.info('Some filter terms were rejected during sanitization', {
       totalTerms: array.length,
       acceptedTerms: sanitized.length,
       rejectedTerms: rejectedTerms.length,

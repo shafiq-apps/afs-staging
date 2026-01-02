@@ -81,7 +81,7 @@ export const POST = handler(async (req: HttpRequest) => {
     };
 
     // Execute GraphQL query
-    logger.debug('Executing GraphQL query', {
+    logger.info('Executing GraphQL query', {
       operationName: graphqlRequest.operationName,
       hasVariables: !!graphqlRequest.variables,
     });

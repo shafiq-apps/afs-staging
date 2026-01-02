@@ -58,7 +58,7 @@ export const shopsResolvers = {
           throw new Error('Domain is required');
         }
 
-        logger.log('Getting shop by domain', { domain });
+        logger.info('Getting shop by domain', { domain });
 
         const repo = getShopsRepository(context);
         
@@ -73,7 +73,7 @@ export const shopsResolvers = {
           if (response.found && response._source) {
             const shop = response._source as any;
 
-            logger.log('Shop found', {
+            logger.info('Shop found', {
               domain,
               shop: shop.shop,
               hasMetadata: !!shop.metadata,
@@ -111,7 +111,7 @@ export const shopsResolvers = {
           throw new Error('Domain is required');
         }
 
-        logger.log('Checking if shop exists', { domain });
+        logger.info('Checking if shop exists', { domain });
 
         const repo = getShopsRepository(context);
         
@@ -119,7 +119,7 @@ export const shopsResolvers = {
         const shop = await repo.getShop(domain);
         const exists = !!shop;
         
-        logger.log('Shop exists check result', { domain, exists });
+        logger.info('Shop exists check result', { domain, exists });
         return exists;
       } catch (error: any) {
         logger.error('Error in shopExists resolver', {
@@ -141,7 +141,7 @@ export const shopsResolvers = {
           throw new Error('Shop is required');
         }
 
-        logger.log('Getting indexing status', { shop });
+        logger.info('Getting indexing status', { shop });
 
         const esClient = getESClient(context);
         if (!esClient) {
@@ -171,7 +171,7 @@ export const shopsResolvers = {
           };
         }
 
-        logger.log('Indexing status retrieved', {
+        logger.info('Indexing status retrieved', {
           shop,
           status: status.status,
           totalIndexed: status.totalIndexed,
@@ -201,13 +201,13 @@ export const shopsResolvers = {
           throw new Error('Shop input with shop field is required');
         }
 
-        logger.log('Creating shop', { shop: input.shop });
+        logger.info('Creating shop', { shop: input.shop });
 
         const repo = getShopsRepository(context);
         
         // ShopsRepository.saveShop handles creation
         const shop = await repo.saveShop(input);
-        logger.log('Shop created', { shop: shop?.shop });
+        logger.info('Shop created', { shop: shop?.shop });
 
         return shop;
       } catch (error: any) {
@@ -229,14 +229,14 @@ export const shopsResolvers = {
           throw new Error('Domain is required');
         }
 
-        logger.log('Updating shop', { domain });
+        logger.info('Updating shop', { domain });
 
         const repo = getShopsRepository(context);
         
         // ShopsRepository.updateShop handles updates
         const shop = await repo.updateShop(domain, input);
         
-        logger.log('Shop updated', { domain, found: !!shop });
+        logger.info('Shop updated', { domain, found: !!shop });
         return shop;
       } catch (error: any) {
         logger.error('Error in updateShop resolver', {
@@ -257,7 +257,7 @@ export const shopsResolvers = {
           throw new Error('Domain is required');
         }
 
-        logger.log('Deleting shop', { domain });
+        logger.info('Deleting shop', { domain });
 
         const esClient = getESClient(context);
         if (!esClient) {
@@ -271,7 +271,7 @@ export const shopsResolvers = {
             id: domain,
             refresh: true,
           });
-          logger.log('Shop deleted', { domain });
+          logger.info('Shop deleted', { domain });
           return true;
         } catch (error: any) {
           if (error.statusCode === 404) {
@@ -301,12 +301,12 @@ export const shopsResolvers = {
           throw new Error('Shop is required');
         }
 
-        logger.log('Reindex products request received', { shop });
+        logger.info('Reindex products request received', { shop });
 
         const repo = getShopsRepository(context);
         
         // Verify shop exists and has access token
-        logger.log(`Looking up shop in ES: ${shop}`);
+        logger.info(`Looking up shop in ES: ${shop}`);
         const shopData = await repo.getShop(shop);
         
         if (!shopData) {
@@ -317,7 +317,7 @@ export const shopsResolvers = {
           };
         }
 
-        logger.log(`Shop found in ES`, {
+        logger.info(`Shop found in ES`, {
           shop: shopData.shop,
           hasAccessToken: !!shopData.accessToken,
           isActive: shopData.isActive,
@@ -392,7 +392,7 @@ export const shopsResolvers = {
         // Start indexing in background and return success
         (async () => {
           try {
-            logger.log(`Starting background reindex for shop=${shop}`, {
+            logger.info(`Starting background reindex for shop=${shop}`, {
               shop: shopData.shop,
               hasToken: !!shopData.accessToken,
             });
@@ -414,7 +414,7 @@ export const shopsResolvers = {
             // Force save immediately to make status visible
             await checkpointService.forceSave();
             
-            logger.log(`Indexing status set to in_progress for shop=${shop}`);
+            logger.info(`Indexing status set to in_progress for shop=${shop}`);
             
             const deps: BulkIndexerDependencies = {
               esClient: globalESClient,
@@ -426,13 +426,13 @@ export const shopsResolvers = {
               shop: shop,
             };
 
-            logger.log('Creating ProductBulkIndexer instance...');
+            logger.info('Creating ProductBulkIndexer instance...');
             const indexer = new ProductBulkIndexer(opts, deps);
             
-            logger.log('Starting indexer.run()...');
+            logger.info('Starting indexer.run()...');
             await indexer.run();
             
-            logger.log(`Background reindex finished successfully for shop=${shop}`);
+            logger.info(`Background reindex finished successfully for shop=${shop}`);
           } catch (err: any) {
             logger.error(`Background reindex error for shop=${shop}`, {
               error: err?.message || err,
@@ -442,7 +442,7 @@ export const shopsResolvers = {
             // Always release the lock when done
             try {
               await lockService.releaseLock(shop);
-              logger.log(`Indexing lock released for shop=${shop}`);
+              logger.info(`Indexing lock released for shop=${shop}`);
             } catch (releaseError: any) {
               logger.warn(`Error releasing lock for shop=${shop}`, {
                 error: releaseError?.message || releaseError,

@@ -106,7 +106,7 @@ export function resolveDynamicIndexName(
     }
   });
   
-  logger.debug(`Resolved dynamic index for type ${typeName}`, {
+  logger.info(`Resolved dynamic index for type ${typeName}`, {
     original: config.index,
     resolved: resolvedIndex,
     placeholders: config.placeholders,
@@ -195,7 +195,7 @@ export function parseIndexConfigFromSchema(schemaString: string): void {
       // If we have a current type, associate annotation with it
       if (currentType) {
         typeAnnotations.set(currentType, config);
-        logger.debug(`Found @index annotation for type ${currentType}`, config);
+        logger.info(`Found @index annotation for type ${currentType}`, config);
       } else {
         // Annotation before any type - look ahead to next type definition
         // This handles cases where annotation comes before the type

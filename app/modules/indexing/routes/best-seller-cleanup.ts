@@ -38,14 +38,14 @@ export const POST = handler(async (req: HttpRequest) => {
   // Run cleanup in background
   (async () => {
     try {
-      logger.log(`Starting background cleanup for collections unused for ${days} days`);
+      logger.info(`Starting background cleanup for collections unused for ${days} days`);
 
       const esClient = getESClient();
       const cleanupService = new BestSellerCleanupService(esClient, shopsRepository);
 
       const result = await cleanupService.runCleanup(days);
 
-      logger.log('Cleanup completed', result);
+      logger.info('Cleanup completed', result);
     } catch (err: any) {
       logger.error('Cleanup error', {
         error: err?.message || err,

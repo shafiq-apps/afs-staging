@@ -101,7 +101,7 @@ function generateAutoResolver(
   return async (parent: any, graphqlArgs: any, context: GraphQLContext) => {
     try {
       // Log immediately to confirm resolver is called
-      logger.log(`[AUTO-RESOLVER] ${fieldName} called`, {
+      logger.info(`[AUTO-RESOLVER] ${fieldName} called`, {
         fieldName,
         returnTypeName,
         isMutation,
@@ -110,7 +110,7 @@ function generateAutoResolver(
         hasESClient: !!esClient,
       });
       
-      logger.log("Auto-resolver called", {
+      logger.info("Auto-resolver called", {
         fieldName,
         returnTypeName,
         isMutation,
@@ -129,7 +129,7 @@ function generateAutoResolver(
         const entityName = fieldName.substring(prefix.length);
         if (entityName) {
           entityTypeName = entityName;
-          logger.debug(`Inferred entity type for delete operation: ${entityTypeName} from ${fieldName}`);
+          logger.info(`Inferred entity type for delete operation: ${entityTypeName} from ${fieldName}`);
         }
       }
 
@@ -143,7 +143,7 @@ function generateAutoResolver(
       }
 
       // Get or create ES service for this type (pass args for dynamic index resolution)
-      logger.log(`Getting ES service for type: ${entityTypeName}`, {
+      logger.info(`Getting ES service for type: ${entityTypeName}`, {
         entityTypeName,
         graphqlArgs: Object.keys(graphqlArgs),
       });
@@ -160,7 +160,7 @@ function generateAutoResolver(
         };
       }
       
-      logger.log(`ES service obtained for type: ${entityTypeName}`, {
+      logger.info(`ES service obtained for type: ${entityTypeName}`, {
         entityTypeName,
         serviceIndex: (esService as any)['repository']?.['index'],
       });
@@ -168,7 +168,7 @@ function generateAutoResolver(
       // Determine operation based on field name and arguments
       // Fully dynamic - no hardcoded method names
       
-      logger.debug(`Auto-resolving field`, {
+      logger.info(`Auto-resolving field`, {
         field: fieldName,
         returnType: returnTypeName,
         entityType: entityTypeName,
@@ -215,7 +215,7 @@ function generateAutoResolver(
             return false;
           }
           
-          logger.debug(`Deleting ${entityTypeName}`, { id, field: fieldName });
+          logger.info(`Deleting ${entityTypeName}`, { id, field: fieldName });
           result = await esService.delete(id);
           return result; // Boolean
         }
@@ -296,7 +296,7 @@ function generateAutoResolver(
             
             if (isIdLookup) {
               // ID-based lookup - use the argument value as document ID
-              logger.log(`Using ID-based lookup for ${fieldName}`, {
+              logger.info(`Using ID-based lookup for ${fieldName}`, {
                 argName: firstArg.name,
                 idField,
                 type: returnTypeName,
@@ -305,7 +305,7 @@ function generateAutoResolver(
               });
               result = await esService.getById(argValue);
               
-              logger.log(`ID lookup result for ${fieldName}`, {
+              logger.info(`ID lookup result for ${fieldName}`, {
                 found: !!result,
                 hasData: result ? Object.keys(result).length : 0,
               });
@@ -313,21 +313,21 @@ function generateAutoResolver(
               // If ID lookup fails and we have an idField, try field lookup as fallback
               // (e.g., shop(domain) where domain value should match shop field)
               if (!result && idField && returnTypeName === 'Shop' && firstArg.name === 'domain') {
-                logger.log(`ID lookup failed, trying field lookup on ${idField}`, {
+                logger.info(`ID lookup failed, trying field lookup on ${idField}`, {
                   argName: firstArg.name,
                   idField,
                   value: argValue,
                 });
                 result = await esService.getByField(idField, argValue);
                 
-                logger.log(`Field lookup result for ${fieldName}`, {
+                logger.info(`Field lookup result for ${fieldName}`, {
                   found: !!result,
                   hasData: result ? Object.keys(result).length : 0,
                 });
               }
             } else {
               // Field-based lookup
-              logger.log(`Using field-based lookup for ${fieldName}`, {
+              logger.info(`Using field-based lookup for ${fieldName}`, {
                 field: firstArg.name,
                 type: returnTypeName,
                 value: argValue,
@@ -335,7 +335,7 @@ function generateAutoResolver(
               });
               result = await esService.getByField(firstArg.name, argValue);
               
-              logger.log(`Field lookup result for ${fieldName}`, {
+              logger.info(`Field lookup result for ${fieldName}`, {
                 found: !!result,
                 hasData: result ? Object.keys(result).length : 0,
               });
@@ -393,7 +393,7 @@ export function generateResolversFromSchema(schema: GraphQLSchema, esClient: Cli
         esClient
       );
 
-      logger.log(`Auto-generated Query resolver: ${fieldName}`, {
+      logger.info(`Auto-generated Query resolver: ${fieldName}`, {
         fieldName,
         returnTypeName,
         args: Array.from(args).map(a => a.name),

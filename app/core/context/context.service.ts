@@ -53,9 +53,9 @@ class ContextService {
   getShopContext(shop: string): ShopContext | null {
     const context = this.cache.get(shop);
     if (context) {
-      logger.debug('Context cache hit', { shop });
+      logger.info('Context cache hit', { shop });
     } else {
-      logger.debug('Context cache miss', { shop });
+      logger.info('Context cache miss', { shop });
     }
     return context;
   }

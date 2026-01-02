@@ -123,7 +123,7 @@ export const productsResolvers = {
           throw new Error('Shop is required');
         }
 
-        logger.log('🔵 Products query received', {
+        logger.info('🔵 Products query received', {
           shop,
           hasFilters: !!filters,
           filters: filters || {},
@@ -182,7 +182,7 @@ export const productsResolvers = {
           ].join(',');
         }
         
-        logger.log('Calling service.searchProducts', {
+        logger.info('Calling service.searchProducts', {
           shop,
           repositoryFilters,
           includeFilters: repositoryFilters.includeFilters,
@@ -190,7 +190,7 @@ export const productsResolvers = {
         
         const result = await service.searchProducts(shop, repositoryFilters);
         
-        logger.log('Service returned results', {
+        logger.info('Service returned results', {
           shop,
           productCount: result.products?.length || 0,
           total: result.total || 0,
@@ -215,7 +215,7 @@ export const productsResolvers = {
         if (filters?.includeFilters) {
           if (result.filters) {
             // Use filters from search result (already aggregated)
-            logger.log('Using filters from search result', { hasFilters: !!result.filters });
+            logger.info('Using filters from search result', { hasFilters: !!result.filters });
             formattedFilters = formatFilters(result.filters);
           } else {
             // Fetch filters separately if not included in search result
@@ -232,10 +232,10 @@ export const productsResolvers = {
             if (filters.priceMax !== undefined) filterInput.priceMax = filters.priceMax;
             if (filters.variantSkus) filterInput.variantSkus = filters.variantSkus;
             
-            logger.log('Fetching filters for aggregations', { shop, filterInput });
+            logger.info('Fetching filters for aggregations', { shop, filterInput });
             const productFilters = await service.getFilters(shop, filterInput);
             formattedFilters = formatFilters(productFilters);
-            logger.log('Filters fetched', { 
+            logger.info('Filters fetched', { 
               hasFilters: !!formattedFilters,
               vendorsCount: formattedFilters?.vendors?.length || 0,
               productTypesCount: formattedFilters?.productTypes?.length || 0,
@@ -275,7 +275,7 @@ export const productsResolvers = {
           throw new Error('Shop is required');
         }
 
-        logger.log('🔵 Storefront filters query received', {
+        logger.info('🔵 Storefront filters query received', {
           shop,
           hasFilters: !!filters,
           filters: filters || {},
@@ -298,12 +298,12 @@ export const productsResolvers = {
           if (filters.variantSkus) filterInput.variantSkus = filters.variantSkus;
         }
         
-        logger.log('Fetching storefront filters', { shop, filterInput });
+        logger.info('Fetching storefront filters', { shop, filterInput });
         
         // Use the same service method as the REST endpoint
         const productFilters = await service.getFilters(shop, Object.keys(filterInput).length > 0 ? filterInput : undefined);
         
-        logger.log('Storefront filters fetched', { 
+        logger.info('Storefront filters fetched', { 
           hasFilters: !!productFilters,
           vendorsCount: productFilters?.vendors?.length || 0,
           productTypesCount: productFilters?.productTypes?.length || 0,
@@ -346,7 +346,7 @@ function formatFilters(filters: any): any {
     };
   }
 
-  logger.log('Formatting filters', {
+  logger.info('Formatting filters', {
     hasVendors: !!filters.vendors,
     hasProductTypes: !!filters.productTypes,
     hasTags: !!filters.tags,

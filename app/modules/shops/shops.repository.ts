@@ -29,7 +29,7 @@ export class ShopsRepository {
    */
   async getShop(shop: string): Promise<Shop | null> {
     try {
-      logger.log("shop", shop, "index", this.index);
+      logger.info("shop", shop, "index", this.index);
       const response = await this.esClient.get({
         index: this.index,
         id: shop,
@@ -88,7 +88,7 @@ export class ShopsRepository {
       refresh: true,
     });
 
-    logger.log(`Shop saved: ${input.shop}`);
+    logger.info(`Shop saved: ${input.shop}`);
     return this.getShop(input.shop) as Promise<Shop>;
   }
 
@@ -119,7 +119,7 @@ export class ShopsRepository {
         refresh: true,
       });
 
-      logger.log(`Shop updated: ${shop}`);
+      logger.info(`Shop updated: ${shop}`);
       return this.getShop(shop);
     } catch (error: any) {
       logger.error('Error updating shop', error?.message || error);
@@ -133,7 +133,7 @@ export class ShopsRepository {
    */
   async uninstallShop(shop: string): Promise<void> {
     await this.updateShop(shop, { isActive: false });
-    logger.log(`Shop uninstalled: ${shop}`);
+    logger.info(`Shop uninstalled: ${shop}`);
   }
 
   /**
