@@ -186,16 +186,25 @@ function getEnabledAggregations(filterConfig: Filter | null, includeAllOptions: 
 }
 
 /**
- * Standard filter option types that are NOT variant options
- * These are product-level attributes, not variant-specific options
+ * Checks if a filter object has a valid priceMin or priceMax
+ * @param filters - The filters object
+ * @param flag - "min", "max", or "both" (default) to specify which field to check
+ * @returns true if the specified price field(s) are valid numbers
  */
-const STANDARD_FILTER_TYPES = new Set([
-  'vendor', 'vendors',
-  'producttype', 'product-type', 'product type', 'product_type',
-  'tags', 'tag',
-  'collection', 'collections',
-  'price', 'priceRange', 'price_range',
-]);
+function hasValidPriceFilter(filters: ProductSearchInput, flag: 'min' | 'max' | 'both' = 'both'): boolean {
+  if (!filters) return false;
+
+  const isValidNumber = (value: unknown): value is number => typeof value === 'number' && !isNaN(value);
+
+  switch (flag) {
+    case 'min':
+      return isValidNumber(filters.priceMin);
+    case 'max':
+      return isValidNumber(filters.priceMax);
+    case 'both':
+      return isValidNumber(filters.priceMin) || isValidNumber(filters.priceMax);
+  }
+}
 
 /**
  * Extract variant option keys from filter configuration
@@ -246,46 +255,6 @@ function deriveVariantOptionKey(option: Filter['options'][number]): string | nul
   }
 
   return null;
-}
-
-function getVariantOptionKeys(filterConfig: Filter | null): Set<string> {
-  const variantOptionKeys = new Set<string>();
-
-  if (!filterConfig || !filterConfig.options) {
-    return variantOptionKeys;
-  }
-
-  for (const option of filterConfig.options) {
-    // Only include published options
-    if (!isPublishedStatus(option.status)) continue;
-
-    // Derive variantOptionKey at runtime to ensure perfect ES matching
-    const derivedVariantOptionKey = deriveVariantOptionKey(option);
-
-    if (derivedVariantOptionKey) {
-      // Use derived variantOptionKey (exact match with ES storage)
-      variantOptionKeys.add(derivedVariantOptionKey);
-      continue;
-    }
-
-    // For standard filters or options without variantOptionKey, skip
-    // Standard filters use their own aggregation fields (vendors, productTypes, etc.)
-    const optionSettings = option.optionSettings || {};
-    const baseOptionType = optionSettings.baseOptionType?.trim().toUpperCase();
-
-    // Skip standard filter types (they don't use variantOptionKeys)
-    if (baseOptionType && baseOptionType !== 'OPTION') {
-      continue;
-    }
-
-    // Fallback: If no baseOptionType but optionType exists and it's not a standard type
-    const optionType = option.optionType?.trim() || '';
-    if (optionType && !STANDARD_FILTER_TYPES.has(optionType.toLowerCase())) {
-      variantOptionKeys.add(optionType);
-    }
-  }
-
-  return variantOptionKeys;
 }
 
 export class StorefrontSearchRepository {
@@ -472,14 +441,14 @@ export class StorefrontSearchRepository {
       }
 
       /** Product-level Price Range */
-      if (excludeFilterType !== 'price' && (sanitizedFilters?.priceMin !== undefined || sanitizedFilters?.priceMax !== undefined)) {
+      if (excludeFilterType !== 'price' && hasValidPriceFilter(sanitizedFilters)) {
         const rangeMust: ESQuery[] = [];
-        if (sanitizedFilters.priceMin !== undefined && !isNaN(sanitizedFilters.priceMin)) {
+        if (hasValidPriceFilter(sanitizedFilters, 'min')) {
           rangeMust.push({
             range: { [ES_FIELDS.MAX_PRICE]: { gte: sanitizedFilters.priceMin } },
           });
         }
-        if (sanitizedFilters.priceMax !== undefined && !isNaN(sanitizedFilters.priceMax)) {
+        if (hasValidPriceFilter(sanitizedFilters, 'max')) {
           rangeMust.push({
             range: { [ES_FIELDS.MIN_PRICE]: { lte: sanitizedFilters.priceMax } },
           });
@@ -901,7 +870,7 @@ export class StorefrontSearchRepository {
           ? {
             min: aggregations.minPrice.value ?? 0,
             max: aggregations.maxPrice.value ?? 0,
-          }: undefined,
+          } : undefined,
       },
     };
   }
@@ -1184,11 +1153,11 @@ export class StorefrontSearchRepository {
     }
 
     // Product price range filter (minPrice/maxPrice fields)
-    if (!isNaN(sanitizedFilters?.priceMin) || !isNaN(sanitizedFilters?.priceMax)) {
+    if (hasValidPriceFilter(sanitizedFilters)) {
       const priceMustQueries: any[] = [];
 
       // if both minPrice and maxprice are present in the request query 
-      if (sanitizedFilters.priceMin !== undefined) {
+      if (hasValidPriceFilter(sanitizedFilters, 'min')) {
         // Product's maxPrice must be >= requested minPrice
         priceMustQueries.push({
           range: {
@@ -1199,7 +1168,7 @@ export class StorefrontSearchRepository {
         });
       }
 
-      if (sanitizedFilters.priceMax !== undefined) {
+      if (hasValidPriceFilter(sanitizedFilters, 'max')) {
         // Product's minPrice must be <= requested maxPrice
         priceMustQueries.push({
           range: {
@@ -1324,7 +1293,7 @@ export class StorefrontSearchRepository {
       }
       // Handle legacy format: "field:order"
       else {
-        const [field, order] = filters.sort.split(':');
+        const [field, order] = filters?.sort.split(':');
         if (field && order) {
           // Map field names to correct ES field names
           let sortField;
@@ -1387,7 +1356,7 @@ export class StorefrontSearchRepository {
       sortFields: sort.map((s: any) => Object.keys(s)[0]),
     });
 
-    console.log(JSON.stringify(query, null,4));
+    console.log(JSON.stringify(query, null, 4));
 
     // Note: We don't pre-check index existence to avoid race conditions.
     // The search operation will handle index not found errors appropriately.
