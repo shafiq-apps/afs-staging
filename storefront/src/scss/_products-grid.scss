@@ -273,6 +273,7 @@
     }
 
     &__info {
+      text-decoration: none;
       padding: 0;
       display: flex;
       flex-direction: column;
@@ -284,10 +285,10 @@
     }
 
     &__title {
-      font-size: $font-size-md;
+      font-size: $font-size-lg;
       font-weight: $font-weight-normal;
       color: var(--afs-text-color);
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      font-family: var(--afs-font-family);
       margin: 0;
       line-height: 1.4;
       display: -webkit-box;
@@ -297,15 +298,13 @@
       overflow: hidden;
       text-overflow: ellipsis;
       word-break: break-word;
-      min-height: 2.8em;
       letter-spacing: 0;
-      margin-bottom: $spacing-xs;
     }
 
     &__vendor {
       font-size: $font-size-sm;
       color: var(--afs-text-color);
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      font-family: var(--afs-font-family);
       text-transform: none;
       letter-spacing: 0;
       font-weight: $font-weight-normal;
@@ -320,7 +319,7 @@
       font-size: $font-size-md;
       font-weight: $font-weight-medium;
       color: var(--afs-text-color);
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      font-family: var(--afs-font-family);
       margin-top: 0;
       overflow: hidden;
       text-overflow: ellipsis;

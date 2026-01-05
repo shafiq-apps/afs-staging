@@ -430,6 +430,7 @@ export interface LanguageTexts {
 		readonly quickAddToCart: string;
 		readonly quickView: string;
 		readonly addToCart: string;
+		readonly soldOut: string;
 		readonly buyNow: string;
 		readonly clear: string;
 		readonly clearAll: string;
@@ -491,6 +492,7 @@ export const Lang: LanguageTexts = {
 		quickAddToCart: 'Quick add to cart',
 		quickView: 'Quick view',
 		addToCart: 'Add to cart',
+		soldOut: 'Sold out',
 		buyNow: 'Buy it now',
 		clear: 'Clear',
 		clearAll: 'Clear All',
@@ -2595,7 +2597,7 @@ export const DOM = {
 			card.appendChild(imgContainer);
 		}
 
-		const info = $.el('div', 'afs-product-card__info');
+		const info = $.el('a', 'afs-product-card__info', {'href': `/products/${p.handle}`});
 		if (info) {
 			info.appendChild($.txt($.el('h3', 'afs-product-card__title'), p.title || 'Untitled'));
 			if (p.vendor) info.appendChild($.txt($.el('div', 'afs-product-card__vendor'), p.vendor));

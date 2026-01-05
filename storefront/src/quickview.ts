@@ -968,7 +968,7 @@ export async function createProductModal(handle: string, modalId: string): Promi
                       ${!currentVariant.available ? 'disabled' : ''}
                       type="button"
                     >
-                      ${Lang.buttons.addToCart}
+                      ${!currentVariant.available ? Lang.buttons.soldOut : Lang.buttons.addToCart}
                     </button>
                   </div>
                   <button
@@ -1232,7 +1232,7 @@ function updateVariantInModal(
   if (addButton) {
     addButton.dataset.variantId = String(variant.id);
     addButton.disabled = !variant.available;
-    addButton.innerHTML = Lang.buttons.addToCart;
+    addButton.innerHTML = !variant.available ? Lang.buttons.soldOut : Lang.buttons.addToCart;
   }
 
   // Update buy now button
