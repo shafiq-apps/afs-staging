@@ -4,7 +4,7 @@
  * Describe hardcoded values and their means and functionality
  */
 
-import { handleLoadError } from "./utils/utils";
+import { handleLoadError } from "./utils";
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -3630,15 +3630,6 @@ export const AFS: AFSInterface = {
 
 // Export to window
 export const AFSW = window as ShopifyWindow;
-AFSW.DOM = DOM;
-AFSW.AFS_State = State;
-AFSW.AFS_API = API;
-AFSW.AFS_LOG = Log;
-AFSW.QuickAdd = QuickAdd;
-AFSW.$ = $;
-AFSW.Icons = Icons;
-(AFSW as typeof AFSW & { Lang?: typeof Lang }).Lang = Lang;
-(AFSW as typeof AFSW & { SpecialValue?: typeof SpecialValue }).SpecialValue = SpecialValue;
 
 // Export
 if (typeof window !== 'undefined') {
