@@ -141,12 +141,6 @@ export const GET = handler(async (req: HttpRequest) => {
     delete (cleanedAppliedFilters as any).__handleMapping;
   }
 
-  await new Promise(resolve => {
-    setTimeout(() => {
-      resolve("oK");
-    }, 1000*5);
-  })
-
   return {
     success: true,
     data: {

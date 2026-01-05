@@ -5,80 +5,12 @@
  * Exports reusable functions for use in advanced-filter-search.ts
  */
 
+import { $, AFSW, Icons, Lang, Log, Product, ProductModalElement, ProductVariant, QuickAdd, SpecialValue, State } from './collections-main';
 import { waitForElement, waitForElements } from './utils/dom-ready';
 
 // ============================================================================
 // TYPE DEFINITIONS
 // ============================================================================
-
-export interface ProductModalElement extends HTMLDialogElement {
-  _productData?: Product;
-  _currentVariantId?: number | string;
-  _slider?: SliderInstance;
-}
-
-export interface Product {
-  id?: string | number;
-  productId?: string | number;
-  gid?: string | number;
-  handle?: string;
-  title?: string;
-  vendor?: string;
-  imageUrl?: string;
-  featuredImage?: ProductImage;
-  minPrice?: string | number;
-  maxPrice?: string | number;
-  totalInventory?: string | number;
-  variants?: ProductVariant[];
-  description?: string;
-  images?: string[];
-  options?: Array<{
-    name: string;
-    values: string[];
-  }>;
-}
-
-export interface ProductVariant {
-  id: number | string;
-  available?: boolean;
-  availableForSale?: boolean;
-  price: number | string;
-  compare_at_price?: number | string;
-  option1?: string;
-  option2?: string;
-  option3?: string;
-  options?: string[];
-  featured_image?: {
-    src?: string;
-    url?: string;
-    position?: number;
-    variant_ids?: number[];
-  } | string;
-  image?: string | {
-    url?: string;
-    src?: string;
-  };
-  imageUrl?: string;
-  featuredImage?: {
-    url?: string;
-    src?: string;
-  };
-}
-
-export interface ProductImage {
-  url?: string;
-  urlSmall?: string;
-  urlMedium?: string;
-  urlLarge?: string;
-  urlFallback?: string;
-}
-
-export interface SliderInstance {
-  destroy: () => void;
-  goToSlide: (index: number) => void;
-  updateVariantImage: (variant: ProductVariant, images: string[], variants?: ProductVariant[]) => boolean;
-  readonly currentIndex: number;
-}
 
 export interface SliderOptions {
   thumbnailsPosition?: 'top' | 'left' | 'right' | 'bottom';
@@ -90,51 +22,9 @@ export interface SliderOptions {
   magnifierZoom?: number;
 }
 
-interface AppWindow extends Window {
-  Shopify?: {
-    routes?: {
-      root?: string;
-    };
-  };
-  AFS_State?: AppState;
-  AFS_LOG?: typeof Log;
-  QuickAdd?: typeof QuickAdd;
-  $?: typeof $;
-  Lang?: {
-    buttons: { quickAdd: string; quickAddToCart: string; quickView: string; addToCart: string; buyNow: string; clear: string; clearAll: string; close: string; closeFilters: string; toggleFilters: string; filters: string; previous: string; next: string; apply: string };
-    labels: { sortBy: string; appliedFilters: string; search: string; price: string; collection: string; productUnavailable: string; loading: string; loadingProduct: string };
-    sortOptions: { bestSelling: string; titleAsc: string; titleDesc: string; priceAsc: string; priceDesc: string; createdAsc: string; createdDesc: string };
-    messages: { noProductsFound: string; oneProductFound: string; productsFound: string; showingProducts: string; pageOf: string; addedToCart: string; failedToLoad: string; failedToLoadProducts: string; failedToLoadProduct: string; failedToAddToCart: string; failedToProceedToCheckout: string; failedToLoadProductModal: string; failedToLoadFilters: string; initializationFailed: string; loadFailed: string; unknownError: string; checkConsole: string };
-    placeholders: { searchProducts: string; searchFilter: string };
-  };
-  SpecialValue?: { DEFAULT_TITLE: string };
-  Icons?: Icons;
-}
-
-interface Icons {
-  readonly rightArrow: string;
-  readonly downArrow: string;
-  readonly eye: string;
-  readonly minus: string;
-  readonly plus: string;
-  readonly close: string;
-}
-
-interface ImageOptimizationOptions {
-  width?: number;
-  height?: number;
-  quality?: number;
-  format?: string;
-  crop?: string | null;
-}
-
 interface SliderSlideChangeEventDetail {
   index: number;
   total: number;
-}
-
-interface SliderSlideChangeEvent extends CustomEvent {
-  detail: SliderSlideChangeEventDetail;
 }
 
 // ============================================================================
@@ -145,7 +35,7 @@ class AFSSlider {
   private container: HTMLElement;
   private options: Required<Omit<SliderOptions, 'maxHeight'>> & { maxHeight: number | null };
   private _currentIndex: number = 0;
-  
+
   // Public getter for currentIndex to match SliderInstance interface
   get currentIndex(): number {
     return this._currentIndex;
@@ -162,7 +52,7 @@ class AFSSlider {
 
   constructor(container: string | HTMLElement, options: SliderOptions = {}) {
     const containerElement = typeof container === 'string' ? document.querySelector<HTMLElement>(container) : container;
-    
+
     if (!containerElement) {
       console.error('AFSSlider: Container not found');
       throw new Error('AFSSlider: Container not found');
@@ -505,13 +395,13 @@ class AFSSlider {
           // Double tap detected
           e.preventDefault();
           if (doubleTapTimeout) clearTimeout(doubleTapTimeout);
-          
+
           const activeImage = this.images[this._currentIndex];
           if (activeImage) {
             const transform = activeImage.style.transform || '';
             const scaleMatch = transform.match(/scale\(([\d.]+)\)/);
             let currentScale = scaleMatch ? parseFloat(scaleMatch[1]) : 1;
-            
+
             if (currentScale > 1) {
               // Reset zoom
               activeImage.style.transform = 'scale(1) translate(0, 0)';
@@ -523,7 +413,7 @@ class AFSSlider {
               const x = touch.clientX - rect.left;
               const y = touch.clientY - rect.top;
               const zoomScale = 2.5;
-              
+
               activeImage.style.transform = `scale(${zoomScale}) translate(${(rect.width / 2 - x) / zoomScale}px, ${(rect.height / 2 - y) / zoomScale}px)`;
               currentScale = zoomScale;
             }
@@ -544,18 +434,18 @@ class AFSSlider {
           touch2.clientX - touch1.clientX,
           touch2.clientY - touch1.clientY
         );
-        
+
         const scale = Math.max(1, Math.min(4, currentScale * (distance / initialDistance)));
         const activeImage = this.images[this._currentIndex];
-        
+
         if (activeImage) {
           const rect = viewport.getBoundingClientRect();
           const centerX = (touch1.clientX + touch2.clientX) / 2 - rect.left;
           const centerY = (touch1.clientY + touch2.clientY) / 2 - rect.top;
-          
+
           const translateX = (rect.width / 2 - centerX) / scale;
           const translateY = (rect.height / 2 - centerY) / scale;
-          
+
           activeImage.style.transform = `scale(${scale}) translate(${translateX}px, ${translateY}px)`;
         }
       }
@@ -674,7 +564,7 @@ class AFSSlider {
     }
 
     const currentVariantId = variant.id;
-    
+
     // OPTIMIZATION: Quick check using variant_ids array if allVariants is provided
     if (allVariants && Array.isArray(allVariants)) {
       // Check if current variant has featured_image with variant_ids
@@ -693,7 +583,7 @@ class AFSSlider {
           }
         }
       }
-      
+
       // Variant doesn't have featured_image, but check if any other variant's image is assigned to this variant
       for (const v of allVariants) {
         if (v.featured_image && typeof v.featured_image === 'object' && v.featured_image.variant_ids) {
@@ -720,7 +610,7 @@ class AFSSlider {
     // Fallback: Extract variant image URL from various possible structures
     let variantImageUrl: string | null = null;
     let variantImagePosition: number | null = null;
-    
+
     // Handle featured_image as object (Shopify format: { src: "...", position: 5, ... })
     if (variant.featured_image) {
       if (typeof variant.featured_image === 'object') {
@@ -730,7 +620,7 @@ class AFSSlider {
         variantImageUrl = variant.featured_image;
       }
     }
-    
+
     // Fallback to other image properties
     if (!variantImageUrl) {
       if (typeof variant.image === 'string') {
@@ -743,7 +633,7 @@ class AFSSlider {
         variantImageUrl = variant.featuredImage.url || variant.featuredImage.src || null;
       }
     }
-    
+
     if (!variantImageUrl) {
       return false;
     }
@@ -761,9 +651,9 @@ class AFSSlider {
         .toLowerCase()
         .trim();
     };
-    
+
     const normalizedVariantImage = normalizeUrl(variantImageUrl);
-    
+
     // First, try to use position if available (1-based, convert to 0-based index)
     if (variantImagePosition !== null && variantImagePosition !== undefined) {
       const positionIndex = variantImagePosition - 1; // Convert from 1-based to 0-based
@@ -776,16 +666,16 @@ class AFSSlider {
         return true;
       }
     }
-    
+
     // Find matching image in product images array by URL
     let variantImageIndex = productImages.findIndex(img => {
       const normalizedImg = normalizeUrl(img);
       // Compare normalized URLs
-      return normalizedImg === normalizedVariantImage || 
-             normalizedImg.includes(normalizedVariantImage) || 
-             normalizedVariantImage.includes(normalizedImg);
+      return normalizedImg === normalizedVariantImage ||
+        normalizedImg.includes(normalizedVariantImage) ||
+        normalizedVariantImage.includes(normalizedImg);
     });
-    
+
     // If exact match not found, try to find by filename
     if (variantImageIndex === -1) {
       const variantImageFilename = normalizedVariantImage.split('/').pop();
@@ -794,7 +684,7 @@ class AFSSlider {
         return imgFilename === variantImageFilename;
       });
     }
-    
+
     if (variantImageIndex !== -1 && variantImageIndex < this.images.length) {
       // Check if current slide is different
       if (this._currentIndex !== variantImageIndex) {
@@ -803,7 +693,7 @@ class AFSSlider {
       }
       return true;
     }
-    
+
     return false;
   }
 
@@ -831,58 +721,10 @@ class AFSSlider {
 // QUICK VIEW FUNCTIONS
 // ============================================================================
 
-// Access shared utilities from main AFS module via window
-const appWindow = window as unknown as AppWindow;
-
-// Helper to get shared utilities (with fallbacks)
-function getSharedUtilities() {
-  return {
-    State: appWindow.AFS_State || { moneyFormat: null, currency: null },
-    Log: appWindow.AFS_LOG || { error: () => {}, warn: () => {}, info: () => {}, debug: () => {}, log: () => {}, init: () => {} },
-    QuickAdd: appWindow.QuickAdd || { add: async () => {}, addFromForm: async () => {}, addVariant: async () => {}, showSuccess: () => {} },
-    $: appWindow.$ || {
-      debounce: () => () => {},
-      toLowerCase: () => '',
-      inputDisplayType: () => 'checkbox' as const,
-      isMultiSelect: () => false,
-      split: () => [],
-      id: () => null,
-      str: () => '',
-      empty: () => true,
-      el: () => document.createElement('div'),
-      txt: () => document.createElement('div'),
-      clear: () => {},
-      frag: () => document.createDocumentFragment(),
-      optimizeImageUrl: () => '',
-      buildImageSrcset: () => '',
-      formatMoney: () => '',
-      equals: () => false,
-      equalsAny: () => false,
-      isVendorKey: () => false,
-      isProductTypeKey: () => false,
-      isTagKey: () => false,
-      isCollectionKey: () => false,
-      isPriceRangeKey: () => false,
-      isBestSelling: () => false,
-      isCollectionOptionType: () => false,
-      isPriceRangeOptionType: () => false
-    },
-    Icons: appWindow.Icons || { rightArrow: '', downArrow: '', close: '', minus: '', plus: '', eye: '' },
-    Lang: appWindow.Lang || {
-      buttons: { quickAdd: '', quickAddToCart: '', quickView: '', addToCart: '', buyNow: '', clear: '', clearAll: '', close: '', closeFilters: '', toggleFilters: '', filters: '', previous: '', next: '', apply: '' },
-      labels: { sortBy: '', appliedFilters: '', search: '', price: '', collection: '', productUnavailable: '', loading: '', loadingProduct: '' },
-      sortOptions: { bestSelling: '', titleAsc: '', titleDesc: '', priceAsc: '', priceDesc: '', createdAsc: '', createdDesc: '' },
-      messages: { noProductsFound: '', oneProductFound: '', productsFound: '', showingProducts: '', pageOf: '', addedToCart: '', failedToLoad: '', failedToLoadProducts: '', failedToLoadProduct: '', failedToAddToCart: '', failedToProceedToCheckout: '', failedToLoadProductModal: '', failedToLoadFilters: '', initializationFailed: '', loadFailed: '', unknownError: '', checkConsole: '' },
-      placeholders: { searchProducts: '', searchFilter: '' }
-    },
-    SpecialValue: appWindow.SpecialValue || { DEFAULT_TITLE: 'Default Title' }
-  };
-}
 
 // Create Product Modal using Ajax API
 export async function createProductModal(handle: string, modalId: string): Promise<ProductModalElement> {
-  const utils = getSharedUtilities();
-  const { State, Log, QuickAdd, $, Icons, Lang, SpecialValue } = utils;
+
   const dialog = $.el('dialog', 'afs-product-modal', { 'id': modalId }) as ProductModalElement;
 
   // Show loading state
@@ -900,7 +742,7 @@ export async function createProductModal(handle: string, modalId: string): Promi
     `;
 
   // Get locale-aware URL using Shopify routes
-  const routesRoot = (appWindow.Shopify && appWindow.Shopify.routes && appWindow.Shopify.routes.root) || '/';
+  const routesRoot = (AFSW.Shopify && AFSW.Shopify.routes && AFSW.Shopify.routes.root) || '/';
   const productUrl = `${routesRoot}products/${handle}.js`;
 
   try {
@@ -924,7 +766,7 @@ export async function createProductModal(handle: string, modalId: string): Promi
     // Build variant selector HTML
     const buildVariantSelector = (): string => {
       if (!productData.variants || productData.variants.length === 0) return '';
-      
+
       // Don't render variant selector if product has only one variant with "Default Title"
       // This is Shopify's default single variant (not a real variant)
       if (productData.variants.length === 1) {
@@ -1159,7 +1001,7 @@ export async function createProductModal(handle: string, modalId: string): Promi
       try {
         // Wait for slider container to be in DOM
         const sliderContainer = await waitForElement(`#${modalId}-slider`, dialog, 3000);
-        
+
         // Wait for images to be in DOM
         const images = await waitForElements(
           Array.from({ length: 10 }, (_, i) => `.afs-slider__image:nth-child(${i + 1})`),
@@ -1183,19 +1025,17 @@ export async function createProductModal(handle: string, modalId: string): Promi
           Log.warn('No images found for slider', { modalId });
         }
       } catch (error) {
-        Log.error('Failed to initialize slider', { 
+        Log.error('Failed to initialize slider', {
           error: error instanceof Error ? error.message : String(error),
-          modalId 
+          modalId
         });
       }
     })();
 
     // Setup event handlers
-    setupModalHandlers(dialog, modalId, productData, formatPrice, utils);
+    setupModalHandlers(dialog, modalId, productData, formatPrice);
 
   } catch (error) {
-    const utils = getSharedUtilities();
-    const { Log, Icons, Lang } = utils;
     Log.error('Failed to load product for modal', { error: error instanceof Error ? error.message : String(error), handle });
     dialog.innerHTML = `
         <div class="afs-product-modal__container">
@@ -1209,7 +1049,7 @@ export async function createProductModal(handle: string, modalId: string): Promi
           </div>
         </div>
       `;
-    setupCloseHandler(dialog, utils);
+    setupCloseHandler(dialog);
   }
 
   return dialog;
@@ -1220,10 +1060,8 @@ function setupModalHandlers(
   dialog: ProductModalElement,
   modalId: string,
   product: Product,
-  formatPrice: (price: number | string) => string,
-  utils: ReturnType<typeof getSharedUtilities>
+  formatPrice: (price: number | string) => string
 ): void {
-  const { Log, QuickAdd, Lang } = utils;
   const closeBtn = dialog.querySelector<HTMLButtonElement>('.afs-product-modal__close');
 
   const closeModal = (): void => {
@@ -1324,7 +1162,7 @@ function setupModalHandlers(
       });
 
       if (matchingVariant) {
-        updateVariantInModal(dialog, modalId, matchingVariant, formatPrice, utils);
+        updateVariantInModal(dialog, modalId, matchingVariant, formatPrice);
       }
     });
   });
@@ -1356,7 +1194,7 @@ function setupModalHandlers(
       const variantId = buyButton.dataset.variantId;
 
       try {
-        const routesRoot = (appWindow.Shopify && appWindow.Shopify.routes && appWindow.Shopify.routes.root) || '/';
+        const routesRoot = (AFSW.Shopify && AFSW.Shopify.routes && AFSW.Shopify.routes.root) || '/';
         // Redirect to checkout
         window.location.href = `${routesRoot}cart/${variantId}:${quantity}?checkout`;
       } catch (error) {
@@ -1372,11 +1210,8 @@ function updateVariantInModal(
   dialog: ProductModalElement,
   modalId: string,
   variant: ProductVariant,
-  formatPrice: (price: number | string) => string,
-  utils: ReturnType<typeof getSharedUtilities>
+  formatPrice: (price: number | string) => string
 ): void {
-  const { Lang } = utils;
-  // Update variant ID
   dialog._currentVariantId = variant.id;
 
   // Update price
@@ -1545,7 +1380,7 @@ function updateVariantInModal(
 }
 
 // Setup close handler only
-function setupCloseHandler(dialog: ProductModalElement, utils: ReturnType<typeof getSharedUtilities>): void {
+function setupCloseHandler(dialog: ProductModalElement): void {
   const closeBtn = dialog.querySelector<HTMLButtonElement>('.afs-product-modal__close');
   const closeModal = (): void => {
     // Destroy slider if it exists
@@ -1577,8 +1412,6 @@ function setupCloseHandler(dialog: ProductModalElement, utils: ReturnType<typeof
  * This function should be called from the main AFS module when creating product cards
  */
 export function createQuickViewButton(product: Product): HTMLElement | null {
-  const utils = getSharedUtilities();
-  const { $, Icons, Lang } = utils;
   if (!product.handle) return null;
 
   const quickViewBtn = $.el('button', 'afs-product-card__quick-view', {
@@ -1598,8 +1431,6 @@ export function createQuickViewButton(product: Product): HTMLElement | null {
  * This should be called from the main AFS module's event handler
  */
 export function handleQuickViewClick(handle: string): void {
-  const utils = getSharedUtilities();
-  const { Log, Lang } = utils;
   if (!handle) return;
 
   // Open product modal using Ajax API

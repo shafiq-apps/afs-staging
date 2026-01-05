@@ -4,18 +4,20 @@
  * Describe hardcoded values and their means and functionality
  */
 
+import { handleLoadError } from "./utils/utils";
+
 // ============================================================================
 // TYPE DEFINITIONS
 // ============================================================================
 
-interface Constants {
+export interface Constants {
 	readonly DEBOUNCE: number;
 	readonly TIMEOUT: number;
 	readonly CACHE_TTL: number;
 	readonly PAGE_SIZE: number;
 }
 
-interface Icons {
+export interface Icons {
 	readonly rightArrow: string;
 	readonly downArrow: string;
 	readonly eye: string;
@@ -24,7 +26,7 @@ interface Icons {
 	readonly close: string;
 }
 
-interface ImageOptimizationOptions {
+export interface ImageOptimizationOptions {
 	width?: number;
 	height?: number;
 	quality?: number;
@@ -32,42 +34,42 @@ interface ImageOptimizationOptions {
 	crop?: string | null;
 }
 
-interface PriceRange {
+export interface PriceRange {
 	min?: number;
 	max?: number;
 }
 
-interface SortState {
+export interface SortState {
 	field: string;
 	order: 'asc' | 'desc';
 }
 
-interface PaginationState {
+export interface PaginationState {
 	page: number;
 	limit: number;
 	total: number;
 	totalPages: number;
 }
 
-interface FallbackPagination {
+export interface FallbackPagination {
 	currentPage: number;
 	totalPages: number;
 	totalProducts: number;
 }
 
-interface SelectedCollection {
+export interface SelectedCollection {
 	id: string | null;
 	sortBy: string | null;
 }
 
-interface FilterMetadata {
+export interface FilterMetadata {
 	label: string;
 	queryKey?: string;
 	optionKey?: string;
 	optionType?: string;
 }
 
-interface FilterValue {
+export interface FilterValue {
 	value?: string;
 	key?: string;
 	name?: string;
@@ -75,7 +77,7 @@ interface FilterValue {
 	count?: number;
 }
 
-interface FilterOption {
+export interface FilterOption {
 	handle?: string;
 	label?: string;
 	queryKey?: string;
@@ -96,7 +98,7 @@ interface FilterOption {
 	key?: string;
 }
 
-interface ProductImage {
+export interface ProductImage {
 	url?: string;
 	urlSmall?: string;
 	urlMedium?: string;
@@ -104,7 +106,7 @@ interface ProductImage {
 	urlFallback?: string;
 }
 
-interface ProductVariant {
+export interface ProductVariant {
 	id: number | string;
 	available?: boolean;
 	availableForSale?: boolean;
@@ -131,7 +133,7 @@ interface ProductVariant {
 	};
 }
 
-interface Product {
+export interface Product {
 	id?: string | number;
 	productId?: string | number;
 	gid?: string | number;
@@ -152,7 +154,7 @@ interface Product {
 	}>;
 }
 
-interface Collection {
+export interface Collection {
 	id?: string | number;
 	gid?: string | number;
 	collectionId?: string | number;
@@ -161,7 +163,7 @@ interface Collection {
 	name?: string;
 }
 
-interface FiltersState {
+export interface FiltersState {
 	[key: string]: string[] | string | PriceRange | null;
 	vendor: string[];
 	productType: string[];
@@ -171,7 +173,7 @@ interface FiltersState {
 	priceRange: PriceRange | null;
 }
 
-interface FilterGroupState {
+export interface FilterGroupState {
 	collapsed?: boolean;
 	search?: string;
 	lastUpdated?: number;
@@ -180,23 +182,23 @@ interface FilterGroupState {
 // Persistent map for filter group UI states (collapsed/search/lastUpdated)
 const states = new Map<string, FilterGroupState>();
 
-interface APIResponse<T> {
+export interface APIResponse<T> {
 	success: boolean;
 	data?: T;
 	message?: string;
 }
 
-interface ProductsResponseData {
+export interface ProductsResponseData {
 	products?: Product[];
 	pagination?: PaginationState;
 	filters?: FilterOption[];
 }
 
-interface FiltersResponseData {
+export interface FiltersResponseData {
 	filters?: FilterOption[];
 }
 
-interface ParsedUrlParams {
+export interface ParsedUrlParams {
 	vendor?: string[];
 	productType?: string[];
 	tags?: string[];
@@ -209,13 +211,13 @@ interface ParsedUrlParams {
 	[key: string]: string[] | string | PriceRange | SortState | number | undefined;
 }
 
-interface AppliedFilter {
+export interface AppliedFilter {
 	handle: string;
 	label: string;
 	value: string | typeof SpecialValue.CLEAR;
 }
 
-interface AppState {
+export interface AppState {
 	shop: string | null;
 	filters: FiltersState;
 	products: Product[];
@@ -236,7 +238,7 @@ interface AppState {
 	priceRangeHandle: string | null;
 }
 
-interface AFSConfig {
+export interface AFSConfig {
 	apiBaseUrl?: string;
 	shop?: string;
 	containerSelector?: string;
@@ -257,24 +259,24 @@ interface AFSConfig {
 	debug?: boolean;
 }
 
-interface SliderInstance {
+export interface SliderInstance {
 	destroy?: () => void;
 	goToSlide?: (index: number) => void;
 	updateVariantImage?: (variant: ProductVariant, images: string[], variants: ProductVariant[]) => boolean;
 	currentIndex?: number;
 }
 
-interface ProductModalElement extends HTMLDialogElement {
+export interface ProductModalElement extends HTMLDialogElement {
 	_productData?: Product;
 	_currentVariantId?: number | string;
 	_slider?: SliderInstance;
 }
 
-interface FilterItemsElement extends HTMLElement {
+export interface FilterItemsElement extends HTMLElement {
 	_items?: FilterValue[];
 }
 
-interface ShopifyWindow extends Window {
+export interface ShopifyWindow extends Window {
 	Shopify?: {
 		routes?: {
 			root?: string;
@@ -309,7 +311,7 @@ interface ShopifyWindow extends Window {
 // We use a type that allows any object structure for logging purposes
 // Note: This intentionally allows any object structure since logging needs flexibility
 // We explicitly include all our custom types plus allow objects with index signatures
-type LoggableData =
+export type LoggableData =
 	| string
 	| number
 	| boolean
@@ -336,7 +338,7 @@ type LoggableData =
 // ENUMS
 // ============================================================================
 
-enum FilterKey {
+export enum FilterKey {
 	VENDOR = 'vendor',
 	VENDORS = 'vendors',
 	PRODUCT_TYPE = 'productType',
@@ -359,7 +361,7 @@ enum FilterKey {
 	SHOP_DOMAIN = 'shop_domain'
 }
 
-enum SortField {
+export enum SortField {
 	BEST_SELLING = 'best-selling',
 	BESTSELLING = 'bestselling',
 	TITLE = 'title',
@@ -367,29 +369,29 @@ enum SortField {
 	CREATED = 'created'
 }
 
-enum SortOrder {
+export enum SortOrder {
 	ASC = 'asc',
 	DESC = 'desc',
 	ASCENDING = 'ascending',
 	DESCENDING = 'descending'
 }
 
-enum OptionType {
+export enum OptionType {
 	COLLECTION = 'Collection',
 	PRICE_RANGE = 'priceRange'
 }
 
-enum DisplayType {
+export enum DisplayType {
 	RADIO = 'radio',
 	CHECKBOX = 'checkbox'
 }
 
-enum SelectionType {
+export enum SelectionType {
 	MULTIPLE = 'multiple',
 	MULTIPLE_UPPER = 'MULTIPLE'
 }
 
-enum SpecialValue {
+export enum SpecialValue {
 	ALL = '__all__',
 	CLEAR = '__clear__',
 	DEFAULT_TITLE = 'Default Title'
@@ -398,8 +400,7 @@ enum SpecialValue {
 // ============================================================================
 // MINIMAL CONSTANTS
 // ============================================================================
-
-const C: Constants = {
+export const C: Constants = {
 	DEBOUNCE: 200,
 	TIMEOUT: 10000,
 	CACHE_TTL: 300000,
@@ -407,7 +408,7 @@ const C: Constants = {
 };
 
 // Store SVG HTML content for inline use (allows CSS color control)
-const Icons: Icons = {
+export const Icons: Icons = {
 	rightArrow: '<svg xmlns="http://www.w3.org/2000/svg" width="34px" height="34px" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M9.39862 4.32752C9.69152 4.03463 10.1664 4.03463 10.4593 4.32752L16.8232 10.6915C17.5067 11.3749 17.5067 12.4829 16.8232 13.1664L10.4593 19.5303C10.1664 19.8232 9.69152 19.8232 9.39863 19.5303C9.10573 19.2374 9.10573 18.7625 9.39863 18.4697L15.7626 12.1057C15.8602 12.0081 15.8602 11.8498 15.7626 11.7521L9.39863 5.38818C9.10573 5.09529 9.10573 4.62041 9.39862 4.32752Z" fill="currentColor"/></svg>',
 	downArrow: '<svg xmlns="http://www.w3.org/2000/svg" width="34px" height="34px" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M4.46938 9.39966C4.76227 9.10677 5.23715 9.10677 5.53004 9.39966L11.894 15.7636C11.9916 15.8613 12.1499 15.8613 12.2476 15.7636L18.6115 9.39966C18.9044 9.10677 19.3793 9.10677 19.6722 9.39966C19.9651 9.69256 19.9651 10.1674 19.6722 10.4603L13.3082 16.8243C12.6248 17.5077 11.5168 17.5077 10.8333 16.8243L4.46938 10.4603C4.17649 10.1674 4.17649 9.69256 4.46938 9.39966Z" fill="currentColor"/></svg>',
 	eye: '<svg xmlns="http://www.w3.org/2000/svg" width="34px" height="34px" viewBox="0 0 32 32" fill="currentColor"><path d="M16.108 10.044c-3.313 0-6 2.687-6 6s2.687 6 6 6 6-2.686 6-6-2.686-6-6-6zM16.108 20.044c-2.206 0-4.046-1.838-4.046-4.044s1.794-4 4-4c2.206 0 4 1.794 4 4s-1.748 4.044-3.954 4.044zM31.99 15.768c-0.012-0.050-0.006-0.104-0.021-0.153-0.006-0.021-0.020-0.033-0.027-0.051-0.011-0.028-0.008-0.062-0.023-0.089-2.909-6.66-9.177-10.492-15.857-10.492s-13.074 3.826-15.984 10.486c-0.012 0.028-0.010 0.057-0.021 0.089-0.007 0.020-0.021 0.030-0.028 0.049-0.015 0.050-0.009 0.103-0.019 0.154-0.018 0.090-0.035 0.178-0.035 0.269s0.017 0.177 0.035 0.268c0.010 0.050 0.003 0.105 0.019 0.152 0.006 0.023 0.021 0.032 0.028 0.052 0.010 0.027 0.008 0.061 0.021 0.089 2.91 6.658 9.242 10.428 15.922 10.428s13.011-3.762 15.92-10.422c0.015-0.029 0.012-0.058 0.023-0.090 0.007-0.017 0.020-0.030 0.026-0.050 0.015-0.049 0.011-0.102 0.021-0.154 0.018-0.090 0.034-0.177 0.034-0.27 0-0.088-0.017-0.175-0.035-0.266zM16 25.019c-5.665 0-11.242-2.986-13.982-8.99 2.714-5.983 8.365-9.047 14.044-9.047 5.678 0 11.203 3.067 13.918 9.053-2.713 5.982-8.301 8.984-13.981 8.984z"/></svg>',
@@ -417,13 +418,13 @@ const Icons: Icons = {
 };
 
 // Excluded query parameter keys (not processed as filters)
-const EXCLUDED_QUERY_PARAMS = new Set<string>([FilterKey.SHOP, FilterKey.SHOP_DOMAIN, FilterKey.CPID]);
+export const EXCLUDED_QUERY_PARAMS = new Set<string>([FilterKey.SHOP, FilterKey.SHOP_DOMAIN, FilterKey.CPID]);
 
 // ============================================================================
 // LANGUAGE/TEXT CONSTANTS
 // ============================================================================
 
-interface LanguageTexts {
+export interface LanguageTexts {
 	readonly buttons: {
 		readonly quickAdd: string;
 		readonly quickAddToCart: string;
@@ -484,7 +485,7 @@ interface LanguageTexts {
 	};
 }
 
-const Lang: LanguageTexts = {
+export const Lang: LanguageTexts = {
 	buttons: {
 		quickAdd: 'Quick Add',
 		quickAddToCart: 'Quick add to cart',
@@ -549,7 +550,7 @@ const Lang: LanguageTexts = {
 // TINY REUSABLE UTILITIES (Smallest possible functions)
 // ============================================================================
 
-const $ = {
+export const $ = {
 	// Fastest debounce
 	debounce: <T extends (...args: never[]) => void>(fn: T, ms: number): ((...args: Parameters<T>) => void) => {
 		let t: ReturnType<typeof setTimeout> | undefined;
@@ -810,7 +811,7 @@ const $ = {
 // METADATA BUILDERS (For display only, not for state management)
 // ============================================================================
 
-const Metadata = {
+export const Metadata = {
 	// Build metadata map from filters array (for display labels, types, etc.)
 	buildFilterMetadata: (filters: FilterOption[]): Map<string, FilterMetadata> => {
 		const m = new Map<string, FilterMetadata>();
@@ -834,7 +835,7 @@ const Metadata = {
 // STATE (Minimal, no copying)
 // ============================================================================
 
-const State: AppState = {
+export const State: AppState = {
 	shop: null,
 	// Filters: standard filters (fixed keys) + dynamic option filters (handles as keys)
 	// Example: { vendor: [], ef4gd: ["red"], pr_a3k9x: ["M"], search: '', priceRange: null }
@@ -867,7 +868,7 @@ const State: AppState = {
 // LOGGER (Minimal, production-safe)
 // ============================================================================
 
-const Log = {
+export const Log = {
 	enabled: true, // Always enabled for debugging
 	error: (msg: string, data?: LoggableData): void => {
 		if (Log.enabled) console.error('[AFS]', msg, data || '');
@@ -903,7 +904,7 @@ const Log = {
 // URL PARSER (Optimized with lookup maps)
 // ============================================================================
 
-const UrlManager = {
+export const UrlManager = {
 	parse(): ParsedUrlParams {
 		const url = new URL(window.location.href);
 		const params: ParsedUrlParams = {};
@@ -977,7 +978,6 @@ const UrlManager = {
 
 		return params;
 	},
-
 	update(filters: FiltersState, pagination: PaginationState, sort: SortState): void {
 		const url = new URL(window.location.href);
 		url.search = '';
@@ -1045,7 +1045,7 @@ const UrlManager = {
 // API CLIENT (Optimized with deduplication)
 // ============================================================================
 
-const API = {
+export const API = {
 	baseURL: 'https://fstaging.digitalcoo.com/storefront', // Default, should be set via config
 	__v: 'v2.0.1',
 	__id: '01-01-2026',
@@ -1099,7 +1099,7 @@ const API = {
 	 * Since clearCpidIfFiltersPresent() already clears cpid when filters are present,
 	 * we only need to check if cpid exists and if it's not already in collection filter handle
 	 */
-	shouldSendCpid(filters: FiltersState): boolean {
+	shouldSendCpid(): boolean {
 		// For the server-managed CPID approach we always send CPID when present.
 		// The server will decide how to apply it; client must never expose it in URL/UI.
 		return !!State.selectedCollection?.id;
@@ -1126,7 +1126,7 @@ const API = {
 		params.set('shop', State.shop);
 
 		// Only send cpid if conditions are met (clean page or only sort/page/limit, and not in collection filter)
-		if (this.shouldSendCpid(filters)) {
+		if (this.shouldSendCpid()) {
 			params.set('cpid', State.selectedCollection.id!);
 			Log.debug('cpid sent to products API', { cpid: State.selectedCollection.id, filters });
 		} else {
@@ -1186,6 +1186,7 @@ const API = {
 
 		const url = `${this.baseURL}/products?${params}`;
 		Log.info('Fetching products', { url, shop: State.shop, page: pagination.page });
+		DOM.showLoading('products');
 
 		const promise = this.fetch(url).then(res => {
 			if (!res.success || !res.data) {
@@ -1206,7 +1207,7 @@ const API = {
 			Log.error('Products fetch failed', { error: e instanceof Error ? e.message : String(e), url });
 			throw e;
 		});
-
+		DOM.showLoading('products');
 		this.pending.set(key, promise);
 		return promise;
 	},
@@ -1219,7 +1220,7 @@ const API = {
 		params.set('shop', State.shop);
 
 		// Only send cpid if conditions are met (clean page or only sort/page/limit, and not in collection filter)
-		if (this.shouldSendCpid(filters)) {
+		if (this.shouldSendCpid()) {
 			params.set('cpid', State.selectedCollection.id!);
 			Log.debug('cpid sent to filters API', { cpid: State.selectedCollection.id, filters });
 		} else {
@@ -1267,6 +1268,8 @@ const API = {
 		const url = `${this.baseURL}/filters?${params}`;
 		Log.info('Fetching filters', { url, shop: State.shop });
 
+		DOM.showLoading('filters');
+
 		const res = await this.fetch(url);
 		if (!res.success || !res.data) {
 			Log.error('Invalid filters response', { response: res });
@@ -1290,14 +1293,81 @@ const API = {
 
 	setBaseURL(url: string): void {
 		this.baseURL = url;
-	}
+	},
+
+	buildFiltersFromUrl(urlParams: Record<string, any>): void {
+		// Rebuild filters from URL params BEFORE calling API.filters()
+		// This ensures filters endpoint receives the correct filters from URL
+		State.filters = {
+			vendor: urlParams.vendor || [],
+			productType: urlParams.productType || [],
+			tags: urlParams.tags || [],
+			collections: urlParams.collections || [],
+			search: urlParams.search || '',
+			priceRange: urlParams.priceRange || null
+		};
+
+		// Add all handle-based filters (everything that's not a standard filter)
+		Object.keys(urlParams).forEach(key => {
+			if (!['vendor', 'productType', 'tags', 'collections', 'search', 'priceRange', 'page', 'limit', 'sort', 'cpid'].includes(key)) {
+				const paramValue = urlParams[key];
+				if (Array.isArray(paramValue)) {
+					State.filters[key] = paramValue;
+				} else if (typeof paramValue === 'string') {
+					State.filters[key] = [paramValue];
+				}
+			}
+		});
+
+		// Clear cpid if filters are present (other than page, sort, size, limit)
+		clearCpidIfFiltersPresent(State.filters);
+	},
+
+	setPaginationFromUrl(urlParams: Record<string, any>): void {
+		if (urlParams.page) {
+			State.pagination.page = urlParams.page;
+		} else {
+			// If no page in URL, use fallback pagination current page if available
+			if (State.fallbackPagination && State.fallbackPagination.currentPage) {
+				State.pagination.page = State.fallbackPagination.currentPage;
+			}
+		}
+	},
+
+	setSortFromUrl(urlParams: Record<string, any>): void {
+		// Set sort from URL params or default to best-selling
+		if (urlParams.sort) {
+			const sortValue = typeof urlParams.sort === 'object' ? urlParams.sort.field : urlParams.sort;
+			if (typeof sortValue === 'string') {
+				const normalized = sortValue.toLowerCase().trim();
+				if (normalized === 'best-selling' || normalized === 'bestselling') {
+					State.sort = { field: 'best-selling', order: 'asc' };
+				} else if (normalized.includes('-')) {
+					// New format: "field-direction" (e.g., "title-ascending")
+					const [field, direction] = normalized.split('-');
+					const order = $.equalsAny(direction, SortOrder.ASCENDING) ? SortOrder.ASC : $.equalsAny(direction, SortOrder.DESCENDING) ? SortOrder.DESC : SortOrder.DESC;
+					State.sort = { field, order };
+				} else {
+					// Legacy format: "field:order" (backward compatibility)
+					const [field, order] = sortValue.split(':');
+					State.sort = { field, order: (order || 'desc') as 'asc' | 'desc' };
+				}
+			} else if (typeof urlParams.sort === 'object' && urlParams.sort.field) {
+				State.sort = { field: urlParams.sort.field, order: urlParams.sort.order || 'desc' };
+			}
+		} else {
+			// Default to best-selling if no sort in URL
+			State.sort = { field: 'best-selling', order: 'asc' };
+		}
+	},
+
 };
 
 // ============================================================================
 // DOM RENDERER (Optimized, batched operations)
 // ============================================================================
 
-const DOM = {
+export const DOM = {
 	container: null as HTMLElement | null,
 	filtersContainer: null as HTMLElement | null,
 	productsContainer: null as HTMLElement | null,
@@ -1423,6 +1493,466 @@ const DOM = {
 		if (this.productsContainer) {
 			this.productsContainer.appendChild(this.productsGrid);
 		}
+	},
+
+	attachEvents(): void {
+		if (!DOM.container) return;
+
+		DOM.container.addEventListener('click', (e) => {
+			const target = e.target as HTMLElement;
+			const action = target.closest<HTMLElement>('[data-afs-action]')?.dataset.afsAction;
+			const item = target.closest<HTMLElement>('.afs-filter-item');
+			const checkbox = (target instanceof HTMLInputElement && (target.type === 'checkbox' || target.type === 'radio')) ? target : item?.querySelector<HTMLInputElement>('.afs-filter-item__checkbox');
+			const pagination = target.closest<HTMLButtonElement>('.afs-pagination__button');
+
+			if (action === 'clear-all') {
+				// Reset to initial state (standard filters only, handles will be removed dynamically)
+				State.filters = { vendor: [], productType: [], tags: [], collections: [], search: '', priceRange: null };
+				// Keep CPID when clearing client-visible filters; CPID is server-managed
+				if (State.selectedCollection?.id) {
+					Log.debug('Clear All: keeping server-managed cpid (not exposed to UI)');
+				}
+				State.pagination.page = 1;
+				UrlManager.update(State.filters, State.pagination, State.sort);
+				// Scroll to top when clearing all filters
+				DOM.scrollToProducts();
+				// Show loading skeleton immediately (before debounce)
+				DOM.showLoading();
+				Filters.apply();
+			}
+			else if (action === 'toggle-filters' || action === 'close-filters') {
+				if (action === 'close-filters') {
+					// Explicitly close filters drawer
+					DOM.toggleMobileFilters();
+				} else {
+					// Toggle mobile filters drawer
+					DOM.toggleMobileFilters();
+				}
+			}
+			else if (target.closest<HTMLElement>('.afs-applied-filter-chip__remove')) {
+				const chip = target.closest<HTMLElement>('.afs-applied-filter-chip');
+				const removeBtn = chip?.querySelector<HTMLElement>('.afs-applied-filter-chip__remove');
+				const key = removeBtn?.getAttribute('data-afs-filter-key');
+				const value = removeBtn?.getAttribute('data-afs-filter-value');
+				if (!key) return;
+
+				// Special-case: applied chips for non-toggle filters
+				if ($.equals(key, FilterKey.CPID)) {
+					if (State.selectedCollection?.id) {
+						State.selectedCollection.id = null;
+						Log.debug('cpid removed, cleared selectedCollection');
+					}
+					UrlManager.update(State.filters, State.pagination, State.sort);
+					DOM.scrollToProducts();
+					DOM.showLoading();
+					Filters.apply();
+					return;
+				}
+
+				if ($.equals(key, FilterKey.SEARCH)) {
+					State.filters.search = '';
+					State.pagination.page = 1;
+					UrlManager.update(State.filters, State.pagination, State.sort);
+					DOM.scrollToProducts();
+					DOM.showLoading();
+					Filters.apply();
+					return;
+				}
+
+				if ($.isPriceRangeKey(key)) {
+					State.filters.priceRange = null;
+					State.pagination.page = 1;
+					UrlManager.update(State.filters, State.pagination, State.sort);
+					DOM.scrollToProducts();
+					DOM.showLoading();
+					Filters.apply();
+					return;
+				}
+
+				// Default: toggle-able filters
+				if (value) {
+					Filters.toggle(key, value);
+				}
+			}
+			// Sort dropdown is handled by change event (see below)
+			else if (checkbox && item) {
+				e.preventDefault(); // Prevent default checkbox toggle behavior
+				e.stopPropagation(); // Stop event bubbling
+
+				// Get handle from data attribute (handle is stored directly)
+				const handle = item.getAttribute('data-afs-filter-handle') || item.parentElement?.getAttribute('data-afs-filter-handle');
+				const value = item.getAttribute('data-afs-filter-value');
+				const allowMultiselect = item.getAttribute('data-afs-filter-multiselect') || item.parentElement?.getAttribute('data-afs-filter-multiselect');
+
+				if (!handle || !value) {
+					Log.warn('Invalid filter item clicked', { handle, value });
+					return;
+				}
+
+				Log.debug('Filter toggle', { handle, value, currentChecked: checkbox.checked });
+
+				// remove other selections if multiselect not allowed
+				if (allowMultiselect === '0' || allowMultiselect === 'false') {
+					State.filters[handle] = [];
+				}
+				Filters.toggle(handle, value);
+			}
+			else if (pagination && !pagination.disabled) {
+				const page = parseInt(pagination.getAttribute('data-afs-page') || '0', 10);
+				if (page && page > 0) {
+					// In fallback mode, read current page from URL to ensure accuracy
+					if (State.usingFallback) {
+						const urlParams = UrlManager.parse();
+						const currentPage = urlParams.page || State.pagination.page || 1;
+						// Calculate the correct next/previous page
+						State.pagination.page = page;
+					} else {
+						State.pagination.page = page;
+					}
+					UrlManager.update(State.filters, State.pagination, State.sort);
+					// Scroll to top when pagination changes
+					DOM.scrollToProducts();
+					// Show loading skeleton immediately (before debounce)
+					DOM.showLoading();
+					// Only fetch products, not filters (filters haven't changed)
+					Filters.applyProductsOnly();
+				}
+			}
+			else if (target.closest<HTMLElement>('.afs-filter-group__clear')) {
+				e.preventDefault();
+				e.stopPropagation();
+				const clearBtn = target.closest<HTMLElement>('.afs-filter-group__clear');
+				if (!clearBtn) return;
+
+				const handle = clearBtn.getAttribute('data-afs-filter-handle');
+				if (!handle) return;
+
+				// Check if this is a collection filter and if cpid should be cleared
+				const metadata = State.filterMetadata.get(handle);
+				const isCollectionFilter = ($.isCollectionOptionType(metadata?.optionType) || $.isCollectionKey(handle));
+
+				// Remove the filter from State.filters
+				if (State.filters[handle]) {
+					// If clearing collection filter and cpid exists, check if cpid was in the filter values
+					if (isCollectionFilter && State.selectedCollection?.id) {
+						const filterValues = State.filters[handle];
+						const originalCpid = State.selectedCollection.id;
+						const cpidInValues = Array.isArray(filterValues) &&
+							filterValues.some(v => String(v) === String(originalCpid));
+						if (cpidInValues) {
+							State.selectedCollection.id = null;
+							Log.debug('Collection filter cleared (contained cpid), cleared cpid', {
+								handle,
+								cpid: originalCpid
+							});
+						}
+					}
+
+					delete State.filters[handle];
+					Log.debug('Filter cleared', { handle, isCollectionFilter });
+
+					// Update URL
+					UrlManager.update(State.filters, State.pagination, State.sort);
+
+					// Scroll to top and show loading
+					DOM.scrollToProducts();
+					DOM.showLoading();
+
+					// Apply filters to refresh products and filters
+					Filters.apply();
+				}
+			}
+			else if (target.closest<HTMLElement>('.afs-filter-group__toggle')) {
+				e.preventDefault();
+				e.stopPropagation();
+				const group = target.closest<HTMLElement>('.afs-filter-group');
+				if (!group) return;
+
+				const collapsed = group.getAttribute('data-afs-collapsed') === 'true';
+				const collapsedState = !collapsed;
+				group.setAttribute('data-afs-collapsed', collapsedState ? 'true' : 'false');
+
+				// Persist collapse state in states Map with improved error handling
+				const stateKey = group.getAttribute('data-afs-filter-key');
+				if (stateKey) {
+					try {
+						// Get or create state
+						const state = states.get(stateKey) || {};
+						state.collapsed = collapsedState;
+						state.lastUpdated = Date.now();
+						states.set(stateKey, state);
+
+						// Also persist to sessionStorage for page refresh persistence
+						try {
+							const stateKey = `afs_filter_state_${group.getAttribute('data-afs-filter-handle')}`;
+							sessionStorage.setItem(stateKey, JSON.stringify({ collapsed: collapsedState }));
+						} catch (e) {
+							// SessionStorage might be disabled, ignore
+							Log.debug('Could not persist to sessionStorage', { error: e });
+						}
+					} catch (error) {
+						Log.error('Failed to persist filter state', {
+							stateKey,
+							error: error instanceof Error ? error.message : String(error)
+						});
+					}
+				}
+
+				// Update toggle button aria-expanded
+				const toggle = group.querySelector<HTMLButtonElement>('.afs-filter-group__toggle');
+				if (toggle) {
+					toggle.setAttribute('aria-expanded', collapsedState ? 'false' : 'true');
+				}
+
+				// Update icon
+				const icon = group.querySelector<HTMLElement>('.afs-filter-group__icon');
+				if (icon) {
+					// Update inline SVG HTML
+					icon.innerHTML = collapsedState
+						? (Icons.rightArrow || '')
+						: (Icons.downArrow || '');
+				}
+
+				// Content visibility is handled by CSS via data-afs-collapsed attribute
+				Log.debug('Filter group toggled', { collapsed: collapsedState, stateKey });
+			}
+			else if (target.closest<HTMLElement>('.afs-product-card__quick-add')) {
+				e.preventDefault();
+				e.stopPropagation();
+				const btn = target.closest<HTMLButtonElement>('.afs-product-card__quick-add');
+				if (!btn || btn.disabled) return;
+				const handle = btn.getAttribute('data-product-handle');
+				const productId = btn.getAttribute('data-product-id');
+				if (handle) {
+					QuickAdd.add(handle, productId);
+				}
+			}
+			else if (target.closest<HTMLElement>('.afs-product-card__quick-view')) {
+				e.preventDefault();
+				e.stopPropagation();
+				const btn = target.closest<HTMLButtonElement>('.afs-product-card__quick-view');
+				if (!btn) return;
+				const handle = btn.getAttribute('data-product-handle');
+				if (handle) {
+					// Use quick view module
+					const AFSW = window as ShopifyWindow;
+					if (AFSW.AFSQuickView?.handleQuickViewClick) {
+						AFSW.AFSQuickView.handleQuickViewClick(handle);
+					} else {
+						Log.error('AFSQuickView module not loaded');
+					}
+				}
+			}
+		});
+
+		// Search input
+		DOM.container.addEventListener('input', (e) => {
+			const target = e.target as HTMLElement;
+			if (target.classList.contains('afs-filter-group__search-input')) {
+				const searchInput = target as HTMLInputElement;
+				const term = searchInput.value.toLowerCase();
+				const items = target.closest<HTMLElement>('.afs-filter-group')?.querySelector<FilterItemsElement>('.afs-filter-group__items');
+				if (items?._items) {
+					items.querySelectorAll<HTMLElement>('.afs-filter-item').forEach((el, i) => {
+						const item = items._items?.[i];
+						if (item) {
+							// Search by label (for display), but filtering still uses value
+							const searchText = $.str(typeof item === 'string' ? item : (item.label || item.value || '')).toLowerCase();
+							el.style.display = !term || searchText.includes(term) ? '' : 'none';
+						}
+					});
+				}
+			}
+		});
+
+		// Helper function to handle sort change
+		const handleSortChange = (select: HTMLSelectElement): void => {
+			const sortValue = select.value;
+			if (!sortValue) return;
+
+			Log.info('Sort dropdown changed', { sortValue, currentSort: State.sort });
+
+			// Calculate new sort state
+			// New format: "title-ascending", "price-descending", etc.
+			let newSort: SortState;
+			if (sortValue === 'best-selling' || sortValue === 'bestselling') {
+				newSort = { field: 'best-selling', order: 'asc' };
+			} else if (sortValue.includes('-')) {
+				// New format: "field-direction" (e.g., "title-ascending")
+				const [field, direction] = sortValue.split('-');
+				const order = direction === 'ascending' ? 'asc' : direction === 'descending' ? 'desc' : 'desc';
+				newSort = { field, order };
+			} else {
+				// Legacy format: "field:order" (backward compatibility)
+				const [field, order] = sortValue.split(':');
+				newSort = { field, order: (order || 'desc') as 'asc' | 'desc' };
+			}
+
+			// Always update state and call API when sort is selected
+			// (even if value is same, user explicitly selected it)
+			State.sort = newSort;
+			State.pagination.page = 1;
+			UrlManager.update(State.filters, State.pagination, State.sort);
+			Log.info('Calling applyProductsOnly after sort change', { sort: State.sort });
+			// Show loading skeleton immediately (before debounce)
+			DOM.scrollToProducts();
+			DOM.showLoading();
+			// Only fetch products, not filters (filters haven't changed)
+			Filters.applyProductsOnly();
+		};
+
+		// Store the previous value to detect changes
+		let previousSortValue: string | null = null;
+
+		// Track when select is focused to capture initial value
+		DOM.container.addEventListener('focus', (e) => {
+			const target = e.target as HTMLElement;
+			if (target.classList.contains('afs-sort-select')) {
+				previousSortValue = (target as HTMLSelectElement).value;
+			}
+		}, true);
+
+		// Sort dropdown change event (fires when value changes)
+		DOM.container.addEventListener('change', (e) => {
+			const target = e.target as HTMLElement;
+			if (target.classList.contains('afs-sort-select')) {
+				const select = target as HTMLSelectElement;
+				handleSortChange(select);
+				previousSortValue = select.value;
+			}
+		});
+
+		// Also listen for blur event (fires when dropdown closes)
+		// This catches cases where user selects the same option (change event doesn't fire)
+		DOM.container.addEventListener('blur', (e) => {
+			const target = e.target as HTMLElement;
+			if (target.classList.contains('afs-sort-select')) {
+				const select = target as HTMLSelectElement;
+				const currentValue = select.value;
+
+				// If value is different from previous, or if change event didn't fire
+				// (previousSortValue might be null on first interaction)
+				if (currentValue && currentValue !== previousSortValue) {
+					// Small delay to ensure change event has a chance to fire first
+					// Use requestAnimationFrame for better timing instead of fixed timeout
+					requestAnimationFrame(() => {
+						requestAnimationFrame(() => {
+							// Double-check: if value still doesn't match state, trigger change
+							let currentSortValue: string;
+							if ($.isBestSelling(State.sort.field)) {
+								currentSortValue = SortField.BEST_SELLING;
+							} else {
+								// Convert to new format: "field-direction" (e.g., "title-ascending")
+								const direction = $.equals(State.sort.order, SortOrder.ASC) ? SortOrder.ASCENDING : SortOrder.DESCENDING;
+								currentSortValue = `${State.sort.field}-${direction}`;
+							}
+
+							if (currentValue !== currentSortValue) {
+								handleSortChange(select);
+							}
+						});
+					});
+				}
+				previousSortValue = currentValue;
+			}
+		}, true);
+
+		window.addEventListener('popstate', () => {
+			const params = UrlManager.parse();
+
+			// Store old state to detect if filters changed
+			const oldFilters = JSON.stringify(State.filters);
+			const oldPage = State.pagination.page;
+			const oldSort = JSON.stringify(State.sort);
+
+			// Rebuild filters from params (includes standard filters + handles)
+			State.filters = {
+				vendor: params.vendor || [],
+				productType: params.productType || [],
+				tags: params.tags || [],
+				collections: params.collections || [],
+				search: params.search || '',
+				priceRange: params.priceRange || null
+			};
+			// Add all handle-based filters (everything that's not a standard filter)
+			Object.keys(params).forEach(key => {
+				if (!['vendor', 'productType', 'tags', 'collections', 'search', 'priceRange', 'page', 'limit', 'sort'].includes(key)) {
+					const paramValue = params[key];
+					if (Array.isArray(paramValue)) {
+						State.filters[key] = paramValue;
+					} else if (typeof paramValue === 'string') {
+						State.filters[key] = [paramValue];
+					}
+				}
+			});
+
+			// Normalize handle-based price param into State.filters.priceRange for slider UI
+			const priceRangeFilterValue = State.priceRangeHandle ? State.filters[State.priceRangeHandle] : null;
+			if (
+				State.priceRangeHandle &&
+				Array.isArray(priceRangeFilterValue) &&
+				priceRangeFilterValue.length > 0
+			) {
+				const raw = String(priceRangeFilterValue[0] || '');
+				const parts = raw.split('-');
+				if (parts.length === 2) {
+					const min = parts[0].trim() ? parseInt(parts[0], 10) : undefined;
+					const max = parts[1].trim() ? parseInt(parts[1], 10) : undefined;
+					const hasMin = typeof min === 'number' && !isNaN(min) && min >= 0;
+					const hasMax = typeof max === 'number' && !isNaN(max) && max >= 0;
+					if (hasMin || hasMax) {
+						State.filters.priceRange = {
+							min: hasMin ? min : undefined,
+							max: hasMax ? max : undefined
+						};
+						delete State.filters[State.priceRangeHandle];
+					}
+				}
+			}
+
+			const newPage = params.page || State.pagination.page;
+			if (newPage !== oldPage) {
+				State.pagination.page = newPage;
+			}
+
+			// Update sort from URL params or default to best-selling
+			if (params.sort) {
+				const sortValue = typeof params.sort === 'object' ? params.sort.field : params.sort;
+				if (typeof sortValue === 'string') {
+					const normalized = sortValue.toLowerCase().trim();
+					if (normalized === 'best-selling' || normalized === 'bestselling') {
+						State.sort = { field: 'best-selling', order: 'asc' };
+					} else if (normalized.includes('-')) {
+						// New format: "field-direction" (e.g., "title-ascending")
+						const [field, direction] = normalized.split('-');
+						const order = $.equalsAny(direction, SortOrder.ASCENDING) ? SortOrder.ASC : $.equalsAny(direction, SortOrder.DESCENDING) ? SortOrder.DESC : SortOrder.DESC;
+						State.sort = { field, order };
+					} else {
+						// Legacy format: "field:order" (backward compatibility)
+						const [field, order] = sortValue.split(':');
+						State.sort = { field, order: (order || 'desc') as 'asc' | 'desc' };
+					}
+				} else if (typeof params.sort === 'object' && params.sort.field) {
+					State.sort = { field: params.sort.field, order: params.sort.order || 'desc' };
+				}
+			} else {
+				// Default to best-selling if no sort in URL
+				State.sort = { field: 'best-selling', order: 'asc' };
+			}
+
+			// Check if filters changed
+			const newFilters = JSON.stringify(State.filters);
+			const newSort = JSON.stringify(State.sort);
+			const filtersChanged = oldFilters !== newFilters;
+			const onlySortOrPageChanged = !filtersChanged && (newSort !== oldSort || newPage !== oldPage);
+
+			// Only fetch filters if filters actually changed
+			if (onlySortOrPageChanged) {
+				Filters.applyProductsOnly();
+			} else {
+				Filters.apply();
+			}
+		});
 	},
 
 	// Hide filters container (when using fallback mode)
@@ -2292,43 +2822,67 @@ const DOM = {
 		}
 	},
 
-	showLoading(): void {
-		// Show products skeleton
-		if (this.productsGrid) {
-			// Clear existing products
-			$.clear(this.productsGrid);
-
-			// Get page size from State or use minimum of 24
-			const pageSize = State.pagination?.limit || C.PAGE_SIZE || 24;
-			const skeletonCount = Math.max(pageSize, 24); // At least 24 skeleton cards
-
-			// Create skeleton product cards directly in the grid
-			const skeletonCards: HTMLElement[] = [];
-			for (let i = 0; i < skeletonCount; i++) {
-				const skeletonCard = $.el('div', 'afs-skeleton-card');
-				// Add non-breaking space to prevent theme from hiding empty elements
-				skeletonCard.innerHTML = `
-            <div class="afs-skeleton-card__image">&#8203;</div>
-            <div class="afs-skeleton-card__info">
-              <div class="afs-skeleton-card__title">&#8203;</div>
-              <div class="afs-skeleton-card__title" style="width: 60%;">&#8203;</div>
-              <div class="afs-skeleton-card__price">&#8203;</div>
-            </div>
-          `;
-				skeletonCards.push(skeletonCard);
-			}
-
-			// Append skeleton cards directly to productsGrid (which is already a grid container)
-			skeletonCards.forEach(card => this.productsGrid!.appendChild(card));
-
-			// Store reference to skeleton cards for easy removal
-			this.loading = skeletonCards;
+	showLoading(type: 'filters' | 'products' | 'both' = 'both'): void {
+		if (type === 'products' || type === 'both') {
+			this.showProductsSkeleton();
 		}
 
-		// Show filters skeleton if filters container exists and is visible
-		if (this.filtersContainer && this.filtersContainer.style.display !== 'none') {
+		if (type === 'filters' || type === 'both') {
 			this.showFiltersSkeleton();
 		}
+	},
+
+	hideLoading(type: 'filters' | 'products' | 'both' = 'both'): void {
+		// Remove skeleton cards if they exist
+		if (type === 'products' || type === 'both') {
+			if (Array.isArray(this.loading)) {
+				// If loading is an array of skeleton cards, remove each one
+				this.loading.forEach(card => {
+					if (card.parentNode) {
+						card.remove();
+					}
+				});
+				this.loading = null;
+			} else if (this.loading?.parentNode) {
+				// If loading is a single element, remove it
+				this.loading.remove();
+				this.loading = null;
+			}
+		}
+
+		if (type === 'filters' || type === 'both') {
+			this.hideFiltersSkeleton();
+		}
+	},
+
+	showProductsSkeleton(): void {
+		if (!this.productsGrid) return;
+
+		// Clear existing products
+		$.clear(this.productsGrid);
+
+		// Determine skeleton count
+		const pageSize = State.pagination?.limit || C.PAGE_SIZE || 24;
+		const skeletonCount = Math.max(pageSize, 24); // minimum 24
+
+		const skeletonCards: HTMLElement[] = [];
+		for (let i = 0; i < skeletonCount; i++) {
+			const skeletonCard = $.el('div', 'afs-skeleton-card');
+			skeletonCard.innerHTML = `
+				<div class="afs-skeleton-card__image">&#8203;</div>
+				<div class="afs-skeleton-card__info">
+					<div class="afs-skeleton-card__title">&#8203;</div>
+					<div class="afs-skeleton-card__title" style="width: 60%;">&#8203;</div>
+					<div class="afs-skeleton-card__price">&#8203;</div>
+				</div>
+			`;
+			skeletonCards.push(skeletonCard);
+		}
+
+		skeletonCards.forEach(card => this.productsGrid!.appendChild(card));
+
+		// Keep reference for removal
+		this.loading = skeletonCards;
 	},
 
 	showFiltersSkeleton(): void {
@@ -2346,16 +2900,16 @@ const DOM = {
 			const skeletonGroup = $.el('div', 'afs-skeleton-filter-group');
 			// Add zero-width space (&#8203;) to prevent theme from hiding empty elements
 			skeletonGroup.innerHTML = `
-          <div class="afs-skeleton-filter-group__header">
-            <div class="afs-skeleton-filter-group__title">&#8203;</div>
-          </div>
-          <div class="afs-skeleton-filter-group__content">
-            <div class="afs-skeleton-filter-item">&#8203;</div>
-            <div class="afs-skeleton-filter-item">&#8203;</div>
-            <div class="afs-skeleton-filter-item" style="width: 70%;">&#8203;</div>
-            <div class="afs-skeleton-filter-item" style="width: 85%;">&#8203;</div>
-          </div>
-        `;
+				<div class="afs-skeleton-filter-group__header">
+					<div class="afs-skeleton-filter-group__title">&#8203;</div>
+				</div>
+				<div class="afs-skeleton-filter-group__content">
+					<div class="afs-skeleton-filter-item">&#8203;</div>
+					<div class="afs-skeleton-filter-item">&#8203;</div>
+					<div class="afs-skeleton-filter-item" style="width: 70%;">&#8203;</div>
+					<div class="afs-skeleton-filter-item" style="width: 85%;">&#8203;</div>
+				</div>
+			`;
 			filtersSkeleton.appendChild(skeletonGroup);
 		}
 		this.filtersContainer.appendChild(filtersSkeleton);
@@ -2368,23 +2922,11 @@ const DOM = {
 		}
 	},
 
-	hideLoading(): void {
-		// Remove skeleton cards if they exist
-		if (Array.isArray(this.loading)) {
-			// If loading is an array of skeleton cards, remove each one
-			this.loading.forEach(card => {
-				if (card.parentNode) {
-					card.remove();
-				}
-			});
-			this.loading = null;
-		} else if (this.loading?.parentNode) {
-			// If loading is a single element, remove it
-			this.loading.remove();
-			this.loading = null;
+	hideProductsSkeleton(): void {
+		const skeleton = this.filtersContainer?.querySelector<HTMLElement>('.afs-filters-skeleton');
+		if (skeleton) {
+			skeleton.remove();
 		}
-		// Also hide filters skeleton
-		this.hideFiltersSkeleton();
 	},
 
 	showError(message: string): void {
@@ -2453,6 +2995,21 @@ const DOM = {
 		}
 
 		Log.error('Error displayed', { message });
+	},
+
+	setSortSelectValue(): void {
+		// Update sort select value (programmatically - won't trigger change event)
+		if (DOM.sortSelect) {
+			// Handle best-selling sort (no order in value)
+			if ($.isBestSelling(State.sort.field)) {
+				DOM.sortSelect.value = SortField.BEST_SELLING;
+			} else {
+				// Convert to new format: "field-direction" (e.g., "title-ascending")
+				const direction = $.equals(State.sort.order, SortOrder.ASC) ? SortOrder.ASCENDING : SortOrder.DESCENDING;
+				DOM.sortSelect.value = `${State.sort.field}-${direction}`;
+			}
+			Log.debug('Sort select value updated programmatically', { value: DOM.sortSelect.value, sort: State.sort });
+		}
 	}
 };
 
@@ -2460,7 +3017,7 @@ const DOM = {
 // FALLBACK MODE HELPER (Page reload for Liquid products)
 // ============================================================================
 
-const FallbackMode = {
+export const FallbackMode = {
 	// Get pagination info for fallback mode (from URL params and Liquid data)
 	getPagination(): PaginationState {
 		const urlParams = UrlManager.parse();
@@ -2532,7 +3089,7 @@ const FallbackMode = {
  * Check if filters are present (other than page, sort, size, limit)
  * If filters are present, clear cpid so it won't be sent automatically
  */
-const clearCpidIfFiltersPresent = (filters: FiltersState): void => {
+export const clearCpidIfFiltersPresent = (filters: FiltersState): void => {
 	if (!State.selectedCollection?.id) {
 		return; // No cpid to clear
 	}
@@ -2565,7 +3122,86 @@ const clearCpidIfFiltersPresent = (filters: FiltersState): void => {
 	}
 };
 
-const Filters = {
+export const Products = {
+	process: (productsData: ProductsResponseData) => {
+		Log.info('Products loaded', { count: productsData.products?.length || 0, total: productsData.pagination?.total || 0 });
+		const hasProducts = productsData.products && Array.isArray(productsData.products) && productsData.products.length > 0;
+
+		if (!hasProducts && State.fallbackProducts && State.fallbackProducts.length > 0) {
+			Log.warn('API returned no products, using fallback products from Liquid', {
+				apiProductsCount: productsData.products?.length || 0,
+				fallbackCount: State.fallbackProducts.length
+			});
+
+			State.usingFallback = true; // Set fallback flag
+			State.products = State.fallbackProducts;
+			// Use pagination from URL params and Liquid data
+			State.pagination = FallbackMode.getPagination();
+
+			// Hide filters section when using fallback
+			State.availableFilters = [];
+			DOM.hideFilters();
+			DOM.hideLoading('products');
+		}
+		else {
+			State.usingFallback = false; // Reset fallback flag on success
+			State.products = productsData.products || [];
+			State.pagination = productsData.pagination || State.pagination;
+
+			// Show filters section when API is working
+			DOM.showFilters();
+			DOM.renderProducts(State.products);
+		}
+		Products.updateUI();
+	},
+
+	updateUI: (): void => {
+		DOM.renderInfo(State.pagination, State.pagination.total || 0);
+		DOM.renderPagination(State.pagination);
+		DOM.renderApplied(State.filters);
+		DOM.setSortSelectValue();
+	}
+};
+
+export const Filters = {
+
+	process: (filtersData: FiltersResponseData) => {
+		State.availableFilters = filtersData.filters || [];
+		try {
+			State.filterMetadata = Metadata.buildFilterMetadata(State.availableFilters);
+		} catch (error) {
+			
+		}
+		// Cache range filter handles (so we can write handle-style URL params like other filters)
+		const priceFilter = State.availableFilters.find(f => $.isPriceRangeOptionType(f.optionType));
+		State.priceRangeHandle = priceFilter?.handle || State.priceRangeHandle || null;
+		Log.info('Filters set from URL', { filters: State.filters });
+		// If URL used handle-based price param (e.g. pr_xxx=10-100), normalize into State.filters.priceRange
+		// so the slider renders correctly. Keep URL updates handle-based via State.priceRangeHandle.
+		const priceRangeFilterValue = State.priceRangeHandle ? State.filters[State.priceRangeHandle] : null;
+		if (State.priceRangeHandle && Array.isArray(priceRangeFilterValue) && priceRangeFilterValue.length > 0) {
+			const raw = String(priceRangeFilterValue[0] || '');
+			const parts = raw.split('-');
+			if (parts.length === 2) {
+				const min = parts[0].trim() ? parseInt(parts[0], 10) : undefined;
+				const max = parts[1].trim() ? parseInt(parts[1], 10) : undefined;
+				const hasMin = typeof min === 'number' && !isNaN(min) && min >= 0;
+				const hasMax = typeof max === 'number' && !isNaN(max) && max >= 0;
+				if (hasMin || hasMax) {
+					State.filters.priceRange = {
+						min: hasMin ? min : undefined,
+						max: hasMax ? max : undefined
+					};
+					delete State.filters[State.priceRangeHandle];
+				}
+			}
+		}
+		DOM.renderFilters(State.availableFilters);
+		Log.info('Filters rendered', { count: State.availableFilters.length });
+		Products.updateUI();
+		DOM.hideLoading('filters');
+	},
+
 	// Toggle standard filter (vendor, productType, tags, collections) or handle-based filter
 	toggle(handle: string, value: string): void {
 		const normalized = $.str(value);
@@ -2681,7 +3317,7 @@ const Filters = {
 		// Scroll to top when price range is updated
 		DOM.scrollToProducts();
 		// Show loading skeleton immediately (before debounce)
-		DOM.showLoading();
+		DOM.showLoading('products');
 		this.apply();
 	},
 
@@ -2698,141 +3334,15 @@ const Filters = {
 
 		// Scroll to top when products are being fetched
 		DOM.scrollToProducts();
-		// Loading is already shown before debounce, but ensure it's shown here too
-		DOM.showLoading();
-		try {
-			Log.info('Fetching products...', { url: `${API.baseURL}/products` });
-			const data = await API.products(State.filters, State.pagination, State.sort);
-			Log.info('Products fetched successfully', { count: data.products?.length || 0 });
-			State.products = data.products || [];
-			State.pagination = data.pagination || State.pagination;
-			State.usingFallback = false; // Reset fallback flag on success
-
-			// Show filters section when API is working
-			DOM.showFilters();
-
-			DOM.renderProducts(State.products);
-			DOM.renderInfo(State.pagination, State.pagination.total || 0);
-			DOM.renderPagination(State.pagination);
-			DOM.renderApplied(State.filters);
-			DOM.hideLoading();
-		} catch (e) {
-			DOM.hideLoading();
-			Log.error('Failed to load products', { error: e instanceof Error ? e.message : String(e) });
-
-			// Try to use fallback products if available
-			if (State.fallbackProducts && State.fallbackProducts.length > 0) {
-				Log.warn('Products API failed, using fallback products from Liquid', {
-					error: e instanceof Error ? e.message : String(e),
-					fallbackCount: State.fallbackProducts.length
-				});
-
-				State.usingFallback = true; // Set fallback flag
-				State.products = State.fallbackProducts;
-				// Use pagination from URL params and Liquid data
-				State.pagination = FallbackMode.getPagination();
-
-				// Hide filters section when using fallback
-				State.availableFilters = [];
-				DOM.hideFilters();
-
-				// Update sort select value based on current sort state
-				if (DOM.sortSelect) {
-					if ($.isBestSelling(State.sort.field)) {
-						DOM.sortSelect.value = SortField.BEST_SELLING;
-					} else {
-						const direction = $.equals(State.sort.order, SortOrder.ASC) ? SortOrder.ASCENDING : SortOrder.DESCENDING;
-						DOM.sortSelect.value = `${State.sort.field}-${direction}`;
-					}
-				}
-
-				DOM.renderProducts(State.products);
-				DOM.renderInfo(State.pagination, State.pagination.total);
-				DOM.renderPagination(State.pagination);
-				DOM.renderApplied(State.filters);
-
-			} else {
-				DOM.showError(`${Lang.messages.failedToLoadProducts}: ${e instanceof Error ? e.message : Lang.messages.unknownError}`);
-			}
-		}
+		API.products(State.filters, State.pagination, State.sort).then(Products.process);
 	}, C.DEBOUNCE),
 
 	// Apply filters and products (for filter changes - needs to update both)
 	apply: $.debounce(async (): Promise<void> => {
 		// Scroll to top when products are being fetched
 		DOM.scrollToProducts();
-		DOM.showLoading();
-		try {
-			const data = await API.products(State.filters, State.pagination, State.sort);
-			State.products = data.products || [];
-			State.pagination = data.pagination || State.pagination;
-
-			// Fetch filters after products (will hit cache created by products request)
-			// Only fetch filters when filters actually changed
-			try {
-				const filtersData = await API.filters(State.filters);
-				if (Array.isArray(filtersData.filters)) {
-					State.availableFilters = filtersData.filters;
-					State.filterMetadata = Metadata.buildFilterMetadata(State.availableFilters);
-
-					// Refresh range filter handles (in case config changed)
-					const priceFilter = State.availableFilters.find(f => $.isPriceRangeOptionType(f.optionType));
-					State.priceRangeHandle = priceFilter?.handle || State.priceRangeHandle;
-
-					// Note: CPID is intentionally NOT converted into a client-side collection
-					// filter. CPID is kept server-side and sent in background API requests only.
-
-					DOM.renderFilters(State.availableFilters);
-				}
-			} catch (e) {
-				Log.warn('Failed to fetch updated filters', { error: e instanceof Error ? e.message : String(e) });
-				// Continue with existing filters if update fails
-			}
-
-			DOM.renderProducts(State.products);
-			DOM.renderInfo(State.pagination, State.pagination.total || 0);
-			DOM.renderPagination(State.pagination);
-			DOM.renderApplied(State.filters);
-			DOM.hideLoading();
-		} catch (e) {
-			DOM.hideLoading();
-			Log.error('Failed to apply filters', { error: e instanceof Error ? e.message : String(e) });
-
-			// Try to use fallback products if available
-			if (State.fallbackProducts && State.fallbackProducts.length > 0) {
-				Log.warn('Filters API failed, using fallback products from Liquid', {
-					error: e instanceof Error ? e.message : String(e),
-					fallbackCount: State.fallbackProducts.length
-				});
-
-				State.usingFallback = true; // Set fallback flag
-				State.products = State.fallbackProducts;
-				// Use pagination from URL params and Liquid data
-				State.pagination = FallbackMode.getPagination();
-
-				// Hide filters section when using fallback
-				State.availableFilters = [];
-				DOM.hideFilters();
-
-				// Update sort select value based on current sort state
-				if (DOM.sortSelect) {
-					if ($.isBestSelling(State.sort.field)) {
-						DOM.sortSelect.value = SortField.BEST_SELLING;
-					} else {
-						const direction = $.equals(State.sort.order, SortOrder.ASC) ? SortOrder.ASCENDING : SortOrder.DESCENDING;
-						DOM.sortSelect.value = `${State.sort.field}-${direction}`;
-					}
-				}
-
-				DOM.renderProducts(State.products);
-				DOM.renderInfo(State.pagination, State.pagination.total);
-				DOM.renderPagination(State.pagination);
-				DOM.renderApplied(State.filters);
-
-			} else {
-				DOM.showError(`${Lang.messages.failedToLoadProducts}: ${e instanceof Error ? e.message : Lang.messages.unknownError}`);
-			}
-		}
+		API.products(State.filters, State.pagination, State.sort).then(Products.process);
+		API.filters(State.filters).then(Filters.process);
 	}, C.DEBOUNCE)
 };
 
@@ -2843,7 +3353,7 @@ const Filters = {
 // The functions are available via window.AFSQuickView
 
 // Type definition for backward compatibility
-async function createProductModal(handle: string, modalId: string): Promise<ProductModalElement> {
+export async function createProductModal(handle: string, modalId: string): Promise<ProductModalElement> {
 	const AFSW = window as ShopifyWindow;
 	if (AFSW.AFSQuickView?.createProductModal) {
 		return AFSW.AFSQuickView.createProductModal(handle, modalId);
@@ -2852,15 +3362,15 @@ async function createProductModal(handle: string, modalId: string): Promise<Prod
 }
 
 // Legacy function stubs for backward compatibility
-function setupModalHandlers(dialog: ProductModalElement, modalId: string, product: Product, formatPrice: (price: number | string) => string): void {
+export function setupModalHandlers(dialog: ProductModalElement, modalId: string, product: Product, formatPrice: (price: number | string) => string): void {
 	// Handled by AFSQuickView module
 }
 
-function updateVariantInModal(dialog: ProductModalElement, modalId: string, variant: ProductVariant, formatPrice: (price: number | string) => string): void {
+export function updateVariantInModal(dialog: ProductModalElement, modalId: string, variant: ProductVariant, formatPrice: (price: number | string) => string): void {
 	// Handled by AFSQuickView module
 }
 
-function setupCloseHandler(dialog: ProductModalElement): void {
+export function setupCloseHandler(dialog: ProductModalElement): void {
 	// Handled by AFSQuickView module
 }
 
@@ -2870,7 +3380,7 @@ function setupCloseHandler(dialog: ProductModalElement): void {
 // QUICK ADD FUNCTIONALITY
 // ============================================================================
 
-const QuickAdd = {
+export const QuickAdd = {
 	async add(handle: string, productId: string | null): Promise<void> {
 		try {
 			// Fetch product to get first variant
@@ -3002,482 +3512,16 @@ const QuickAdd = {
 };
 
 // ============================================================================
-// EVENT HANDLERS (Single delegated handler)
-// ============================================================================
-
-const Events = {
-	attach(): void {
-		if (!DOM.container) return;
-
-		DOM.container.addEventListener('click', (e) => {
-			const target = e.target as HTMLElement;
-			const action = target.closest<HTMLElement>('[data-afs-action]')?.dataset.afsAction;
-			const item = target.closest<HTMLElement>('.afs-filter-item');
-			const checkbox = (target instanceof HTMLInputElement && (target.type === 'checkbox' || target.type === 'radio')) ? target : item?.querySelector<HTMLInputElement>('.afs-filter-item__checkbox');
-			const pagination = target.closest<HTMLButtonElement>('.afs-pagination__button');
-
-			if (action === 'clear-all') {
-				// Reset to initial state (standard filters only, handles will be removed dynamically)
-				State.filters = { vendor: [], productType: [], tags: [], collections: [], search: '', priceRange: null };
-				// Keep CPID when clearing client-visible filters; CPID is server-managed
-				if (State.selectedCollection?.id) {
-					Log.debug('Clear All: keeping server-managed cpid (not exposed to UI)');
-				}
-				State.pagination.page = 1;
-				UrlManager.update(State.filters, State.pagination, State.sort);
-				// Scroll to top when clearing all filters
-				DOM.scrollToProducts();
-				// Show loading skeleton immediately (before debounce)
-				DOM.showLoading();
-				Filters.apply();
-			}
-			else if (action === 'toggle-filters' || action === 'close-filters') {
-				if (action === 'close-filters') {
-					// Explicitly close filters drawer
-					DOM.toggleMobileFilters();
-				} else {
-					// Toggle mobile filters drawer
-					DOM.toggleMobileFilters();
-				}
-			}
-			else if (target.closest<HTMLElement>('.afs-applied-filter-chip__remove')) {
-				const chip = target.closest<HTMLElement>('.afs-applied-filter-chip');
-				const removeBtn = chip?.querySelector<HTMLElement>('.afs-applied-filter-chip__remove');
-				const key = removeBtn?.getAttribute('data-afs-filter-key');
-				const value = removeBtn?.getAttribute('data-afs-filter-value');
-				if (!key) return;
-
-				// Special-case: applied chips for non-toggle filters
-				if ($.equals(key, FilterKey.CPID)) {
-					if (State.selectedCollection?.id) {
-						State.selectedCollection.id = null;
-						Log.debug('cpid removed, cleared selectedCollection');
-					}
-					UrlManager.update(State.filters, State.pagination, State.sort);
-					DOM.scrollToProducts();
-					DOM.showLoading();
-					Filters.apply();
-					return;
-				}
-
-				if ($.equals(key, FilterKey.SEARCH)) {
-					State.filters.search = '';
-					State.pagination.page = 1;
-					UrlManager.update(State.filters, State.pagination, State.sort);
-					DOM.scrollToProducts();
-					DOM.showLoading();
-					Filters.apply();
-					return;
-				}
-
-				if ($.isPriceRangeKey(key)) {
-					State.filters.priceRange = null;
-					State.pagination.page = 1;
-					UrlManager.update(State.filters, State.pagination, State.sort);
-					DOM.scrollToProducts();
-					DOM.showLoading();
-					Filters.apply();
-					return;
-				}
-
-				// Default: toggle-able filters
-				if (value) {
-					Filters.toggle(key, value);
-				}
-			}
-			// Sort dropdown is handled by change event (see below)
-			else if (checkbox && item) {
-				e.preventDefault(); // Prevent default checkbox toggle behavior
-				e.stopPropagation(); // Stop event bubbling
-
-				// Get handle from data attribute (handle is stored directly)
-				const handle = item.getAttribute('data-afs-filter-handle') || item.parentElement?.getAttribute('data-afs-filter-handle');
-				const value = item.getAttribute('data-afs-filter-value');
-				const allowMultiselect = item.getAttribute('data-afs-filter-multiselect') || item.parentElement?.getAttribute('data-afs-filter-multiselect');
-
-				if (!handle || !value) {
-					Log.warn('Invalid filter item clicked', { handle, value });
-					return;
-				}
-
-				Log.debug('Filter toggle', { handle, value, currentChecked: checkbox.checked });
-
-				// remove other selections if multiselect not allowed
-				if (allowMultiselect === '0' || allowMultiselect === 'false') {
-					State.filters[handle] = [];
-				}
-				Filters.toggle(handle, value);
-			}
-			else if (pagination && !pagination.disabled) {
-				const page = parseInt(pagination.getAttribute('data-afs-page') || '0', 10);
-				if (page && page > 0) {
-					// In fallback mode, read current page from URL to ensure accuracy
-					if (State.usingFallback) {
-						const urlParams = UrlManager.parse();
-						const currentPage = urlParams.page || State.pagination.page || 1;
-						// Calculate the correct next/previous page
-						State.pagination.page = page;
-					} else {
-						State.pagination.page = page;
-					}
-					UrlManager.update(State.filters, State.pagination, State.sort);
-					// Scroll to top when pagination changes
-					DOM.scrollToProducts();
-					// Show loading skeleton immediately (before debounce)
-					DOM.showLoading();
-					// Only fetch products, not filters (filters haven't changed)
-					Filters.applyProductsOnly();
-				}
-			}
-			else if (target.closest<HTMLElement>('.afs-filter-group__clear')) {
-				e.preventDefault();
-				e.stopPropagation();
-				const clearBtn = target.closest<HTMLElement>('.afs-filter-group__clear');
-				if (!clearBtn) return;
-
-				const handle = clearBtn.getAttribute('data-afs-filter-handle');
-				if (!handle) return;
-
-				// Check if this is a collection filter and if cpid should be cleared
-				const metadata = State.filterMetadata.get(handle);
-				const isCollectionFilter = ($.isCollectionOptionType(metadata?.optionType) || $.isCollectionKey(handle));
-
-				// Remove the filter from State.filters
-				if (State.filters[handle]) {
-					// If clearing collection filter and cpid exists, check if cpid was in the filter values
-					if (isCollectionFilter && State.selectedCollection?.id) {
-						const filterValues = State.filters[handle];
-						const originalCpid = State.selectedCollection.id;
-						const cpidInValues = Array.isArray(filterValues) &&
-							filterValues.some(v => String(v) === String(originalCpid));
-						if (cpidInValues) {
-							State.selectedCollection.id = null;
-							Log.debug('Collection filter cleared (contained cpid), cleared cpid', {
-								handle,
-								cpid: originalCpid
-							});
-						}
-					}
-
-					delete State.filters[handle];
-					Log.debug('Filter cleared', { handle, isCollectionFilter });
-
-					// Update URL
-					UrlManager.update(State.filters, State.pagination, State.sort);
-
-					// Scroll to top and show loading
-					DOM.scrollToProducts();
-					DOM.showLoading();
-
-					// Apply filters to refresh products and filters
-					Filters.apply();
-				}
-			}
-			else if (target.closest<HTMLElement>('.afs-filter-group__toggle')) {
-				e.preventDefault();
-				e.stopPropagation();
-				const group = target.closest<HTMLElement>('.afs-filter-group');
-				if (!group) return;
-
-				const collapsed = group.getAttribute('data-afs-collapsed') === 'true';
-				const collapsedState = !collapsed;
-				group.setAttribute('data-afs-collapsed', collapsedState ? 'true' : 'false');
-
-				// Persist collapse state in states Map with improved error handling
-				const stateKey = group.getAttribute('data-afs-filter-key');
-				if (stateKey) {
-					try {
-						// Get or create state
-						const state = states.get(stateKey) || {};
-						state.collapsed = collapsedState;
-						state.lastUpdated = Date.now();
-						states.set(stateKey, state);
-
-						// Also persist to sessionStorage for page refresh persistence
-						try {
-							const stateKey = `afs_filter_state_${group.getAttribute('data-afs-filter-handle')}`;
-							sessionStorage.setItem(stateKey, JSON.stringify({ collapsed: collapsedState }));
-						} catch (e) {
-							// SessionStorage might be disabled, ignore
-							Log.debug('Could not persist to sessionStorage', { error: e });
-						}
-					} catch (error) {
-						Log.error('Failed to persist filter state', {
-							stateKey,
-							error: error instanceof Error ? error.message : String(error)
-						});
-					}
-				}
-
-				// Update toggle button aria-expanded
-				const toggle = group.querySelector<HTMLButtonElement>('.afs-filter-group__toggle');
-				if (toggle) {
-					toggle.setAttribute('aria-expanded', collapsedState ? 'false' : 'true');
-				}
-
-				// Update icon
-				const icon = group.querySelector<HTMLElement>('.afs-filter-group__icon');
-				if (icon) {
-					// Update inline SVG HTML
-					icon.innerHTML = collapsedState
-						? (Icons.rightArrow || '')
-						: (Icons.downArrow || '');
-				}
-
-				// Content visibility is handled by CSS via data-afs-collapsed attribute
-				Log.debug('Filter group toggled', { collapsed: collapsedState, stateKey });
-			}
-			else if (target.closest<HTMLElement>('.afs-product-card__quick-add')) {
-				e.preventDefault();
-				e.stopPropagation();
-				const btn = target.closest<HTMLButtonElement>('.afs-product-card__quick-add');
-				if (!btn || btn.disabled) return;
-				const handle = btn.getAttribute('data-product-handle');
-				const productId = btn.getAttribute('data-product-id');
-				if (handle) {
-					QuickAdd.add(handle, productId);
-				}
-			}
-			else if (target.closest<HTMLElement>('.afs-product-card__quick-view')) {
-				e.preventDefault();
-				e.stopPropagation();
-				const btn = target.closest<HTMLButtonElement>('.afs-product-card__quick-view');
-				if (!btn) return;
-				const handle = btn.getAttribute('data-product-handle');
-				if (handle) {
-					// Use quick view module
-					const AFSW = window as ShopifyWindow;
-					if (AFSW.AFSQuickView?.handleQuickViewClick) {
-						AFSW.AFSQuickView.handleQuickViewClick(handle);
-					} else {
-						Log.error('AFSQuickView module not loaded');
-					}
-				}
-			}
-		});
-
-		// Search input
-		DOM.container.addEventListener('input', (e) => {
-			const target = e.target as HTMLElement;
-			if (target.classList.contains('afs-filter-group__search-input')) {
-				const searchInput = target as HTMLInputElement;
-				const term = searchInput.value.toLowerCase();
-				const items = target.closest<HTMLElement>('.afs-filter-group')?.querySelector<FilterItemsElement>('.afs-filter-group__items');
-				if (items?._items) {
-					items.querySelectorAll<HTMLElement>('.afs-filter-item').forEach((el, i) => {
-						const item = items._items?.[i];
-						if (item) {
-							// Search by label (for display), but filtering still uses value
-							const searchText = $.str(typeof item === 'string' ? item : (item.label || item.value || '')).toLowerCase();
-							el.style.display = !term || searchText.includes(term) ? '' : 'none';
-						}
-					});
-				}
-			}
-		});
-
-		// Helper function to handle sort change
-		const handleSortChange = (select: HTMLSelectElement): void => {
-			const sortValue = select.value;
-			if (!sortValue) return;
-
-			Log.info('Sort dropdown changed', { sortValue, currentSort: State.sort });
-
-			// Calculate new sort state
-			// New format: "title-ascending", "price-descending", etc.
-			let newSort: SortState;
-			if (sortValue === 'best-selling' || sortValue === 'bestselling') {
-				newSort = { field: 'best-selling', order: 'asc' };
-			} else if (sortValue.includes('-')) {
-				// New format: "field-direction" (e.g., "title-ascending")
-				const [field, direction] = sortValue.split('-');
-				const order = direction === 'ascending' ? 'asc' : direction === 'descending' ? 'desc' : 'desc';
-				newSort = { field, order };
-			} else {
-				// Legacy format: "field:order" (backward compatibility)
-				const [field, order] = sortValue.split(':');
-				newSort = { field, order: (order || 'desc') as 'asc' | 'desc' };
-			}
-
-			// Always update state and call API when sort is selected
-			// (even if value is same, user explicitly selected it)
-			State.sort = newSort;
-			State.pagination.page = 1;
-			UrlManager.update(State.filters, State.pagination, State.sort);
-			Log.info('Calling applyProductsOnly after sort change', { sort: State.sort });
-			// Show loading skeleton immediately (before debounce)
-			DOM.scrollToProducts();
-			DOM.showLoading();
-			// Only fetch products, not filters (filters haven't changed)
-			Filters.applyProductsOnly();
-		};
-
-		// Store the previous value to detect changes
-		let previousSortValue: string | null = null;
-
-		// Track when select is focused to capture initial value
-		DOM.container.addEventListener('focus', (e) => {
-			const target = e.target as HTMLElement;
-			if (target.classList.contains('afs-sort-select')) {
-				previousSortValue = (target as HTMLSelectElement).value;
-			}
-		}, true);
-
-		// Sort dropdown change event (fires when value changes)
-		DOM.container.addEventListener('change', (e) => {
-			const target = e.target as HTMLElement;
-			if (target.classList.contains('afs-sort-select')) {
-				const select = target as HTMLSelectElement;
-				handleSortChange(select);
-				previousSortValue = select.value;
-			}
-		});
-
-		// Also listen for blur event (fires when dropdown closes)
-		// This catches cases where user selects the same option (change event doesn't fire)
-		DOM.container.addEventListener('blur', (e) => {
-			const target = e.target as HTMLElement;
-			if (target.classList.contains('afs-sort-select')) {
-				const select = target as HTMLSelectElement;
-				const currentValue = select.value;
-
-				// If value is different from previous, or if change event didn't fire
-				// (previousSortValue might be null on first interaction)
-				if (currentValue && currentValue !== previousSortValue) {
-					// Small delay to ensure change event has a chance to fire first
-					// Use requestAnimationFrame for better timing instead of fixed timeout
-					requestAnimationFrame(() => {
-						requestAnimationFrame(() => {
-							// Double-check: if value still doesn't match state, trigger change
-							let currentSortValue: string;
-							if ($.isBestSelling(State.sort.field)) {
-								currentSortValue = SortField.BEST_SELLING;
-							} else {
-								// Convert to new format: "field-direction" (e.g., "title-ascending")
-								const direction = $.equals(State.sort.order, SortOrder.ASC) ? SortOrder.ASCENDING : SortOrder.DESCENDING;
-								currentSortValue = `${State.sort.field}-${direction}`;
-							}
-
-							if (currentValue !== currentSortValue) {
-								handleSortChange(select);
-							}
-						});
-					});
-				}
-				previousSortValue = currentValue;
-			}
-		}, true);
-
-		window.addEventListener('popstate', () => {
-			const params = UrlManager.parse();
-
-			// Store old state to detect if filters changed
-			const oldFilters = JSON.stringify(State.filters);
-			const oldPage = State.pagination.page;
-			const oldSort = JSON.stringify(State.sort);
-
-			// Rebuild filters from params (includes standard filters + handles)
-			State.filters = {
-				vendor: params.vendor || [],
-				productType: params.productType || [],
-				tags: params.tags || [],
-				collections: params.collections || [],
-				search: params.search || '',
-				priceRange: params.priceRange || null
-			};
-			// Add all handle-based filters (everything that's not a standard filter)
-			Object.keys(params).forEach(key => {
-				if (!['vendor', 'productType', 'tags', 'collections', 'search', 'priceRange', 'page', 'limit', 'sort'].includes(key)) {
-					const paramValue = params[key];
-					if (Array.isArray(paramValue)) {
-						State.filters[key] = paramValue;
-					} else if (typeof paramValue === 'string') {
-						State.filters[key] = [paramValue];
-					}
-				}
-			});
-
-			// Normalize handle-based price param into State.filters.priceRange for slider UI
-			const priceRangeFilterValue = State.priceRangeHandle ? State.filters[State.priceRangeHandle] : null;
-			if (
-				State.priceRangeHandle &&
-				Array.isArray(priceRangeFilterValue) &&
-				priceRangeFilterValue.length > 0
-			) {
-				const raw = String(priceRangeFilterValue[0] || '');
-				const parts = raw.split('-');
-				if (parts.length === 2) {
-					const min = parts[0].trim() ? parseInt(parts[0], 10) : undefined;
-					const max = parts[1].trim() ? parseInt(parts[1], 10) : undefined;
-					const hasMin = typeof min === 'number' && !isNaN(min) && min >= 0;
-					const hasMax = typeof max === 'number' && !isNaN(max) && max >= 0;
-					if (hasMin || hasMax) {
-						State.filters.priceRange = {
-							min: hasMin ? min : undefined,
-							max: hasMax ? max : undefined
-						};
-						delete State.filters[State.priceRangeHandle];
-					}
-				}
-			}
-
-			const newPage = params.page || State.pagination.page;
-			if (newPage !== oldPage) {
-				State.pagination.page = newPage;
-			}
-
-			// Update sort from URL params or default to best-selling
-			if (params.sort) {
-				const sortValue = typeof params.sort === 'object' ? params.sort.field : params.sort;
-				if (typeof sortValue === 'string') {
-					const normalized = sortValue.toLowerCase().trim();
-					if (normalized === 'best-selling' || normalized === 'bestselling') {
-						State.sort = { field: 'best-selling', order: 'asc' };
-					} else if (normalized.includes('-')) {
-						// New format: "field-direction" (e.g., "title-ascending")
-						const [field, direction] = normalized.split('-');
-						const order = $.equalsAny(direction, SortOrder.ASCENDING) ? SortOrder.ASC : $.equalsAny(direction, SortOrder.DESCENDING) ? SortOrder.DESC : SortOrder.DESC;
-						State.sort = { field, order };
-					} else {
-						// Legacy format: "field:order" (backward compatibility)
-						const [field, order] = sortValue.split(':');
-						State.sort = { field, order: (order || 'desc') as 'asc' | 'desc' };
-					}
-				} else if (typeof params.sort === 'object' && params.sort.field) {
-					State.sort = { field: params.sort.field, order: params.sort.order || 'desc' };
-				}
-			} else {
-				// Default to best-selling if no sort in URL
-				State.sort = { field: 'best-selling', order: 'asc' };
-			}
-
-			// Check if filters changed
-			const newFilters = JSON.stringify(State.filters);
-			const newSort = JSON.stringify(State.sort);
-			const filtersChanged = oldFilters !== newFilters;
-			const onlySortOrPageChanged = !filtersChanged && (newSort !== oldSort || newPage !== oldPage);
-
-			// Only fetch filters if filters actually changed
-			if (onlySortOrPageChanged) {
-				Filters.applyProductsOnly();
-			} else {
-				Filters.apply();
-			}
-		});
-	}
-};
-
-// ============================================================================
 // MAIN API (Minimal)
 // ============================================================================
 
-interface AFSInterface {
+export interface AFSInterface {
 	init(config?: AFSConfig): void;
 	load(): Promise<void>;
 	Logger: typeof Log;
 }
 
-const AFS: AFSInterface = {
+export const AFS: AFSInterface = {
 	init(config: AFSConfig = {}): void {
 		try {
 			Log.init(config.debug);
@@ -3545,8 +3589,8 @@ const AFS: AFSInterface = {
 			// Show loading skeleton immediately on initial load (before API calls)
 			DOM.showLoading();
 
-			Events.attach();
-			Log.info('Events attached');
+			DOM.attachEvents();
+			Log.info('DOM events attached');
 
 			this.load();
 		} catch (e) {
@@ -3566,213 +3610,18 @@ const AFS: AFSInterface = {
 			const urlParams = UrlManager.parse();
 			Log.debug('Parsed URL params on load', { urlParams });
 
-			// Rebuild filters from URL params BEFORE calling API.filters()
-			// This ensures filters endpoint receives the correct filters from URL
-			State.filters = {
-				vendor: urlParams.vendor || [],
-				productType: urlParams.productType || [],
-				tags: urlParams.tags || [],
-				collections: urlParams.collections || [],
-				search: urlParams.search || '',
-				priceRange: urlParams.priceRange || null
-			};
-			// Add all handle-based filters (everything that's not a standard filter)
-			Object.keys(urlParams).forEach(key => {
-				if (!['vendor', 'productType', 'tags', 'collections', 'search', 'priceRange', 'page', 'limit', 'sort', 'cpid'].includes(key)) {
-					const paramValue = urlParams[key];
-					if (Array.isArray(paramValue)) {
-						State.filters[key] = paramValue;
-					} else if (typeof paramValue === 'string') {
-						State.filters[key] = [paramValue];
-					}
-				}
-			});
+			// Rebuild filters from url params
+			API.buildFiltersFromUrl(urlParams);
+			API.setPaginationFromUrl(urlParams);
+			API.setSortFromUrl(urlParams);
 
-			// Clear cpid if filters are present (other than page, sort, size, limit)
-			clearCpidIfFiltersPresent(State.filters);
+			Log.info('Loading products & filters...', { shop: State.shop, filters: State.filters });
 
-			Log.info('Loading filters...', { shop: State.shop, filters: State.filters });
-			let filtersData: FiltersResponseData;
-			try {
-				filtersData = await API.filters(State.filters);
-				Log.info('Filters loaded', { filtersCount: filtersData.filters?.length || 0 });
-			} catch (filterError) {
-				Log.warn('Failed to load filters, continuing with empty filters', { error: filterError instanceof Error ? filterError.message : String(filterError) });
-				filtersData = { filters: [] };
-			}
-			// Validate filters is an array
-			if (!Array.isArray(filtersData.filters)) {
-				Log.error('Invalid filters response: filters is not an array', { filters: filtersData.filters });
-				filtersData.filters = [];
-			}
+			API.products(State.filters, State.pagination, State.sort).then(Products.process);
+			API.filters(State.filters).then(Filters.process);
 
-			State.availableFilters = filtersData.filters || [];
-			State.filterMetadata = Metadata.buildFilterMetadata(State.availableFilters);
-
-			// Cache range filter handles (so we can write handle-style URL params like other filters)
-			const priceFilter = State.availableFilters.find(f => $.isPriceRangeOptionType(f.optionType));
-			State.priceRangeHandle = priceFilter?.handle || State.priceRangeHandle || null;
-
-			// If URL used handle-based price param (e.g. pr_xxx=10-100), normalize into State.filters.priceRange
-			// so the slider renders correctly. Keep URL updates handle-based via State.priceRangeHandle.
-			const priceRangeFilterValue = State.priceRangeHandle ? State.filters[State.priceRangeHandle] : null;
-			if (
-				State.priceRangeHandle &&
-				Array.isArray(priceRangeFilterValue) &&
-				priceRangeFilterValue.length > 0
-			) {
-				const raw = String(priceRangeFilterValue[0] || '');
-				const parts = raw.split('-');
-				if (parts.length === 2) {
-					const min = parts[0].trim() ? parseInt(parts[0], 10) : undefined;
-					const max = parts[1].trim() ? parseInt(parts[1], 10) : undefined;
-					const hasMin = typeof min === 'number' && !isNaN(min) && min >= 0;
-					const hasMax = typeof max === 'number' && !isNaN(max) && max >= 0;
-					if (hasMin || hasMax) {
-						State.filters.priceRange = {
-							min: hasMin ? min : undefined,
-							max: hasMax ? max : undefined
-						};
-						delete State.filters[State.priceRangeHandle];
-					}
-				}
-			}
-
-			// Note: CPID is intentionally NOT converted into a client-side collection
-			// filter during load. CPID remains server-managed and will be sent in
-			// background API requests; it must not be exposed in the URL or UI.
-
-			Log.info('Filters set from URL', { filters: State.filters });
-			// Read page from URL params (important for fallback mode)
-			if (urlParams.page) {
-				State.pagination.page = urlParams.page;
-			} else {
-				// If no page in URL, use fallback pagination current page if available
-				if (State.fallbackPagination && State.fallbackPagination.currentPage) {
-					State.pagination.page = State.fallbackPagination.currentPage;
-				}
-			}
-
-			// Set sort from URL params or default to best-selling
-			if (urlParams.sort) {
-				const sortValue = typeof urlParams.sort === 'object' ? urlParams.sort.field : urlParams.sort;
-				if (typeof sortValue === 'string') {
-					const normalized = sortValue.toLowerCase().trim();
-					if (normalized === 'best-selling' || normalized === 'bestselling') {
-						State.sort = { field: 'best-selling', order: 'asc' };
-					} else if (normalized.includes('-')) {
-						// New format: "field-direction" (e.g., "title-ascending")
-						const [field, direction] = normalized.split('-');
-						const order = $.equalsAny(direction, SortOrder.ASCENDING) ? SortOrder.ASC : $.equalsAny(direction, SortOrder.DESCENDING) ? SortOrder.DESC : SortOrder.DESC;
-						State.sort = { field, order };
-					} else {
-						// Legacy format: "field:order" (backward compatibility)
-						const [field, order] = sortValue.split(':');
-						State.sort = { field, order: (order || 'desc') as 'asc' | 'desc' };
-					}
-				} else if (typeof urlParams.sort === 'object' && urlParams.sort.field) {
-					State.sort = { field: urlParams.sort.field, order: urlParams.sort.order || 'desc' };
-				}
-			} else {
-				// Default to best-selling if no sort in URL
-				State.sort = { field: 'best-selling', order: 'asc' };
-			}
-
-			DOM.renderFilters(State.availableFilters);
-			Log.info('Filters rendered', { count: State.availableFilters.length });
-
-			Log.info('Loading products...', { filters: State.filters, pagination: State.pagination });
-			const productsData = await API.products(State.filters, State.pagination, State.sort);
-			Log.info('Products loaded', { count: productsData.products?.length || 0, total: productsData.pagination?.total || 0 });
-
-			// Check if API returned no products or empty response
-			const hasProducts = productsData.products && Array.isArray(productsData.products) && productsData.products.length > 0;
-			const hasFilters = State.availableFilters && Array.isArray(State.availableFilters) && State.availableFilters.length > 0;
-
-			if (!hasProducts && State.fallbackProducts && State.fallbackProducts.length > 0) {
-				Log.warn('API returned no products, using fallback products from Liquid', {
-					apiProductsCount: productsData.products?.length || 0,
-					fallbackCount: State.fallbackProducts.length
-				});
-
-				State.usingFallback = true; // Set fallback flag
-				State.products = State.fallbackProducts;
-				// Use pagination from URL params and Liquid data
-				State.pagination = FallbackMode.getPagination();
-
-				// Hide filters section when using fallback
-				State.availableFilters = [];
-				DOM.hideFilters();
-			} else {
-				State.usingFallback = false; // Reset fallback flag on success
-				State.products = productsData.products || [];
-				State.pagination = productsData.pagination || State.pagination;
-
-				// Show filters section when API is working
-				DOM.showFilters();
-			}
-
-			DOM.renderProducts(State.products);
-			DOM.renderInfo(State.pagination, State.pagination.total || 0);
-			DOM.renderPagination(State.pagination);
-			DOM.renderApplied(State.filters);
-
-			// Update sort select value (programmatically - won't trigger change event)
-			if (DOM.sortSelect) {
-				// Handle best-selling sort (no order in value)
-				if ($.isBestSelling(State.sort.field)) {
-					DOM.sortSelect.value = SortField.BEST_SELLING;
-				} else {
-					// Convert to new format: "field-direction" (e.g., "title-ascending")
-					const direction = $.equals(State.sort.order, SortOrder.ASC) ? SortOrder.ASCENDING : SortOrder.DESCENDING;
-					DOM.sortSelect.value = `${State.sort.field}-${direction}`;
-				}
-				Log.debug('Sort select value updated programmatically', { value: DOM.sortSelect.value, sort: State.sort });
-			}
-
-			DOM.hideLoading();
-
-			if (State.products.length === 0 && !hasFilters && (!State.fallbackProducts || State.fallbackProducts.length === 0)) {
-				DOM.showError('No products or filters found. Please check your configuration.');
-			}
 		} catch (e) {
-			DOM.hideLoading();
-			Log.error('Load failed', { error: e instanceof Error ? e.message : String(e), stack: e instanceof Error ? e.stack : undefined, shop: State.shop, apiBaseURL: API.baseURL });
-
-			// Try to use fallback products if available
-			if (State.fallbackProducts && State.fallbackProducts.length > 0) {
-				Log.warn('Initial load failed, using fallback products from Liquid', {
-					error: e instanceof Error ? e.message : String(e),
-					fallbackCount: State.fallbackProducts.length
-				});
-
-				State.usingFallback = true; // Set fallback flag
-				State.products = State.fallbackProducts;
-				// Use pagination from URL params and Liquid data
-				State.pagination = FallbackMode.getPagination();
-
-				// Hide filters section when using fallback
-				State.availableFilters = [];
-				DOM.hideFilters();
-
-				// Update sort select value based on URL params or current sort state
-				if (DOM.sortSelect) {
-					if ($.isBestSelling(State.sort.field)) {
-						DOM.sortSelect.value = SortField.BEST_SELLING;
-					} else {
-						const direction = $.equals(State.sort.order, SortOrder.ASC) ? SortOrder.ASCENDING : SortOrder.DESCENDING;
-						DOM.sortSelect.value = `${State.sort.field}-${direction}`;
-					}
-				}
-
-				DOM.renderProducts(State.products);
-				DOM.renderInfo(State.pagination, State.pagination.total);
-				DOM.renderPagination(State.pagination);
-				DOM.renderApplied(State.filters);
-
-			} else {
-				DOM.showError(`${Lang.messages.failedToLoad}: ${e instanceof Error ? e.message : Lang.messages.unknownError}. ${Lang.messages.checkConsole}`);
-			}
+			handleLoadError(e);
 		}
 	},
 
@@ -3780,7 +3629,7 @@ const AFS: AFSInterface = {
 };
 
 // Export to window
-const AFSW = window as ShopifyWindow;
+export const AFSW = window as ShopifyWindow;
 AFSW.DOM = DOM;
 AFSW.AFS_State = State;
 AFSW.AFS_API = API;
