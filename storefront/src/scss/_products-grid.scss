@@ -134,6 +134,10 @@
     @include custom-scrollbar(6px);
   }
 
+  .afs-filters-container:empty {
+    display: none !important;
+  }
+
   // Products Container (Right Side)
   .afs-products-container {
     flex: 1;
