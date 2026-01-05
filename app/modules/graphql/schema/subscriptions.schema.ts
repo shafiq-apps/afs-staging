@@ -131,10 +131,10 @@ export const subscriptionSchema = `
   type Mutation {
     appSubscriptionCreate(
       planId: String!
-    ): AppSubscriptionCreatePayload!
+    ): AppSubscriptionCreatePayload
 
-    updateSubscriptionStatus(id: String!): StoredSubscription!
-    createSubscriptionPlan(input: CreateSubscriptionPlanInput!): SubscriptionPlan!
-    deleteSubscriptionPlan(id: String!): Boolean!
+    updateSubscriptionStatus(id: String!): StoredSubscription
+    createSubscriptionPlan(input: CreateSubscriptionPlanInput!): SubscriptionPlan
+    deleteSubscriptionPlan(id: String!): Boolean
   }
 `;

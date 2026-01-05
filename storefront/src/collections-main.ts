@@ -2597,7 +2597,7 @@ export const DOM = {
 			card.appendChild(imgContainer);
 		}
 
-		const info = $.el('a', 'afs-product-card__info', {'href': `/products/${p.handle}`});
+		const info = $.el('a', 'afs-product-card__info', { 'href': `/products/${p.handle}` });
 		if (info) {
 			info.appendChild($.txt($.el('h3', 'afs-product-card__title'), p.title || 'Untitled'));
 			if (p.vendor) info.appendChild($.txt($.el('div', 'afs-product-card__vendor'), p.vendor));
@@ -3172,7 +3172,7 @@ export const Filters = {
 		try {
 			State.filterMetadata = Metadata.buildFilterMetadata(State.availableFilters);
 		} catch (error) {
-			
+
 		}
 		// Cache range filter handles (so we can write handle-style URL params like other filters)
 		const priceFilter = State.availableFilters.find(f => $.isPriceRangeOptionType(f.optionType));
