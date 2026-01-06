@@ -22,9 +22,13 @@ const shopify = shopifyApp({
     ? { customShopDomains: [process.env.SHOP_CUSTOM_DOMAIN] }
     : {}),
   hooks: {
-    async afterAuth({admin, session}) {
-      if(session && session.shop && session.onlineAccessInfo?.associated_user.id){
-        await esSessionStorage.storeSession(session);
+    async afterAuth({ session }) {
+      try {
+        if (session?.shop) {
+          await sessionStorage.storeSession(session);
+        }
+      } catch (err) {
+        console.error("Failed to store session", err);
       }
     }
   }

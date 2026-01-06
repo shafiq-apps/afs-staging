@@ -5,10 +5,10 @@ import { fetchSubscriptionWithPlans } from "./subscription.server";
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   try {
     const { admin, session } = await authenticate.admin(request);
-    const response1 = await fetchSubscriptionWithPlans({ shop: session.shop });
+    const response = await fetchSubscriptionWithPlans({ shop: session.shop });
 
-    const { subscription, subscriptionPlans } = response1 || {};
-    const response = await admin.graphql(
+    const { subscription, subscriptionPlans } = response ?? {};
+    const pcResponse = await admin.graphql(
       `
       query {
         productsCount(query: "limit:null") {
@@ -18,7 +18,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       }
     `
     );
-    const { data: { productsCount } } = await response.json().catch(() => ({
+    const { data: { productsCount } } = await pcResponse.json().catch(() => ({
       data: { productsCount: { count: 0, precision: "EXACT" } },
     }));
 
