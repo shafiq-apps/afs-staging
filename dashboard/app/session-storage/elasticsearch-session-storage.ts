@@ -191,19 +191,10 @@ export class ElasticsearchSessionStorage {
   /**
    * Load a session by ID
    */
-  async loadSession(id: string): Promise<Session | undefined> {
+  async loadSession(shop: string): Promise<Session | undefined> {
+    if (!shop) return;
     try {
-      logger.log('Loading session', { sessionId: id });
-
-      // Extract shop from session ID (format: shop-domain or shop-domain-timestamp)
-      // Session IDs from Shopify are typically: shop-domain or shop-domain-userId
-      const shopMatch = id.match(/^([^-\d]+(?:\.myshopify\.com)?)/);
-      if (!shopMatch || !shopMatch[1]) {
-        logger.warn('Could not extract shop from session ID', { sessionId: id });
-        return undefined;
-      }
-
-      const shop = shopMatch[1];
+      logger.log('Loading session for', shop);
 
       // Use shop query to get shop data
       const query = `
@@ -236,46 +227,33 @@ export class ElasticsearchSessionStorage {
       const data = await graphqlRequest(query, variables);
 
       if (!data?.shop) {
-        logger.warn('Shop not found', { shop, sessionId: id });
-        return undefined;
+        logger.warn('Shop not found', { shop });
+        return;
       }
 
       const session = shopDocumentToSession(data.shop);
 
       if (!session) {
-        logger.warn('Could not convert shop data to session', { shop, sessionId: id });
-        return undefined;
-      }
-
-      // Verify session ID matches (if specific session ID was requested)
-      if (session.id !== id && !id.startsWith(shop)) {
-        logger.warn('Session ID mismatch', { requestedId: id, foundId: session.id, shop });
-        return undefined;
+        logger.warn('Could not convert shop data to session', { shop });
+        return;
       }
 
       logger.log('Session loaded successfully', { shop, sessionId: session.id });
       return session;
     } catch (error: any) {
-      logger.error('Error loading session', { error: error?.message || error, sessionId: id }, error);
-      return undefined;
+      logger.error('Error loading session', shop, { error: error?.message || error }, error);
+      return;
     }
   }
 
   /**
    * Delete a session
    */
-  async deleteSession(id: string): Promise<boolean> {
+  async deleteSession(shop: string): Promise<boolean> {
     try {
-      logger.log('Deleting session', { sessionId: id });
+      logger.log('Deleting session', { sessionId: shop });
 
-      // Extract shop from session ID
-      const shopMatch = id.match(/^([^-\d]+(?:\.myshopify\.com)?)/);
-      if (!shopMatch || !shopMatch[1]) {
-        logger.warn('Could not extract shop from session ID', { sessionId: id });
-        return false;
-      }
-
-      const shop = shopMatch[1];
+      
 
       // Remove from local cache
       localCache.delete(shop);
@@ -293,13 +271,13 @@ export class ElasticsearchSessionStorage {
       const data = await graphqlRequest(mutation, variables);
 
       if (data?.deleteShop) {
-        logger.log('Session deleted successfully', { shop, sessionId: id });
+        logger.log('Session deleted successfully', { shop, sessionId: shop });
         return true;
       }
 
       return false;
     } catch (error: any) {
-      logger.error('Error deleting session', { error: error?.message || error, sessionId: id });
+      logger.error('Error deleting session', { error: error?.message || error, sessionId: shop });
       return false;
     }
   }
