@@ -1,3 +1,7 @@
+import { createModuleLogger } from "./utils/logger";
+
+const logger = createModuleLogger("graphql.server");
+
 const GRAPHQL_ENDPOINT = process.env.GRAPHQL_ENDPOINT || "/graphql";
 
 export async function graphqlRequest<T = any>(
@@ -10,6 +14,10 @@ export async function graphqlRequest<T = any>(
     endpoint += `?shop=${variables.shop}`;
   }
 
+  logger.info("endpoint",endpoint);
+  logger.info("variables",variables);
+  logger.info("query",query);
+
   const response = await fetch(endpoint, {
     method: "POST",
     headers: {
@@ -17,8 +25,10 @@ export async function graphqlRequest<T = any>(
     },
     body: JSON.stringify({ query, variables }),
   });
+  logger.info("response",response);
 
   const result = await response.json().catch(() => ({}));
+  logger.info("result",result);
 
   if (result.errors?.length) {
     throw new Error(result.errors[0].message || "GraphQL error");
