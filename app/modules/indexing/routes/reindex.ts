@@ -62,8 +62,7 @@ export const POST = handler(async (req: HttpRequest) => {
 
   logger.info(`Shop found in ES`, {
     shop: shop.shop,
-    hasAccessToken: !!shop.accessToken,
-    isActive: shop.isActive,
+    hasAccessToken: !!shop.accessToken
   });
 
   if (!shop.accessToken) {
@@ -71,14 +70,6 @@ export const POST = handler(async (req: HttpRequest) => {
     return {
       statusCode: 422,
       body: { success: false, message: `Shop missing access token: ${shopParam}` }
-    };
-  }
-
-  if (shop.isActive === false) {
-    logger.warn(`Shop is not active: ${shopParam}`);
-    return {
-      statusCode: 422,
-      body: { success: false, message: `Shop is not active: ${shopParam}` }
     };
   }
 

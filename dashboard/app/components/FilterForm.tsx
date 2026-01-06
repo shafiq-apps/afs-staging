@@ -941,7 +941,6 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                 value
               }
               deploymentChannel
-              isActive
               createdAt
               updatedAt
             }
@@ -962,7 +961,6 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                 value
               }
               deploymentChannel
-              isActive
               version
               updatedAt
             }

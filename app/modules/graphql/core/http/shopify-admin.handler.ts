@@ -82,14 +82,8 @@ export class ShopifyAdminHandler {
 
       logger.info(`Shop found in ES`, {
         shop: shopData.shop,
-        isActive: shopData.isActive,
         hasAccessToken: !!shopData.accessToken,
       });
-
-      if (shopData.isActive === false) {
-        logger.error(`Shop is not active: ${shop}`);
-        throw new Error(`Shop is not active: ${shop}`);
-      }
 
       if (!shopData.accessToken) {
         logger.error(`Missing access token for shop: ${shop}`);

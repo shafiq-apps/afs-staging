@@ -109,7 +109,6 @@ export class FiltersRepository {
         showClearAllButton: data.settings.showClearAllButton,
       } : undefined,
       tags: data.tags ?? [],
-      isActive: data.isActive ?? data.is_active ?? true,
       version: data.version ?? data.__v ?? 0,
       updatedAt: data.updatedAt ?? data.updated_at ?? null,
       createdAt: data.createdAt ?? data.created_at ?? new Date().toISOString(),
@@ -377,8 +376,6 @@ export class FiltersRepository {
         deploymentChannel: input.deploymentChannel || 'APP',
         settings: input.settings,
         tags: input.tags || [],
-        // Note: isActive is no longer stored - use status === 'published' instead
-        // Keeping isActive undefined/null to avoid storing redundant data
         createdAt: now,
         updatedAt: null,
         version: 0,
@@ -444,9 +441,6 @@ export class FiltersRepository {
         updatedAt: new Date().toISOString(),
         version: (existing.version || 0) + 1,
       };
-      
-      // Remove isActive field - no longer stored, use status === 'published' instead
-      delete (updated as any).isActive;
 
       await this.esClient.index({
         index,

@@ -20,7 +20,6 @@ function sessionToShopDocument(session: Session): any {
     accessToken: session.accessToken,
     refreshToken: (session as any).refreshToken || undefined,
     scopes: session.scope ? session.scope.split(',') : [],
-    // isActive: session.isActive,
     lastAccessed: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     // Session fields
@@ -155,7 +154,6 @@ export class ElasticsearchSessionStorage {
         mutation CreateShop($input: CreateShopInput!) {
           createShop(input: $input) {
             shop
-            isActive
             installedAt
           }
         }
@@ -202,7 +200,6 @@ export class ElasticsearchSessionStorage {
             accessToken
             refreshToken
             scopes
-            isActive
             sessionId
             state
             isOnline
@@ -296,7 +293,6 @@ export class ElasticsearchSessionStorage {
             accessToken
             refreshToken
             scopes
-            isActive
             sessionId
             state
             isOnline

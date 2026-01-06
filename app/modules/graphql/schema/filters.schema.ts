@@ -164,7 +164,6 @@ export const filtersSchema = `
     deploymentChannel: DeploymentChannel!
     settings: FilterSettings
     tags: [String!]
-    isActive: Boolean
     version: Int
     updatedAt: String
     createdAt: String!
@@ -267,7 +266,6 @@ export const filtersSchema = `
     deploymentChannel: DeploymentChannel
     settings: FilterSettingsInput
     tags: [String!]
-    isActive: Boolean
   }
 
   type Query {

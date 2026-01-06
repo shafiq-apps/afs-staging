@@ -7,7 +7,6 @@ export interface Shop {
   shop: string;
   accessToken: string;
   installedAt?: string;
-  isActive?: boolean;
   scopes?: string[];
   refreshToken?: string;
   metadata?: Record<string, any>;
@@ -28,7 +27,6 @@ export interface UpdateShopInput {
   accessToken?: string;
   scopes?: string[];
   refreshToken?: string;
-  isActive?: boolean;
   metadata?: Record<string, any>;
   locals?: Record<string, any>;
   lastAccessed?: string;

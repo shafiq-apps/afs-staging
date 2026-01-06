@@ -134,7 +134,6 @@ export async function performUninstallCleanup(
     try {
       const updateData = {
         ...existingShop,
-        isActive: false,
         uninstalledAt: new Date().toISOString(),
         lastAccessed: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -146,7 +145,6 @@ export async function performUninstallCleanup(
         logger.warn(`Failed to update shop status for uninstall: ${shop}`);
       } else {
         logger.info(`Shop status updated for uninstall: ${shop}`, {
-          isActive: updatedShop.isActive,
           uninstalledAt: updatedShop.uninstalledAt,
         });
       }

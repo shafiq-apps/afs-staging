@@ -41,7 +41,6 @@ export class ShopsRepository {
           shop: source.shop || shop,
           accessToken: source.accessToken,
           installedAt: source.installedAt,
-          isActive: source.isActive !== false, // Default to true
           scopes: source.scopes,
           refreshToken: source.refreshToken,
           metadata: source.metadata,
@@ -74,7 +73,6 @@ export class ShopsRepository {
       scopes: input.scopes || [],
       refreshToken: input.refreshToken,
       installedAt: new Date().toISOString(),
-      isActive: true,
       metadata: input.metadata || {},
       locals: {},
       // Include session fields if provided
@@ -132,7 +130,7 @@ export class ShopsRepository {
    * @param shop Shop domain
    */
   async uninstallShop(shop: string): Promise<void> {
-    await this.updateShop(shop, { isActive: false });
+    await this.updateShop(shop, { accessToken: null });
     logger.info(`Shop uninstalled: ${shop}`);
   }
 

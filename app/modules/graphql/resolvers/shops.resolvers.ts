@@ -319,8 +319,7 @@ export const shopsResolvers = {
 
         logger.info(`Shop found in ES`, {
           shop: shopData.shop,
-          hasAccessToken: !!shopData.accessToken,
-          isActive: shopData.isActive,
+          hasAccessToken: !!shopData.accessToken
         });
 
         if (!shopData.accessToken) {
@@ -328,14 +327,6 @@ export const shopsResolvers = {
           return {
             success: false,
             message: `Shop missing access token: ${shop}`
-          };
-        }
-
-        if (shopData.isActive === false) {
-          logger.warn(`Shop is not active: ${shop}`);
-          return {
-            success: false,
-            message: `Shop is not active: ${shop}`
           };
         }
 

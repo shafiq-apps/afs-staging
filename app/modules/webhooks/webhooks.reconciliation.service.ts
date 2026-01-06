@@ -182,9 +182,6 @@ export class WebhookReconciliationService {
       // Get all active shops
       const shopsResponse = await this.esClient.search({
         index: SHOPS_INDEX_NAME,
-        query: {
-          term: { isActive: true },
-        },
         size: 1000,
         _source: ['shop'],
       });

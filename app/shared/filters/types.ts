@@ -99,7 +99,6 @@ export interface Filter {
     showClearAllButton?: boolean;
   };
   tags?: string[];
-  isActive?: boolean;
   version?: number;
   updatedAt?: string | null;
   createdAt: string;
@@ -186,7 +185,6 @@ export interface CreateFilterInput {
     showClearAllButton?: boolean;
   };
   tags?: string[];
-  isActive?: boolean;
 }
 
 export interface UpdateFilterInput {
@@ -265,6 +263,5 @@ export interface UpdateFilterInput {
     showClearAllButton?: boolean;
   };
   tags?: string[];
-  isActive?: boolean;
 }
 
