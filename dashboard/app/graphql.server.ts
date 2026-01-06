@@ -14,7 +14,7 @@ export async function graphqlRequest<T = any>(
     endpoint += `?shop=${variables.shop}`;
   }
 
-  logger.info("endpoint",endpoint);
+  logger.info("fetching data from graphql endpoint",endpoint);
   logger.info("variables",variables);
   logger.info("query",query);
 
@@ -25,9 +25,9 @@ export async function graphqlRequest<T = any>(
     },
     body: JSON.stringify({ query, variables }),
   });
-  logger.info("response",response);
 
   const result = await response.json().catch(() => ({}));
+
   logger.info("result",result);
 
   if (result.errors?.length) {
