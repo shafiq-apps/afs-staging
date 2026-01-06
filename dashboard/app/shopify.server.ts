@@ -6,6 +6,8 @@ import {
 } from "@shopify/shopify-app-react-router/server";
 import { ElasticsearchSessionStorage } from "./session-storage/elasticsearch-session-storage";
 
+const esSessionStorage = new ElasticsearchSessionStorage();
+
 const shopify = shopifyApp({
   apiKey: process.env.SHOPIFY_API_KEY,
   apiSecretKey: process.env.SHOPIFY_API_SECRET || "",
@@ -13,16 +15,17 @@ const shopify = shopifyApp({
   scopes: process.env.SCOPES?.split(","),
   appUrl: process.env.SHOPIFY_APP_URL || "",
   authPathPrefix: "/auth",
-  sessionStorage: new ElasticsearchSessionStorage(),
+  sessionStorage: esSessionStorage,
   distribution: AppDistribution.AppStore,
   useOnlineTokens: true,
   ...(process.env.SHOP_CUSTOM_DOMAIN
     ? { customShopDomains: [process.env.SHOP_CUSTOM_DOMAIN] }
     : {}),
   hooks: {
-    afterAuth({admin, session}) {
-      console.log("ADMIN", admin);
-      console.log("SESSION", session);
+    async afterAuth({admin, session}) {
+      if(session && session.shop && session.onlineAccessInfo?.associated_user.id){
+        await esSessionStorage.storeSession(session);
+      }
     }
   }
 });
