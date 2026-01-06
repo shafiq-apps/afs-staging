@@ -1,10 +1,7 @@
 import { buildGraphQLEndpoint } from "./utils/build-graphQL-endpoint";
-import { extractShopifyDomain } from "./utils/extract-shopify-domain";
 import { createModuleLogger } from "./utils/logger";
 
 const logger = createModuleLogger("graphql.server");
-
-const GRAPHQL_ENDPOINT = process.env.GRAPHQL_ENDPOINT || "/graphql";
 
 export async function graphqlRequest<T = any>(
   query: string,

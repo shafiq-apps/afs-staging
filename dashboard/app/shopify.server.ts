@@ -17,7 +17,6 @@ const shopify = shopifyApp({
   authPathPrefix: "/auth",
   sessionStorage: esSessionStorage,
   distribution: AppDistribution.AppStore,
-  useOnlineTokens: true,
   ...(process.env.SHOP_CUSTOM_DOMAIN
     ? { customShopDomains: [process.env.SHOP_CUSTOM_DOMAIN] }
     : {}),
