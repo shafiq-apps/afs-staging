@@ -85,8 +85,6 @@ function shopDocumentToSession(shopData: any): Session | null {
     session.onlineAccessInfo = onlineAccessInfo;
   }
 
-  session.isActive = session.isActive;
-
   return session;
 }
 
@@ -312,7 +310,7 @@ export class ElasticsearchSessionStorage {
         }
       `;
 
-      const variables = { domain: shop, shop };
+      const variables = { domain: extractShopifyDomain(shop), shop: extractShopifyDomain(shop) };
 
       const data = await graphqlRequest(query, variables);
 
@@ -346,10 +344,8 @@ export class ElasticsearchSessionStorage {
       // Extract unique shops from session IDs
       const shops = new Set<string>();
       for (const id of ids) {
-        const shopMatch = id.match(/^([^-\d]+(?:\.myshopify\.com)?)/);
-        if (shopMatch && shopMatch[1]) {
-          shops.add(shopMatch[1]);
-        }
+        const shop = extractShopifyDomain(id)??id;
+        shops.add(shop);
       }
 
       // Delete each shop
@@ -386,8 +382,8 @@ export class ElasticsearchSessionStorage {
       `;
 
       const variables = {
-        domain: shop,
-        shop
+        domain: extractShopifyDomain(shop),
+        shop: extractShopifyDomain(shop)
       };
 
       const data = await graphqlRequest(mutation, variables);
