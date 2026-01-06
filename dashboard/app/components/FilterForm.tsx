@@ -1183,6 +1183,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                     variant="secondary"
                     onClick={handleOpenCollectionPicker}
                     icon="plus"
+                    accessibilityLabel="Add collection"
                   >
                     {t("filterForm.collectionDisplay.selectCollections")}
                   </s-button>
@@ -1696,6 +1697,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                 variant="primary"
                 onClick={handleAddFilterOption}
                 icon="plus"
+                accessibilityLabel="Add filter option"
               >
                 Add filter option
               </s-button>

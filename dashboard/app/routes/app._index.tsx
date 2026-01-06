@@ -252,6 +252,7 @@ export default function Index() {
                     variant="primary"
                     onClick={() => navigate("/app/filter/create")}
                     icon="plus"
+                    accessibilityLabel="Create New Filter"
                   >
                     Create New Filter
                   </s-button>
@@ -327,6 +328,7 @@ export default function Index() {
                       variant="primary"
                       onClick={() => navigate("/app/filter/create")}
                       icon="plus"
+                      accessibilityLabel="Create Your First Filter"
                     >
                       Create Your First Filter
                     </s-button>
@@ -422,6 +424,7 @@ export default function Index() {
                     variant="secondary"
                     onClick={() => navigate("/app/indexing")}
                     icon="arrow-right"
+                    accessibilityLabel="Manage Product Sync"
                   >
                     Manage Product Sync
                   </s-button>

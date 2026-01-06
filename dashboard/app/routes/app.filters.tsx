@@ -274,6 +274,7 @@ export default function FiltersPage() {
         variant="primary"
         onClick={handleCreateClick}
         icon="plus"
+        accessibilityLabel={t("filters.createFilter")}
       >
         {t("filters.createFilter")}
       </s-button>
@@ -325,6 +326,7 @@ export default function FiltersPage() {
                   variant="primary"
                   onClick={handleCreateClick}
                   icon="plus"
+                  accessibilityLabel={t("filters.noFilters.createFirst")}
                 >
                   {t("filters.noFilters.createFirst")}
                 </s-button>
@@ -367,6 +369,7 @@ export default function FiltersPage() {
                         variant="secondary"
                         onClick={() => handleEditClick(filter.id)}
                         icon="edit"
+                        accessibilityLabel={t("filters.table.edit")}
                       >
                         {t("filters.table.edit")}
                       </s-button>
@@ -379,6 +382,7 @@ export default function FiltersPage() {
                           handleDeleteClick(filter);
                         }}
                         icon="delete"
+                        accessibilityLabel={t("filters.table.delete")}
                       >
                         {t("filters.table.delete")}
                       </s-button>
