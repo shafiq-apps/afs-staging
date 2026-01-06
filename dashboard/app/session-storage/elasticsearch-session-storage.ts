@@ -256,7 +256,7 @@ export class ElasticsearchSessionStorage {
       logger.log('Session loaded successfully', { shop, sessionId: session.id });
       return session;
     } catch (error: any) {
-      logger.error('Error loading session', { error: error?.message || error, sessionId: id });
+      logger.error('Error loading session', { error: error?.message || error, sessionId: id }, error);
       return undefined;
     }
   }
