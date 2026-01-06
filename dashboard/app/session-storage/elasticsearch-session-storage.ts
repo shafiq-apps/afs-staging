@@ -85,6 +85,8 @@ function shopDocumentToSession(shopData: any): Session | null {
     session.onlineAccessInfo = onlineAccessInfo;
   }
 
+  session.isActive = session.isActive;
+
   return session;
 }
 
