@@ -4,7 +4,7 @@ import { graphqlRequest } from "../utils/graphql.client";
 import { UPDATE_SUBSCRIPTION_STATUS_MUTATION } from "app/graphql/subscriptions.mutation";
 import { createModuleLogger } from "app/utils/logger";
 
-const logger = createModuleLogger("webhooks.app_subscriptions");
+const logger = createModuleLogger("webhooks.app_subscriptions.update");
 /**
  * Webhook handler for products/update
  * Processes product update events from Shopify
