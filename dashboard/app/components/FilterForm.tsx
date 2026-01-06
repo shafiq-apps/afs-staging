@@ -1361,46 +1361,53 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                                       <s-stack direction="block" gap="base">
                                         {!isPriceFilter(option.optionType) && (
                                           <>
-                                            <s-choice-list
-                                              label="Selection Type"
-                                              values={[option.selectionType]}
-                                              onChange={(e: any) => {
-                                                const value = e.currentTarget?.values?.[0];
-                                                if (value) handleUpdateOption(option.handle, "selectionType", value);
-                                              }}
-                                              name="selectionType"
-                                            >
-                                              {selectionTypes.map((type: string) => (
-                                                <s-choice
-                                                  key={type}
-                                                  value={type}
-                                                  selected={option.selectionType === type}
+                                            {
+                                              selectionTypes.length > 0 && (
+                                                <s-choice-list
+                                                  label="Selection Type"
+                                                  values={[option.selectionType]}
+                                                  onChange={(e: any) => {
+                                                    const value = e.currentTarget?.values?.[0];
+                                                    if (value) handleUpdateOption(option.handle, "selectionType", value);
+                                                  }}
+                                                  name="selectionType"
                                                 >
-                                                  {type.charAt(0).toUpperCase() + type.slice(1).toLowerCase()}
-                                                </s-choice>
-                                              ))}
-                                            </s-choice-list>
-
-                                            <s-choice-list
-                                              label="Display Style"
-                                              values={[option.displayType]}
-                                              onChange={(e: any) => {
-                                                const value = e.currentTarget?.values?.[0];
-                                                if (value) handleUpdateOption(option.handle, "displayType", value);
-                                              }}
-                                              name="displayType"
-                                            >
-                                              {displayTypes.map((type: string) => (
-                                                <s-choice
-                                                  key={type}
-                                                  value={type}
-                                                  selected={option.displayType === type}
-                                                  disabled={option.selectionType !== SelectionType.SINGLE && DisplayType.RADIO === type}
+                                                  {selectionTypes.map((type: string) => (
+                                                    <s-choice
+                                                      key={type}
+                                                      value={type}
+                                                      selected={option.selectionType === type}
+                                                    >
+                                                      {type.charAt(0).toUpperCase() + type.slice(1).toLowerCase()}
+                                                    </s-choice>
+                                                  ))}
+                                                </s-choice-list>
+                                              )
+                                            }
+                                            {
+                                              displayTypes.length > 0 && (
+                                                <s-choice-list
+                                                  label="Display Style"
+                                                  values={[option.displayType]}
+                                                  onChange={(e: any) => {
+                                                    const value = e.currentTarget?.values?.[0];
+                                                    if (value) handleUpdateOption(option.handle, "displayType", value);
+                                                  }}
+                                                  name="displayType"
                                                 >
-                                                  {type.charAt(0).toUpperCase() + type.slice(1).toLowerCase().replace('_', ' ')}
-                                                </s-choice>
-                                              ))}
-                                            </s-choice-list>
+                                                  {displayTypes.map((type: string) => (
+                                                    <s-choice
+                                                      key={type}
+                                                      value={type}
+                                                      selected={option.displayType === type}
+                                                      disabled={option.selectionType !== SelectionType.SINGLE && DisplayType.RADIO === type}
+                                                    >
+                                                      {type.charAt(0).toUpperCase() + type.slice(1).toLowerCase().replace('_', ' ')}
+                                                    </s-choice>
+                                                  ))}
+                                                </s-choice-list>
+                                              )
+                                            }
                                           </>
                                         )}
 
@@ -1494,25 +1501,29 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                                       <s-stack direction="block" gap="base">
                                         <s-heading>Sorting & Organization</s-heading>
                                         <s-stack direction="block" gap="base">
-                                          <s-choice-list
-                                            label="Sort Order By"
-                                            values={[option.sortBy]}
-                                            onChange={(e: any) => {
-                                              const value = e.currentTarget?.values?.[0];
-                                              if (value) handleUpdateOption(option.handle, "sortBy", value);
-                                            }}
-                                            name="sortBy"
-                                          >
-                                            {SORT_TYPES_MAPPINGS.map((type: any) => (
-                                              <s-choice
-                                                key={type.value}
-                                                value={type.value}
-                                                selected={option.sortBy === type.value}
+                                          {
+                                            SORT_TYPES_MAPPINGS.length > 0 && (
+                                              <s-choice-list
+                                                label="Sort Order By"
+                                                values={[option.sortBy]}
+                                                onChange={(e: any) => {
+                                                  const value = e.currentTarget?.values?.[0];
+                                                  if (value) handleUpdateOption(option.handle, "sortBy", value);
+                                                }}
+                                                name="sortBy"
                                               >
-                                                {type.label}
-                                              </s-choice>
-                                            ))}
-                                          </s-choice-list>
+                                                {SORT_TYPES_MAPPINGS.map((type: any) => (
+                                                  <s-choice
+                                                    key={type.value}
+                                                    value={type.value}
+                                                    selected={option.sortBy === type.value}
+                                                  >
+                                                    {type.label}
+                                                  </s-choice>
+                                                ))}
+                                              </s-choice-list>
+                                            )
+                                          }
                                         </s-stack>
                                       </s-stack>
                                     </s-box>
