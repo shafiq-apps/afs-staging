@@ -1143,7 +1143,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                 maxLength={60}
                 placeholder="Enter filter title"
                 error={titleError}
-                labelAccessibilityVisibility="visible"
+                labelAccessibilityVisibility="exclusive"
               />
             </s-stack>
             <s-stack direction="block" gap="small">
@@ -1315,14 +1315,14 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                                   value={option.label}
                                   onChange={(e: any) => handleUpdateOption(option.handle, "label", e.target.value)}
                                   placeholder="Filter label"
-                                  labelAccessibilityVisibility="visible"
+                                  labelAccessibilityVisibility="exclusive"
                                 />
                               </div>
                               <div style={{ flex: 1, minWidth: "200px" }}>
                                 <s-select
                                   value={option.optionType}
                                   onChange={(e: any) => handleUpdateOption(option.handle, "optionType", e.target.value)}
-                                  labelAccessibilityVisibility="visible"
+                                  labelAccessibilityVisibility="exclusive"
                                 >
                                   {getFilterTypes().map((type) => (
                                     <s-option key={type} value={type}>
@@ -1410,7 +1410,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                                               label="Display Style"
                                               value="range"
                                               disabled
-                                              labelAccessibilityVisibility="visible"
+                                              labelAccessibilityVisibility="exclusive"
                                             >
                                               <s-option value="range">Range (Price Slider)</s-option>
                                             </s-select>
@@ -1528,7 +1528,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                                             label="Text Case"
                                             value={option.textTransform}
                                             onChange={(e: any) => handleUpdateOption(option.handle, "textTransform", e.target.value)}
-                                            labelAccessibilityVisibility="visible"
+                                            labelAccessibilityVisibility="exclusive"
                                           >
                                             <s-option value="none">Normal (No change)</s-option>
                                             <s-option value="uppercase">UPPERCASE</s-option>
@@ -1546,7 +1546,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                                               value={option.tooltipContent}
                                               onChange={(e: any) => handleUpdateOption(option.handle, "tooltipContent", e.target.value)}
                                               placeholder="Help text shown when users hover over this filter"
-                                              labelAccessibilityVisibility="visible"
+                                              labelAccessibilityVisibility="exclusive"
                                             />
                                           )}
                                         </s-stack>
@@ -1569,7 +1569,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                                           )}
 
                                           <s-text-field
-                                            labelAccessibilityVisibility="visible"
+                                            labelAccessibilityVisibility="exclusive"
                                             label="Filter by Prefix (Show only values starting with)"
                                             value={option.filterByPrefix.join(', ')}
                                             onChange={(e: any) => {
@@ -1579,7 +1579,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                                             placeholder="e.g., Size-, Color- (comma-separated)"
                                           />
                                           <s-text-field
-                                            labelAccessibilityVisibility="visible"
+                                            labelAccessibilityVisibility="exclusive"
                                             label="Remove Prefix from Display"
                                             value={option.removePrefix.join(', ')}
                                             onChange={(e: any) => {
@@ -1661,7 +1661,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                                     <s-stack direction="block" gap="base">
                                       <s-stack direction="block" gap="base">
                                         <s-text-field
-                                          labelAccessibilityVisibility="visible"
+                                          labelAccessibilityVisibility="exclusive"
                                           label="Handle (URL identifier)"
                                           value={option.handle}
                                           disabled
@@ -1809,7 +1809,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                           label="Default Sort Order"
                           value={defaultSort}
                           onChange={(e: any) => updateFilterState({ defaultSort: e.target.value })}
-                          labelAccessibilityVisibility="visible"
+                          labelAccessibilityVisibility="exclusive"
                         >
                           <s-option value="relevance">Relevance</s-option>
                           <s-option value="price-asc">Price: Low to High</s-option>
@@ -1861,7 +1861,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                               value={pageInfoFormat}
                               onChange={(e: any) => updateFilterState({ pageInfoFormat: e.target.value })}
                               placeholder="e.g., 'Showing {start}-{end} of {total}'"
-                              labelAccessibilityVisibility="visible"
+                              labelAccessibilityVisibility="exclusive"
                             />
                           )}
                         </s-stack>
@@ -1941,21 +1941,21 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                             value={onLaptop}
                             onChange={(e: any) => updateFilterState({ onLaptop: e.target.value })}
                             placeholder="e.g., sidebar, top-bar"
-                            labelAccessibilityVisibility="visible"
+                            labelAccessibilityVisibility="exclusive"
                           />
                           <s-text-field
                             label="On Tablet"
                             value={onTablet}
                             onChange={(e: any) => updateFilterState({ onTablet: e.target.value })}
                             placeholder="e.g., sidebar, top-bar"
-                            labelAccessibilityVisibility="visible"
+                            labelAccessibilityVisibility="exclusive"
                           />
                           <s-text-field
                             label="On Mobile"
                             value={onMobile}
                             onChange={(e: any) => updateFilterState({ onMobile: e.target.value })}
                             placeholder="e.g., sidebar, top-bar"
-                            labelAccessibilityVisibility="visible"
+                            labelAccessibilityVisibility="exclusive"
                           />
                         </s-stack>
                       </s-stack>

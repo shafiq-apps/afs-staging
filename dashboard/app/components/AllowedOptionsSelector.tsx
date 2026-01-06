@@ -36,7 +36,7 @@ export function AllowedOptionsSelector({
           placeholder="Search values..."
           value={searchTerm}
           onChange={(e: any) => setSearchTerm(e.target.value)}
-          labelAccessibilityVisibility="visible"
+          labelAccessibilityVisibility="exclusive"
         />
         <div style={{ 
           maxHeight: '200px', 
