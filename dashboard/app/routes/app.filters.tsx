@@ -397,7 +397,7 @@ export default function FiltersPage() {
       )}
 
       {/* Delete Confirmation Modal */}
-      <s-modal id="delete-modal" heading={t("filters.deleteModal.title")}>
+      <s-modal id="delete-modal" heading={t("filters.deleteModal.title")} accessibilityLabel="Delete Modal">
         {filterToDelete && (
           <s-stack direction="block" gap="base">
             <s-text>

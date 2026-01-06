@@ -1143,6 +1143,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                 maxLength={60}
                 placeholder="Enter filter title"
                 error={titleError}
+                labelAccessibilityVisibility="visible"
               />
             </s-stack>
             <s-stack direction="block" gap="small">
@@ -1314,6 +1315,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                                   value={option.label}
                                   onChange={(e: any) => handleUpdateOption(option.handle, "label", e.target.value)}
                                   placeholder="Filter label"
+                                  labelAccessibilityVisibility="visible"
                                 />
                               </div>
                               <div style={{ flex: 1, minWidth: "200px" }}>
@@ -1541,6 +1543,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                                               value={option.tooltipContent}
                                               onChange={(e: any) => handleUpdateOption(option.handle, "tooltipContent", e.target.value)}
                                               placeholder="Help text shown when users hover over this filter"
+                                              labelAccessibilityVisibility="visible"
                                             />
                                           )}
                                         </s-stack>
@@ -1563,6 +1566,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                                           )}
 
                                           <s-text-field
+                                            labelAccessibilityVisibility="visible"
                                             label="Filter by Prefix (Show only values starting with)"
                                             value={option.filterByPrefix.join(', ')}
                                             onChange={(e: any) => {
@@ -1572,6 +1576,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                                             placeholder="e.g., Size-, Color- (comma-separated)"
                                           />
                                           <s-text-field
+                                            labelAccessibilityVisibility="visible"
                                             label="Remove Prefix from Display"
                                             value={option.removePrefix.join(', ')}
                                             onChange={(e: any) => {
@@ -1653,6 +1658,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                                     <s-stack direction="block" gap="base">
                                       <s-stack direction="block" gap="base">
                                         <s-text-field
+                                          labelAccessibilityVisibility="visible"
                                           label="Handle (URL identifier)"
                                           value={option.handle}
                                           disabled
@@ -1851,6 +1857,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                               value={pageInfoFormat}
                               onChange={(e: any) => updateFilterState({ pageInfoFormat: e.target.value })}
                               placeholder="e.g., 'Showing {start}-{end} of {total}'"
+                              labelAccessibilityVisibility="visible"
                             />
                           )}
                         </s-stack>
@@ -1930,18 +1937,21 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                             value={onLaptop}
                             onChange={(e: any) => updateFilterState({ onLaptop: e.target.value })}
                             placeholder="e.g., sidebar, top-bar"
+                            labelAccessibilityVisibility="visible"
                           />
                           <s-text-field
                             label="On Tablet"
                             value={onTablet}
                             onChange={(e: any) => updateFilterState({ onTablet: e.target.value })}
                             placeholder="e.g., sidebar, top-bar"
+                            labelAccessibilityVisibility="visible"
                           />
                           <s-text-field
                             label="On Mobile"
                             value={onMobile}
                             onChange={(e: any) => updateFilterState({ onMobile: e.target.value })}
                             placeholder="e.g., sidebar, top-bar"
+                            labelAccessibilityVisibility="visible"
                           />
                         </s-stack>
                       </s-stack>
@@ -1958,7 +1968,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
 
       {/* Cancel Confirmation Modal */}
       {cancelModalOpen && (
-        <s-modal>
+        <s-modal accessibilityLabel="Discard Changes?">
           <s-box padding="base">
             <s-stack direction="block" gap="base">
               <s-heading>Discard Changes?</s-heading>

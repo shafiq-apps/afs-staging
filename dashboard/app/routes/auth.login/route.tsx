@@ -39,6 +39,7 @@ export default function Auth() {
             onChange={(e) => setShop(e.currentTarget.value)}
             autocomplete="on"
             error={errors.shop}
+            labelAccessibilityVisibility="visible"
           ></s-text-field>
           <s-button type="submit">Log in</s-button>
         </s-section>
