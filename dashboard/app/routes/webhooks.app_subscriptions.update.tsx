@@ -2,9 +2,9 @@ import type { ActionFunctionArgs } from "react-router";
 import { authenticate } from "../shopify.server";
 import { graphqlRequest } from "../utils/graphql.client";
 import { UPDATE_SUBSCRIPTION_STATUS_MUTATION } from "app/graphql/subscriptions.mutation";
-import { createLogger } from "app/utils/logger";
+import { createModuleLogger } from "app/utils/logger";
 
-const logger = createLogger({ prefix: "webhooks.app_subscriptions" });
+const logger = createModuleLogger("webhooks.app_subscriptions");
 /**
  * Webhook handler for products/update
  * Processes product update events from Shopify
