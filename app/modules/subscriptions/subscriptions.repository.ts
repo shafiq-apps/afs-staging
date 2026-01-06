@@ -134,8 +134,6 @@ export class SubscriptionsRepository {
         );
       }
 
-      console.log("remote", remote)
-
       const updated: StoredSubscription = {
         ...remote,
         name: remote.name,
@@ -160,8 +158,6 @@ export class SubscriptionsRepository {
         status: updated.status,
       });
 
-      console.log("Updated", updated);
-
       return updated;
     } catch (error: any) {
       logger.error('Error syncing subscription status from Shopify', {
@@ -173,8 +169,6 @@ export class SubscriptionsRepository {
       throw error;
     }
   }
-
-
 
   /**
    * Delete a subscription

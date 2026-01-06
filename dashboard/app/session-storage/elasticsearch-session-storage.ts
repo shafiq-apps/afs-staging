@@ -5,19 +5,12 @@
  */
 
 import type { Session } from "@shopify/shopify-app-react-router/server";
-
-// Simple logger for dashboard (no shared utils available)
-// No-op logger - logging removed per user request
-const logger = {
-  info: (...args: any) => {},
-  error: (...args: any) => {},
-  log: (...args: any) => {},
-  debug: (...args: any) => {},
-  warn: (...args: any) => {},
-};
+import { createLogger } from "app/utils/logger";
 
 // Get GraphQL endpoint from environment
 const GRAPHQL_ENDPOINT = process.env.GRAPHQL_ENDPOINT || "/graphql";
+
+const logger = createLogger({ prefix: 'elasticsearch-session-storage' });
 
 /**
  * Convert Shopify Session to shop document format

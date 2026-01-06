@@ -1,14 +1,8 @@
 import type { ActionFunctionArgs } from "react-router";
 import { authenticate } from "../shopify.server";
-import { graphqlRequest } from "../utils/graphql.client";
-import { UPDATE_SUBSCRIPTION_STATUS_MUTATION } from "app/graphql/subscriptions.mutation";
+import { createLogger } from "app/utils/logger";
 
-// Simple logger for dashboard webhooks
-// No-op logger - logging removed per user request
-const logger = {
-  info: (...args: any) => { },
-  error: (...args: any) => { },
-};
+const logger = createLogger({ prefix: "webhooks.callback" });
 
 /**
  * Webhook handler for products/update
