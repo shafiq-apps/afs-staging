@@ -9,7 +9,7 @@ export async function graphqlRequest<T = any>(
 ): Promise<T> {
   const endpoint = buildGraphQLEndpoint({ shop: variables?.shop });
 
-  logger.info("fetching data from graphql endpoint",endpoint);
+  logger.info("endpoint",endpoint);
   logger.info("variables",variables);
   logger.info("query",query);
 
