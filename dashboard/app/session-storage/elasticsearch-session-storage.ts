@@ -47,42 +47,21 @@ function shopDocumentToSession(shopData: any): Session | null {
     return null;
   }
 
-  const session: Session = {
+  const session = new Session({
     id: shopData.sessionId || `${shopData.shop}-${Date.now()}`,
     shop: shopData.shop,
-    state: shopData.state || '',
-    isOnline: shopData.isOnline || false,
-    scope: shopData.scope || (shopData.scopes ? shopData.scopes.join(',') : ''),
+    state: shopData.state || "",
+    isOnline: Boolean(shopData.isOnline),
+    scope:
+      shopData.scope ||
+      (shopData.scopes ? shopData.scopes.join(",") : ""),
     expires: shopData.expires ? new Date(shopData.expires) : undefined,
     accessToken: shopData.accessToken,
-    ...(shopData.refreshToken && { refreshToken: shopData.refreshToken })
-  };
+  });
 
-  // Add online access info if available
-  if (shopData.userId || shopData.firstName || shopData.email) {
-    const expiresIn = shopData.expires 
-      ? Math.floor((new Date(shopData.expires).getTime() - Date.now()) / 1000)
-      : 0;
-    
-    const onlineAccessInfo: any = {
-      associated_user: {
-        ...(shopData.userId && { id: BigInt(shopData.userId) }),
-        ...(shopData.firstName && { first_name: shopData.firstName }),
-        ...(shopData.lastName && { last_name: shopData.lastName }),
-        ...(shopData.email && { email: shopData.email }),
-        account_owner: shopData.accountOwner || false,
-        ...(shopData.locale && { locale: shopData.locale }),
-        collaborator: shopData.collaborator || false,
-        email_verified: shopData.emailVerified || false,
-      },
-      associated_user_scope: shopData.scope || shopData.scopes?.join(',') || '',
-    };
-    
-    if (expiresIn > 0) {
-      onlineAccessInfo.expires_in = expiresIn;
-    }
-    
-    session.onlineAccessInfo = onlineAccessInfo;
+  // Optional refresh token (future-proof)
+  if (shopData.refreshToken) {
+    (session as any).refreshToken = shopData.refreshToken;
   }
 
   return session;
