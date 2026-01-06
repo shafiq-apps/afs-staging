@@ -20,18 +20,12 @@ export function buildGraphQLEndpoint(
 
   let baseUrl: string;
 
-  console.log("process.env.NODE_ENV", process.env.NODE_ENV);
-
-  let localAppUrl;
-
-  if (process.env.NODE_ENV === 'development') {
-    localAppUrl = 'http://localhost:3554';
+  if(process.env.NODE_ENV === 'development'){
+    baseUrl = new URL(graphqlPath, "http://localhost:3554").toString();
   }
-
-  // Validate base app URL
-  if (appUrl) {
+  else if (appUrl) {
     try {
-      baseUrl = new URL(graphqlPath, localAppUrl??appUrl).toString();
+      baseUrl = new URL(graphqlPath, appUrl).toString();
     } catch {
       baseUrl = fallbackUrl;
     }
