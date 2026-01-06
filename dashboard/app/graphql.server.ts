@@ -1,4 +1,4 @@
-const GRAPHQL_ENDPOINT = process.env.GRAPHQL_ENDPOINT || "http://localhost:3554/graphql";
+const GRAPHQL_ENDPOINT = process.env.GRAPHQL_ENDPOINT || "/graphql";
 
 const graphqlEndpointWithShop = (shop: string) => {
   return `${GRAPHQL_ENDPOINT}?shop=${encodeURIComponent(shop)}`;
