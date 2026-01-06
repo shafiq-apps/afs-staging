@@ -1,12 +1,7 @@
-import type {
-  ActionFunction,
-  HeadersFunction,
-  LoaderFunctionArgs,
-} from "react-router";
+import type { ActionFunction, HeadersFunction, LoaderFunctionArgs } from "react-router";
 import { useLoaderData, useLocation } from "react-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { boundary } from "@shopify/shopify-app-react-router/server";
-
 import { authenticate } from "../shopify.server";
 import FilterForm from "../components/FilterForm";
 import { useTranslation } from "app/utils/translations";
@@ -170,7 +165,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
 export const action: ActionFunction = async ({ request }) => {
   const { payload } = await request.json();
   
-  const { mode, id, mutation, variables, shop } = payload;
+  const { mutation, variables, shop } = payload;
 
   try {
     const result = await graphqlRequest(mutation, {...variables, shop});
@@ -186,14 +181,13 @@ export const action: ActionFunction = async ({ request }) => {
 ====================================================== */
 
 export default function EditFilterPage() {
-  const { filter, shop, graphqlEndpoint, storefrontFilters } =
+  const { filter, shop, storefrontFilters } =
     useLoaderData<typeof loader>();
 
   const { t } = useTranslation();
   const location = useLocation();
 
   const formRef = useRef<FilterFormHandle>(null);
-  const [isSaving, setIsSaving] = useState(false);
 
   const pageId = `filter-edit-${filter.id}`;
 
@@ -214,10 +208,6 @@ export default function EditFilterPage() {
     } catch (error) {
       // Error handled by FilterForm component
     }
-  }, []);
-
-  const handleSavingChange = useCallback((saving: boolean) => {
-    setIsSaving(saving);
   }, []);
 
   /* ---------------- Slot cleanup ---------------- */
@@ -266,7 +256,6 @@ export default function EditFilterPage() {
         initialFilter={filter}
         shop={shop}
         storefrontFilters={storefrontFilters}
-        onSavingChange={handleSavingChange}
       />
     </s-page>
   );
