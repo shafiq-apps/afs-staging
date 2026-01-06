@@ -8,9 +8,6 @@ import type { Session } from "@shopify/shopify-app-react-router/server";
 import { graphqlRequest } from "app/graphql.server";
 import { createModuleLogger } from "app/utils/logger";
 
-// Get GraphQL endpoint from environment
-const GRAPHQL_ENDPOINT = process.env.GRAPHQL_ENDPOINT || "/graphql";
-
 const logger = createModuleLogger("elasticsearch-session-storage");
 
 /**

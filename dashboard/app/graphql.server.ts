@@ -1,17 +1,13 @@
 const GRAPHQL_ENDPOINT = process.env.GRAPHQL_ENDPOINT || "/graphql";
 
-const graphqlEndpointWithShop = (shop: string) => {
-  return `${GRAPHQL_ENDPOINT}?shop=${encodeURIComponent(shop)}`;
-};
-
 export async function graphqlRequest<T = any>(
   query: string,
   variables?: Record<string, any>
 ): Promise<T> {
-  let endpoint = "/graphql";
+  let endpoint = (process.env.SHOPIFY_APP_URL && process.env.SHOPIFY_APP_URL + GRAPHQL_ENDPOINT) || "https://fstaging.digitalcoo.com/graphql";
 
   if (variables?.shop) {
-    endpoint = `/graphql?shop=${variables.shop}`;
+    endpoint += `?shop=${variables.shop}`;
   }
 
   const response = await fetch(endpoint, {
