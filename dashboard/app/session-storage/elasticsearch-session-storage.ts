@@ -4,7 +4,7 @@
  * Also saves to context API for quick access token retrieval
  */
 
-import type { Session } from "@shopify/shopify-app-react-router/server";
+import { Session } from "@shopify/shopify-app-react-router/server";
 import { graphqlRequest } from "app/graphql.server";
 import { extractShopifyDomain } from "app/utils/extract-shopify-domain";
 import { createModuleLogger } from "app/utils/logger";
@@ -20,7 +20,7 @@ function sessionToShopDocument(session: Session): any {
     accessToken: session.accessToken,
     refreshToken: (session as any).refreshToken || undefined,
     scopes: session.scope ? session.scope.split(',') : [],
-    isActive: true,
+    // isActive: session.isActive,
     lastAccessed: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     // Session fields
@@ -56,7 +56,7 @@ function shopDocumentToSession(shopData: any): Session | null {
     scope: shopData.scope || (shopData.scopes ? shopData.scopes.join(',') : ''),
     expires: shopData.expires ? new Date(shopData.expires) : undefined,
     accessToken: shopData.accessToken,
-    ...(shopData.refreshToken && { refreshToken: shopData.refreshToken }),
+    ...(shopData.refreshToken && { refreshToken: shopData.refreshToken })
   };
 
   // Add online access info if available
@@ -236,7 +236,8 @@ export class ElasticsearchSessionStorage {
         return;
       }
 
-      logger.log('Session loaded successfully', { shop, sessionId: session.id });
+      logger.log('Session loaded successfully', { shop, sessionId: session.id, session });
+      
       return session;
     } catch (error: any) {
       logger.error('Error loading session', shop, { error: error?.message || error }, error);
