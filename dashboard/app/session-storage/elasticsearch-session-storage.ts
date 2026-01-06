@@ -6,6 +6,7 @@
 
 import type { Session } from "@shopify/shopify-app-react-router/server";
 import { graphqlRequest } from "app/graphql.server";
+import { extractShopifyDomain } from "app/utils/extract-shopify-domain";
 import { createModuleLogger } from "app/utils/logger";
 
 const logger = createModuleLogger("elasticsearch-session-storage");
@@ -15,7 +16,7 @@ const logger = createModuleLogger("elasticsearch-session-storage");
  */
 function sessionToShopDocument(session: Session): any {
   return {
-    shop: session.shop,
+    shop: extractShopifyDomain(session.shop),
     accessToken: session.accessToken,
     refreshToken: (session as any).refreshToken || undefined,
     scopes: session.scope ? session.scope.split(',') : [],
@@ -162,7 +163,7 @@ export class ElasticsearchSessionStorage {
 
       const variables = {
         input: shopDocument,
-        shop: session.shop
+        shop: extractShopifyDomain(session.shop)
       };
 
       await graphqlRequest(mutation, variables);
@@ -219,7 +220,7 @@ export class ElasticsearchSessionStorage {
         }
       `;
 
-      const variables = { domain: shop, shop };
+      const variables = { domain: extractShopifyDomain(shop), shop: extractShopifyDomain(shop) };
 
       const data = await graphqlRequest(query, variables);
 
