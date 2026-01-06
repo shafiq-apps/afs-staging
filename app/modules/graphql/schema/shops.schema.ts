@@ -25,7 +25,6 @@ export const shopsSchema = `
   type Shop {
     shop: String!
     installedAt: String
-    isActive: Boolean
     scopes: [String!]
     accessToken: String
     refreshToken: String
@@ -59,7 +58,6 @@ export const shopsSchema = `
     accessToken: String
     refreshToken: String
     installedAt: String
-    isActive: Boolean
     scopes: [String!]
     lastAccessed: String
     updatedAt: String
@@ -85,7 +83,6 @@ export const shopsSchema = `
     accessToken: String
     refreshToken: String
     installedAt: String
-    isActive: Boolean
     scopes: [String!]
     lastAccessed: String
     uninstalledAt: String
