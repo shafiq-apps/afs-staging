@@ -7,6 +7,7 @@
 
 import { $, AFSW, Icons, Lang, Log, Product, ProductModalElement, ProductVariant, QuickAdd, SpecialValue, State } from './collections-main';
 import { waitForElement, waitForElements } from './utils/dom-ready';
+import { findMatchingVariants, getSelectedOptions, isOptionValueAvailable } from './utils/variant-util';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -1128,44 +1129,44 @@ function setupModalHandlers(
     btn.addEventListener('click', () => {
       if (btn.disabled) return;
 
-      // Get selected values for all options
-      const selectedValues: string[] = [];
-      if (product.options) {
-        product.options.forEach((option, optionIndex) => {
-          const selectedBtn = dialog.querySelector<HTMLButtonElement>(
-            `.afs-product-modal__option-value[data-option-index="${optionIndex}"].afs-product-modal__option-value--selected`
-          );
-          if (selectedBtn) {
-            selectedValues[optionIndex] = selectedBtn.dataset.optionValue || '';
-          }
-        });
-      }
+      const optionIndex = Number(btn.dataset.optionIndex);
+      const optionValue = btn.dataset.optionValue!;
+      const selected = getSelectedOptions(dialog, product.options!.length);
 
-      // Update clicked option
-      const optionIndex = parseInt(btn.dataset.optionIndex || '0', 10);
-      selectedValues[optionIndex] = btn.dataset.optionValue || '';
+      // Update selected value
+      selected[optionIndex] = optionValue;
 
-      // Remove selected from all options in this group
-      dialog.querySelectorAll<HTMLButtonElement>(`.afs-product-modal__option-value[data-option-index="${optionIndex}"]`).forEach(b => {
-        b.classList.remove('afs-product-modal__option-value--selected');
-      });
+      // Update UI selection
+      dialog.querySelectorAll<HTMLButtonElement>(
+        `.afs-product-modal__option-value[data-option-index="${optionIndex}"]`
+      ).forEach(b => b.classList.remove('afs-product-modal__option-value--selected'));
+
       btn.classList.add('afs-product-modal__option-value--selected');
 
-      // Find matching variant
-      const matchingVariant = product.variants?.find(v => {
-        if (!product.options) return false;
-        return product.options.every((option, idx) => {
-          if (idx === 0) return v.option1 === selectedValues[idx];
-          if (idx === 1) return v.option2 === selectedValues[idx];
-          return v.option3 === selectedValues[idx];
-        });
-      });
+      // Recalculate availability for ALL buttons
+      dialog.querySelectorAll<HTMLButtonElement>('.afs-product-modal__option-value')
+        .forEach(b => {
+          const idx = Number(b.dataset.optionIndex);
+          const val = b.dataset.optionValue!;
+          const available = isOptionValueAvailable(product, idx, val, selected);
 
-      if (matchingVariant) {
-        updateVariantInModal(dialog, modalId, matchingVariant, formatPrice);
+          b.disabled = !available;
+          b.classList.toggle(
+            'afs-product-modal__option-value--unavailable',
+            !available
+          );
+        });
+
+      // Resolve final variant
+      const matches = findMatchingVariants(product.variants!, selected);
+      const availableVariant = matches.find(v => v.available);
+
+      if (availableVariant) {
+        updateVariantInModal(dialog, modalId, availableVariant, formatPrice);
       }
     });
   });
+
 
   // Add to cart button
   const addButton = dialog.querySelector<HTMLButtonElement>(`#${modalId}-add-button`);

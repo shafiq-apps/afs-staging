@@ -181,6 +181,7 @@
         height: 100vh !important;
         z-index: $z-index-modal !important;
         transform: translateX(0) !important;
+        padding: 20px;
 
         .afs-mobile-filter-close {
           display: flex !important;
