@@ -1322,6 +1322,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                                 <s-select
                                   value={option.optionType}
                                   onChange={(e: any) => handleUpdateOption(option.handle, "optionType", e.target.value)}
+                                  labelAccessibilityVisibility="visible"
                                 >
                                   {getFilterTypes().map((type) => (
                                     <s-option key={type} value={type}>
@@ -1409,6 +1410,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                                               label="Display Style"
                                               value="range"
                                               disabled
+                                              labelAccessibilityVisibility="visible"
                                             >
                                               <s-option value="range">Range (Price Slider)</s-option>
                                             </s-select>
@@ -1526,6 +1528,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                                             label="Text Case"
                                             value={option.textTransform}
                                             onChange={(e: any) => handleUpdateOption(option.handle, "textTransform", e.target.value)}
+                                            labelAccessibilityVisibility="visible"
                                           >
                                             <s-option value="none">Normal (No change)</s-option>
                                             <s-option value="uppercase">UPPERCASE</s-option>
@@ -1806,6 +1809,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                           label="Default Sort Order"
                           value={defaultSort}
                           onChange={(e: any) => updateFilterState({ defaultSort: e.target.value })}
+                          labelAccessibilityVisibility="visible"
                         >
                           <s-option value="relevance">Relevance</s-option>
                           <s-option value="price-asc">Price: Low to High</s-option>
