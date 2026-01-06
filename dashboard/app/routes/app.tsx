@@ -3,14 +3,12 @@ import { Outlet, useLoaderData, useRouteError, useLocation, useNavigate } from "
 import { useEffect } from "react";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { AppProvider } from "@shopify/shopify-app-react-router/react";
-
 import { authenticate } from "../shopify.server";
 import { ShopProvider, type ShopLocaleData } from "../contexts/ShopContext";
 import { useTranslation } from "app/utils/translations";
 import { graphqlRequest } from "app/graphql.server";
 import { AppSubscriptionStatus, ShopifyActiveSubscriptions, Subscription } from "app/types/Subscriptions";
 import { FETCH_CURRENT_SUBSCRIPTION } from "app/graphql/subscriptions.query";
-import { isTrue } from "app/utils/equal";
 import { UPDATE_SUBSCRIPTION_STATUS_MUTATION } from "app/graphql/subscriptions.mutation";
 
 const SHOP_DATA_CACHE_KEY = "shop_locale_data";
@@ -95,8 +93,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       const result = await response.json();
 
       if (result?.data) {
-        const primaryLocale =
-          result.data.shopLocales?.find((l: any) => l.primary)?.locale ?? "en";
+        const primaryLocale = result.data.shopLocales?.find((l: any) => l.primary)?.locale ?? "en";
 
         shopData = {
           ianaTimezone: result.data.shop?.ianaTimezone ?? "UTC",
@@ -174,7 +171,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         });
 
         // Correct refetch (overwrite previous result)
-        subscriptionResult = await graphqlRequest<{ subscription: Subscription; }>(FETCH_CURRENT_SUBSCRIPTION, { shop }).catch(e =>{
+        subscriptionResult = await graphqlRequest<{ subscription: Subscription; }>(FETCH_CURRENT_SUBSCRIPTION, { shop }).catch(e => {
           return {
             subscription: null
           }
@@ -206,6 +203,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
 export default function App() {
   const { apiKey, shopData, subscription, activeSubscriptions } = useLoaderData<typeof loader>();
+
+  console.log(shopData, subscription, activeSubscriptions);
 
   const location = useLocation();
   const navigate = useNavigate();
