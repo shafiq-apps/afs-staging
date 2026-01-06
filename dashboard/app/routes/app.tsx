@@ -62,6 +62,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     await shopSessionStorage.storeSession(session);
   }
 
+  console.log("session", JSON.stringify(session, null, 4));
+
   const apiKey = process.env.SHOPIFY_API_KEY ?? "";
 
   const shop = session?.shop ?? "";
