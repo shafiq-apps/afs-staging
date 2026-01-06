@@ -31,11 +31,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     try {
 
       if (app_subscription && app_subscription.admin_graphql_api_id && app_subscription.status === "ACTIVE") {
-        const result = await graphqlRequest(UPDATE_SUBSCRIPTION_STATUS_MUTATION, { id: app_subscription.admin_graphql_api_id, shop });
-        console.log("GraphQL response for app_subscription update:", result);
-      }
-      else{
-        console.log("Subscription Invalid:", app_subscription);
+        await graphqlRequest(UPDATE_SUBSCRIPTION_STATUS_MUTATION, { id: app_subscription.admin_graphql_api_id, shop });
       }
 
     } catch (graphqlError: any) {

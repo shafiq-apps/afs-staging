@@ -22,11 +22,7 @@ export async function graphqlRequest<T = any>(
     body: JSON.stringify({ query, variables }),
   });
 
-  console.log("req:data", JSON.stringify({ query, variables }, null, 4));
-
   const result = await response.json().catch(() => ({}));
-
-  console.log("result", result);
 
   if (result.errors?.length) {
     throw new Error(result.errors[0].message || "GraphQL error");

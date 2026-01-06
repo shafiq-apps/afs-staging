@@ -19,8 +19,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   try {
     const { shop, topic, payload } = await authenticate.webhook(request);
 
-    console.log("payload", payload);
-
     // Return 200 OK immediately (async processing)
     return new Response(JSON.stringify({ success: true, shop, topic }), {
       status: 200,

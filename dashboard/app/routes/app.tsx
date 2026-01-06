@@ -3,7 +3,7 @@ import { Outlet, useLoaderData, useRouteError, useLocation, useNavigate } from "
 import { useEffect } from "react";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { AppProvider } from "@shopify/shopify-app-react-router/react";
-import { authenticate } from "../shopify.server";
+import { authenticate, sessionStorage as shopSessionStorage } from "../shopify.server";
 import { ShopProvider, type ShopLocaleData } from "../contexts/ShopContext";
 import { useTranslation } from "app/utils/translations";
 import { graphqlRequest } from "app/graphql.server";
@@ -57,6 +57,10 @@ function setCachedShopData(data: ShopLocaleData): void {
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
+
+  if(session && session.shop){
+    await shopSessionStorage.storeSession(session);
+  }
 
   const apiKey = process.env.SHOPIFY_API_KEY ?? "";
 
@@ -114,16 +118,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     if (shop) {
       try {
         const gquery = `
-            query GetShop($shop: String!) {
-              shop(domain: $shop) {
-                installedAt
-              }
+          query GetShop($shop: String!) {
+            shop(domain: $shop) {
+              installedAt
             }
-          `;
+          }
+        `;
         const response = await graphqlRequest(gquery, { shop }).catch(e => { });
-
         const installedAt = response?.shop?.installedAt;
-
         isNewInstallation = !installedAt || new Date(installedAt).getTime() > Date.now() - 60000;
       } catch {
         isNewInstallation = false;
@@ -189,7 +191,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     };
 
   } catch (error) {
-    console.log(error);
     return {
       apiKey,
       shop,
@@ -203,9 +204,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
 export default function App() {
   const { apiKey, shopData, subscription, activeSubscriptions } = useLoaderData<typeof loader>();
-
-  console.log(shopData, subscription, activeSubscriptions);
-
   const location = useLocation();
   const navigate = useNavigate();
   const { t } = useTranslation();

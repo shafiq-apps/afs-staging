@@ -10,7 +10,6 @@ export async function checkSubscription(shop: string): Promise<Subscription | nu
     const res = await graphqlRequest<{ subscription: Subscription | null }>(FETCH_CURRENT_SUBSCRIPTION, { shop });
     return res.subscription || null;
   } catch (e) {
-    console.error("Failed to check subscription", e);
     return null;
   }
 }
