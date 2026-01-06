@@ -95,6 +95,13 @@ function shopDocumentToSession(shopData: any): Session | null {
  */
 async function graphqlRequest(query: string, variables?: any): Promise<any> {
   try {
+
+    logger.info({
+      endpoint: GRAPHQL_ENDPOINT,
+      query: JSON.stringify(query, null, 4),
+      variables: JSON.stringify(variables, null, 4)
+    });
+
     const response = await fetch(GRAPHQL_ENDPOINT, {
       method: 'POST',
       headers: {
@@ -106,9 +113,8 @@ async function graphqlRequest(query: string, variables?: any): Promise<any> {
       }),
     });
 
-    if (!response.ok) {
-      throw new Error(`GraphQL request failed: ${response.statusText}`);
-    }
+    logger.log(response);
+
 
     const result = await response.json();
 
