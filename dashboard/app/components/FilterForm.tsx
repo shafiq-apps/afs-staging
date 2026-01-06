@@ -1344,6 +1344,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                                 tone="critical"
                                 onClick={() => handleDeleteOption(option.handle)}
                                 icon="delete"
+                                accessibilityLabel="Delete"
                               />
                             </div>
 

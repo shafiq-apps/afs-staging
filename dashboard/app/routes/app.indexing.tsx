@@ -672,6 +672,7 @@ export default function IndexingPage() {
                               return newSet;
                             });
                           }}
+                          accessibilityLabel={faq.question}
                         />
                         <div style={{ flexGrow: 1, cursor: 'pointer' }}
                           onClick={() => {

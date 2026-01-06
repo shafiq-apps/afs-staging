@@ -112,12 +112,14 @@ export function MenuTreeBuilder({
             variant="tertiary"
             onClick={() => addChildNode(node.id)}
             icon="plus"
+            accessibilityLabel="Add"
           />
           <s-button
             variant="tertiary"
             tone="critical"
             onClick={() => removeNode(node.id)}
             icon="delete"
+            accessibilityLabel="Delete"
           />
         </div>
         {hasChildren && isExpanded && (
