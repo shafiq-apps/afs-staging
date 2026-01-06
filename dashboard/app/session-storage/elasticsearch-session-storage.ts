@@ -183,17 +183,15 @@ const localCache = new LocalSessionCache();
 /**
  * Elasticsearch Session Storage
  * Implements Shopify SessionStorage interface
- */
+*/
 export class ElasticsearchSessionStorage {
   /**
    * Store a session
-   */
+  */
   async storeSession(session: Session): Promise<boolean> {
     try {
       logger.log('Storing session', { shop: session.shop, sessionId: session.id });
-
       const shopDocument = sessionToShopDocument(session);
-
       // Use createShop mutation (upsert behavior)
       const mutation = `
         mutation CreateShop($input: CreateShopInput!) {

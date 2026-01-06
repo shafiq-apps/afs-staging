@@ -58,10 +58,6 @@ function setCachedShopData(data: ShopLocaleData): void {
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
 
-  if(session && session.shop){
-    await shopSessionStorage.storeSession(session);
-  }
-
   console.log("session", JSON.stringify(session, null, 4));
 
   const apiKey = process.env.SHOPIFY_API_KEY ?? "";
@@ -111,6 +107,32 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           shopName: result.data.shop?.name,
           myshopifyDomain: result.data.shop?.myshopifyDomain,
         };
+
+        const shopInfo = result.data;
+
+        if(session && session.shop){
+          const sessionData = {
+              installedAt: shopInfo.shop,
+              scopes: shopInfo.shop,
+              lastAccessed: shopInfo.shop,
+              updatedAt: shopInfo.shop,
+              metadata: shopInfo.shop,
+              locals: shopInfo.shop,
+              sessionId: shopInfo.shop,
+              scope: shopInfo.shop,
+              expires: shopInfo.shop,
+              userId: shopInfo.shop,
+              firstName: shopInfo.shop,
+              lastName: shopInfo.shop,
+              email: shopInfo.shop,
+              accountOwner: shopInfo.shop,
+              locale: shopInfo.shop,
+              collaborator: shopInfo.shop,
+              emailVerified: Boolean,
+            ...session
+          };
+          await shopSessionStorage.storeSession(sessionData as any);
+        }
       }
     } catch {
       // Fail silently — defaults will be used

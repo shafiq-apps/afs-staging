@@ -15,9 +15,16 @@ const shopify = shopifyApp({
   authPathPrefix: "/auth",
   sessionStorage: new ElasticsearchSessionStorage(),
   distribution: AppDistribution.AppStore,
+  useOnlineTokens: true,
   ...(process.env.SHOP_CUSTOM_DOMAIN
     ? { customShopDomains: [process.env.SHOP_CUSTOM_DOMAIN] }
     : {}),
+  hooks: {
+    afterAuth({admin, session}) {
+      console.log("ADMIN", admin);
+      console.log("SESSION", session);
+    }
+  }
 });
 
 export default shopify;
