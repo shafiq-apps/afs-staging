@@ -1,3 +1,4 @@
+import { extractShopifyDomain } from "./utils/extract-shopify-domain";
 import { createModuleLogger } from "./utils/logger";
 
 const logger = createModuleLogger("graphql.server");
@@ -11,7 +12,7 @@ export async function graphqlRequest<T = any>(
   let endpoint = (process.env.SHOPIFY_APP_URL && process.env.SHOPIFY_APP_URL + GRAPHQL_ENDPOINT) || "https://fstaging.digitalcoo.com/graphql";
 
   if (variables?.shop) {
-    endpoint += `?shop=${variables.shop}`;
+    endpoint += `?shop=${extractShopifyDomain(variables.shop)}`;
   }
 
   logger.info("fetching data from graphql endpoint",endpoint);
