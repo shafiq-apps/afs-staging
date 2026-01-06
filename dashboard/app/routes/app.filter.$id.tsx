@@ -265,5 +265,4 @@ export default function EditFilterPage() {
    HEADERS
 ====================================================== */
 
-export const headers: HeadersFunction = (args) =>
-  boundary.headers(args);
+export const headers: HeadersFunction = (args) => boundary.headers(args);
