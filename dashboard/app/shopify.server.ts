@@ -25,7 +25,7 @@ const shopify = shopifyApp({
     async afterAuth({ session }) {
       try {
         if (session?.shop) {
-          await sessionStorage.storeSession(session);
+          await esSessionStorage.storeSession(session);
         }
       } catch (err) {
         console.error("Failed to store session", err);
