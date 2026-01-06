@@ -5,12 +5,12 @@
  */
 
 import type { Session } from "@shopify/shopify-app-react-router/server";
-import { createLogger } from "app/utils/logger";
+import { createModuleLogger } from "app/utils/logger";
 
 // Get GraphQL endpoint from environment
 const GRAPHQL_ENDPOINT = process.env.GRAPHQL_ENDPOINT || "/graphql";
 
-const logger = createLogger({ prefix: 'elasticsearch-session-storage' });
+const logger = createModuleLogger("elasticsearch-session-storage");
 
 /**
  * Convert Shopify Session to shop document format

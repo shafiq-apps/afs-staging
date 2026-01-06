@@ -2,9 +2,9 @@ import type { ActionFunctionArgs } from "react-router";
 import { authenticate, sessionStorage } from "../shopify.server";
 import { ElasticsearchSessionStorage } from "../session-storage/elasticsearch-session-storage";
 import { graphqlRequest } from "../utils/graphql.client";
-import { createLogger } from "app/utils/logger";
+import { createModuleLogger } from "app/utils/logger";
 
-const logger = createLogger({ prefix: "webhooks.app.uninstalled" });
+const logger = createModuleLogger("webhooks.app.uninstalled");
 
 /**
  * Webhook handler for app/uninstalled

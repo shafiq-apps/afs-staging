@@ -1,9 +1,9 @@
 import type { ActionFunctionArgs } from "react-router";
 import { authenticate } from "../shopify.server";
 import { graphqlRequest } from "../utils/graphql.client";
-import { createLogger } from "app/utils/logger";
+import { createModuleLogger } from "app/utils/logger";
 
-const logger = createLogger({ prefix: "webhooks.products.delete" });
+const logger = createModuleLogger("webhooks.products.delete");
 
 /**
  * Webhook handler for products/delete
