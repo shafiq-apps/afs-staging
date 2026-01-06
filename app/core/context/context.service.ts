@@ -13,7 +13,6 @@ export interface ShopContext {
   shop: string;
   accessToken: string;
   refreshToken?: string;
-  isActive: boolean;
   scopes?: string[];
   installedAt?: string;
   lastAccessed?: string;
@@ -103,8 +102,7 @@ class ContextService {
       this.setShopContext({
         shop,
         accessToken,
-        refreshToken,
-        isActive: true,
+        refreshToken
       });
       logger.info('New context created with access token', { shop });
     }
@@ -127,7 +125,6 @@ class ContextService {
       shop: shopData.shop || shop,
       accessToken: accessToken || shopData.accessToken || '',
       refreshToken: refreshToken || shopData.refreshToken,
-      isActive: shopData.isActive !== false,
       scopes: shopData.scopes,
       installedAt: shopData.installedAt,
       lastAccessed: shopData.lastAccessed,

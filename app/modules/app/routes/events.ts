@@ -76,7 +76,6 @@ export const POST = handler(async (req: HttpRequest) => {
       } else {
         // Update existing shop - use updateShop() to preserve existing data
         const updateData = {
-          isActive: true,
           lastAccessed: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
           // Update tokens if provided
@@ -101,7 +100,6 @@ export const POST = handler(async (req: HttpRequest) => {
 
       logger.info(`Shop saved successfully: ${shop}`, { 
         shop: savedShop.shop,
-        isActive: savedShop.isActive,
         installedAt: savedShop.installedAt,
         isNewInstallation,
       });
@@ -195,7 +193,6 @@ export const POST = handler(async (req: HttpRequest) => {
         shop,
         data: {
           shop: savedShop.shop,
-          isActive: savedShop.isActive,
           installedAt: savedShop.installedAt,
         },
       };
@@ -219,7 +216,6 @@ export const POST = handler(async (req: HttpRequest) => {
           shop,
           data: {
             shop: shop,
-            isActive: false,
             uninstalledAt: new Date().toISOString(),
             cleanupResults,
           },
