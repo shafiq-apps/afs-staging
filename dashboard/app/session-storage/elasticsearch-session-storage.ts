@@ -17,7 +17,7 @@ const logger = {
 };
 
 // Get GraphQL endpoint from environment
-const GRAPHQL_ENDPOINT = process.env.GRAPHQL_ENDPOINT || "http://localhost:3554/graphql";
+const GRAPHQL_ENDPOINT = process.env.GRAPHQL_ENDPOINT || "/graphql";
 
 /**
  * Convert Shopify Session to shop document format

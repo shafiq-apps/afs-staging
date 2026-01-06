@@ -19,7 +19,7 @@ import { graphqlRequest } from "app/graphql.server";
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
 
-  const GRAPHQL_ENDPOINT = process.env.GRAPHQL_ENDPOINT ?? "http://localhost:3554/graphql";
+  const GRAPHQL_ENDPOINT = process.env.GRAPHQL_ENDPOINT ?? "/graphql";
 
   const shop = session.shop;
 

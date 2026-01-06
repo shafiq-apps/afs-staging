@@ -36,9 +36,6 @@ interface IndexingStatus {
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
 
-  // GraphQL endpoint URL - server-side only
-  const GRAPHQL_ENDPOINT = process.env.GRAPHQL_ENDPOINT || "http://localhost:3554/graphql";
-
   try {
     // Get shop from session
     const shop = session?.shop || "";
