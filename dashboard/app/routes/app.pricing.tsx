@@ -211,7 +211,7 @@ export default function PricingPage() {
                               gap="small"
                               alignItems="center"
                             >
-                              <s-icon tone="success" />
+                              <s-icon tone="success" type="check"/>
                               <s-text tone="auto">{line}</s-text>
                             </s-stack>
                           ))}
