@@ -216,25 +216,21 @@ export default function FiltersPage() {
         }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        shopify.toast.show(errorData.error || "Failed to delete filter", { isError: true });
-      } else {
-        const result = await response.json();
-        if (result.error || (result.errors && result.errors.length > 0)) {
-          shopify.toast.show(result.error || result.errors?.[0]?.message || "Failed to delete filter", { isError: true });
-        } else {
-          shopify.toast.show("Filter deleted successfully");
-          // Remove filter from list
-          setFilters(filters.filter(f => f.id !== filterToDelete.id));
-          // Close modal
-          const modal = document.getElementById("delete-modal") as any;
-          if (modal && typeof modal.hide === 'function') {
-            modal.hide();
-          }
-          setDeleteModalOpen(false);
-          setFilterToDelete(null);
+      const result = await response.json();
+      if (result.error || (result.errors && result.errors.length > 0)) {
+        shopify.toast.show(result.error || result.errors?.[0]?.message || "Failed to delete filter", { isError: true });
+      }
+      else {
+        shopify.toast.show("Filter deleted successfully");
+        // Remove filter from list
+        setFilters(filters.filter(f => f.id !== filterToDelete.id));
+        // Close modal
+        const modal = document.getElementById("delete-modal") as any;
+        if (modal && typeof modal.hide === 'function') {
+          modal.hide();
         }
+        setDeleteModalOpen(false);
+        setFilterToDelete(null);
       }
     } catch (error: any) {
       shopify.toast.show(error.message || "Failed to delete filter", { isError: true });
@@ -283,8 +279,6 @@ export default function FiltersPage() {
 
   return (
     <s-page key={`filters-${location.pathname}`} heading={t("filters.pageTitle")} data-page-id="filters">
-      
-
       {error && (
         <s-section>
           <s-banner tone="critical">
@@ -292,7 +286,6 @@ export default function FiltersPage() {
           </s-banner>
         </s-section>
       )}
-
       {filters.length === 0 && !error ? (
         <s-section>
           <s-grid gap="base" justifyItems="center" paddingBlock="large-400">
@@ -337,62 +330,62 @@ export default function FiltersPage() {
       ) : (
         <s-stack rowGap="base">
           {actionButton}
-        <s-section padding="none">
-          <s-table>
-            <s-table-header-row>
-              <s-table-header listSlot="primary">{t("filters.table.title")}</s-table-header>
-              <s-table-header>{t("filters.table.status")}</s-table-header>
-              <s-table-header>{t("filters.table.collectionDisplay")}</s-table-header>
-              <s-table-header>{t("filters.table.actions")}</s-table-header>
-            </s-table-header-row>
-            <s-table-body>
-              {filters.map((filter) => (
-                <s-table-row key={filter.id}>
-                  <s-table-cell>
-                    <strong>{filter.title}</strong>
-                  </s-table-cell>
-                  <s-table-cell>
-                    {filter.status && (
-                      <s-badge
-                        tone={filter.status === "PUBLISHED" ? "success" : "warning"}
-                      >
-                        {filter.status === "PUBLISHED" ? "Published" : "Unpublished"}
-                      </s-badge>
-                    )}
-                  </s-table-cell>
-                  <s-table-cell>
-                    <s-text tone="auto">{getCollectionDisplay(filter)}</s-text>
-                  </s-table-cell>
-                  <s-table-cell>
-                    <s-stack direction="inline" gap="small">
-                      <s-button
-                        variant="secondary"
-                        onClick={() => handleEditClick(filter.id)}
-                        icon="edit"
-                        accessibilityLabel={t("filters.table.edit")}
-                      >
-                        {t("filters.table.edit")}
-                      </s-button>
-                      <s-button
-                        variant="secondary"
-                        tone="critical"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          handleDeleteClick(filter);
-                        }}
-                        icon="delete"
-                        accessibilityLabel={t("filters.table.delete")}
-                      >
-                        {t("filters.table.delete")}
-                      </s-button>
-                    </s-stack>
-                  </s-table-cell>
-                </s-table-row>
-              ))}
-            </s-table-body>
-          </s-table>
-        </s-section>
+          <s-section padding="none">
+            <s-table variant="auto" loading={!filters || filters?.length === 0}>
+              <s-table-header-row>
+                <s-table-header listSlot="primary">{t("filters.table.title")}</s-table-header>
+                <s-table-header>{t("filters.table.status")}</s-table-header>
+                <s-table-header>{t("filters.table.collectionDisplay")}</s-table-header>
+                <s-table-header>{t("filters.table.actions")}</s-table-header>
+              </s-table-header-row>
+              <s-table-body>
+                {filters.map((filter) => (
+                  <s-table-row key={filter.id}>
+                    <s-table-cell>
+                      <strong>{filter.title}</strong>
+                    </s-table-cell>
+                    <s-table-cell>
+                      {filter.status && (
+                        <s-badge
+                          tone={filter.status === "PUBLISHED" ? "success" : "warning"}
+                        >
+                          {filter.status === "PUBLISHED" ? "Published" : "Unpublished"}
+                        </s-badge>
+                      )}
+                    </s-table-cell>
+                    <s-table-cell>
+                      <s-text tone="auto">{getCollectionDisplay(filter)}</s-text>
+                    </s-table-cell>
+                    <s-table-cell>
+                      <s-stack direction="inline" gap="small">
+                        <s-button
+                          variant="secondary"
+                          onClick={() => handleEditClick(filter.id)}
+                          icon="edit"
+                          accessibilityLabel={t("filters.table.edit")}
+                        >
+                          {t("filters.table.edit")}
+                        </s-button>
+                        <s-button
+                          variant="secondary"
+                          tone="critical"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleDeleteClick(filter);
+                          }}
+                          icon="delete"
+                          accessibilityLabel={t("filters.table.delete")}
+                        >
+                          {t("filters.table.delete")}
+                        </s-button>
+                      </s-stack>
+                    </s-table-cell>
+                  </s-table-row>
+                ))}
+              </s-table-body>
+            </s-table>
+          </s-section>
         </s-stack>
       )}
 

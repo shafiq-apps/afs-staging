@@ -33,6 +33,7 @@ export function AllowedOptionsSelector({
           </span>
         </div>
         <s-text-field
+          label="Search values"
           placeholder="Search values..."
           value={searchTerm}
           onChange={(e: any) => setSearchTerm(e.target.value)}

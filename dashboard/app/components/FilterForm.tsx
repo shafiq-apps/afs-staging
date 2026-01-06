@@ -1312,6 +1312,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                               />
                               <div style={{ flex: 1 }}>
                                 <s-text-field
+                                  label="Filter label"
                                   value={option.label}
                                   onChange={(e: any) => handleUpdateOption(option.handle, "label", e.target.value)}
                                   placeholder="Filter label"
@@ -1320,6 +1321,7 @@ const FilterForm = forwardRef<FilterFormHandle, FilterFormProps>(function Filter
                               </div>
                               <div style={{ flex: 1, minWidth: "200px" }}>
                                 <s-select
+                                  label="optionType"
                                   value={option.optionType}
                                   onChange={(e: any) => handleUpdateOption(option.handle, "optionType", e.target.value)}
                                   labelAccessibilityVisibility="exclusive"
