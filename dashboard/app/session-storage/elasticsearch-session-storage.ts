@@ -5,6 +5,7 @@
  */
 
 import type { Session } from "@shopify/shopify-app-react-router/server";
+import { graphqlRequest } from "app/graphql.server";
 import { createModuleLogger } from "app/utils/logger";
 
 // Get GraphQL endpoint from environment
@@ -88,46 +89,6 @@ function shopDocumentToSession(shopData: any): Session | null {
   }
 
   return session;
-}
-
-/**
- * Make GraphQL request
- */
-async function graphqlRequest(query: string, variables?: any): Promise<any> {
-  try {
-
-    logger.info({
-      endpoint: GRAPHQL_ENDPOINT,
-      query: JSON.stringify(query, null, 4),
-      variables: JSON.stringify(variables, null, 4)
-    });
-
-    const response = await fetch(GRAPHQL_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        query,
-        variables,
-      }),
-    });
-
-    logger.log(response);
-
-
-    const result = await response.json();
-
-    if (result.errors) {
-      logger.error('GraphQL errors', { errors: result.errors });
-      throw new Error(`GraphQL errors: ${JSON.stringify(result.errors)}`);
-    }
-
-    return result.data;
-  } catch (error: any) {
-    logger.error('GraphQL request error', { error: error?.message || error });
-    throw error;
-  }
 }
 
 /**

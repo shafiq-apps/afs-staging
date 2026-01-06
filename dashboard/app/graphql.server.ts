@@ -8,10 +8,10 @@ export async function graphqlRequest<T = any>(
   query: string,
   variables?: Record<string, any>
 ): Promise<T> {
-  let endpoint = GRAPHQL_ENDPOINT;
+  let endpoint = "/graphql";
 
   if (variables?.shop) {
-    endpoint = graphqlEndpointWithShop(variables.shop);
+    endpoint = `/graphql?shop=${variables.shop}`;
   }
 
   const response = await fetch(endpoint, {

@@ -1,7 +1,7 @@
 import type { ActionFunctionArgs } from "react-router";
 import { authenticate } from "../shopify.server";
-import { graphqlRequest } from "../utils/graphql.client";
 import { createModuleLogger } from "app/utils/logger";
+import { graphqlRequest } from "app/graphql.server";
 
 const logger = createModuleLogger("webhooks.collection.update");
 

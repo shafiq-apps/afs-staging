@@ -1,8 +1,8 @@
 import type { ActionFunctionArgs } from "react-router";
 import { authenticate, sessionStorage } from "../shopify.server";
 import { ElasticsearchSessionStorage } from "../session-storage/elasticsearch-session-storage";
-import { graphqlRequest } from "../utils/graphql.client";
 import { createModuleLogger } from "app/utils/logger";
+import { graphqlRequest } from "app/graphql.server";
 
 const logger = createModuleLogger("webhooks.app.uninstalled");
 
