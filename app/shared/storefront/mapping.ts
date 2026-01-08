@@ -30,9 +30,14 @@ export const PRODUCT_MAPPING = {
       },
     },
     tags: {
-      type: 'keyword', // Direct keyword type for array fields (matches old app)
-      eager_global_ordinals: true, // Faster aggregations on arrays
-      norms: false,
+      type: 'text', // Changed to text to support phrase prefix queries
+      fields: {
+        keyword: {
+          type: 'keyword', // For exact matching and aggregations
+          eager_global_ordinals: true, // Faster aggregations on arrays
+          norms: false,
+        },
+      },
     },
     collections: {
       type: 'keyword', // Direct keyword type for array fields (matches old app)
@@ -88,10 +93,30 @@ export const PRODUCT_MAPPING = {
       type: 'nested',
       properties: {
         id: { type: 'keyword' },
-        title: { type: 'text' },
-        displayName: { type: 'text' },
-        sku: { type: 'keyword' },
-        barcode: { type: 'keyword' },
+        title: { 
+          type: 'text',
+          fields: {
+            keyword: { type: 'keyword' }, // For exact matching
+          },
+        },
+        displayName: { 
+          type: 'text',
+          fields: {
+            keyword: { type: 'keyword' }, // For exact matching
+          },
+        },
+        sku: { 
+          type: 'text', // Changed to text to support phrase prefix queries
+          fields: {
+            keyword: { type: 'keyword' }, // For exact matching and aggregations
+          },
+        },
+        barcode: { 
+          type: 'text', // Changed to text to support phrase prefix queries
+          fields: {
+            keyword: { type: 'keyword' }, // For exact matching
+          },
+        },
         price: { 
           type: 'text',
           fields: {

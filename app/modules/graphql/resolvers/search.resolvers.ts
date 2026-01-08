@@ -11,9 +11,6 @@ import { createModuleLogger } from '@shared/utils/logger.util';
 
 const logger = createModuleLogger('search-resolvers');
 
-// Repository instance (initialized per request)
-let searchRepo: SearchRepository | null = null;
-
 function getESClient(context: GraphQLContext): any {
   const esClient = (context.req as any).esClient;
   if (!esClient) {
@@ -32,10 +29,8 @@ function getSearchRepository(context: GraphQLContext): SearchRepository {
     throw new Error('ES client not available in context');
   }
   
-  if (!searchRepo) {
-    searchRepo = new SearchRepository(esClient);
-  }
-  return searchRepo;
+  // Create new instance per request to avoid state sharing issues
+  return new SearchRepository(esClient);
 }
 
 export const searchResolvers = {

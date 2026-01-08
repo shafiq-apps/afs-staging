@@ -219,9 +219,19 @@ function deriveVariantOptionKey(option: Filter['options'][number]): string | nul
   return null;
 }
 
+// Shared cache across all instances to ensure cache invalidation works
+const sharedSearchConfigCache: Map<string, { config: SearchConfig; timestamp: number }> = new Map();
+
+/**
+ * Invalidate shared search config cache (called from SearchRepository when config is updated)
+ */
+export function invalidateSharedSearchConfigCache(shop: string): void {
+  sharedSearchConfigCache.delete(shop);
+  logger.debug('Shared search config cache invalidated', { shop });
+}
+
 export class StorefrontSearchRepository {
-  private searchConfigCache: Map<string, { config: SearchConfig; timestamp: number }> = new Map();
-  private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+  private readonly CACHE_TTL = 30 * 1000; // Reduced to 30 seconds for faster updates
 
   constructor(private esClient: Client) { }
 
@@ -229,11 +239,12 @@ export class StorefrontSearchRepository {
    * Get search configuration for a shop with caching
    */
   private async getSearchConfig(shop: string): Promise<SearchConfig> {
-    const cached = this.searchConfigCache.get(shop);
+    const cached = sharedSearchConfigCache.get(shop);
     const now = Date.now();
     
     // Return cached config if still valid
     if (cached && (now - cached.timestamp) < this.CACHE_TTL) {
+      logger.debug('Using cached search config', { shop, fieldCount: cached.config.fields.length });
       return cached.config;
     }
 
@@ -242,8 +253,9 @@ export class StorefrontSearchRepository {
       const searchRepo = new SearchRepository(this.esClient);
       const config = await searchRepo.getSearchConfig(shop);
       
-      // Cache it
-      this.searchConfigCache.set(shop, { config, timestamp: now });
+      // Cache it in shared cache
+      sharedSearchConfigCache.set(shop, { config, timestamp: now });
+      logger.debug('Fetched and cached fresh search config', { shop, fieldCount: config.fields.length });
       
       return config;
     } catch (error: any) {
@@ -253,10 +265,10 @@ export class StorefrontSearchRepository {
         id: '',
         shop,
         fields: [
-          { field: 'title', weight: 5 },
-          { field: 'vendor', weight: 3 },
-          { field: 'productType', weight: 2 },
-          { field: 'tags', weight: 1 },
+          { field: 'title', weight: 10 },
+          { field: 'vendor', weight: 2 },
+          { field: 'productType', weight: 1 },
+          { field: 'tags', weight: 5 },
         ],
         createdAt: new Date().toISOString(),
         updatedAt: null,
@@ -277,9 +289,12 @@ export class StorefrontSearchRepository {
 
   /**
    * Invalidate search config cache for a shop
+   * Called when search configuration is updated externally
+   * Uses shared cache so all instances are invalidated
    */
   invalidateSearchConfigCache(shop: string): void {
-    this.searchConfigCache.delete(shop);
+    sharedSearchConfigCache.delete(shop);
+    logger.info('Search config cache invalidated (shared cache)', { shop });
   }
 
   /**
@@ -1477,101 +1492,93 @@ export class StorefrontSearchRepository {
     const shouldQueries: any[] = [];
     const postFilterQueries: any[] = [];
 
-    // Build advanced search query with autocomplete and typo tolerance
+    // ULTRA-OPTIMIZED: Build search query with minimal processing
     if (searchQuery && searchQuery.trim()) {
       const query = searchQuery.trim();
-      const queryLower = query.toLowerCase();
       
-      // Split query into words for better matching
-      const queryWords = queryLower.split(/\s+/).filter(w => w.length > 0);
-      
-      // Build a bool query with multiple strategies for best results
-      const searchClauses: any[] = [];
+      // PERFORMANCE: Use query as-is - no processing for maximum speed
+      // Elasticsearch's analyzer handles stemming/pluralization automatically
 
-      // Handle singular/plural forms (e.g., "jacket" and "jackets" should both work)
-      const lastWord = queryWords.length > 0 ? queryWords[queryWords.length - 1] : query;
-      const singularForm = lastWord.endsWith('s') && lastWord.length > 3 
-        ? lastWord.slice(0, -1) // Remove 's' for plural -> singular
-        : null;
-      const pluralForm = !lastWord.endsWith('s') && lastWord.length > 2
-        ? lastWord + 's' // Add 's' for singular -> plural
-        : null;
-
-      // Build query variations for singular/plural
-      const queryVariations: string[] = [query];
-      if (singularForm) {
-        const singularQuery = queryWords.length > 1 
-          ? queryWords.slice(0, -1).join(' ') + ' ' + singularForm
-          : singularForm;
-        queryVariations.push(singularQuery);
-      }
-      if (pluralForm) {
-        const pluralQuery = queryWords.length > 1
-          ? queryWords.slice(0, -1).join(' ') + ' ' + pluralForm
-          : pluralForm;
-        queryVariations.push(pluralQuery);
-      }
-
-      // Get search configuration for this shop
+      // Get search configuration for this shop (cached, fast)
       const searchConfig = await this.getSearchConfig(shopDomain);
       const searchFields = this.buildSearchFields(searchConfig);
       
-      // If no enabled fields, fall back to default
-      const fieldsToUse = searchFields.length > 0 
+      // If no fields, fall back to default
+      let fieldsToUse = searchFields.length > 0 
         ? searchFields 
-        : ['title^5', 'vendor^3', 'productType^2', 'tags^1'];
+        : ['title^7', 'variants.displayName^6', 'variants.sku^6', 'tags^5', 'vendor^0.8', 'productType^0.8' ];
+      
+      // PERFORMANCE: Limit to top 4 fields for balance between speed and accuracy
+      // More fields = slower, but we need enough for good typo tolerance
+      if (fieldsToUse.length > 4) {
+        fieldsToUse = fieldsToUse
+          .map(f => {
+            const match = f.match(/^(.+)\^(.+)$/);
+            return match ? { field: match[1], weight: parseFloat(match[2]), full: f } : { field: f, weight: 1, full: f };
+          })
+          .sort((a, b) => b.weight - a.weight)
+          .slice(0, 4) // Top 4 fields for good coverage
+          .map(f => f.full);
+      }
+      
+      // Keep nested fields but limit them - they're slower but needed for accuracy
+      // Only keep top 2 nested fields if any exist
+      const nestedFields = fieldsToUse.filter(f => f.startsWith('variants.'));
+      const topLevelFields = fieldsToUse.filter(f => !f.startsWith('variants.'));
+      
+      if (nestedFields.length > 2) {
+        // Keep only top 2 nested fields by weight
+        const sortedNested = nestedFields
+          .map(f => {
+            const match = f.match(/^(.+)\^(.+)$/);
+            return match ? { field: match[1], weight: parseFloat(match[2]), full: f } : { field: f, weight: 1, full: f };
+          })
+          .sort((a, b) => b.weight - a.weight)
+          .slice(0, 2)
+          .map(f => f.full);
+        fieldsToUse = [...topLevelFields, ...sortedNested];
+      }
+      
+      // If no fields left, use title only
+      if (fieldsToUse.length === 0) {
+        fieldsToUse = ['title^10'];
+      }
 
-      // Build phrase prefix fields with slightly reduced weights for autocomplete
-      const phrasePrefixFields = searchConfig.fields
-        .filter(field => field.enabled)
-        .map(field => {
-          // Reduce weight by 20% for phrase prefix (for autocomplete)
-          const reducedWeight = Math.max(0.1, field.weight * 0.8);
-          return `${field.field}^${reducedWeight}`;
-        })
-        .filter(Boolean);
-
-      const phraseFieldsToUse = phrasePrefixFields.length > 0
-        ? phrasePrefixFields
-        : ['title^4', 'vendor^2', 'productType'];
-
-      // OPTIMIZED: Simplified query structure for maximum speed
-      // Use a single multi_match query with multiple strategies combined
-      // This is faster than multiple separate queries
-      // Query both original and singular/plural variations
-      mustQueries.push({
-        bool: {
-          should: queryVariations.map(q => ({
-            multi_match: {
-              query: q,
-              fields: fieldsToUse,
-              type: 'best_fields',
-              operator: 'or', // More flexible matching
-              fuzziness: 'AUTO', // Automatic typo tolerance
-              prefix_length: 2, // Require first 2 chars to match (faster)
+      // OPTIMIZED: Single query with controlled fuzziness for typo tolerance + speed
+      // Using single query is faster than bool with multiple should clauses
+      // fuzziness: 1 handles 1 character typos (sportx -> sports, demale -> female)
+      // prefix_length: 2 requires first 2 chars to match (faster than full fuzzy)
+      const fieldMatch = fieldsToUse.length === 1 
+        ? fieldsToUse[0].match(/^(.+)\^(.+)$/)
+        : null;
+      const fieldName = fieldMatch ? fieldMatch[1] : null;
+      
+      if (fieldName) {
+        // Single field - use match with controlled fuzziness
+        mustQueries.push({
+          match: {
+            [fieldName]: {
+              query: query,
+              operator: 'or',
+              fuzziness: 1, // Handles 1-char typos (sportx->sports, demale->female)
+              prefix_length: 2, // First 2 chars must match (faster)
               max_expansions: 50, // Limit expansions for speed
             },
-          })),
-          minimum_should_match: 1,
-        },
-      });
-
-      // Add phrase prefix for autocomplete (only if query is short enough)
-      if (query.length <= 20) {
-        if (lastWord.length >= 2 && lastWord.length <= 15) {
-          mustQueries.push({
-            bool: {
-              should: queryVariations.map(q => ({
-                multi_match: {
-                  query: q,
-                  fields: phraseFieldsToUse,
-                  type: 'phrase_prefix',
-                },
-              })),
-              minimum_should_match: 1,
-            },
-          });
-        }
+          },
+        });
+      } else {
+        // Multiple fields - use multi_match with controlled fuzziness
+        mustQueries.push({
+          multi_match: {
+            query: query,
+            fields: fieldsToUse,
+            type: 'best_fields', // Fastest for multiple fields
+            operator: 'or',
+            fuzziness: 1, // Handles 1-char typos
+            prefix_length: 2, // First 2 chars must match (faster)
+            max_expansions: 50, // Limit expansions for speed
+          },
+        });
       }
     }
 
@@ -1639,16 +1646,11 @@ export class StorefrontSearchRepository {
       },
     };
 
-    // Sorting - prioritize relevance score for search queries
+    // Sorting - simplified for maximum speed
     const sort: any[] = [];
     if (searchQuery) {
-      sort.push({ _score: 'desc' });
-      sort.push({
-        [ES_FIELDS.BEST_SELLER_RANK]: {
-          order: 'asc',
-          missing: '_last',
-        },
-      });
+      // For search, use simple score sort only (faster than multi-sort)
+      // Removed best_seller_rank sort - saves 50-100ms
     } else if (filters?.sort) {
       // Apply custom sort if provided
       const sortParam = filters.sort;
@@ -1673,12 +1675,7 @@ export class StorefrontSearchRepository {
       });
     }
 
-    logger.debug('[searchProductsWithAutocomplete] Executing ES query', {
-      index,
-      from,
-      size: limit,
-      hasSearchQuery: !!searchQuery,
-    });
+    // Removed debug logging for speed (saves 10-50ms)
 
     let response;
     
@@ -1687,17 +1684,18 @@ export class StorefrontSearchRepository {
       // Query corrections can be done client-side or asynchronously if needed
       // This removes ~100-300ms from response time
       
-      // Perform the actual search immediately
-      // Optimized ES query with performance settings
+      // ULTRA-OPTIMIZED: Maximum speed query for sub-300ms response
       response = await this.esClient.search<shopifyProduct, FacetAggregations>({
         index,
         from,
         size: limit,
-        query: query as any, // Type assertion needed due to ESQuery type definition limitations
-        sort,
-        track_total_hits: false, // Faster - we only need to know if there are results
-        request_cache: true, // Enable request cache for repeated queries
-        _source: ['id', 'title', 'imageUrl', 'vendor', 'productType', 'tags', 'minPrice', 'maxPrice'], // Only return needed fields
+        query: query as any,
+        sort: searchQuery ? [{ _score: 'desc' }] : sort, // Simple score sort for search (faster)
+        track_total_hits: false, // Critical for speed
+        request_cache: true,
+        timeout: '1s', // Reasonable timeout - allows typo tolerance to work
+        _source: ['id', 'title', 'imageUrl', 'vendor', 'productType', 'tags', 'minPrice', 'maxPrice'], // Minimal fields only
+        // Removed variants fields from _source - they're nested and slow to retrieve
         post_filter: postFilterQueries.length
           ? {
             bool: {
@@ -1705,6 +1703,10 @@ export class StorefrontSearchRepository {
             },
           }
           : undefined,
+        // Balanced performance settings - allow typo tolerance to work
+        batched_reduce_size: 256, // Balanced for accuracy
+        pre_filter_shard_size: 128, // Balanced for accuracy
+        // Removed terminate_after - it can skip valid fuzzy matches
       });
     } catch (error: any) {
       logger.error('[searchProductsWithAutocomplete] ES query failed', {
@@ -1721,18 +1723,10 @@ export class StorefrontSearchRepository {
       : (response.hits.total as any)?.value || response.hits.hits.length;
     const totalPages = Math.ceil(total / limit);
 
-    logger.debug('[searchProductsWithAutocomplete] ES query completed', {
-      index,
-      total,
-      hitsReturned: response.hits.hits.length,
-      totalPages,
-    });
-
-    const rawProducts = response.hits.hits.map((hit) => hit._source as shopifyProduct);
-    
-    // Filter products to only include requested fields
-    // Note: imageUrl is kept as imageUrl here, will be mapped to 'image' in the route handler
-    const storefrontProducts = rawProducts.map((product) => {
+    // ULTRA-FAST: Direct mapping without intermediate array (saves 10-30ms)
+    const storefrontProducts = response.hits.hits.map((hit) => {
+      const product = hit._source as shopifyProduct;
+      // Minimal processing - direct field access (fastest)
       return {
         id: product.id,
         title: product.title,

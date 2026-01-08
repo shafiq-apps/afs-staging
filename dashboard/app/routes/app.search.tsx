@@ -9,6 +9,8 @@ import { boundary } from "@shopify/shopify-app-react-router/server";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { graphqlRequest } from "app/graphql.server";
 
+// Types - Keep in sync with app/shared/search/types.ts
+// Note: Dashboard is a separate app, so we define types locally
 interface SearchField {
   field: string;
   weight: number;
@@ -32,7 +34,7 @@ interface SearchPageData {
 const ALL_AVAILABLE_FIELDS: Array<{ field: string; defaultWeight: number }> = [
   // Default fields
   { field: "title", defaultWeight: 10 },
-  { field: "vendor", defaultWeight: 2 },
+  { field: "vendor", defaultWeight: 1 },
   { field: "productType", defaultWeight: 1 },
   { field: "tags", defaultWeight: 5 },
   // Additional fields
@@ -58,9 +60,9 @@ const WEIGHT_OPTIONS = [
 
 // Default fields that should be initialized
 const DEFAULT_FIELDS: SearchField[] = [
-  { field: "title", weight: 10 },
-  { field: "vendor", weight: 2 },
-  { field: "productType", weight: 1 },
+  { field: "title", weight: 7 },
+  { field: "variants.displayName", weight: 6 },
+  { field: "variants.sku", weight: 6 },
   { field: "tags", weight: 5 },
 ];
 
@@ -87,7 +89,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
     const result = await graphqlRequest(query, { shop });
 
-    if (result.errors) {
+    // Check for GraphQL errors first
+    if (result.errors && result.errors.length > 0) {
       return {
         searchConfig: {
           id: "",
@@ -100,9 +103,23 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       } as SearchPageData;
     }
 
+    // Check if data exists and is valid
+    if (!result || !result.searchConfig) {
+      return {
+        searchConfig: {
+          id: "",
+          shop,
+          fields: [...DEFAULT_FIELDS],
+          createdAt: new Date().toISOString(),
+        } as SearchConfig,
+        error: undefined,
+        shop,
+      } as SearchPageData;
+    }
+
     // If no config exists, initialize with default fields
-    const config = result?.searchConfig;
-    if (!config || !config.fields || config.fields.length === 0) {
+    const config = result.searchConfig;
+    if (!config.fields || config.fields.length === 0) {
       return {
         searchConfig: {
           id: "",
@@ -202,18 +219,38 @@ export default function SearchPage() {
         }),
       });
 
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText || response.statusText}`);
+      }
+
       const result = await response.json();
 
+      // Log response for debugging
+      console.log("GraphQL response:", result);
+
+      // Check for GraphQL errors
       if (result.errors && result.errors.length > 0) {
         const errorMessage = result.errors[0]?.message || "Failed to update search configuration";
         setError(errorMessage);
         shopify.toast.show(errorMessage, { isError: true });
-      } else if (result.data?.updateSearchConfig) {
-        setSearchConfig(result.data.updateSearchConfig);
-        shopify.toast.show("Search configuration saved successfully");
-      } else {
-        throw new Error("Unexpected response format");
+        return;
       }
+
+      // Check if data exists
+      if (!result.data) {
+        console.error("No data in response:", result);
+        throw new Error("Unexpected response format: missing data field. Response: " + JSON.stringify(result));
+      }
+
+      if (!result.data.updateSearchConfig) {
+        console.error("Missing updateSearchConfig in data:", result.data);
+        throw new Error("Unexpected response format: missing updateSearchConfig data. Available keys: " + Object.keys(result.data || {}).join(", "));
+      }
+
+      // Update state with saved config
+      setSearchConfig(result.data.updateSearchConfig);
+      shopify.toast.show("Search configuration saved successfully");
     } catch (error: any) {
       const errorMessage = error.message || "Failed to save search configuration";
       setError(errorMessage);
@@ -375,50 +412,40 @@ export default function SearchPage() {
         </s-stack>
       </s-section>
 
-      <s-section>
-        <s-stack direction="block" gap="base">
-          <s-heading>Information</s-heading>
-          <s-box
-            padding="base"
-            borderWidth="base"
-            borderRadius="base"
-            background="subdued"
-          >
-            <s-stack direction="block" gap="small">
-              <s-text type="strong">How Search Weights Work</s-text>
-              <s-text tone="auto">
-                Search weights determine the relative importance of each field when matching search queries.
-                Fields with higher weights will have more influence on search result rankings.
-              </s-text>
-              <s-unordered-list>
-                <s-list-item>
-                  <s-text tone="auto">
-                    <s-text type="strong">Weight 5-10:</s-text> Very high priority (e.g., Product Title)
-                  </s-text>
-                </s-list-item>
-                <s-list-item>
-                  <s-text tone="auto">
-                    <s-text type="strong">Weight 3-4:</s-text> High priority (e.g., Vendor, Brand)
-                  </s-text>
-                </s-list-item>
-                <s-list-item>
-                  <s-text tone="auto">
-                    <s-text type="strong">Weight 1-2:</s-text> Medium priority (e.g., Product Type, Tags)
-                  </s-text>
-                </s-list-item>
-                <s-list-item>
-                  <s-text tone="auto">
-                    <s-text type="strong">Weight 0.1-0.9:</s-text> Low priority (e.g., Description, Metafields)
-                  </s-text>
-                </s-list-item>
-              </s-unordered-list>
-              <s-text tone="auto">
-                <s-text type="strong">Note:</s-text> Only active fields in the array will be used in search queries.
-                When you remove a field, it becomes available to add again.
-              </s-text>
-            </s-stack>
-          </s-box>
-        </s-stack>
+      <s-section padding="base">
+          <s-stack direction="block" gap="small">
+            <s-text type="strong">How Search Weights Work</s-text>
+            <s-text tone="auto">
+              Search weights determine the relative importance of each field when matching search queries.
+              Fields with higher weights will have more influence on search result rankings.
+            </s-text>
+            <s-unordered-list>
+              <s-list-item>
+                <s-text tone="auto">
+                  <s-text type="strong">Weight 8-10:</s-text> Maximum/Critical priority (e.g., Product Title)
+                </s-text>
+              </s-list-item>
+              <s-list-item>
+                <s-text tone="auto">
+                  <s-text type="strong">Weight 5-7:</s-text> Very High priority (e.g., Tags, SKU)
+                </s-text>
+              </s-list-item>
+              <s-list-item>
+                <s-text tone="auto">
+                  <s-text type="strong">Weight 3-4:</s-text> High priority (e.g., Variant Display Name)
+                </s-text>
+              </s-list-item>
+              <s-list-item>
+                <s-text tone="auto">
+                  <s-text type="strong">Weight 1-2:</s-text> Low to Medium priority (e.g., Vendor, Product Type)
+                </s-text>
+              </s-list-item>
+            </s-unordered-list>
+            <s-text tone="auto">
+              <s-text type="strong">Note:</s-text> Only active fields in the array will be used in search queries.
+              When you remove a field, it becomes available to add again.
+            </s-text>
+          </s-stack>
       </s-section>
 
       <s-section>
