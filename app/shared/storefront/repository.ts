@@ -27,6 +27,8 @@ import {
 import { filterProductsForStorefront } from './storefront.helper';
 import { Filter } from '@shared/filters/types';
 import { mapOptionNameToHandle } from './filter-config.helper';
+import { SearchRepository } from '@modules/search/search.repository';
+import { SearchConfig } from '@shared/search/types';
 
 const logger = createModuleLogger('storefront-repository');
 
@@ -218,7 +220,67 @@ function deriveVariantOptionKey(option: Filter['options'][number]): string | nul
 }
 
 export class StorefrontSearchRepository {
+  private searchConfigCache: Map<string, { config: SearchConfig; timestamp: number }> = new Map();
+  private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
   constructor(private esClient: Client) { }
+
+  /**
+   * Get search configuration for a shop with caching
+   */
+  private async getSearchConfig(shop: string): Promise<SearchConfig> {
+    const cached = this.searchConfigCache.get(shop);
+    const now = Date.now();
+    
+    // Return cached config if still valid
+    if (cached && (now - cached.timestamp) < this.CACHE_TTL) {
+      return cached.config;
+    }
+
+    // Fetch fresh config
+    try {
+      const searchRepo = new SearchRepository(this.esClient);
+      const config = await searchRepo.getSearchConfig(shop);
+      
+      // Cache it
+      this.searchConfigCache.set(shop, { config, timestamp: now });
+      
+      return config;
+    } catch (error: any) {
+      logger.warn('Failed to get search config, using defaults', { shop, error: error?.message || error });
+      // Return default config on error
+      return {
+        id: '',
+        shop,
+        fields: [
+          { field: 'title', weight: 5 },
+          { field: 'vendor', weight: 3 },
+          { field: 'productType', weight: 2 },
+          { field: 'tags', weight: 1 },
+        ],
+        createdAt: new Date().toISOString(),
+        updatedAt: null,
+      };
+    }
+  }
+
+  /**
+   * Build search fields array from search configuration
+   * Returns array of field strings with weights (e.g., ['title^5', 'vendor^3'])
+   * Only active fields are in the array, so no need to filter
+   */
+  private buildSearchFields(config: SearchConfig): string[] {
+    return config.fields
+      .map(field => `${field.field}^${field.weight}`)
+      .filter(Boolean);
+  }
+
+  /**
+   * Invalidate search config cache for a shop
+   */
+  invalidateSearchConfigCache(shop: string): void {
+    this.searchConfigCache.delete(shop);
+  }
 
   /**
    * Get facets/aggregations for filters
@@ -1450,6 +1512,29 @@ export class StorefrontSearchRepository {
         queryVariations.push(pluralQuery);
       }
 
+      // Get search configuration for this shop
+      const searchConfig = await this.getSearchConfig(shopDomain);
+      const searchFields = this.buildSearchFields(searchConfig);
+      
+      // If no enabled fields, fall back to default
+      const fieldsToUse = searchFields.length > 0 
+        ? searchFields 
+        : ['title^5', 'vendor^3', 'productType^2', 'tags^1'];
+
+      // Build phrase prefix fields with slightly reduced weights for autocomplete
+      const phrasePrefixFields = searchConfig.fields
+        .filter(field => field.enabled)
+        .map(field => {
+          // Reduce weight by 20% for phrase prefix (for autocomplete)
+          const reducedWeight = Math.max(0.1, field.weight * 0.8);
+          return `${field.field}^${reducedWeight}`;
+        })
+        .filter(Boolean);
+
+      const phraseFieldsToUse = phrasePrefixFields.length > 0
+        ? phrasePrefixFields
+        : ['title^4', 'vendor^2', 'productType'];
+
       // OPTIMIZED: Simplified query structure for maximum speed
       // Use a single multi_match query with multiple strategies combined
       // This is faster than multiple separate queries
@@ -1459,7 +1544,7 @@ export class StorefrontSearchRepository {
           should: queryVariations.map(q => ({
             multi_match: {
               query: q,
-              fields: ['title^5', 'vendor^3', 'productType^2', 'tags^1'],
+              fields: fieldsToUse,
               type: 'best_fields',
               operator: 'or', // More flexible matching
               fuzziness: 'AUTO', // Automatic typo tolerance
@@ -1479,7 +1564,7 @@ export class StorefrontSearchRepository {
               should: queryVariations.map(q => ({
                 multi_match: {
                   query: q,
-                  fields: ['title^4', 'vendor^2', 'productType'],
+                  fields: phraseFieldsToUse,
                   type: 'phrase_prefix',
                 },
               })),

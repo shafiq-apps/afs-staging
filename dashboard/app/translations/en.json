@@ -2,6 +2,7 @@
   "navigation": {
     "home": "Home",
     "filters": "Filters",
+    "search": "Search",
     "indexing": "Sync",
     "pricing": "Pricing"
   },

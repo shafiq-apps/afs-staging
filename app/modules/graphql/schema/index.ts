@@ -12,6 +12,7 @@
 import { shopsSchema } from './shops.schema';
 import { productsSchema } from './products.schema';
 import { filtersSchema } from './filters.schema';
+import { searchSchema } from './search.schema';
 import { cacheSchema } from './cache.schema';
 import { webhooksSchema } from './webhooks.schema';
 import { subscriptionSchema } from './subscriptions.schema';
@@ -31,6 +32,7 @@ export const schemas: string[] = [
   shopsSchema, // Base schema with Query, Mutation, JSON scalar
   productsSchema, // Product types only (no Query/Mutation)
   filtersSchema, // Filter types with Query and Mutation
+  searchSchema, // Search configuration types with Query and Mutation
   cacheSchema, // Cache admin/debug endpoints
   webhooksSchema, // Webhook processing mutations
   subscriptionSchema, // Subscription types and mutations

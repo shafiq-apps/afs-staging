@@ -14,6 +14,7 @@
 import { shopsResolvers } from './shops.resolvers';
 import { productsResolvers } from './products.resolvers';
 import { filtersResolvers } from './filters.resolvers';
+import { searchResolvers } from './search.resolvers';
 import { cacheResolvers } from './cache.resolvers';
 import { webhooksResolvers } from './webhooks.resolvers';
 import { subscriptionsResolvers } from './subscriptions.resolvers';
@@ -27,6 +28,7 @@ export const resolvers: any[] = [
   shopsResolvers,    // Manual shop resolvers
   productsResolvers, // Manual product resolvers
   filtersResolvers,  // Manual filter resolvers
+  searchResolvers,   // Manual search configuration resolvers
   cacheResolvers,    // Cache admin/debug resolvers
   webhooksResolvers, // Webhook processing resolvers
   subscriptionsResolvers, // Subscription resolvers
