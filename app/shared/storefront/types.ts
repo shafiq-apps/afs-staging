@@ -240,6 +240,8 @@ export interface ProductSearchResult {
   limit: number;
   totalPages: number;
   filters?: FacetAggregations;
+  correctedQuery?: string; // The corrected query if original had typos (e.g., "logn" -> "long")
+  originalQuery?: string; // The original query that was corrected
 }
 
 

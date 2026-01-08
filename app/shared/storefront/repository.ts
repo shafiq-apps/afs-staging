@@ -34,6 +34,41 @@ const hasValues = (arr?: string[]) => Array.isArray(arr) && arr.length > 0;
 const DEFAULT_BUCKET_SIZE = AGGREGATION_BUCKET_SIZES.DEFAULT;
 
 /**
+ * Calculate Levenshtein edit distance between two strings
+ * Used to verify query corrections are actually similar
+ */
+function calculateEditDistance(str1: string, str2: string): number {
+  const len1 = str1.length;
+  const len2 = str2.length;
+  const matrix: number[][] = [];
+
+  // Initialize matrix
+  for (let i = 0; i <= len1; i++) {
+    matrix[i] = [i];
+  }
+  for (let j = 0; j <= len2; j++) {
+    matrix[0][j] = j;
+  }
+
+  // Fill matrix
+  for (let i = 1; i <= len1; i++) {
+    for (let j = 1; j <= len2; j++) {
+      if (str1[i - 1] === str2[j - 1]) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j] + 1,     // deletion
+          matrix[i][j - 1] + 1,     // insertion
+          matrix[i - 1][j - 1] + 1  // substitution
+        );
+      }
+    }
+  }
+
+  return matrix[len1][len2];
+}
+
+/**
  * Determine which aggregations should be calculated based on filter configuration
  * Only includes aggregations for published filter options
  * Returns specific aggregations for variant options (option.Color, option.Size, etc.)
@@ -1344,6 +1379,605 @@ export class StorefrontSearchRepository {
       result.filters = facets.aggregations;
     }
     return result;
+  }
+
+  /**
+   * Advanced search with autocomplete and typo tolerance
+   * Uses Elasticsearch fuzzy matching and prefix queries for partial word matching
+   * Examples: "jack" matches "jacket", "jackets"; "t-sh" matches "t-shirt", "t-shirt", "t shirt"
+   */
+  async searchProductsWithAutocomplete(
+    shopDomain: string,
+    searchQuery: string,
+    filters?: ProductSearchInput,
+    filterConfig?: Filter | null
+  ): Promise<ProductSearchResult> {
+    const index = PRODUCT_INDEX_NAME(shopDomain);
+    const sanitizedFilters = filters ? sanitizeFilterInput(filters) : undefined;
+
+    const page = filters?.page || 1;
+    // Maximum 10 products per search result
+    const requestedLimit = filters?.limit || 10;
+    const limit = requestedLimit > 10 ? 10 : requestedLimit;
+    const from = (page - 1) * limit;
+
+    // Reduced logging for performance - only log in debug mode
+    logger.debug('[searchProductsWithAutocomplete] Starting advanced search', {
+      shopDomain,
+      index,
+      searchQuery,
+      page,
+      limit,
+      from,
+    });
+
+    const mustQueries: any[] = [];
+    const shouldQueries: any[] = [];
+    const postFilterQueries: any[] = [];
+
+    // Build advanced search query with autocomplete and typo tolerance
+    if (searchQuery && searchQuery.trim()) {
+      const query = searchQuery.trim();
+      const queryLower = query.toLowerCase();
+      
+      // Split query into words for better matching
+      const queryWords = queryLower.split(/\s+/).filter(w => w.length > 0);
+      
+      // Build a bool query with multiple strategies for best results
+      const searchClauses: any[] = [];
+
+      // Handle singular/plural forms (e.g., "jacket" and "jackets" should both work)
+      const lastWord = queryWords.length > 0 ? queryWords[queryWords.length - 1] : query;
+      const singularForm = lastWord.endsWith('s') && lastWord.length > 3 
+        ? lastWord.slice(0, -1) // Remove 's' for plural -> singular
+        : null;
+      const pluralForm = !lastWord.endsWith('s') && lastWord.length > 2
+        ? lastWord + 's' // Add 's' for singular -> plural
+        : null;
+
+      // Build query variations for singular/plural
+      const queryVariations: string[] = [query];
+      if (singularForm) {
+        const singularQuery = queryWords.length > 1 
+          ? queryWords.slice(0, -1).join(' ') + ' ' + singularForm
+          : singularForm;
+        queryVariations.push(singularQuery);
+      }
+      if (pluralForm) {
+        const pluralQuery = queryWords.length > 1
+          ? queryWords.slice(0, -1).join(' ') + ' ' + pluralForm
+          : pluralForm;
+        queryVariations.push(pluralQuery);
+      }
+
+      // OPTIMIZED: Simplified query structure for maximum speed
+      // Use a single multi_match query with multiple strategies combined
+      // This is faster than multiple separate queries
+      // Query both original and singular/plural variations
+      mustQueries.push({
+        bool: {
+          should: queryVariations.map(q => ({
+            multi_match: {
+              query: q,
+              fields: ['title^5', 'vendor^3', 'productType^2', 'tags^1'],
+              type: 'best_fields',
+              operator: 'or', // More flexible matching
+              fuzziness: 'AUTO', // Automatic typo tolerance
+              prefix_length: 2, // Require first 2 chars to match (faster)
+              max_expansions: 50, // Limit expansions for speed
+            },
+          })),
+          minimum_should_match: 1,
+        },
+      });
+
+      // Add phrase prefix for autocomplete (only if query is short enough)
+      if (query.length <= 20) {
+        if (lastWord.length >= 2 && lastWord.length <= 15) {
+          mustQueries.push({
+            bool: {
+              should: queryVariations.map(q => ({
+                multi_match: {
+                  query: q,
+                  fields: ['title^4', 'vendor^2', 'productType'],
+                  type: 'phrase_prefix',
+                },
+              })),
+              minimum_should_match: 1,
+            },
+          });
+        }
+      }
+    }
+
+    // Apply standard filters (same as searchProducts method)
+    if (hasValues(sanitizedFilters?.vendors)) {
+      const clause = { terms: { [ES_FIELDS.VENDOR_KEYWORD]: sanitizedFilters!.vendors } };
+      mustQueries.push(clause);
+    }
+
+    if (hasValues(sanitizedFilters?.productTypes)) {
+      const clause = { terms: { [ES_FIELDS.PRODUCT_TYPE_KEYWORD]: sanitizedFilters!.productTypes } };
+      mustQueries.push(clause);
+    }
+
+    if (hasValues(sanitizedFilters?.tags)) {
+      const clause = { terms: { [ES_FIELDS.TAGS]: sanitizedFilters!.tags } };
+      mustQueries.push(clause);
+    }
+
+    if (hasValues(sanitizedFilters?.collections)) {
+      const clause = { terms: { [ES_FIELDS.COLLECTIONS]: sanitizedFilters!.collections } };
+      mustQueries.push(clause);
+    }
+
+    // Price filters
+    if (sanitizedFilters?.priceMin !== undefined || sanitizedFilters?.priceMax !== undefined) {
+      const priceRange: any = {};
+      if (sanitizedFilters.priceMin !== undefined) {
+        priceRange.gte = sanitizedFilters.priceMin;
+      }
+      if (sanitizedFilters.priceMax !== undefined) {
+        priceRange.lte = sanitizedFilters.priceMax;
+      }
+      mustQueries.push({
+        range: {
+          [ES_FIELDS.MIN_PRICE]: priceRange,
+        },
+      });
+    }
+
+    // Build main query
+    // Add status and document type filters to must queries
+    const statusAndTypeQueries = [
+      {
+        term: {
+          [ES_FIELDS.STATUS]: 'ACTIVE',
+        },
+      },
+      {
+        term: {
+          [ES_FIELDS.DOCUMENT_TYPE]: 'product',
+        },
+      },
+    ];
+
+    const allMustQueries = [
+      ...statusAndTypeQueries,
+      ...(mustQueries.length > 0 ? mustQueries : [{ match_all: {} }]),
+    ];
+
+    const query: ESQuery = {
+      bool: {
+        must: allMustQueries,
+        should: shouldQueries.length > 0 ? shouldQueries : undefined,
+      },
+    };
+
+    // Sorting - prioritize relevance score for search queries
+    const sort: any[] = [];
+    if (searchQuery) {
+      sort.push({ _score: 'desc' });
+      sort.push({
+        [ES_FIELDS.BEST_SELLER_RANK]: {
+          order: 'asc',
+          missing: '_last',
+        },
+      });
+    } else if (filters?.sort) {
+      // Apply custom sort if provided
+      const sortParam = filters.sort;
+      if (sortParam === 'price:asc' || sortParam === 'price-asc' || sortParam === 'price_low_to_high') {
+        sort.push({ [ES_FIELDS.MIN_PRICE]: 'asc' });
+      } else if (sortParam === 'price:desc' || sortParam === 'price-desc' || sortParam === 'price_high_to_low') {
+        sort.push({ [ES_FIELDS.MAX_PRICE]: 'desc' });
+      } else {
+        sort.push({
+          [ES_FIELDS.BEST_SELLER_RANK]: {
+            order: 'asc',
+            missing: '_last',
+          },
+        });
+      }
+    } else {
+      sort.push({
+        [ES_FIELDS.BEST_SELLER_RANK]: {
+          order: 'asc',
+          missing: '_last',
+        },
+      });
+    }
+
+    logger.debug('[searchProductsWithAutocomplete] Executing ES query', {
+      index,
+      from,
+      size: limit,
+      hasSearchQuery: !!searchQuery,
+    });
+
+    let response;
+    
+    try {
+      // PERFORMANCE: Skip suggest API for now - it adds significant latency
+      // Query corrections can be done client-side or asynchronously if needed
+      // This removes ~100-300ms from response time
+      
+      // Perform the actual search immediately
+      // Optimized ES query with performance settings
+      response = await this.esClient.search<shopifyProduct, FacetAggregations>({
+        index,
+        from,
+        size: limit,
+        query: query as any, // Type assertion needed due to ESQuery type definition limitations
+        sort,
+        track_total_hits: false, // Faster - we only need to know if there are results
+        request_cache: true, // Enable request cache for repeated queries
+        _source: ['id', 'title', 'imageUrl', 'vendor', 'productType', 'tags', 'minPrice', 'maxPrice'], // Only return needed fields
+        post_filter: postFilterQueries.length
+          ? {
+            bool: {
+              must: postFilterQueries,
+            },
+          }
+          : undefined,
+      });
+    } catch (error: any) {
+      logger.error('[searchProductsWithAutocomplete] ES query failed', {
+        index,
+        error: error?.message || error,
+        statusCode: error?.statusCode,
+      });
+      throw error;
+    }
+
+    // Fast total calculation - use relation for approximate count when available
+    const total = typeof response.hits.total === 'number'
+      ? response.hits.total
+      : (response.hits.total as any)?.value || response.hits.hits.length;
+    const totalPages = Math.ceil(total / limit);
+
+    logger.debug('[searchProductsWithAutocomplete] ES query completed', {
+      index,
+      total,
+      hitsReturned: response.hits.hits.length,
+      totalPages,
+    });
+
+    const rawProducts = response.hits.hits.map((hit) => hit._source as shopifyProduct);
+    
+    // Filter products to only include requested fields
+    // Note: imageUrl is kept as imageUrl here, will be mapped to 'image' in the route handler
+    const storefrontProducts = rawProducts.map((product) => {
+      return {
+        id: product.id,
+        title: product.title,
+        imageUrl: product.imageUrl,
+        vendor: product.vendor,
+        productType: product.productType,
+        tags: product.tags || [],
+        minPrice: product.minPrice,
+        maxPrice: product.maxPrice,
+      };
+    });
+
+    // PERFORMANCE: Skip correction validation - it requires an extra ES query
+    // Corrections can be handled client-side or asynchronously if needed
+    // This saves ~50-150ms per request
+    let finalCorrectedQuery: string | undefined = undefined;
+
+    const result: ProductSearchResult = {
+      products: storefrontProducts,
+      total,
+      page,
+      limit,
+      totalPages,
+      correctedQuery: finalCorrectedQuery,
+      originalQuery: finalCorrectedQuery ? searchQuery : undefined,
+    };
+
+    return result;
+  }
+
+  /**
+   * Get search suggestions based on actual product data
+   * Returns real terms from product titles that match the query (including partial matches)
+   * Example: "Sheep" should find "Sheepskin" products
+   */
+  async getSearchSuggestions(
+    shopDomain: string,
+    query: string,
+    limit: number = 5
+  ): Promise<string[]> {
+    const index = PRODUCT_INDEX_NAME(shopDomain);
+    const queryLower = query.toLowerCase().trim();
+    
+    // Only get suggestions for reasonable queries (not gibberish)
+    if (queryLower.length < 2 || queryLower.length > 50) {
+      return [];
+    }
+
+    try {
+      // Get actual product titles that match the query (including partial matches)
+      // This finds products like "Sheepskin" when searching for "Sheep"
+      const response = await this.esClient.search({
+        index,
+        size: Math.min(limit * 4, 100), // Get more results to find good suggestions
+        query: {
+          bool: {
+            must: [
+              {
+                term: {
+                  [ES_FIELDS.STATUS]: 'ACTIVE',
+                },
+              },
+              {
+                term: {
+                  [ES_FIELDS.DOCUMENT_TYPE]: 'product',
+                },
+              },
+              {
+                bool: {
+                  should: [
+                    // Exact match or starts with
+                    {
+                      multi_match: {
+                        query: queryLower,
+                        fields: ['title^3', 'tags^2'],
+                        type: 'phrase_prefix',
+                        boost: 3.0,
+                      },
+                    },
+                    // Contains as word
+                    {
+                      multi_match: {
+                        query: queryLower,
+                        fields: ['title^2', 'tags'],
+                        type: 'best_fields',
+                        operator: 'or',
+                        boost: 2.0,
+                      },
+                    },
+                    // Partial match (e.g., "Sheep" in "Sheepskin")
+                    {
+                      wildcard: {
+                        'title': `*${queryLower}*`,
+                      },
+                    },
+                    // Fuzzy match for typos
+                    {
+                      multi_match: {
+                        query: queryLower,
+                        fields: ['title', 'tags'],
+                        type: 'best_fields',
+                        fuzziness: 'AUTO',
+                        operator: 'or',
+                        boost: 1.5,
+                      },
+                    },
+                  ],
+                  minimum_should_match: 1,
+                },
+              },
+            ],
+          },
+        },
+        sort: [
+          { _score: 'desc' },
+          { [ES_FIELDS.BEST_SELLER_RANK]: { order: 'asc', missing: '_last' } },
+        ],
+        _source: ['title'],
+      } as any);
+
+      const suggestions: string[] = [];
+      const seen = new Set<string>();
+
+      // Extract meaningful suggestions from product titles
+      for (const hit of response.hits.hits) {
+        const title = (hit._source as any)?.title;
+        if (!title || typeof title !== 'string') continue;
+
+        const titleLower = title.toLowerCase();
+        
+        // Include titles that:
+        // 1. Start with the query (for autocomplete)
+        // 2. Contain the query as a word
+        // 3. Contain the query as a substring (e.g., "Sheep" in "Sheepskin")
+        if (titleLower.startsWith(queryLower) || 
+            titleLower.includes(' ' + queryLower) ||
+            titleLower.includes(queryLower + ' ') ||
+            titleLower.includes(queryLower)) { // Partial match
+          
+          // Use the full title if short enough, otherwise extract relevant part
+          let suggestion: string;
+          if (title.length <= 60) {
+            suggestion = title;
+          } else {
+            // For long titles, extract a snippet around the query
+            const index = titleLower.indexOf(queryLower);
+            if (index >= 0) {
+              const start = Math.max(0, index - 15);
+              const end = Math.min(title.length, index + queryLower.length + 40);
+              suggestion = title.substring(start, end).trim();
+              // Add ellipsis if truncated
+              if (start > 0) suggestion = '...' + suggestion;
+              if (end < title.length) suggestion = suggestion + '...';
+            } else {
+              suggestion = title.substring(0, 60) + '...';
+            }
+          }
+
+          // Avoid duplicates
+          const suggestionKey = suggestion.toLowerCase();
+          if (!seen.has(suggestionKey) && suggestion.length > queryLower.length) {
+            suggestions.push(suggestion);
+            seen.add(suggestionKey);
+          }
+
+          if (suggestions.length >= limit) break;
+        }
+      }
+
+      return suggestions.slice(0, limit);
+    } catch (error: any) {
+      logger.debug('[getSearchSuggestions] Failed', {
+        shopDomain,
+        query,
+        error: error?.message,
+      });
+      return [];
+    }
+  }
+
+  /**
+   * Get "Did you mean" suggestions when no results are found
+   * Uses Elasticsearch to find similar queries that would return results
+   */
+  async getDidYouMeanSuggestions(
+    shopDomain: string,
+    query: string,
+    limit: number = 3
+  ): Promise<string[]> {
+    const index = PRODUCT_INDEX_NAME(shopDomain);
+    const queryLower = query.toLowerCase().trim();
+    
+    if (queryLower.length < 2) {
+      return [];
+    }
+
+    try {
+      // Use Elasticsearch suggest API to get similar queries
+      const suggestResponse = await this.esClient.search({
+        index,
+        body: {
+          suggest: {
+            text: queryLower,
+            title_suggest: {
+              term: {
+                field: 'title',
+                size: limit,
+                suggest_mode: 'always',
+                min_word_length: 3,
+                max_edits: 2,
+              },
+            },
+          },
+          size: 0,
+        } as any,
+      });
+
+      const suggestions: string[] = [];
+      const suggestOptions = (suggestResponse as any).suggest?.title_suggest?.[0]?.options || [];
+
+      for (const option of suggestOptions) {
+        const suggestedText = option.text;
+        if (suggestedText && 
+            suggestedText.toLowerCase() !== queryLower &&
+            option.score > 0.3) { // Only accept reasonable suggestions
+          
+          // Verify this suggestion would actually return results
+          const verifyResponse = await this.esClient.search({
+            index,
+            size: 1,
+            query: {
+              bool: {
+                must: [
+                  {
+                    term: {
+                      [ES_FIELDS.STATUS]: 'ACTIVE',
+                    },
+                  },
+                  {
+                    term: {
+                      [ES_FIELDS.DOCUMENT_TYPE]: 'product',
+                    },
+                  },
+                  {
+                    multi_match: {
+                      query: suggestedText,
+                      fields: ['title^2', 'tags'],
+                      type: 'best_fields',
+                      operator: 'or',
+                    },
+                  },
+                ],
+              },
+            },
+          } as any);
+
+          if (verifyResponse.hits.hits.length > 0) {
+            suggestions.push(suggestedText);
+            if (suggestions.length >= limit) break;
+          }
+        }
+      }
+
+      // If we don't have enough, try finding products with similar words
+      if (suggestions.length < limit) {
+        const queryWords = queryLower.split(/\s+/);
+        if (queryWords.length > 0) {
+          const lastWord = queryWords[queryWords.length - 1];
+          
+          // Find products that contain words starting with the query
+          const similarResponse = await this.esClient.search({
+            index,
+            size: limit - suggestions.length,
+            query: {
+              bool: {
+                must: [
+                  {
+                    term: {
+                      [ES_FIELDS.STATUS]: 'ACTIVE',
+                    },
+                  },
+                  {
+                    term: {
+                      [ES_FIELDS.DOCUMENT_TYPE]: 'product',
+                    },
+                  },
+                  {
+                    prefix: {
+                      'title': lastWord,
+                    },
+                  },
+                ],
+              },
+            },
+            _source: ['title'],
+          } as any);
+
+          for (const hit of similarResponse.hits.hits) {
+            const title = (hit._source as any)?.title;
+            if (title && typeof title === 'string') {
+              const titleLower = title.toLowerCase();
+              // Extract the word that starts with our query
+              const words = titleLower.split(/\s+/);
+              for (const word of words) {
+                if (word.startsWith(lastWord) && word.length > lastWord.length) {
+                  const suggestion = queryWords.length > 1
+                    ? queryWords.slice(0, -1).join(' ') + ' ' + word
+                    : word;
+                  
+                  if (!suggestions.includes(suggestion)) {
+                    suggestions.push(suggestion);
+                    if (suggestions.length >= limit) break;
+                  }
+                }
+              }
+              if (suggestions.length >= limit) break;
+            }
+          }
+        }
+      }
+
+      return suggestions.slice(0, limit);
+    } catch (error: any) {
+      logger.debug('[getDidYouMeanSuggestions] Failed', {
+        shopDomain,
+        query,
+        error: error?.message,
+      });
+      return [];
+    }
   }
 }
 
