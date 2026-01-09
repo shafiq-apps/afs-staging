@@ -7,6 +7,7 @@
 // These files are self-contained and execute immediately when imported
 import './collections-main';
 import './quickview.ts';
+import './search-main.ts';
 
 // All modules export to window object, so no additional exports needed here
 // The build process will bundle everything into a single file
