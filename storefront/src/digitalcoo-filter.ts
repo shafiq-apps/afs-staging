@@ -2854,7 +2854,7 @@ class AFSSlider {
   private thumbnails: HTMLElement[] = [];
   private isInitialized: boolean = false;
   private magnifierEnabled: boolean = false;
-  private magnifierZoom: number = 4;
+  private currentZoom: number = 2; // Active zoom level (2x, 3x, 4x, 5x) - initialized from options, can be changed via slider
   private isTouchDevice: boolean = false;
   private mainContainer: HTMLElement | null = null;
   private thumbnailContainer: HTMLElement | null = null;
@@ -2877,12 +2877,12 @@ class AFSSlider {
 	  maxHeight: options.maxHeight || null,
 	  animationDuration: options.animationDuration || 300,
 	  enableMagnifier: options.enableMagnifier !== false,
-	  magnifierZoom: options.magnifierZoom || 4,
+	  magnifierZoom: options.magnifierZoom || 3,
 	  ...options
 	} as Required<Omit<SliderOptionsType, 'maxHeight'>> & { maxHeight: number | null };
 
 	this.magnifierEnabled = this.options.enableMagnifier;
-	this.magnifierZoom = this.options.magnifierZoom;
+	this.currentZoom = this.options.magnifierZoom || 3; // Initialize zoom from options (default: 3x)
 	this.isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
 	this.init();
@@ -2988,6 +2988,11 @@ class AFSSlider {
 	  });
 
 	  this.mainContainer.appendChild(viewport);
+
+	  // Add zoom controls if magnifier is enabled
+	  if (this.magnifierEnabled && !this.isTouchDevice) {
+		this.createZoomControls(viewport);
+	  }
 	}
 
 	// Add navigation buttons if not present
@@ -3126,6 +3131,67 @@ class AFSSlider {
 	}, { passive: true });
   }
 
+  /**
+   * Create zoom control slider (2x, 3x, 4x, 5x)
+   */
+  private createZoomControls(viewport: HTMLElement): void {
+	const zoomControls = document.createElement('div');
+	zoomControls.className = 'afs-slider__zoom-controls';
+	
+	const slider = document.createElement('input');
+	slider.type = 'range';
+	slider.className = 'afs-slider__zoom-slider';
+	slider.setAttribute('min', '2');
+	slider.setAttribute('max', '5');
+	slider.setAttribute('step', '1');
+	slider.setAttribute('value', String(this.currentZoom));
+	slider.setAttribute('aria-label', 'Zoom level');
+	slider.setAttribute('aria-valuemin', '2');
+	slider.setAttribute('aria-valuemax', '5');
+	
+	// Update zoom level when slider changes
+	slider.addEventListener('input', (e) => {
+	  e.stopPropagation();
+	  const level = Number((e.target as HTMLInputElement).value);
+	  this.setZoomLevel(level);
+	});
+	
+	// Prevent slider from interfering with image pan
+	slider.addEventListener('mousedown', (e) => {
+	  e.stopPropagation();
+	});
+	
+	zoomControls.appendChild(slider);
+	viewport.appendChild(zoomControls);
+  }
+
+  /**
+   * Set zoom level and update UI
+   */
+  private setZoomLevel(level: number): void {
+	this.currentZoom = level;
+	
+	// Update slider value
+	const viewport = this.mainContainer?.querySelector<HTMLElement>('.afs-slider__viewport');
+	if (viewport) {
+	  const slider = viewport.querySelector<HTMLInputElement>('.afs-slider__zoom-slider');
+	  if (slider) {
+		slider.value = String(level);
+		slider.setAttribute('aria-valuenow', String(level));
+	  }
+	}
+	
+	// Reset zoom on current image to apply new zoom level
+	const activeImage = this.images[this._currentIndex];
+	if (activeImage && activeImage.classList.contains('afs-slider__image--zoomed')) {
+	  // Temporarily reset, then re-apply zoom with new level
+	  activeImage.style.transform = 'scale(1) translate(0, 0)';
+	  setTimeout(() => {
+		// Zoom will be re-applied on next mouse move
+	  }, 50);
+	}
+  }
+
   private setupPanZoom(): void {
 	if (!this.mainContainer) return;
 
@@ -3137,8 +3203,6 @@ class AFSSlider {
 
 	// Add zoom class to viewport for cursor styling
 	viewport.classList.add('afs-slider__viewport--zoomable');
-
-	const SCALE = this.magnifierZoom || 4;
 
 	// Mouse move: pan image
 	viewport.addEventListener('mousemove', (e: MouseEvent) => {
@@ -3152,6 +3216,9 @@ class AFSSlider {
 
 	  const xPercent = x / rect.width;
 	  const yPercent = y / rect.height;
+
+	  // Use currentZoom (can be changed via slider)
+	  const SCALE = this.currentZoom;
 
 	  const translateX = -xPercent * (activeImage.offsetWidth * SCALE - rect.width);
 	  const translateY = -yPercent * (activeImage.offsetHeight * SCALE - rect.height);
@@ -3876,7 +3943,7 @@ export async function createProductModal(handle: string, modalId: string): Promi
 			enableAutoHeight: false, // Disable auto height to prevent shrinking
 			maxHeight: 600, // Fixed max height in pixels
 			enableMagnifier: true, // Enable image magnifier on hover
-			magnifierZoom: 4 // 2x zoom level for magnifier
+			magnifierZoom: 2, // 2x zoom level for magnifier
 		  });
 		} else {
 		  Log.warn('No images found for slider', { modalId });
