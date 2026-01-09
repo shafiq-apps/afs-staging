@@ -1,0 +1,372 @@
+/**
+ * Advanced Filter Search - Search Dropdown Component
+ * Styles for the intelligent search dropdown
+ */
+
+@use './_variables' as *;
+@use './_components' as *;
+
+/* ============================================================================
+   Search Container (Positioned Absolutely)
+   ============================================================================ */
+
+.afs-search-container {
+  position: absolute !important;
+  display: block !important;
+  min-width: 280px !important;
+  z-index: 999999 !important;
+  
+  // Container is positioned absolutely (not wrapping the input)
+  // Position and width are set dynamically via JavaScript
+  // to match input position and width, with minimum 280px
+  // IMPORTANT: We never wrap the input or modify its parent
+  // The input maintains all its original width, height, and styles
+}
+
+/* ============================================================================
+   Search Dropdown Container
+   ============================================================================ */
+
+.afs-search-dropdown {
+  position: absolute !important;
+  top: 100% !important;
+  left: 0 !important;
+  width: 100% !important;
+  background: var(--afs-bg-color);
+  border: 1px solid var(--afs-border-color);
+  border-radius: $border-radius-md;
+  box-shadow: 0 4px 12px var(--afs-shadow-color-medium);
+  max-height: 400px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  z-index: 999999 !important;
+  display: none;
+  margin-top: 4px;
+  @include custom-scrollbar(6px, transparent, var(--afs-scrollbar-thumb));
+
+  &--visible {
+    display: block !important;
+  }
+
+  @media (max-width: $breakpoint-mobile) {
+    max-height: 60vh;
+    border-radius: $border-radius-sm;
+  }
+}
+
+/* ============================================================================
+   Dropdown Headers
+   ============================================================================ */
+
+.afs-search-dropdown__header {
+  padding: $spacing-md $spacing-lg;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--afs-text-color);
+  background: var(--afs-bg-secondary);
+  border-bottom: 1px solid var(--afs-border-color);
+  position: sticky;
+  top: 0;
+  z-index: $z-index-base;
+}
+
+/* ============================================================================
+   Dropdown Items (Base)
+   ============================================================================ */
+
+.afs-search-dropdown__item {
+  &--selected {
+    background: var(--afs-bg-secondary);
+  }
+}
+
+/* ============================================================================
+   Suggestions
+   ============================================================================ */
+
+.afs-search-dropdown__suggestion {
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+  padding: $spacing-md $spacing-lg;
+  cursor: pointer;
+  transition: background-color $transition-fast;
+  border-bottom: 1px solid var(--afs-border-color);
+
+  &:hover,
+  &.afs-search-dropdown__item--selected {
+    background: var(--afs-bg-secondary);
+  }
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    color: var(--afs-text-color);
+    opacity: 0.6;
+
+    svg {
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  &-text {
+    flex: 1;
+    font-size: $font-size-base;
+    color: var(--afs-text-color);
+    line-height: 1.5;
+  }
+}
+
+/* ============================================================================
+   Products
+   ============================================================================ */
+
+.afs-search-dropdown__product {
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+  padding: $spacing-md $spacing-lg;
+  text-decoration: none;
+  color: var(--afs-text-color);
+  transition: background-color $transition-fast;
+  border-bottom: 1px solid var(--afs-border-color);
+
+  &:hover,
+  &.afs-search-dropdown__item--selected {
+    background: var(--afs-bg-secondary);
+    text-decoration: none;
+  }
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &-image {
+    width: 50px;
+    height: 50px;
+    flex-shrink: 0;
+    border-radius: $border-radius-sm;
+    overflow: hidden;
+    background: var(--afs-bg-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+  }
+
+  &-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  &-title {
+    font-size: $font-size-base;
+    font-weight: $font-weight-medium;
+    color: var(--afs-text-color);
+    line-height: 1.4;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &-vendor {
+    font-size: $font-size-sm;
+    color: var(--afs-text-color);
+    opacity: 0.7;
+    line-height: 1.4;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &-price {
+    font-size: $font-size-sm;
+    font-weight: $font-weight-semibold;
+    color: var(--afs-text-color);
+    margin-top: 2px;
+  }
+}
+
+/* ============================================================================
+   Did You Mean
+   ============================================================================ */
+
+.afs-search-dropdown__did-you-mean {
+  padding: $spacing-md $spacing-lg;
+  cursor: pointer;
+  transition: background-color $transition-fast;
+  border-bottom: 1px solid var(--afs-border-color);
+  background: var(--afs-bg-secondary);
+
+  &:hover,
+  &.afs-search-dropdown__item--selected {
+    background: var(--afs-accent-color);
+    color: var(--afs-text-color-inverse);
+  }
+
+  &-text {
+    font-size: $font-size-sm;
+    line-height: 1.5;
+
+    strong {
+      font-weight: $font-weight-semibold;
+      text-decoration: underline;
+    }
+  }
+}
+
+/* ============================================================================
+   View All Link
+   ============================================================================ */
+
+.afs-search-dropdown__view-all {
+  display: block;
+  padding: $spacing-md $spacing-lg;
+  text-align: center;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+  color: var(--afs-accent-color);
+  text-decoration: none;
+  border-top: 2px solid var(--afs-border-color);
+  transition: background-color $transition-fast;
+
+  &:hover,
+  &.afs-search-dropdown__item--selected {
+    background: var(--afs-bg-secondary);
+    text-decoration: underline;
+  }
+}
+
+/* ============================================================================
+   Empty State
+   ============================================================================ */
+
+.afs-search-dropdown__empty {
+  padding: $spacing-xl $spacing-lg;
+  text-align: center;
+  font-size: $font-size-sm;
+  color: var(--afs-text-color);
+  opacity: 0.7;
+}
+
+/* ============================================================================
+   Loading State
+   ============================================================================ */
+
+.afs-search-dropdown__loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: $spacing-md;
+  padding: $spacing-xl $spacing-lg;
+  color: var(--afs-text-color);
+  opacity: 0.7;
+
+  &-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--afs-border-color);
+    border-top-color: var(--afs-accent-color);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ============================================================================
+   Responsive Styles
+   ============================================================================ */
+
+@media (max-width: $breakpoint-mobile) {
+  .afs-search-dropdown {
+    margin-top: 2px;
+    border-radius: $border-radius-sm;
+  }
+
+  .afs-search-dropdown__product {
+    padding: $spacing-sm $spacing-md;
+
+    &-image {
+      width: 40px;
+      height: 40px;
+    }
+
+    &-title {
+      font-size: $font-size-sm;
+    }
+
+    &-vendor {
+      font-size: $font-size-xs;
+    }
+
+    &-price {
+      font-size: $font-size-xs;
+    }
+  }
+
+  .afs-search-dropdown__suggestion {
+    padding: $spacing-sm $spacing-md;
+    font-size: $font-size-sm;
+  }
+
+  .afs-search-dropdown__header {
+    padding: $spacing-sm $spacing-md;
+    font-size: 10px;
+  }
+}
+
+/* ============================================================================
+   Accessibility
+   ============================================================================ */
+
+.afs-search-dropdown {
+  &[aria-expanded="true"] {
+    display: block;
+  }
+
+  &[aria-expanded="false"] {
+    display: none;
+  }
+}
+
+.afs-search-dropdown__item--selected {
+  outline: 2px solid var(--afs-accent-color);
+  outline-offset: -2px;
+}
+
+/* ============================================================================
+   Focus States
+   ============================================================================ */
+
+input[data-afs-search="true"] {
+  &:focus {
+    outline: 2px solid var(--afs-accent-color);
+    outline-offset: 2px;
+  }
+}
+

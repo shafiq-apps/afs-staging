@@ -268,6 +268,7 @@ export default function App() {
             <>
               <s-link href="/app">{t("navigation.home")}</s-link>
               <s-link href="/app/filters">{t("navigation.filters")}</s-link>
+              <s-link href="/app/search">{t("navigation.search")}</s-link>
               <s-link href="/app/indexing">{t("navigation.indexing")}</s-link>
             </>
           )}

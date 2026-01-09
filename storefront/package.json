@@ -6,7 +6,8 @@
   "main": "index.ts",
   "scripts": {
     "build": "npx tsx build.ts",
-    "watch": "npx tsx watch build.ts"
+    "watch": "npx tsx watch build.ts",
+    "check": "tsc --noEmit"
   },
   "author": "",
   "license": "ISC",

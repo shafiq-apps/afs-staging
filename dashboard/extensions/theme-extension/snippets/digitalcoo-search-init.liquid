@@ -1,0 +1,34 @@
+<script>
+  (function() {
+    const config = {
+      apiBaseUrl: {{ block.settings.api_base_url | json }},
+      shop: {{ shop.permanent_domain | json }},
+      enableLogging: {{ block.settings.enable_logging | default: false }}
+    };
+
+    // Function to initialize Search
+    function initializeSearch() {
+      if (typeof window.AFSSearch !== 'undefined') {
+        try {
+          window.AFSSearch.init(config);
+        } catch (error) {
+          console.error('Failed to initialize Digitalcoo Search:', error);
+        }
+      } else {
+        setTimeout(initializeSearch, 100);
+      }
+    }
+
+    // Wait for both DOM and script to be ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', function() {
+        // Wait a bit for the deferred script to load
+        setTimeout(initializeSearch, 50);
+      });
+    } else {
+      // DOM is already ready, just wait for script
+      setTimeout(initializeSearch, 50);
+    }
+  })();
+</script>
+

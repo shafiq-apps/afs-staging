@@ -153,6 +153,92 @@ export class StorefrontSearchService implements Injectable {
   }
 
   /**
+   * Advanced search with autocomplete and typo tolerance
+   * Uses Elasticsearch fuzzy matching and prefix queries for partial word matching
+   * Optimized for maximum speed with caching
+   */
+  async searchProductsWithAutocomplete(
+    shop: string,
+    searchQuery: string,
+    filters?: ProductSearchInput,
+    filterConfig?: Filter | null
+  ): Promise<ProductSearchResult> {
+    if (!shop) {
+      throw new Error('Shop parameter is required');
+    }
+
+    if (!searchQuery || !searchQuery.trim()) {
+      throw new Error('Search query is required');
+    }
+
+    const trimmedQuery = searchQuery.trim();
+    
+    // Generate cache key for autocomplete search
+    const filterConfigHash = getFilterConfigHash(filterConfig, filters);
+    const cacheKey = `autocomplete:${shop}:${trimmedQuery}:${JSON.stringify(filters || {})}:${filterConfigHash || ''}`;
+    
+    // Try cache first for maximum speed
+    const cachedResult = this.cache.getSearchResults(shop, { ...filters, search: trimmedQuery }, filterConfigHash);
+    if (cachedResult) {
+      this.log.debug('Autocomplete cache hit', { shop, query: trimmedQuery });
+      return cachedResult;
+    }
+
+    // Perform search
+    const result = await this.repo.searchProductsWithAutocomplete(shop, trimmedQuery, filters, filterConfig);
+
+    // Cache the result for fast subsequent requests
+    this.cache.setSearchResults(shop, { ...filters, search: trimmedQuery }, result, undefined, filterConfigHash);
+
+    return result;
+  }
+
+  /**
+   * Get search suggestions based on actual product data from Elasticsearch
+   * Returns real suggestions from product titles, not fake ones
+   * Includes partial matches (e.g., "Sheep" finds "Sheepskin")
+   */
+  async getSearchSuggestions(
+    shop: string,
+    query: string,
+    limit: number = 5
+  ): Promise<string[]> {
+    if (!shop || !query) {
+      return [];
+    }
+
+    try {
+      const suggestions = await this.repo.getSearchSuggestions(shop, query.trim(), limit);
+      return suggestions;
+    } catch (error: any) {
+      this.log.debug('Failed to get search suggestions', { shop, query, error: error?.message });
+      return [];
+    }
+  }
+
+  /**
+   * Get "Did you mean" suggestions when no results are found
+   * Returns similar queries that would return results
+   */
+  async getDidYouMeanSuggestions(
+    shop: string,
+    query: string,
+    limit: number = 3
+  ): Promise<string[]> {
+    if (!shop || !query) {
+      return [];
+    }
+
+    try {
+      const suggestions = await this.repo.getDidYouMeanSuggestions(shop, query.trim(), limit);
+      return suggestions;
+    } catch (error: any) {
+      this.log.debug('Failed to get did you mean suggestions', { shop, query, error: error?.message });
+      return [];
+    }
+  }
+
+  /**
    * Format aggregations to ProductFilters format
    * Converts Elasticsearch aggregation buckets to the format expected by the frontend
    */

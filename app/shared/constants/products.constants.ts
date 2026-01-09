@@ -20,7 +20,8 @@ export const ES_FIELDS = {
   VENDOR_KEYWORD: 'vendor.keyword',
   PRODUCT_TYPE_KEYWORD: 'productType.keyword',
   TITLE_KEYWORD: 'title.keyword',
-  TAGS: 'tags',
+  TAGS: 'tags.keyword', // Use keyword subfield for exact matching and aggregations
+  TAGS_TEXT: 'tags', // Use text field for phrase prefix queries
   COLLECTIONS: 'collections',
   STATUS: 'status',
   DOCUMENT_TYPE: 'documentType',

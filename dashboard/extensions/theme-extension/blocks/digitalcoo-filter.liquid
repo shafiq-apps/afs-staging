@@ -1,4 +1,4 @@
-{{ 'advanced-filter-search.min.css' | asset_url | stylesheet_tag }}
+{{ 'digitalcoo-filter.min.css' | asset_url | stylesheet_tag }}
 
 {% comment %} Generate CSS Variables from Block Settings {% endcomment %}
 <style>
@@ -47,13 +47,13 @@
   {% comment %} Container will be populated by JavaScript {% endcomment %}
 </div>
 
-<script src="{{ 'advanced-filter-search.min.js' | asset_url }}" defer></script>
+<script src="{{ 'digitalcoo-filter.min.js' | asset_url }}" defer></script>
 
-{% render 'advanced-filter-search-init', block: block %}
+{% render 'digitalcoo-filter-init', block: block %}
 
 {% schema %}
 {
-  "name": "Advanced Filter Search",
+  "name": "Digitalcoo Filters",
   "target": "section",
   "settings": [
     {

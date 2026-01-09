@@ -1,4 +1,4 @@
-import { Product, ProductVariant } from "../collections-main";
+import { ProductType as Product, ProductVariantType as ProductVariant } from "../type";
 
 export function getSelectedOptions(
     dialog: HTMLElement,
@@ -26,6 +26,13 @@ export function findMatchingVariants(
     );
 }
 
+// Helper to check if variant is available (checks both available and availableForSale)
+export function isVariantAvailable(variant: ProductVariant): boolean {
+    // Check both available and availableForSale (Shopify uses different properties)
+    // Default to true if not specified (assume available unless explicitly marked as unavailable)
+    return variant.available !== false && (variant.availableForSale !== false);
+}
+
 export function isOptionValueAvailable(
     product: Product,
     optionIndex: number,
@@ -33,7 +40,9 @@ export function isOptionValueAvailable(
     selected: (string | null)[]
 ): boolean {
     return product.variants!.some(v => {
-        if (!v.available) return false;
+        // Check both available and availableForSale (Shopify uses different properties)
+        const isAvailable = v.available !== false && (v.availableForSale !== false);
+        if (!isAvailable) return false;
 
         // Check this option value
         if (
