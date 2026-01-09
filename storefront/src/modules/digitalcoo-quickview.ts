@@ -5,13 +5,13 @@
  * Exports reusable functions for use in advanced-filter-search.ts
  */
 
-import { Icons } from './components/Icons';
-import { AFSW, DOM, Log, QuickAdd, State } from './digitalcoo-filter';
-import { Lang } from './locals';
-import { ProductType, ProductModalElement, ProductVariantType, SliderOptionsType, SliderSlideChangeEventDetailType, SpecialValueType } from './type';
-import { $ } from './utils/$.utils';
-import { waitForElement, waitForElements } from './utils/dom-ready';
-import { findMatchingVariants, getSelectedOptions, isOptionValueAvailable, isVariantAvailable } from './utils/variant-util';
+import { Icons } from './../components/Icons';
+import { AFSW, DOM, Log, QuickAdd, State } from './../digitalcoo-filter';
+import { Lang } from './../locals';
+import { ProductType, ProductModalElement, ProductVariantType, SliderOptionsType, SliderSlideChangeEventDetailType, SpecialValueType } from './../type';
+import { $ } from './../utils/$.utils';
+import { waitForElement, waitForElements } from './../utils/dom-ready';
+import { findMatchingVariants, getSelectedOptions, isOptionValueAvailable, isVariantAvailable } from './../utils/variant-util';
 
 // ============================================================================
 // SLIDER CLASS
