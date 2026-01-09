@@ -1,6 +1,7 @@
 // utils/index.ts
 
-import { $, API, DOM, FallbackMode, Lang, Log, SortField, SortOrder, State } from "../collections-main";
+import { $, API, DOM, FallbackMode, Lang, Log, State } from "../digitalcoo-filter";
+import { SortFieldType as SortField, SortOrderType as SortOrder } from "../type";
 
 export function handleLoadError(e: unknown) {
     DOM.hideLoading();

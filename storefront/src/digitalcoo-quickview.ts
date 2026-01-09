@@ -5,28 +5,10 @@
  * Exports reusable functions for use in advanced-filter-search.ts
  */
 
-import { $, AFSW, Icons, Lang, Log, Product, ProductModalElement, ProductVariant, QuickAdd, SpecialValue, State } from './collections-main';
+import { $, AFSW, DOM, Icons, Lang, Log, QuickAdd, State } from './digitalcoo-filter';
+import { ProductType as Product, ProductModalElement, ProductVariantType as ProductVariant, SliderOptionsType, SliderSlideChangeEventDetailType, SpecialValueType as SpecialValue } from './type';
 import { waitForElement, waitForElements } from './utils/dom-ready';
 import { findMatchingVariants, getSelectedOptions, isOptionValueAvailable } from './utils/variant-util';
-
-// ============================================================================
-// TYPE DEFINITIONS
-// ============================================================================
-
-export interface SliderOptions {
-  thumbnailsPosition?: 'top' | 'left' | 'right' | 'bottom';
-  enableKeyboard?: boolean;
-  enableAutoHeight?: boolean;
-  maxHeight?: number | null;
-  animationDuration?: number;
-  enableMagnifier?: boolean;
-  magnifierZoom?: number;
-}
-
-interface SliderSlideChangeEventDetail {
-  index: number;
-  total: number;
-}
 
 // ============================================================================
 // SLIDER CLASS
@@ -34,7 +16,7 @@ interface SliderSlideChangeEventDetail {
 
 class AFSSlider {
   private container: HTMLElement;
-  private options: Required<Omit<SliderOptions, 'maxHeight'>> & { maxHeight: number | null };
+  private options: Required<Omit<SliderOptionsType, 'maxHeight'>> & { maxHeight: number | null };
   private _currentIndex: number = 0;
 
   // Public getter for currentIndex to match SliderInstance interface
@@ -45,13 +27,13 @@ class AFSSlider {
   private thumbnails: HTMLElement[] = [];
   private isInitialized: boolean = false;
   private magnifierEnabled: boolean = false;
-  private magnifierZoom: number = 3;
+  private magnifierZoom: number = 4;
   private isTouchDevice: boolean = false;
   private mainContainer: HTMLElement | null = null;
   private thumbnailContainer: HTMLElement | null = null;
   private keyboardHandler: ((e: KeyboardEvent) => void) | null = null;
 
-  constructor(container: string | HTMLElement, options: SliderOptions = {}) {
+  constructor(container: string | HTMLElement, options: SliderOptionsType = {}) {
     const containerElement = typeof container === 'string' ? document.querySelector<HTMLElement>(container) : container;
 
     if (!containerElement) {
@@ -70,7 +52,7 @@ class AFSSlider {
       enableMagnifier: options.enableMagnifier !== false,
       magnifierZoom: options.magnifierZoom || 3,
       ...options
-    } as Required<Omit<SliderOptions, 'maxHeight'>> & { maxHeight: number | null };
+    } as Required<Omit<SliderOptionsType, 'maxHeight'>> & { maxHeight: number | null };
 
     this.magnifierEnabled = this.options.enableMagnifier;
     this.magnifierZoom = this.options.magnifierZoom;
@@ -102,9 +84,14 @@ class AFSSlider {
       return;
     }
 
-    // Get all thumbnails
+    // Get all thumbnails - ensure we find them even if they're not yet fully rendered
     const thumbnailElements = this.thumbnailContainer.querySelectorAll<HTMLElement>('.afs-slider__thumbnail');
     this.thumbnails = Array.from(thumbnailElements);
+    
+    // If no thumbnails found, log warning but continue (thumbnails might be optional)
+    if (this.thumbnails.length === 0) {
+      console.warn('AFSSlider: No thumbnails found, continuing without thumbnails');
+    }
 
     // Set thumbnail position
     this.container.setAttribute('data-thumbnails-position', this.options.thumbnailsPosition);
@@ -126,9 +113,13 @@ class AFSSlider {
     }
 
     // Setup pan-zoom magnifier if enabled and not touch device
+    // Must be called AFTER buildSlider() to ensure viewport exists
     if (this.magnifierEnabled && !this.isTouchDevice) {
       try {
-        this.setupPanZoom();
+        // Use setTimeout to ensure viewport is fully created
+        setTimeout(() => {
+          this.setupPanZoom();
+        }, 0);
       } catch (e) {
         console.error('AFSSlider: Error setting up pan-zoom', e);
         // Continue anyway - magnifier is optional
@@ -191,9 +182,19 @@ class AFSSlider {
       this.mainContainer.appendChild(nextBtn);
     }
 
-    // Setup thumbnail click handlers
+    // Setup thumbnail click handlers - re-query thumbnails in case they weren't found initially
+    if (this.thumbnails.length === 0 && this.thumbnailContainer) {
+      const thumbnailElements = this.thumbnailContainer.querySelectorAll<HTMLElement>('.afs-slider__thumbnail');
+      this.thumbnails = Array.from(thumbnailElements);
+    }
+    
     this.thumbnails.forEach((thumb, index) => {
-      thumb.addEventListener('click', () => {
+      // Remove any existing click handlers to avoid duplicates
+      const newThumb = thumb.cloneNode(true) as HTMLElement;
+      thumb.parentNode?.replaceChild(newThumb, thumb);
+      this.thumbnails[index] = newThumb;
+      
+      newThumb.addEventListener('click', () => {
         this.goToSlide(index);
       });
     });
@@ -302,7 +303,10 @@ class AFSSlider {
     if (!this.mainContainer) return;
 
     const viewport = this.mainContainer.querySelector<HTMLElement>('.afs-slider__viewport');
-    if (!viewport) return;
+    if (!viewport) {
+      console.warn('AFSSlider: Viewport not found for pan-zoom, skipping zoom setup');
+      return;
+    }
 
     // Add zoom class to viewport for cursor styling
     viewport.classList.add('afs-slider__viewport--zoomable');
@@ -494,7 +498,7 @@ class AFSSlider {
     }
 
     // Trigger custom event
-    this.container.dispatchEvent(new CustomEvent<SliderSlideChangeEventDetail>('afs-slider:slide-change', {
+    this.container.dispatchEvent(new CustomEvent<SliderSlideChangeEventDetailType>('afs-slider:slide-change', {
       detail: { index, total: this.images.length }
     }));
   }
@@ -729,6 +733,7 @@ export async function createProductModal(handle: string, modalId: string): Promi
   const dialog = $.el('dialog', 'afs-product-modal', { 'id': modalId }) as ProductModalElement;
 
   // Show loading state
+  const loadingText = Lang?.labels?.loadingProduct || 'Loading product...';
   dialog.innerHTML = `
       <div class="afs-product-modal__container">
         <div class="afs-product-modal__close-container">
@@ -736,7 +741,7 @@ export async function createProductModal(handle: string, modalId: string): Promi
         </div>
         <div class="afs-product-modal__content">
           <div class="afs-product-modal__loading" style="padding: 2rem; text-align: center;">
-            ${Lang.labels.loadingProduct}
+            ${loadingText}
           </div>
         </div>
       </div>
@@ -750,7 +755,10 @@ export async function createProductModal(handle: string, modalId: string): Promi
     // Fetch product data using Ajax API
     const response = await fetch(productUrl);
     if (!response.ok) {
-      throw new Error('Failed to load product');
+      const errorText = await response.text().catch(() => '');
+      const errorMsg = `Failed to load product: HTTP ${response.status} ${response.statusText}${errorText ? ' - ' + errorText.substring(0, 100) : ''}`;
+      Log.error('Product fetch failed', { status: response.status, statusText: response.statusText, url: productUrl, errorText });
+      throw new Error(errorMsg);
     }
     const productData = await response.json() as Product;
 
@@ -969,7 +977,7 @@ export async function createProductModal(handle: string, modalId: string): Promi
                       ${!currentVariant.available ? 'disabled' : ''}
                       type="button"
                     >
-                      ${!currentVariant.available ? Lang.buttons.soldOut : Lang.buttons.addToCart}
+                      ${!currentVariant.available ? (Lang?.buttons?.soldOut || 'Sold out') : (Lang?.buttons?.addToCart || 'Add to cart')}
                     </button>
                   </div>
                   <button
@@ -979,7 +987,7 @@ export async function createProductModal(handle: string, modalId: string): Promi
                     ${!currentVariant.available ? 'disabled' : ''}
                     type="button"
                   >
-                    ${Lang.buttons.buyNow}
+                    ${Lang?.buttons?.buyNow || 'Buy it now'}
                   </button>
                 </div>
                 <div class="afs-product-modal__description">
@@ -1013,6 +1021,11 @@ export async function createProductModal(handle: string, modalId: string): Promi
           return Array.from(sliderContainer.querySelectorAll<HTMLImageElement>('.afs-slider__image'));
         });
 
+        // Also wait for thumbnails to be in DOM (non-blocking)
+        await waitForElement('.afs-slider__thumbnails', sliderContainer, 1000).catch(() => {
+          Log.warn('Thumbnails container not found, slider will continue without thumbnails', { modalId });
+        });
+
         if (images.length > 0) {
           dialog._slider = new AFSSlider(sliderContainer, {
             thumbnailsPosition: 'left', // Can be 'top', 'left', 'right', 'bottom'
@@ -1026,6 +1039,9 @@ export async function createProductModal(handle: string, modalId: string): Promi
           Log.warn('No images found for slider', { modalId });
         }
       } catch (error) {
+
+        console.log("error", error);
+
         Log.error('Failed to initialize slider', {
           error: error instanceof Error ? error.message : String(error),
           modalId
@@ -1037,7 +1053,16 @@ export async function createProductModal(handle: string, modalId: string): Promi
     setupModalHandlers(dialog, modalId, productData, formatPrice);
 
   } catch (error) {
-    Log.error('Failed to load product for modal', { error: error instanceof Error ? error.message : String(error), handle });
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorDetails = error instanceof Error ? { message: errorMessage, stack: error.stack } : { message: errorMessage };
+    Log.error('Failed to load product for modal', { 
+      error: errorDetails, 
+      handle,
+      productUrl,
+      responseStatus: error instanceof Error && 'status' in error ? (error as any).status : undefined
+    });
+    
+    const userMessage = Lang?.messages?.failedToLoadProductModal || 'Failed to load product. Please try again.';
     dialog.innerHTML = `
         <div class="afs-product-modal__container">
           <div class="afs-product-modal__close-container">
@@ -1045,7 +1070,8 @@ export async function createProductModal(handle: string, modalId: string): Promi
           </div>
           <div class="afs-product-modal__content">
             <div style="padding: 2rem; text-align: center;">
-              <p>${Lang.messages.failedToLoadProductModal}</p>
+              <p>${userMessage}</p>
+              ${Log.enabled ? `<p style="font-size: 0.875rem; color: #666; margin-top: 0.5rem;">Error: ${errorMessage}</p>` : ''}
             </div>
           </div>
         </div>
@@ -1162,7 +1188,24 @@ function setupModalHandlers(
       const availableVariant = matches.find(v => v.available);
 
       if (availableVariant) {
-        updateVariantInModal(dialog, modalId, availableVariant, formatPrice);
+        // Wait for slider to be ready if it's still initializing
+        if (!dialog._slider) {
+          // Wait up to 2 seconds for slider to initialize
+          const waitForSlider = (attempts = 0): void => {
+            if (dialog._slider) {
+              updateVariantInModal(dialog, modalId, availableVariant, formatPrice);
+            } else if (attempts < 20) {
+              setTimeout(() => waitForSlider(attempts + 1), 100);
+            } else {
+              Log.warn('Slider not ready for variant update', { modalId });
+              // Update price and buttons even if slider isn't ready
+              updateVariantInModal(dialog, modalId, availableVariant, formatPrice);
+            }
+          };
+          waitForSlider();
+        } else {
+          updateVariantInModal(dialog, modalId, availableVariant, formatPrice);
+        }
       }
     });
   });
@@ -1181,7 +1224,7 @@ function setupModalHandlers(
         closeModal();
       } catch (error) {
         Log.error('Failed to add to cart from modal', { error: error instanceof Error ? error.message : String(error) });
-        alert(Lang.messages.failedToAddToCart);
+        DOM.showError(Lang?.messages?.failedToAddToCart || 'Failed to add product to cart. Please try again.');
       }
     });
   }
@@ -1200,7 +1243,7 @@ function setupModalHandlers(
         window.location.href = `${routesRoot}cart/${variantId}:${quantity}?checkout`;
       } catch (error) {
         Log.error('Failed to buy now', { error: error instanceof Error ? error.message : String(error) });
-        alert(Lang.messages.failedToProceedToCheckout);
+        DOM.showError(Lang?.messages?.failedToProceedToCheckout || 'Failed to proceed to checkout. Please try again.');
       }
     });
   }
@@ -1233,7 +1276,9 @@ function updateVariantInModal(
   if (addButton) {
     addButton.dataset.variantId = String(variant.id);
     addButton.disabled = !variant.available;
-    addButton.innerHTML = !variant.available ? Lang.buttons.soldOut : Lang.buttons.addToCart;
+    addButton.innerHTML = !variant.available 
+      ? (Lang?.buttons?.soldOut || 'Sold out') 
+      : (Lang?.buttons?.addToCart || 'Add to cart');
   }
 
   // Update buy now button
@@ -1246,7 +1291,12 @@ function updateVariantInModal(
   // Update images if variant has specific image
   // Use slider's updateVariantImage method if available, otherwise fall back to manual matching
   const product = dialog._productData;
-  if (product && product.images && dialog._slider && product.variants) {
+  if (product && product.images && product.variants) {
+    // If slider is not ready yet, skip image update (price and buttons already updated above)
+    if (!dialog._slider) {
+      Log.debug('Slider not ready, skipping image update', { variantId: variant.id });
+      return;
+    }
     // OPTIMIZATION: Quick check using variant_ids array
     // Find which image is assigned to this variant by checking variant_ids
     const currentVariantId = variant.id;
@@ -1415,10 +1465,13 @@ function setupCloseHandler(dialog: ProductModalElement): void {
 export function createQuickViewButton(product: Product): HTMLElement | null {
   if (!product.handle) return null;
 
+  // Safety check: ensure Lang.buttons exists before accessing quickView
+  const ariaLabel = (Lang?.buttons?.quickView) || 'Quick view';
+
   const quickViewBtn = $.el('button', 'afs-product-card__quick-view', {
     'data-product-handle': product.handle,
     'data-product-id': String(product.id || product.productId || product.gid || ''),
-    'aria-label': Lang.buttons.quickView,
+    'aria-label': ariaLabel,
     'type': 'button'
   });
   const quickViewIcon = $.el('span', 'afs-product-card__quick-view-icon');
@@ -1474,8 +1527,15 @@ export function handleQuickViewClick(handle: string): void {
   };
 
   openModal().catch(error => {
-    Log.error('Failed to open product modal', { error: error instanceof Error ? error.message : String(error), handle });
-    alert(Lang.messages.failedToLoadProductModal);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    Log.error('Failed to open product modal', { error: errorMessage, handle, stack: error instanceof Error ? error.stack : undefined });
+    const userMessage = Lang?.messages?.failedToLoadProductModal || 'Failed to load product. Please try again.';
+    if (DOM && typeof DOM.showError === 'function') {
+      DOM.showError(userMessage);
+    } else {
+      // Fallback if DOM.showError is not available
+      alert(userMessage);
+    }
   });
 }
 

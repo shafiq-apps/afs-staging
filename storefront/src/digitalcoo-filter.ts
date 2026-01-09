@@ -4,411 +4,58 @@
  * Describe hardcoded values and their means and functionality
  */
 
+import {
+	ConstantsType,
+	DisplayType,
+	FilterKeyType,
+	IconsType,
+	LanguageTextsType,
+	SelectionType,
+	// Type aliases for backward compatibility
+	ProductVariantType,
+	AppStateType,
+	FilterOptionType,
+	FilterMetadataType,
+	FiltersStateType,
+	PaginationStateType,
+	SortStateType,
+	ProductsResponseDataType,
+	FiltersResponseDataType,
+	PriceRangeType,
+	AFSConfigType,
+	FilterValueType,
+	ProductModalElement,
+	ShopifyWindow,
+	SpecialValueType,
+	SortFieldType,
+	SortOrderType,
+	OptionType,
+	AppliedFilterType,
+	ParsedUrlParamsType,
+	LoggableData,
+	ImageOptimizationOptionsType,
+	FilterGroupStateType,
+	ProductType,
+	APIResponse,
+	AFSInterfaceType,
+	FilterItemsElement
+} from "./type";
 import { handleLoadError } from "./utils";
-
-// ============================================================================
-// TYPE DEFINITIONS
-// ============================================================================
-
-export interface Constants {
-	readonly DEBOUNCE: number;
-	readonly TIMEOUT: number;
-	readonly CACHE_TTL: number;
-	readonly PAGE_SIZE: number;
-}
-
-export interface Icons {
-	readonly rightArrow: string;
-	readonly downArrow: string;
-	readonly eye: string;
-	readonly minus: string;
-	readonly plus: string;
-	readonly close: string;
-}
-
-export interface ImageOptimizationOptions {
-	width?: number;
-	height?: number;
-	quality?: number;
-	format?: string;
-	crop?: string | null;
-}
-
-export interface PriceRange {
-	min?: number;
-	max?: number;
-}
-
-export interface SortState {
-	field: string;
-	order: 'asc' | 'desc';
-}
-
-export interface PaginationState {
-	page: number;
-	limit: number;
-	total: number;
-	totalPages: number;
-}
-
-export interface FallbackPagination {
-	currentPage: number;
-	totalPages: number;
-	totalProducts: number;
-}
-
-export interface SelectedCollection {
-	id: string | null;
-	sortBy: string | null;
-}
-
-export interface FilterMetadata {
-	label: string;
-	queryKey?: string;
-	optionKey?: string;
-	optionType?: string;
-}
-
-export interface FilterValue {
-	value?: string;
-	key?: string;
-	name?: string;
-	label?: string;
-	count?: number;
-}
-
-export interface FilterOption {
-	handle?: string;
-	label?: string;
-	queryKey?: string;
-	optionKey?: string;
-	optionType?: string;
-	displayType?: string;
-	selectionType?: string;
-	searchable?: boolean | string;
-	searchPlaceholder?: string;
-	tooltipContent?: string;
-	collapsed?: boolean | string | number;
-	showCount?: boolean;
-	values?: FilterValue[];
-	range?: {
-		min: number;
-		max: number;
-	};
-	key?: string;
-}
-
-export interface ProductImage {
-	url?: string;
-	urlSmall?: string;
-	urlMedium?: string;
-	urlLarge?: string;
-	urlFallback?: string;
-}
-
-export interface ProductVariant {
-	id: number | string;
-	available?: boolean;
-	availableForSale?: boolean;
-	price: number | string;
-	compare_at_price?: number | string;
-	option1?: string;
-	option2?: string;
-	option3?: string;
-	options?: string[];
-	featured_image?: {
-		src?: string;
-		url?: string;
-		position?: number;
-		variant_ids?: number[];
-	} | string;
-	image?: string | {
-		url?: string;
-		src?: string;
-	};
-	imageUrl?: string;
-	featuredImage?: {
-		url?: string;
-		src?: string;
-	};
-}
-
-export interface Product {
-	id?: string | number;
-	productId?: string | number;
-	gid?: string | number;
-	handle?: string;
-	title?: string;
-	vendor?: string;
-	imageUrl?: string;
-	featuredImage?: ProductImage;
-	minPrice?: string | number;
-	maxPrice?: string | number;
-	totalInventory?: string | number;
-	variants?: ProductVariant[];
-	description?: string;
-	images?: string[];
-	options?: Array<{
-		name: string;
-		values: string[];
-	}>;
-}
-
-export interface Collection {
-	id?: string | number;
-	gid?: string | number;
-	collectionId?: string | number;
-	title?: string;
-	label?: string;
-	name?: string;
-}
-
-export interface FiltersState {
-	[key: string]: string[] | string | PriceRange | null;
-	vendor: string[];
-	productType: string[];
-	tags: string[];
-	collections: string[];
-	search: string;
-	priceRange: PriceRange | null;
-}
-
-export interface FilterGroupState {
-	collapsed?: boolean;
-	search?: string;
-	lastUpdated?: number;
-}
-
-// Persistent map for filter group UI states (collapsed/search/lastUpdated)
-const states = new Map<string, FilterGroupState>();
-
-export interface APIResponse<T> {
-	success: boolean;
-	data?: T;
-	message?: string;
-}
-
-export interface ProductsResponseData {
-	products?: Product[];
-	pagination?: PaginationState;
-	filters?: FilterOption[];
-}
-
-export interface FiltersResponseData {
-	filters?: FilterOption[];
-}
-
-export interface ParsedUrlParams {
-	vendor?: string[];
-	productType?: string[];
-	tags?: string[];
-	collections?: string[];
-	search?: string;
-	priceRange?: PriceRange;
-	page?: number;
-	limit?: number;
-	sort?: SortState;
-	[key: string]: string[] | string | PriceRange | SortState | number | undefined;
-}
-
-export interface AppliedFilter {
-	handle: string;
-	label: string;
-	value: string | typeof SpecialValue.CLEAR;
-}
-
-export interface AppState {
-	shop: string | null;
-	filters: FiltersState;
-	products: Product[];
-	collections: Collection[];
-	selectedCollection: SelectedCollection;
-	pagination: PaginationState;
-	sort: SortState;
-	loading: boolean;
-	availableFilters: FilterOption[];
-	filterMetadata: Map<string, FilterMetadata>;
-	fallbackProducts: Product[];
-	fallbackPagination: FallbackPagination;
-	usingFallback: boolean;
-	moneyFormat: string | null;
-	moneyWithCurrencyFormat: string | null;
-	currency: string | null;
-	scrollToProductsOnFilter: boolean;
-	priceRangeHandle: string | null;
-}
-
-export interface AFSConfig {
-	apiBaseUrl?: string;
-	shop?: string;
-	containerSelector?: string;
-	filtersSelector?: string;
-	productsSelector?: string;
-	collections?: Collection[];
-	selectedCollection?: {
-		id?: string | null;
-		sortBy?: string | null;
-	};
-	fallbackProducts?: Product[];
-	fallbackPagination?: FallbackPagination;
-	moneyFormat?: string;
-	moneyWithCurrencyFormat?: string;
-	currency?: string;
-	scrollToProductsOnFilter?: boolean;
-	priceRangeHandle?: string | null;
-	debug?: boolean;
-}
-
-export interface SliderInstance {
-	destroy?: () => void;
-	goToSlide?: (index: number) => void;
-	updateVariantImage?: (variant: ProductVariant, images: string[], variants: ProductVariant[]) => boolean;
-	currentIndex?: number;
-}
-
-export interface ProductModalElement extends HTMLDialogElement {
-	_productData?: Product;
-	_currentVariantId?: number | string;
-	_slider?: SliderInstance;
-}
-
-export interface FilterItemsElement extends HTMLElement {
-	_items?: FilterValue[];
-}
-
-export interface ShopifyWindow extends Window {
-	Shopify?: {
-		routes?: {
-			root?: string;
-		};
-	};
-	AFSSlider?: new (container: HTMLElement, options: {
-		thumbnailsPosition?: string;
-		enableKeyboard?: boolean;
-		enableAutoHeight?: boolean;
-		maxHeight?: number;
-		enableMagnifier?: boolean;
-		magnifierZoom?: number;
-	}) => SliderInstance;
-	AFS?: AFSInterface;
-	DOM?: typeof DOM;
-	AFS_State?: AppState;
-	AFS_API?: typeof API;
-	AFS_LOG?: typeof Log;
-	AFSQuickView?: {
-		createQuickViewButton: (product: Product) => HTMLElement | null;
-		handleQuickViewClick: (handle: string) => void;
-		createProductModal: (handle: string, modalId: string) => Promise<ProductModalElement>;
-	};
-	QuickAdd?: typeof QuickAdd;
-	$?: typeof $;
-	Icons?: typeof Icons;
-}
-
-// Type for loggable data (any JSON-serializable value)
-// Using a more permissive type for logging that allows complex objects
-// This is safe because console.log/error/etc. accept any value
-// We use a type that allows any object structure for logging purposes
-// Note: This intentionally allows any object structure since logging needs flexibility
-// We explicitly include all our custom types plus allow objects with index signatures
-export type LoggableData =
-	| string
-	| number
-	| boolean
-	| null
-	| undefined
-	| Error
-	| FiltersState
-	| SortState
-	| PaginationState
-	| FilterOption
-	| FilterOption[]
-	| Collection
-	| Collection[]
-	| PriceRange
-	| AFSConfig
-	| ParsedUrlParams
-	| APIResponse<ProductsResponseData | FiltersResponseData>
-	| ProductsResponseData
-	| FiltersResponseData
-	| { [key: string]: string | number | boolean | null | undefined | string[] | number[] | boolean[] | FiltersState | SortState | PaginationState | FilterOption | FilterOption[] | Collection | Collection[] | PriceRange | AFSConfig | ParsedUrlParams | APIResponse<ProductsResponseData | FiltersResponseData> | ProductsResponseData | FiltersResponseData | { [key: string]: string | number | boolean | null | undefined | string[] | number[] | boolean[] } }
-	| (string | number | boolean | null | undefined | FiltersState | SortState | PaginationState | FilterOption | FilterOption[] | Collection | Collection[] | PriceRange | AFSConfig | ParsedUrlParams | APIResponse<ProductsResponseData | FiltersResponseData> | ProductsResponseData | FiltersResponseData | { [key: string]: string | number | boolean | null | undefined | string[] | number[] | boolean[] })[];
-
-// ============================================================================
-// ENUMS
-// ============================================================================
-
-export enum FilterKey {
-	VENDOR = 'vendor',
-	VENDORS = 'vendors',
-	PRODUCT_TYPE = 'productType',
-	PRODUCT_TYPES = 'productTypes',
-	TAG = 'tag',
-	TAGS = 'tags',
-	COLLECTION = 'collection',
-	COLLECTIONS = 'collections',
-	SEARCH = 'search',
-	PRICE_RANGE = 'priceRange',
-	PRICE = 'price',
-	PRICE_MIN = 'priceMin',
-	PRICE_MAX = 'priceMax',
-	PAGE = 'page',
-	LIMIT = 'limit',
-	SORT = 'sort',
-	SIZE = 'size',
-	CPID = 'cpid',
-	SHOP = 'shop',
-	SHOP_DOMAIN = 'shop_domain'
-}
-
-export enum SortField {
-	BEST_SELLING = 'best-selling',
-	BESTSELLING = 'bestselling',
-	TITLE = 'title',
-	PRICE = 'price',
-	CREATED = 'created'
-}
-
-export enum SortOrder {
-	ASC = 'asc',
-	DESC = 'desc',
-	ASCENDING = 'ascending',
-	DESCENDING = 'descending'
-}
-
-export enum OptionType {
-	COLLECTION = 'Collection',
-	PRICE_RANGE = 'priceRange'
-}
-
-export enum DisplayType {
-	RADIO = 'radio',
-	CHECKBOX = 'checkbox'
-}
-
-export enum SelectionType {
-	MULTIPLE = 'multiple',
-	MULTIPLE_UPPER = 'MULTIPLE'
-}
-
-export enum SpecialValue {
-	ALL = '__all__',
-	CLEAR = '__clear__',
-	DEFAULT_TITLE = 'Default Title'
-}
-
 // ============================================================================
 // MINIMAL CONSTANTS
 // ============================================================================
-export const C: Constants = {
+export const C: ConstantsType = {
 	DEBOUNCE: 200,
 	TIMEOUT: 10000,
 	CACHE_TTL: 300000,
 	PAGE_SIZE: 24
 };
 
+// Persistent map for filter group UI states (collapsed/search/lastUpdated)
+const States = new Map<string, FilterGroupStateType>();
+
 // Store SVG HTML content for inline use (allows CSS color control)
-export const Icons: Icons = {
+export const Icons: IconsType = {
 	rightArrow: '<svg xmlns="http://www.w3.org/2000/svg" width="34px" height="34px" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M9.39862 4.32752C9.69152 4.03463 10.1664 4.03463 10.4593 4.32752L16.8232 10.6915C17.5067 11.3749 17.5067 12.4829 16.8232 13.1664L10.4593 19.5303C10.1664 19.8232 9.69152 19.8232 9.39863 19.5303C9.10573 19.2374 9.10573 18.7625 9.39863 18.4697L15.7626 12.1057C15.8602 12.0081 15.8602 11.8498 15.7626 11.7521L9.39863 5.38818C9.10573 5.09529 9.10573 4.62041 9.39862 4.32752Z" fill="currentColor"/></svg>',
 	downArrow: '<svg xmlns="http://www.w3.org/2000/svg" width="34px" height="34px" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M4.46938 9.39966C4.76227 9.10677 5.23715 9.10677 5.53004 9.39966L11.894 15.7636C11.9916 15.8613 12.1499 15.8613 12.2476 15.7636L18.6115 9.39966C18.9044 9.10677 19.3793 9.10677 19.6722 9.39966C19.9651 9.69256 19.9651 10.1674 19.6722 10.4603L13.3082 16.8243C12.6248 17.5077 11.5168 17.5077 10.8333 16.8243L4.46938 10.4603C4.17649 10.1674 4.17649 9.69256 4.46938 9.39966Z" fill="currentColor"/></svg>',
 	eye: '<svg xmlns="http://www.w3.org/2000/svg" width="34px" height="34px" viewBox="0 0 32 32" fill="currentColor"><path d="M16.108 10.044c-3.313 0-6 2.687-6 6s2.687 6 6 6 6-2.686 6-6-2.686-6-6-6zM16.108 20.044c-2.206 0-4.046-1.838-4.046-4.044s1.794-4 4-4c2.206 0 4 1.794 4 4s-1.748 4.044-3.954 4.044zM31.99 15.768c-0.012-0.050-0.006-0.104-0.021-0.153-0.006-0.021-0.020-0.033-0.027-0.051-0.011-0.028-0.008-0.062-0.023-0.089-2.909-6.66-9.177-10.492-15.857-10.492s-13.074 3.826-15.984 10.486c-0.012 0.028-0.010 0.057-0.021 0.089-0.007 0.020-0.021 0.030-0.028 0.049-0.015 0.050-0.009 0.103-0.019 0.154-0.018 0.090-0.035 0.178-0.035 0.269s0.017 0.177 0.035 0.268c0.010 0.050 0.003 0.105 0.019 0.152 0.006 0.023 0.021 0.032 0.028 0.052 0.010 0.027 0.008 0.061 0.021 0.089 2.91 6.658 9.242 10.428 15.922 10.428s13.011-3.762 15.92-10.422c0.015-0.029 0.012-0.058 0.023-0.090 0.007-0.017 0.020-0.030 0.026-0.050 0.015-0.049 0.011-0.102 0.021-0.154 0.018-0.090 0.034-0.177 0.034-0.27 0-0.088-0.017-0.175-0.035-0.266zM16 25.019c-5.665 0-11.242-2.986-13.982-8.99 2.714-5.983 8.365-9.047 14.044-9.047 5.678 0 11.203 3.067 13.918 9.053-2.713 5.982-8.301 8.984-13.981 8.984z"/></svg>',
@@ -418,75 +65,13 @@ export const Icons: Icons = {
 };
 
 // Excluded query parameter keys (not processed as filters)
-export const EXCLUDED_QUERY_PARAMS = new Set<string>([FilterKey.SHOP, FilterKey.SHOP_DOMAIN, FilterKey.CPID]);
+export const EXCLUDED_QUERY_PARAMS = new Set<string>([FilterKeyType.SHOP, FilterKeyType.SHOP_DOMAIN, FilterKeyType.CPID]);
 
 // ============================================================================
 // LANGUAGE/TEXT CONSTANTS
 // ============================================================================
 
-export interface LanguageTexts {
-	readonly buttons: {
-		readonly quickAdd: string;
-		readonly quickAddToCart: string;
-		readonly quickView: string;
-		readonly addToCart: string;
-		readonly soldOut: string;
-		readonly buyNow: string;
-		readonly clear: string;
-		readonly clearAll: string;
-		readonly close: string;
-		readonly closeFilters: string;
-		readonly toggleFilters: string;
-		readonly filters: string;
-		readonly previous: string;
-		readonly next: string;
-		readonly apply: string;
-	};
-	readonly labels: {
-		readonly sortBy: string;
-		readonly appliedFilters: string;
-		readonly search: string;
-		readonly price: string;
-		readonly collection: string;
-		readonly productUnavailable: string;
-		readonly loading: string;
-		readonly loadingProduct: string;
-	};
-	readonly sortOptions: {
-		readonly bestSelling: string;
-		readonly titleAsc: string;
-		readonly titleDesc: string;
-		readonly priceAsc: string;
-		readonly priceDesc: string;
-		readonly createdAsc: string;
-		readonly createdDesc: string;
-	};
-	readonly messages: {
-		readonly noProductsFound: string;
-		readonly oneProductFound: string;
-		readonly productsFound: string;
-		readonly showingProducts: string;
-		readonly pageOf: string;
-		readonly addedToCart: string;
-		readonly failedToLoad: string;
-		readonly failedToLoadProducts: string;
-		readonly failedToLoadProduct: string;
-		readonly failedToAddToCart: string;
-		readonly failedToProceedToCheckout: string;
-		readonly failedToLoadProductModal: string;
-		readonly failedToLoadFilters: string;
-		readonly initializationFailed: string;
-		readonly loadFailed: string;
-		readonly unknownError: string;
-		readonly checkConsole: string;
-	};
-	readonly placeholders: {
-		readonly searchProducts: string;
-		readonly searchFilter: string;
-	};
-}
-
-export const Lang: LanguageTexts = {
+export const Lang: LanguageTextsType = {
 	buttons: {
 		quickAdd: 'Quick Add',
 		quickAddToCart: 'Quick add to cart',
@@ -591,7 +176,7 @@ export const $ = {
 	str: (v: string | number | null | undefined): string => String(v || '').trim(),
 
 	// Fast empty check
-	empty: (v: string | string[] | number | boolean | Record<string, string | string[] | number | boolean | null | undefined | PriceRange> | PriceRange | null | undefined): boolean => {
+	empty: (v: string | string[] | number | boolean | Record<string, string | string[] | number | boolean | null | undefined | PriceRangeType> | PriceRangeType | null | undefined): boolean => {
 		if (!v) return true;
 		if (Array.isArray(v)) return v.length === 0;
 		if (typeof v === 'object') return Object.keys(v).length === 0;
@@ -628,7 +213,7 @@ export const $ = {
 	},
 
 	// Optimize Shopify image URL with transformations
-	optimizeImageUrl: (url: string | null | undefined, options: ImageOptimizationOptions = {}): string => {
+	optimizeImageUrl: (url: string | null | undefined, options: ImageOptimizationOptionsType = {}): string => {
 		if (!url || typeof url !== "string") return "";
 
 		const {
@@ -770,32 +355,32 @@ export const $ = {
 
 	// Check if a filter key matches vendor (handles 'vendor' or 'vendors')
 	isVendorKey: (key: string | null | undefined): boolean => {
-		return $.equalsAny(key, FilterKey.VENDOR, FilterKey.VENDORS);
+		return $.equalsAny(key, FilterKeyType.VENDOR, FilterKeyType.VENDORS);
 	},
 
 	// Check if a filter key matches productType (handles 'productType' or 'productTypes')
 	isProductTypeKey: (key: string | null | undefined): boolean => {
-		return $.equalsAny(key, FilterKey.PRODUCT_TYPE, FilterKey.PRODUCT_TYPES);
+		return $.equalsAny(key, FilterKeyType.PRODUCT_TYPE, FilterKeyType.PRODUCT_TYPES);
 	},
 
 	// Check if a filter key matches tags (handles 'tag' or 'tags')
 	isTagKey: (key: string | null | undefined): boolean => {
-		return $.equalsAny(key, FilterKey.TAG, FilterKey.TAGS);
+		return $.equalsAny(key, FilterKeyType.TAG, FilterKeyType.TAGS);
 	},
 
 	// Check if a filter key matches collections (handles 'collection' or 'collections')
 	isCollectionKey: (key: string | null | undefined): boolean => {
-		return $.equalsAny(key, FilterKey.COLLECTION, FilterKey.COLLECTIONS);
+		return $.equalsAny(key, FilterKeyType.COLLECTION, FilterKeyType.COLLECTIONS);
 	},
 
 	// Check if a filter key matches priceRange (handles 'priceRange' or 'price')
 	isPriceRangeKey: (key: string | null | undefined): boolean => {
-		return $.equalsAny(key, FilterKey.PRICE_RANGE, FilterKey.PRICE);
+		return $.equalsAny(key, FilterKeyType.PRICE_RANGE, FilterKeyType.PRICE);
 	},
 
 	// Check if sort field is best-selling (handles 'best-selling' or 'bestselling')
 	isBestSelling: (field: string | null | undefined): boolean => {
-		return $.equalsAny(field, SortField.BEST_SELLING, SortField.BESTSELLING);
+		return $.equalsAny(field, SortFieldType.BEST_SELLING, SortFieldType.BESTSELLING);
 	},
 
 	// Check if option type is Collection
@@ -815,8 +400,8 @@ export const $ = {
 
 export const Metadata = {
 	// Build metadata map from filters array (for display labels, types, etc.)
-	buildFilterMetadata: (filters: FilterOption[]): Map<string, FilterMetadata> => {
-		const m = new Map<string, FilterMetadata>();
+	buildFilterMetadata: (filters: FilterOptionType[]): Map<string, FilterMetadataType> => {
+		const m = new Map<string, FilterMetadataType>();
 		if (!Array.isArray(filters)) return m;
 		filters.forEach(f => {
 			if (f.handle) {
@@ -837,7 +422,7 @@ export const Metadata = {
 // STATE (Minimal, no copying)
 // ============================================================================
 
-export const State: AppState = {
+export const State: AppStateType = {
 	shop: null,
 	// Filters: standard filters (fixed keys) + dynamic option filters (handles as keys)
 	// Example: { vendor: [], ef4gd: ["red"], pr_a3k9x: ["M"], search: '', priceRange: null }
@@ -850,7 +435,7 @@ export const State: AppState = {
 	loading: false,
 	availableFilters: [],
 	// Metadata maps (for display only, not for state management)
-	filterMetadata: new Map<string, FilterMetadata>(), // handle -> { label, type, queryKey, optionKey }
+	filterMetadata: new Map<string, FilterMetadataType>(), // handle -> { label, type, queryKey, optionKey }
 	// Fallback products from Liquid (to prevent blank screen when API fails)
 	fallbackProducts: [],
 	// Fallback pagination from Liquid (for proper pagination controls when API fails)
@@ -907,9 +492,9 @@ export const Log = {
 // ============================================================================
 
 export const UrlManager = {
-	parse(): ParsedUrlParams {
+	parse(): ParsedUrlParamsType {
 		const url = new URL(window.location.href);
-		const params: ParsedUrlParams = {};
+		const params: ParsedUrlParamsType = {};
 		// Price range can come from:
 		// - New (server-supported): priceMin / priceMax
 		// - Legacy (backward compat): priceRange=min-max or price=min-max
@@ -924,42 +509,42 @@ export const UrlManager = {
 			else if ($.isProductTypeKey(key)) params.productType = $.split(value);
 			else if ($.isTagKey(key)) params.tags = $.split(value);
 			else if ($.isCollectionKey(key)) params.collections = $.split(value);
-			else if ($.equals(key, FilterKey.SEARCH)) params.search = value;
+			else if ($.equals(key, FilterKeyType.SEARCH)) params.search = value;
 			// Server-supported price range params
-			else if ($.equals(key, FilterKey.PRICE_MIN)) {
-				const v = parseFloat(value);
+			else if ($.equals(key, FilterKeyType.PRICE_MIN)) {
+				const v = Math.round(parseFloat(value));
 				if (!isNaN(v) && v >= 0) parsedPriceMin = v;
 			}
-			else if ($.equals(key, FilterKey.PRICE_MAX)) {
-				const v = parseFloat(value);
+			else if ($.equals(key, FilterKeyType.PRICE_MAX)) {
+				const v = Math.round(parseFloat(value));
 				if (!isNaN(v) && v >= 0) parsedPriceMax = v;
 			}
 			// Legacy price range params: "min-max"
 			else if ($.isPriceRangeKey(key)) {
 				const parts = value.split('-');
 				if (parts.length === 2) {
-					const min = parseFloat(parts[0]);
-					const max = parseFloat(parts[1]);
+					const min = Math.round(parseFloat(parts[0]));
+					const max = Math.round(parseFloat(parts[1]));
 					if (!isNaN(min) && min >= 0) parsedPriceMin = min;
 					if (!isNaN(max) && max >= 0) parsedPriceMax = max;
 				}
 			}
-			else if ($.equals(key, FilterKey.PAGE)) params.page = parseInt(value, 10) || 1;
-			else if ($.equals(key, FilterKey.LIMIT)) params.limit = parseInt(value, 10) || C.PAGE_SIZE;
-			else if ($.equals(key, FilterKey.SORT)) {
+			else if ($.equals(key, FilterKeyType.PAGE)) params.page = parseInt(value, 10) || 1;
+			else if ($.equals(key, FilterKeyType.LIMIT)) params.limit = parseInt(value, 10) || C.PAGE_SIZE;
+			else if ($.equals(key, FilterKeyType.SORT)) {
 				// Handle sort parameter - can be "best-selling", "title-ascending", "price:asc", etc.
 				const sortValue = value.toLowerCase().trim();
 				if ($.isBestSelling(sortValue)) {
-					params.sort = { field: SortField.BEST_SELLING, order: SortOrder.ASC };
+					params.sort = { field: SortFieldType.BEST_SELLING, order: SortOrderType.ASC };
 				} else if (sortValue.includes('-')) {
 					// New format: "field-direction" (e.g., "title-ascending")
 					const [field, direction] = sortValue.split('-');
-					const order = $.equalsAny(direction, SortOrder.ASCENDING) ? SortOrder.ASC : $.equalsAny(direction, SortOrder.DESCENDING) ? SortOrder.DESC : SortOrder.DESC;
+					const order = $.equalsAny(direction, SortOrderType.ASCENDING) ? SortOrderType.ASC : $.equalsAny(direction, SortOrderType.DESCENDING) ? SortOrderType.DESC : SortOrderType.DESC;
 					params.sort = { field, order };
 				} else {
 					// Legacy format: "field:order" (backward compatibility)
 					const [field, order] = value.split(':');
-					params.sort = { field, order: ($.equalsAny(order, SortOrder.ASC) ? SortOrder.ASC : SortOrder.DESC) as 'asc' | 'desc' };
+					params.sort = { field, order: ($.equalsAny(order, SortOrderType.ASC) ? SortOrderType.ASC : SortOrderType.DESC) as 'asc' | 'desc' };
 				}
 			}
 			else {
@@ -980,7 +565,7 @@ export const UrlManager = {
 
 		return params;
 	},
-	update(filters: FiltersState, pagination: PaginationState, sort: SortState): void {
+	update(filters: FiltersStateType, pagination: PaginationStateType, sort: SortStateType): void {
 		const url = new URL(window.location.href);
 		url.search = '';
 
@@ -998,9 +583,9 @@ export const UrlManager = {
 				}
 				// Price range: write as server-supported params
 				else if ($.isPriceRangeKey(key) && value && typeof value === 'object' && !Array.isArray(value)) {
-					const priceRange = value as PriceRange;
-					const min = typeof priceRange.min === 'number' && !isNaN(priceRange.min) ? priceRange.min : undefined;
-					const max = typeof priceRange.max === 'number' && !isNaN(priceRange.max) ? priceRange.max : undefined;
+					const priceRange = value as PriceRangeType;
+					const min = typeof priceRange.min === 'number' && !isNaN(priceRange.min) ? Math.round(priceRange.min) : undefined;
+					const max = typeof priceRange.max === 'number' && !isNaN(priceRange.max) ? Math.round(priceRange.max) : undefined;
 					if (State.priceRangeHandle) {
 						// Handle-style: {handle}=min-max
 						const handleValue = `${min !== undefined ? min : ''}-${max !== undefined ? max : ''}`;
@@ -1013,7 +598,7 @@ export const UrlManager = {
 						Log.debug('Price range URL params set', { priceMin: min, priceMax: max });
 					}
 				}
-				else if ($.equals(key, FilterKey.SEARCH) && typeof value === 'string' && value.trim()) {
+				else if ($.equals(key, FilterKeyType.SEARCH) && typeof value === 'string' && value.trim()) {
 					url.searchParams.set(key, value.trim());
 					Log.debug('Search URL param set', { key, value: value.trim() });
 				}
@@ -1031,7 +616,7 @@ export const UrlManager = {
 				url.searchParams.set('sort', 'best-selling');
 			} else {
 				// Convert to new format: "field-direction" (e.g., "title-ascending")
-				const direction = $.equals(sort.order, SortOrder.ASC) ? SortOrder.ASCENDING : SortOrder.DESCENDING;
+				const direction = $.equals(sort.order, SortOrderType.ASC) ? SortOrderType.ASCENDING : SortOrderType.DESCENDING;
 				url.searchParams.set('sort', `${sort.field}-${direction}`);
 			}
 			Log.debug('Sort URL param set', { field: sort.field, order: sort.order });
@@ -1050,16 +635,16 @@ export const UrlManager = {
 export const API = {
 	baseURL: 'https://fstaging.digitalcoo.com/storefront', // Default, should be set via config
 	__v: 'v2.0.1',
-	__id: '01-01-2026',
-	cache: new Map<string, ProductsResponseData>(),
+	__id: '01-09-2026',
+	cache: new Map<string, ProductsResponseDataType>(),
 	timestamps: new Map<string, number>(),
-	pending: new Map<string, Promise<ProductsResponseData>>(),
+	pending: new Map<string, Promise<ProductsResponseDataType>>(),
 
-	key(filters: FiltersState, pagination: PaginationState, sort: SortState): string {
+	key(filters: FiltersStateType, pagination: PaginationStateType, sort: SortStateType): string {
 		return `${pagination.page}-${pagination.limit}-${sort.field}-${sort.order}-${JSON.stringify(filters)}`;
 	},
 
-	get(key: string): ProductsResponseData | null {
+	get(key: string): ProductsResponseDataType | null {
 		const ts = this.timestamps.get(key);
 		if (!ts || Date.now() - ts > C.CACHE_TTL) {
 			this.cache.delete(key);
@@ -1069,12 +654,12 @@ export const API = {
 		return this.cache.get(key) || null;
 	},
 
-	set(key: string, value: ProductsResponseData): void {
+	set(key: string, value: ProductsResponseDataType): void {
 		this.cache.set(key, value);
 		this.timestamps.set(key, Date.now());
 	},
 
-	async fetch(url: string, timeout: number = C.TIMEOUT): Promise<APIResponse<ProductsResponseData | FiltersResponseData>> {
+	async fetch(url: string, timeout: number = C.TIMEOUT): Promise<APIResponse<ProductsResponseDataType | FiltersResponseDataType>> {
 		const controller = new AbortController();
 		const timeoutId = setTimeout(() => controller.abort(), timeout);
 		try {
@@ -1085,7 +670,7 @@ export const API = {
 				const errorText = await res.text().catch(() => '');
 				throw new Error(`HTTP ${res.status}: ${res.statusText}${errorText ? ' - ' + errorText : ''}`);
 			}
-			const data = await res.json() as APIResponse<ProductsResponseData | FiltersResponseData>;
+			const data = await res.json() as APIResponse<ProductsResponseDataType | FiltersResponseDataType>;
 			Log.debug('Fetch success', { url, hasData: !!data });
 			return data;
 		} catch (e) {
@@ -1107,7 +692,7 @@ export const API = {
 		return !!State.selectedCollection?.id;
 	},
 
-	async products(filters: FiltersState, pagination: PaginationState, sort: SortState): Promise<ProductsResponseData> {
+	async products(filters: FiltersStateType, pagination: PaginationStateType, sort: SortStateType): Promise<ProductsResponseDataType> {
 		if (!this.baseURL) throw new Error('API baseURL not set. Call AFS.init({ apiBaseUrl: "..." })');
 		if (!State.shop) throw new Error('Shop not set');
 
@@ -1147,9 +732,9 @@ export const API = {
 
 			// Direct params (search, price range)
 			if ($.isPriceRangeKey(k) && v && typeof v === 'object' && !Array.isArray(v)) {
-				const priceRange = v as PriceRange;
-				const min = typeof priceRange.min === 'number' && !isNaN(priceRange.min) ? priceRange.min : undefined;
-				const max = typeof priceRange.max === 'number' && !isNaN(priceRange.max) ? priceRange.max : undefined;
+				const priceRange = v as PriceRangeType;
+				const min = typeof priceRange.min === 'number' && !isNaN(priceRange.min) ? Math.round(priceRange.min) : undefined;
+				const max = typeof priceRange.max === 'number' && !isNaN(priceRange.max) ? Math.round(priceRange.max) : undefined;
 				if (State.priceRangeHandle) {
 					params.set(State.priceRangeHandle, `${min !== undefined ? min : ''}-${max !== undefined ? max : ''}`);
 				} else {
@@ -1178,10 +763,10 @@ export const API = {
 		if (sort.field) {
 			// Handle best-selling sort (no order needed, server handles it)
 			if ($.isBestSelling(sort.field)) {
-				params.set('sort', SortField.BEST_SELLING);
+				params.set('sort', SortFieldType.BEST_SELLING);
 			} else {
 				// Convert to new format: "field-direction" (e.g., "title-ascending")
-				const direction = $.equals(sort.order, SortOrder.ASC) ? SortOrder.ASCENDING : SortOrder.DESCENDING;
+				const direction = $.equals(sort.order, SortOrderType.ASC) ? SortOrderType.ASCENDING : SortOrderType.DESCENDING;
 				params.set('sort', `${sort.field}-${direction}`);
 			}
 		}
@@ -1195,7 +780,7 @@ export const API = {
 				Log.error('Invalid products response', { response: res });
 				throw new Error(`Invalid products response: ${res.message || Lang.messages.unknownError}`);
 			}
-			const data = res.data as ProductsResponseData;
+			const data = res.data as ProductsResponseDataType;
 			Log.info('Products response', {
 				productsCount: data.products?.length || 0,
 				total: data.pagination?.total || 0,
@@ -1214,7 +799,7 @@ export const API = {
 		return promise;
 	},
 
-	async filters(filters: FiltersState): Promise<FiltersResponseData> {
+	async filters(filters: FiltersStateType): Promise<FiltersResponseDataType> {
 		if (!this.baseURL) throw new Error('API baseURL not set. Call AFS.init({ apiBaseUrl: "..." })');
 		if (!State.shop) throw new Error('Shop not set');
 
@@ -1235,7 +820,7 @@ export const API = {
 
 		// When calculating aggregations for a specific filter, that filter should be excluded
 		// from the query so we get all possible values based on other active filters
-		const filtersForAggregation: FiltersState = { ...filters };
+		const filtersForAggregation: FiltersStateType = { ...filters };
 
 		// Send only the filters that should be included in aggregation query
 		Object.keys(filtersForAggregation).forEach(k => {
@@ -1246,7 +831,7 @@ export const API = {
 			} else if (k === 'search' && typeof v === 'string' && v.trim()) {
 				params.set('search', v.trim());
 			} else if (k === 'priceRange' && v && typeof v === 'object' && !Array.isArray(v)) {
-				const priceRange = v as PriceRange;
+				const priceRange = v as PriceRangeType;
 				const min = typeof priceRange.min === 'number' && !isNaN(priceRange.min) ? priceRange.min : undefined;
 				const max = typeof priceRange.max === 'number' && !isNaN(priceRange.max) ? priceRange.max : undefined;
 				if (State.priceRangeHandle) {
@@ -1279,7 +864,7 @@ export const API = {
 		}
 
 		// Validate response structure
-		const data = res.data as FiltersResponseData;
+		const data = res.data as FiltersResponseDataType;
 		if (!data || typeof data !== 'object') {
 			throw new Error('Invalid filters response: data is not an object');
 		}
@@ -1347,7 +932,7 @@ export const API = {
 				} else if (normalized.includes('-')) {
 					// New format: "field-direction" (e.g., "title-ascending")
 					const [field, direction] = normalized.split('-');
-					const order = $.equalsAny(direction, SortOrder.ASCENDING) ? SortOrder.ASC : $.equalsAny(direction, SortOrder.DESCENDING) ? SortOrder.DESC : SortOrder.DESC;
+					const order = $.equalsAny(direction, SortOrderType.ASCENDING) ? SortOrderType.ASC : $.equalsAny(direction, SortOrderType.DESCENDING) ? SortOrderType.DESC : SortOrderType.DESC;
 					State.sort = { field, order };
 				} else {
 					// Legacy format: "field:order" (backward compatibility)
@@ -1477,13 +1062,13 @@ export const DOM = {
 		sortLabel.textContent = Lang.labels.sortBy;
 		this.sortSelect = $.el('select', 'afs-sort-select', { 'data-afs-sort': 'true' }) as HTMLSelectElement;
 		this.sortSelect.innerHTML = `
-        <option value="${SortField.BEST_SELLING}">${Lang.sortOptions.bestSelling}</option>
-        <option value="title-${SortOrder.ASCENDING}">${Lang.sortOptions.titleAsc}</option>
-        <option value="title-${SortOrder.DESCENDING}">${Lang.sortOptions.titleDesc}</option>
-        <option value="price-${SortOrder.ASCENDING}">${Lang.sortOptions.priceAsc}</option>
-        <option value="price-${SortOrder.DESCENDING}">${Lang.sortOptions.priceDesc}</option>
-        <option value="created-${SortOrder.ASCENDING}">${Lang.sortOptions.createdAsc}</option>
-        <option value="created-${SortOrder.DESCENDING}">${Lang.sortOptions.createdDesc}</option>
+        <option value="${SortFieldType.BEST_SELLING}">${Lang.sortOptions.bestSelling}</option>
+        <option value="title-${SortOrderType.ASCENDING}">${Lang.sortOptions.titleAsc}</option>
+        <option value="title-${SortOrderType.DESCENDING}">${Lang.sortOptions.titleDesc}</option>
+        <option value="price-${SortOrderType.ASCENDING}">${Lang.sortOptions.priceAsc}</option>
+        <option value="price-${SortOrderType.DESCENDING}">${Lang.sortOptions.priceDesc}</option>
+        <option value="created-${SortOrderType.ASCENDING}">${Lang.sortOptions.createdAsc}</option>
+        <option value="created-${SortOrderType.DESCENDING}">${Lang.sortOptions.createdDesc}</option>
       `;
 		this.sortContainer.appendChild(sortLabel);
 		this.sortContainer.appendChild(this.sortSelect);
@@ -1539,7 +1124,7 @@ export const DOM = {
 				if (!key) return;
 
 				// Special-case: applied chips for non-toggle filters
-				if ($.equals(key, FilterKey.CPID)) {
+				if ($.equals(key, FilterKeyType.CPID)) {
 					if (State.selectedCollection?.id) {
 						State.selectedCollection.id = null;
 						Log.debug('cpid removed, cleared selectedCollection');
@@ -1551,7 +1136,7 @@ export const DOM = {
 					return;
 				}
 
-				if ($.equals(key, FilterKey.SEARCH)) {
+				if ($.equals(key, FilterKeyType.SEARCH)) {
 					State.filters.search = '';
 					State.pagination.page = 1;
 					UrlManager.update(State.filters, State.pagination, State.sort);
@@ -1674,15 +1259,15 @@ export const DOM = {
 				const collapsedState = !collapsed;
 				group.setAttribute('data-afs-collapsed', collapsedState ? 'true' : 'false');
 
-				// Persist collapse state in states Map with improved error handling
+				// Persist collapse state in States Map with improved error handling
 				const stateKey = group.getAttribute('data-afs-filter-key');
 				if (stateKey) {
 					try {
 						// Get or create state
-						const state = states.get(stateKey) || {};
+						const state = States.get(stateKey) || {};
 						state.collapsed = collapsedState;
 						state.lastUpdated = Date.now();
-						states.set(stateKey, state);
+						States.set(stateKey, state);
 
 						// Also persist to sessionStorage for page refresh persistence
 						try {
@@ -1690,7 +1275,7 @@ export const DOM = {
 							sessionStorage.setItem(stateKey, JSON.stringify({ collapsed: collapsedState }));
 						} catch (e) {
 							// SessionStorage might be disabled, ignore
-							Log.debug('Could not persist to sessionStorage', { error: e });
+							Log.debug('Could not persist to sessionStorage', { error: e instanceof Error ? e.message : String(e) });
 						}
 					} catch (error) {
 						Log.error('Failed to persist filter state', {
@@ -1755,7 +1340,7 @@ export const DOM = {
 				const term = searchInput.value.toLowerCase();
 				const items = target.closest<HTMLElement>('.afs-filter-group')?.querySelector<FilterItemsElement>('.afs-filter-group__items');
 				if (items?._items) {
-					items.querySelectorAll<HTMLElement>('.afs-filter-item').forEach((el, i) => {
+					items.querySelectorAll<HTMLElement>('.afs-filter-item').forEach((el: HTMLElement, i: number) => {
 						const item = items._items?.[i];
 						if (item) {
 							// Search by label (for display), but filtering still uses value
@@ -1776,7 +1361,7 @@ export const DOM = {
 
 			// Calculate new sort state
 			// New format: "title-ascending", "price-descending", etc.
-			let newSort: SortState;
+			let newSort: SortStateType;
 			if (sortValue === 'best-selling' || sortValue === 'bestselling') {
 				newSort = { field: 'best-selling', order: 'asc' };
 			} else if (sortValue.includes('-')) {
@@ -1842,10 +1427,10 @@ export const DOM = {
 							// Double-check: if value still doesn't match state, trigger change
 							let currentSortValue: string;
 							if ($.isBestSelling(State.sort.field)) {
-								currentSortValue = SortField.BEST_SELLING;
+								currentSortValue = SortFieldType.BEST_SELLING;
 							} else {
 								// Convert to new format: "field-direction" (e.g., "title-ascending")
-								const direction = $.equals(State.sort.order, SortOrder.ASC) ? SortOrder.ASCENDING : SortOrder.DESCENDING;
+								const direction = $.equals(State.sort.order, SortOrderType.ASC) ? SortOrderType.ASCENDING : SortOrderType.DESCENDING;
 								currentSortValue = `${State.sort.field}-${direction}`;
 							}
 
@@ -1927,7 +1512,7 @@ export const DOM = {
 					} else if (normalized.includes('-')) {
 						// New format: "field-direction" (e.g., "title-ascending")
 						const [field, direction] = normalized.split('-');
-						const order = $.equalsAny(direction, SortOrder.ASCENDING) ? SortOrder.ASC : $.equalsAny(direction, SortOrder.DESCENDING) ? SortOrder.DESC : SortOrder.DESC;
+						const order = $.equalsAny(direction, SortOrderType.ASCENDING) ? SortOrderType.ASC : $.equalsAny(direction, SortOrderType.DESCENDING) ? SortOrderType.DESC : SortOrderType.DESC;
 						State.sort = { field, order };
 					} else {
 						// Legacy format: "field:order" (backward compatibility)
@@ -2034,14 +1619,14 @@ export const DOM = {
 	},
 
 	// Fastest filter rendering (batched)
-	renderFilters(filters: FilterOption[]): void {
+	renderFilters(filters: FilterOptionType[]): void {
 		if (!this.filtersContainer || !Array.isArray(filters)) return;
 
 		// Hide filters skeleton when rendering real filters
 		this.hideFiltersSkeleton();
 
-		// Save states with improved persistence (reuse module-level `states` map)
-		states.clear();
+		// Save States with improved persistence (reuse module-level `States` map)
+		States.clear();
 		this.filtersContainer.querySelectorAll('.afs-filter-group').forEach(g => {
 			const key = g.getAttribute('data-afs-filter-key');
 			if (key) {
@@ -2050,14 +1635,14 @@ export const DOM = {
 				const search = searchInput?.value || '';
 
 				// Get existing state to preserve other properties
-				const existingState = states.get(key);
-				states.set(key, {
+				const existingState = States.get(key);
+				States.set(key, {
 					...existingState,
 					collapsed,
 					search,
 					// Add timestamp for state freshness tracking
 					lastUpdated: Date.now()
-				} as FilterGroupState & { lastUpdated?: number });
+				} as FilterGroupStateType & { lastUpdated?: number });
 			}
 		});
 
@@ -2088,7 +1673,7 @@ export const DOM = {
 		validFilters.forEach(filter => {
 			// Handle price range filters separately
 			if ($.isPriceRangeOptionType(filter.optionType)) {
-				const group = this.createPriceRangeGroup(filter, states);
+				const group = this.createPriceRangeGroup(filter, States);
 				if (group) fragment.appendChild(group);
 				return;
 			}
@@ -2131,7 +1716,7 @@ export const DOM = {
 			const stateKey = handle;
 			group.setAttribute('data-afs-filter-key', stateKey);
 
-			const saved = states.get(stateKey);
+			const saved = States.get(stateKey);
 			// Check collapsed state: saved state takes precedence, then filter.collapsed, default to false
 			const collapsed = saved?.collapsed !== undefined ? saved.collapsed : (filter.collapsed === true || filter.collapsed === 'true' || filter.collapsed === 1);
 			group.setAttribute('data-afs-collapsed', collapsed ? 'true' : 'false');
@@ -2237,7 +1822,7 @@ export const DOM = {
 	// Minimal filter item creation
 	// Displays label for UI, uses value for filtering
 	// handle: the filter handle (e.g., 'ef4gd' for Color, 'vendor' for vendor)
-	createFilterItem(handle: string, item: FilterValue | string, config: FilterOption, index: number): HTMLElement | null {
+	createFilterItem(handle: string, item: FilterValueType | string, config: FilterOptionType, index: number): HTMLElement | null {
 		// Get value (for filtering) - always use original value
 		const value = $.str(typeof item === 'string' ? item : (item.value || item.key || item.name || ''));
 		if (!value || value === '[object Object]') return null;
@@ -2299,17 +1884,17 @@ export const DOM = {
 	},
 
 	// Create price range filter group with dual-handle slider
-	createPriceRangeGroup(filter: FilterOption, savedStates: Map<string, FilterGroupState> | null = null): HTMLElement | null {
+	createPriceRangeGroup(filter: FilterOptionType, savedStates: Map<string, FilterGroupStateType> | null = null): HTMLElement | null {
 		if (!filter.range || typeof filter.range.min !== 'number' || typeof filter.range.max !== 'number') {
 			Log.warn('Invalid price range filter', { filter });
 			return null;
 		}
 
-		const minRange = filter.range.min;
-		const maxRange = filter.range.max;
+		const minRange = Math.round(filter.range.min);
+		const maxRange = Math.round(filter.range.max);
 		const currentRange = State.filters.priceRange || { min: minRange, max: maxRange };
-		const currentMin = Math.max(minRange, Math.min(maxRange, currentRange.min || minRange));
-		const currentMax = Math.max(minRange, Math.min(maxRange, currentRange.max || maxRange));
+		const currentMin = Math.round(Math.max(minRange, Math.min(maxRange, currentRange.min || minRange)));
+		const currentMax = Math.round(Math.max(minRange, Math.min(maxRange, currentRange.max || maxRange)));
 
 		const group = $.el('div', 'afs-filter-group', {
 			'data-afs-filter-type': 'priceRange',
@@ -2394,8 +1979,8 @@ export const DOM = {
 
 		// Update active track position
 		const updateActiveTrack = (): void => {
-			const min = parseFloat(minHandle.value);
-			const max = parseFloat(maxHandle.value);
+			const min = Math.round(parseFloat(minHandle.value));
+			const max = Math.round(parseFloat(maxHandle.value));
 			const range = maxRange - minRange;
 			const leftPercent = ((min - minRange) / range) * 100;
 			const rightPercent = ((maxRange - max) / range) * 100;
@@ -2407,8 +1992,8 @@ export const DOM = {
 
 		// Ensure min <= max
 		const constrainValues = (): void => {
-			const min = parseFloat(minHandle.value);
-			const max = parseFloat(maxHandle.value);
+			const min = Math.round(parseFloat(minHandle.value));
+			const max = Math.round(parseFloat(maxHandle.value));
 			if (min > max) {
 				minHandle.value = String(max);
 				maxHandle.value = String(min);
@@ -2419,12 +2004,12 @@ export const DOM = {
 		// Event handlers
 		minHandle.addEventListener('input', () => {
 			constrainValues();
-			Filters.updatePriceRange(parseFloat(minHandle.value), parseFloat(maxHandle.value));
+			Filters.updatePriceRange(Math.round(parseFloat(minHandle.value)), Math.round(parseFloat(maxHandle.value)));
 		});
 
 		maxHandle.addEventListener('input', () => {
 			constrainValues();
-			Filters.updatePriceRange(parseFloat(minHandle.value), parseFloat(maxHandle.value));
+			Filters.updatePriceRange(Math.round(parseFloat(minHandle.value)), Math.round(parseFloat(maxHandle.value)));
 		});
 
 		// Initialize active track
@@ -2437,7 +2022,7 @@ export const DOM = {
 	},
 
 	// Fastest product rendering (incremental updates)
-	renderProducts(products: Product[]): void {
+	renderProducts(products: ProductType[]): void {
 		if (!this.productsGrid) return;
 
 		// Remove skeleton cards if present
@@ -2494,7 +2079,7 @@ export const DOM = {
 	},
 
 	// Minimal product creation
-	createProduct(p: Product): HTMLElement {
+	createProduct(p: ProductType): HTMLElement {
 		const card = $.el('div', 'afs-product-card', { 'data-afs-product-id': $.id(p) || '' });
 
 		if (p.imageUrl || p.featuredImage) {
@@ -2589,10 +2174,13 @@ export const DOM = {
 			}
 
 			// Add Quick View button - opens product modal
+			// Only add quick view button if the quickview module is loaded
 			const AFSW = window as ShopifyWindow;
-			const quickViewBtn = AFSW.AFSQuickView?.createQuickViewButton(p);
-			if (quickViewBtn) {
-				imgContainer.appendChild(quickViewBtn);
+			if (AFSW.AFSQuickView?.createQuickViewButton) {
+				const quickViewBtn = AFSW.AFSQuickView.createQuickViewButton(p);
+				if (quickViewBtn) {
+					imgContainer.appendChild(quickViewBtn);
+				}
 			}
 			card.appendChild(imgContainer);
 		}
@@ -2645,7 +2233,7 @@ export const DOM = {
 	},
 
 	// Products info
-	renderInfo(pagination: PaginationState, total: number): void {
+	renderInfo(pagination: PaginationStateType, total: number): void {
 		if (!this.productsInfo) return;
 
 		// Preserve sort container when clearing
@@ -2680,7 +2268,7 @@ export const DOM = {
 	},
 
 	// Render pagination controls
-	renderPagination(pagination: PaginationState): void {
+	renderPagination(pagination: PaginationStateType): void {
 		if (!this.productsGrid || !pagination) return;
 
 		// Remove existing pagination
@@ -2722,7 +2310,7 @@ export const DOM = {
 	},
 
 	// Applied filters with clear all
-	renderApplied(filters: FiltersState): void {
+	renderApplied(filters: FiltersStateType): void {
 		if (!this.container) return;
 
 		// Remove existing applied filters
@@ -2731,21 +2319,25 @@ export const DOM = {
 
 		// Count active filters
 		// key here is the handle (for option filters) or queryKey (for standard filters)
-		const activeFilters: AppliedFilter[] = [];
+		const activeFilters: AppliedFilterType[] = [];
 		Object.keys(filters).forEach(key => {
 			const value = filters[key];
-			if ($.equals(key, FilterKey.SEARCH) && value && typeof value === 'string' && value.trim()) {
+			if ($.equals(key, FilterKeyType.SEARCH) && value && typeof value === 'string' && value.trim()) {
 				activeFilters.push({ handle: key, label: `${Lang.labels.search}${value}`, value });
 			} else if ($.isPriceRangeKey(key) && value && typeof value === 'object' && !Array.isArray(value)) {
-				const priceRange = value as PriceRange;
+				const priceRange = value as PriceRangeType;
 				const hasMin = typeof priceRange.min === 'number' && !isNaN(priceRange.min);
 				const hasMax = typeof priceRange.max === 'number' && !isNaN(priceRange.max);
 				if (hasMin && hasMax) {
-					activeFilters.push({ handle: key, label: `${Lang.labels.price}$${priceRange.min} - $${priceRange.max}`, value: SpecialValue.CLEAR });
+					const roundedMin = Math.round(priceRange.min!);
+					const roundedMax = Math.round(priceRange.max!);
+					activeFilters.push({ handle: key, label: `${Lang.labels.price}$${roundedMin} - $${roundedMax}`, value: SpecialValueType.CLEAR });
 				} else if (hasMin) {
-					activeFilters.push({ handle: key, label: `${Lang.labels.price}$${priceRange.min}+`, value: SpecialValue.CLEAR });
+					const roundedMin = Math.round(priceRange.min!);
+					activeFilters.push({ handle: key, label: `${Lang.labels.price}$${roundedMin}+`, value: SpecialValueType.CLEAR });
 				} else if (hasMax) {
-					activeFilters.push({ handle: key, label: `${Lang.labels.price}Up to $${priceRange.max}`, value: SpecialValue.CLEAR });
+					const roundedMax = Math.round(priceRange.max!);
+					activeFilters.push({ handle: key, label: `${Lang.labels.price}Up to $${roundedMax}`, value: SpecialValueType.CLEAR });
 				}
 			} else if (Array.isArray(value) && value.length > 0) {
 				value.forEach(v => {
@@ -3004,10 +2596,10 @@ export const DOM = {
 		if (DOM.sortSelect) {
 			// Handle best-selling sort (no order in value)
 			if ($.isBestSelling(State.sort.field)) {
-				DOM.sortSelect.value = SortField.BEST_SELLING;
+				DOM.sortSelect.value = SortFieldType.BEST_SELLING;
 			} else {
 				// Convert to new format: "field-direction" (e.g., "title-ascending")
-				const direction = $.equals(State.sort.order, SortOrder.ASC) ? SortOrder.ASCENDING : SortOrder.DESCENDING;
+				const direction = $.equals(State.sort.order, SortOrderType.ASC) ? SortOrderType.ASCENDING : SortOrderType.DESCENDING;
 				DOM.sortSelect.value = `${State.sort.field}-${direction}`;
 			}
 			Log.debug('Sort select value updated programmatically', { value: DOM.sortSelect.value, sort: State.sort });
@@ -3021,7 +2613,7 @@ export const DOM = {
 
 export const FallbackMode = {
 	// Get pagination info for fallback mode (from URL params and Liquid data)
-	getPagination(): PaginationState {
+	getPagination(): PaginationStateType {
 		const urlParams = UrlManager.parse();
 		const currentPage = urlParams.page || State.fallbackPagination.currentPage || 1;
 		const totalPages = State.fallbackPagination.totalPages || 1;
@@ -3036,7 +2628,7 @@ export const FallbackMode = {
 	},
 
 	// Reload page with updated URL parameters for sort/pagination
-	reloadPage(filters: FiltersState, pagination: PaginationState, sort: SortState): void {
+	reloadPage(filters: FiltersStateType, pagination: PaginationStateType, sort: SortStateType): void {
 		const url = new URL(window.location.href);
 		url.search = '';
 
@@ -3046,7 +2638,7 @@ export const FallbackMode = {
 				url.searchParams.set('sort', 'best-selling');
 			} else {
 				// Convert to new format: "field-direction" (e.g., "title-ascending")
-				const direction = $.equals(sort.order, SortOrder.ASC) ? SortOrder.ASCENDING : SortOrder.DESCENDING;
+				const direction = $.equals(sort.order, SortOrderType.ASC) ? SortOrderType.ASCENDING : SortOrderType.DESCENDING;
 				url.searchParams.set('sort', `${sort.field}-${direction}`);
 			}
 		}
@@ -3064,16 +2656,16 @@ export const FallbackMode = {
 			if (Array.isArray(value) && value.length > 0) {
 				url.searchParams.set(key, value.join(','));
 			} else if ($.isPriceRangeKey(key) && value && typeof value === 'object' && !Array.isArray(value)) {
-				const priceRange = value as PriceRange;
-				const min = typeof priceRange.min === 'number' && !isNaN(priceRange.min) ? priceRange.min : undefined;
-				const max = typeof priceRange.max === 'number' && !isNaN(priceRange.max) ? priceRange.max : undefined;
+				const priceRange = value as PriceRangeType;
+				const min = typeof priceRange.min === 'number' && !isNaN(priceRange.min) ? Math.round(priceRange.min) : undefined;
+				const max = typeof priceRange.max === 'number' && !isNaN(priceRange.max) ? Math.round(priceRange.max) : undefined;
 				if (State.priceRangeHandle) {
 					url.searchParams.set(State.priceRangeHandle, `${min !== undefined ? min : ''}-${max !== undefined ? max : ''}`);
 				} else {
 					if (min !== undefined) url.searchParams.set('priceMin', String(min));
 					if (max !== undefined) url.searchParams.set('priceMax', String(max));
 				}
-			} else if ($.equals(key, FilterKey.SEARCH) && typeof value === 'string' && value.trim()) {
+			} else if ($.equals(key, FilterKeyType.SEARCH) && typeof value === 'string' && value.trim()) {
 				url.searchParams.set(key, value.trim());
 			}
 		});
@@ -3091,7 +2683,7 @@ export const FallbackMode = {
  * Check if filters are present (other than page, sort, size, limit)
  * If filters are present, clear cpid so it won't be sent automatically
  */
-export const clearCpidIfFiltersPresent = (filters: FiltersState): void => {
+export const clearCpidIfFiltersPresent = (filters: FiltersStateType): void => {
 	if (!State.selectedCollection?.id) {
 		return; // No cpid to clear
 	}
@@ -3102,17 +2694,17 @@ export const clearCpidIfFiltersPresent = (filters: FiltersState): void => {
 		// Skip empty values
 		if ($.empty(value)) return false;
 		// Skip pagination/sort params (these don't count as filters)
-		if ($.equalsAny(key, FilterKey.PAGE, FilterKey.LIMIT, FilterKey.SORT, FilterKey.SIZE)) return false;
+		if ($.equalsAny(key, FilterKeyType.PAGE, FilterKeyType.LIMIT, FilterKeyType.SORT, FilterKeyType.SIZE)) return false;
 		// Skip priceRange if it's null or empty
 		if ($.isPriceRangeKey(key)) {
 			if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
-			const priceRange = value as PriceRange;
+			const priceRange = value as PriceRangeType;
 			const hasMin = typeof priceRange.min === 'number' && !isNaN(priceRange.min);
 			const hasMax = typeof priceRange.max === 'number' && !isNaN(priceRange.max);
 			if (!hasMin && !hasMax) return false;
 		}
 		// Skip search if empty
-		if ($.equals(key, FilterKey.SEARCH) && (!value || typeof value !== 'string' || !value.trim())) return false;
+		if ($.equals(key, FilterKeyType.SEARCH) && (!value || typeof value !== 'string' || !value.trim())) return false;
 		// All other keys are considered filters
 		return true;
 	});
@@ -3125,7 +2717,7 @@ export const clearCpidIfFiltersPresent = (filters: FiltersState): void => {
 };
 
 export const Products = {
-	process: (productsData: ProductsResponseData) => {
+	process: (productsData: ProductsResponseDataType) => {
 		Log.info('Products loaded', { count: productsData.products?.length || 0, total: productsData.pagination?.total || 0 });
 		const hasProducts = productsData.products && Array.isArray(productsData.products) && productsData.products.length > 0;
 
@@ -3167,7 +2759,7 @@ export const Products = {
 
 export const Filters = {
 
-	process: (filtersData: FiltersResponseData) => {
+	process: (filtersData: FiltersResponseDataType) => {
 		State.availableFilters = filtersData.filters || [];
 		try {
 			State.filterMetadata = Metadata.buildFilterMetadata(State.availableFilters);
@@ -3291,15 +2883,21 @@ export const Filters = {
 	},
 
 	updatePriceRange(min: number, max: number): void {
+		// Round to integers
+		min = Math.round(min);
+		max = Math.round(max);
+		
 		if (typeof min !== 'number' || typeof max !== 'number' || min < 0 || max < min) {
 			Log.warn('Invalid price range', { min, max });
 			return;
 		}
 
 		// Check if range matches the full range (no filter applied)
-		const priceFilter = State.availableFilters.find(f => $.isPriceRangeOptionType(f.optionType) || $.equals(f.optionKey, FilterKey.PRICE_RANGE));
+		const priceFilter = State.availableFilters.find(f => $.isPriceRangeOptionType(f.optionType) || $.equals(f.optionKey, FilterKeyType.PRICE_RANGE));
 		if (priceFilter && priceFilter.range) {
-			if (min === priceFilter.range.min && max === priceFilter.range.max) {
+			const roundedMinRange = Math.round(priceFilter.range.min);
+			const roundedMaxRange = Math.round(priceFilter.range.max);
+			if (min === roundedMinRange && max === roundedMaxRange) {
 				State.filters.priceRange = null;
 			} else {
 				State.filters.priceRange = { min, max };
@@ -3349,36 +2947,6 @@ export const Filters = {
 };
 
 // ============================================================================
-// PRODUCT MODAL FUNCTIONS
-// ============================================================================
-// NOTE: Product modal functions have been moved to afs-quickview.ts
-// The functions are available via window.AFSQuickView
-
-// Type definition for backward compatibility
-export async function createProductModal(handle: string, modalId: string): Promise<ProductModalElement> {
-	const AFSW = window as ShopifyWindow;
-	if (AFSW.AFSQuickView?.createProductModal) {
-		return AFSW.AFSQuickView.createProductModal(handle, modalId);
-	}
-	throw new Error('AFSQuickView module not loaded');
-}
-
-// Legacy function stubs for backward compatibility
-export function setupModalHandlers(dialog: ProductModalElement, modalId: string, product: Product, formatPrice: (price: number | string) => string): void {
-	// Handled by AFSQuickView module
-}
-
-export function updateVariantInModal(dialog: ProductModalElement, modalId: string, variant: ProductVariant, formatPrice: (price: number | string) => string): void {
-	// Handled by AFSQuickView module
-}
-
-export function setupCloseHandler(dialog: ProductModalElement): void {
-	// Handled by AFSQuickView module
-}
-
-// NOTE: Modal handler implementations moved to afs-quickview.ts
-
-// ============================================================================
 // QUICK ADD FUNCTIONALITY
 // ============================================================================
 
@@ -3393,7 +2961,7 @@ export const QuickAdd = {
 				throw new Error(Lang.messages.failedToLoadProduct);
 			}
 
-			const data = await response.json() as { product: Product };
+			const data = await response.json() as { product: ProductType };
 			const product = data.product;
 
 			if (!product || !product.variants || product.variants.length === 0) {
@@ -3406,7 +2974,7 @@ export const QuickAdd = {
 			await this.addVariant(Number(variant.id), 1);
 		} catch (error) {
 			Log.error('Quick add failed', { error: error instanceof Error ? error.message : String(error), handle });
-			alert('Failed to add product to cart. Please try again.');
+			DOM.showError('Failed to add product to cart. Please try again.');
 		}
 	},
 
@@ -3427,7 +2995,7 @@ export const QuickAdd = {
 				// Fetch product to find matching variant
 				const productUrl = `/products/${handle}.json`;
 				const response = await fetch(productUrl);
-				const data = await response.json() as { product: Product };
+				const data = await response.json() as { product: ProductType };
 				const product = data.product;
 
 				const variant = product.variants?.find(v => {
@@ -3446,7 +3014,7 @@ export const QuickAdd = {
 			}
 		} catch (error) {
 			Log.error('Add from form failed', { error: error instanceof Error ? error.message : String(error) });
-			alert('Failed to add product to cart. Please try again.');
+			DOM.showError('Failed to add product to cart. Please try again.');
 		}
 	},
 
@@ -3517,14 +3085,9 @@ export const QuickAdd = {
 // MAIN API (Minimal)
 // ============================================================================
 
-export interface AFSInterface {
-	init(config?: AFSConfig): void;
-	load(): Promise<void>;
-	Logger: typeof Log;
-}
-
+export interface AFSInterface extends AFSInterfaceType {}
 export const AFS: AFSInterface = {
-	init(config: AFSConfig = {}): void {
+	init(config: AFSConfigType = {}): void {
 		try {
 			Log.init(config.debug);
 			Log.info('Initializing AFS', config);
@@ -3636,6 +3199,7 @@ export const AFSW = window as ShopifyWindow;
 // Export
 if (typeof window !== 'undefined') {
 	AFSW.AFS = AFS;
+	AFSW.AFS_API = API;
 } else if (typeof global !== 'undefined') {
-	(global as typeof globalThis & { AFS?: AFSInterface }).AFS = AFS;
+	(global as typeof globalThis & { AFS?: AFSInterfaceType }).AFS = AFS;
 }

@@ -1,16 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FILTERS</title>
 
-    <link rel="stylesheet" href="../dashboard/extensions/theme-extension/assets/advanced-filter-search.min.css">
+    <link rel="stylesheet" href="../dashboard/extensions/theme-extension/assets/digitalcoo-filter.min.css">
+    <link rel="stylesheet" href="../dashboard/extensions/theme-extension/assets/digitalcoo-search.min.css">
 </head>
-
 <body>
-
     <style>
         [data-afs-container] {
             --afs-text-color: #000000;
@@ -37,7 +35,6 @@
             --afs-font-style: normal;
         }
     </style>
-
     <style>
         body {
             margin: 0;
@@ -75,16 +72,15 @@
             padding: 12px 8%;
         }
     </style>
-
     <div class="input-shop">
         <p id="available-shop-name"></p>
-        <input type="text" id="shop-url" value="digitalcoo-filter-demo-07.myshopify.com" style="width: 300px;" />
-        <button id="set-shop-btn" onclick="initializeAFS()">Refresh</button>
+        <input type="search" id="shop-url" name="q" style="width: 100%;display: flex;margin: 0 auto;" />
     </div>
 
     <div data-afs-container id="afs-container"></div>
 
-    <script src="../dashboard/extensions/theme-extension/assets/advanced-filter-search.min.js"></script>
+    <script src="../dashboard/extensions/theme-extension/assets/digitalcoo-filter.min.js"></script>
+    <script src="../dashboard/extensions/theme-extension/assets/digitalcoo-search.min.js"></script>
     <script>
         (function () {
             const shopsCollections = {

@@ -4,7 +4,8 @@
  */
 
 // Import utilities from collections-main
-import { $, API, Lang, Log, State, Icons, Product, ShopifyWindow } from './collections-main';
+import { $, API, Lang, Log, State, Icons } from './digitalcoo-filter';
+import { ProductType as Product, ShopifyWindow } from './type';
 
 // ============================================================================
 // TYPES
@@ -48,9 +49,9 @@ interface SearchAPIResponse {
 // ============================================================================
 
 const DEFAULT_CONFIG: Required<SearchConfig> = {
-	apiBaseUrl: 'https://fstaging.digitalcoo.com/storefront',
+	apiBaseUrl: 'http://localhost:3554/storefront',
 	shop: '',
-	searchInputSelector: 'input[type="search"], input[name*="search"], input[placeholder*="search" i], .search__input, [data-search-input]',
+	searchInputSelector: 'input[name="q"], input[name="search"], input[type="search"][name*="q"], input[type="search"][name*="search"], .search__input, form[action*="/search"] input[type="search"], form[action*="/search"] input[name*="q"]',
 	minQueryLength: 2,
 	debounceMs: 300,
 	maxSuggestions: 5,
@@ -68,13 +69,15 @@ const SearchState = {
 	config: DEFAULT_CONFIG,
 	activeInput: null as HTMLInputElement | null,
 	dropdown: null as HTMLElement | null,
+	container: null as HTMLElement | null,
 	currentQuery: '',
 	isOpen: false,
 	selectedIndex: -1,
 	searchResults: null as SearchResult | null,
 	isLoading: false,
 	abortController: null as AbortController | null,
-	replacedInputs: new Set<HTMLInputElement>()
+	replacedInputs: new Set<HTMLInputElement>(),
+	inputContainers: new Map<HTMLInputElement, HTMLElement>()
 };
 
 // ============================================================================
@@ -82,11 +85,99 @@ const SearchState = {
 // ============================================================================
 
 const SearchDOM = {
+	createContainer(input: HTMLInputElement): HTMLElement {
+		// Create container that will be positioned absolutely, NOT wrapping the input
+		// This ensures the input's parent and width are never affected
+		const container = $.el('div', 'afs-search-container');
+		container.style.position = 'absolute';
+		container.style.display = 'block';
+		
+		// Set initial width based on input width with minimum 280px
+		// IMPORTANT: We only modify the container, NEVER the input element or its parent
+		const inputRect = input.getBoundingClientRect();
+		const inputWidth = inputRect.width;
+		const minWidth = 280;
+		const containerWidth = inputWidth < minWidth ? minWidth : inputWidth;
+		
+		// Position container relative to input (not wrapping it)
+		const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+		const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+		
+		container.style.top = `${inputRect.bottom + scrollTop}px`;
+		container.style.left = `${inputRect.left + scrollLeft}px`;
+		container.style.width = `${containerWidth}px`;
+		container.style.minWidth = `${minWidth}px`;
+		container.style.zIndex = '999999';
+		
+		return container;
+	},
+
 	createDropdown(): HTMLElement {
 		const dropdown = $.el('div', 'afs-search-dropdown');
 		dropdown.setAttribute('role', 'listbox');
 		dropdown.setAttribute('aria-label', 'Search results');
 		return dropdown;
+	},
+
+	setupInputContainer(input: HTMLInputElement): HTMLElement {
+		// Check if container already exists
+		if (SearchState.inputContainers.has(input)) {
+			const existingContainer = SearchState.inputContainers.get(input)!;
+			// Update container position and width in case input size/position changed
+			this.updateContainerPosition(input, existingContainer);
+			return existingContainer;
+		}
+
+		// IMPORTANT: We do NOT wrap the input or modify its parent
+		// The container is positioned absolutely and appended to body
+		// This ensures the input's parent and width are NEVER affected
+		
+		// Create container positioned absolutely relative to input
+		const container = this.createContainer(input);
+		
+		// Append container to body (not wrapping the input)
+		// This way the input's parent remains unchanged
+		document.body.appendChild(container);
+
+		// Create and append dropdown to container
+		const dropdown = this.createDropdown();
+		container.appendChild(dropdown);
+
+		// Store the container
+		SearchState.inputContainers.set(input, container);
+		
+		// Watch for input width/position changes (read-only, to update container)
+		// We observe the input but NEVER modify it or its parent
+		const resizeObserver = new ResizeObserver(() => {
+			// Only update container position and width based on input's current size/position
+			// Input itself and its parent remain completely untouched
+			this.updateContainerPosition(input, container);
+			if (SearchState.isOpen && SearchState.activeInput === input) {
+				this.positionDropdown(input);
+			}
+		});
+		resizeObserver.observe(input);
+		
+		return container;
+	},
+
+	updateContainerPosition(input: HTMLInputElement, container: HTMLElement): void {
+		// IMPORTANT: We only read from input and modify container, NEVER modify input or its parent
+		const inputRect = input.getBoundingClientRect();
+		const inputWidth = inputRect.width;
+		const minWidth = 280;
+		const containerWidth = inputWidth < minWidth ? minWidth : inputWidth;
+		
+		// Calculate position relative to viewport
+		const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+		const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+		
+		// Only modify container styles, preserve input's original width/height and parent completely
+		container.style.top = `${inputRect.bottom + scrollTop}px`;
+		container.style.left = `${inputRect.left + scrollLeft}px`;
+		container.style.width = `${containerWidth}px`;
+		container.style.minWidth = `${minWidth}px`;
+		// Never modify input.style, input.width, input.height, input.parentElement, or any input properties
 	},
 
 	createSuggestionItem(suggestion: string, index: number): HTMLElement {
@@ -266,28 +357,40 @@ const SearchDOM = {
 	},
 
 	positionDropdown(input: HTMLInputElement): void {
-		if (!SearchState.dropdown) return;
+		if (!SearchState.dropdown || !SearchState.container) return;
 
-		const rect = input.getBoundingClientRect();
-		const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-		const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+		// Update container position first (in case input moved)
+		this.updateContainerPosition(input, SearchState.container);
 
+		// Position dropdown absolutely within the container, below the input
 		SearchState.dropdown.style.position = 'absolute';
-		SearchState.dropdown.style.top = `${rect.bottom + scrollTop}px`;
-		SearchState.dropdown.style.left = `${rect.left + scrollLeft}px`;
-		SearchState.dropdown.style.width = `${rect.width}px`;
+		SearchState.dropdown.style.top = '100%';
+		SearchState.dropdown.style.left = '0';
+		SearchState.dropdown.style.width = '100%';
 		SearchState.dropdown.style.maxHeight = '400px';
 		SearchState.dropdown.style.overflowY = 'auto';
-		SearchState.dropdown.style.zIndex = '9999';
+		SearchState.dropdown.style.zIndex = '999999';
+		SearchState.dropdown.style.marginTop = '4px';
 	},
 
 	showDropdown(): void {
 		if (!SearchState.dropdown || !SearchState.activeInput) return;
+		
+		// Ensure container is set up
+		if (!SearchState.container) {
+			SearchState.container = this.setupInputContainer(SearchState.activeInput);
+			// Get the dropdown from the container
+			SearchState.dropdown = SearchState.container.querySelector('.afs-search-dropdown') as HTMLElement;
+			if (!SearchState.dropdown) {
+				SearchState.dropdown = this.createDropdown();
+				SearchState.container.appendChild(SearchState.dropdown);
+			}
+		}
+
 		SearchState.isOpen = true;
 		SearchState.dropdown.classList.add('afs-search-dropdown--visible');
 		SearchState.dropdown.setAttribute('aria-expanded', 'true');
 		this.positionDropdown(SearchState.activeInput);
-		document.body.appendChild(SearchState.dropdown);
 	},
 
 	hideDropdown(): void {
@@ -296,9 +399,7 @@ const SearchDOM = {
 		SearchState.selectedIndex = -1;
 		SearchState.dropdown.classList.remove('afs-search-dropdown--visible');
 		SearchState.dropdown.setAttribute('aria-expanded', 'false');
-		if (SearchState.dropdown.parentNode) {
-			SearchState.dropdown.parentNode.removeChild(SearchState.dropdown);
-		}
+		// Don't remove from DOM, just hide it
 	},
 
 	highlightItem(index: number): void {
@@ -414,14 +515,18 @@ const SearchLogic = {
 			return;
 		}
 
+		// Ensure container is set up before showing dropdown
+		if (SearchState.activeInput && !SearchState.inputContainers.has(SearchState.activeInput)) {
+			SearchInit.replaceInput(SearchState.activeInput);
+		}
+
 		SearchState.currentQuery = query;
 		const results = await SearchAPI.search(query);
 		SearchState.searchResults = results;
-		SearchDOM.renderDropdown(results, query);
 		
-		if (results && (results.products?.length > 0 || results.suggestions?.length > 0)) {
-			SearchDOM.showDropdown();
-		} else if (results?.zeroResults) {
+		// Always render dropdown when we have results (even if empty)
+		if (results !== null) {
+			SearchDOM.renderDropdown(results, query);
 			SearchDOM.showDropdown();
 		} else {
 			SearchDOM.hideDropdown();
@@ -439,6 +544,14 @@ const SearchLogic = {
 	handleFocus(e: Event): void {
 		const input = e.target as HTMLInputElement;
 		SearchState.activeInput = input;
+		
+		// Ensure container and dropdown are set up for this input
+		if (!SearchState.inputContainers.has(input)) {
+			SearchInit.replaceInput(input);
+		} else {
+			SearchState.container = SearchState.inputContainers.get(input)!;
+			SearchState.dropdown = SearchState.container.querySelector('.afs-search-dropdown') as HTMLElement;
+		}
 		
 		if (input.value.trim().length >= SearchState.config.minQueryLength && SearchState.searchResults) {
 			SearchDOM.renderDropdown(SearchState.searchResults, input.value.trim());
@@ -551,6 +664,19 @@ const SearchInit = {
 	replaceInput(input: HTMLInputElement): void {
 		if (SearchState.replacedInputs.has(input)) return;
 
+		// Setup container for this input
+		const container = SearchDOM.setupInputContainer(input);
+		SearchState.container = container;
+
+		// Get or create dropdown for this container
+		let dropdown = container.querySelector('.afs-search-dropdown') as HTMLElement;
+		if (!dropdown) {
+			dropdown = SearchDOM.createDropdown();
+			container.appendChild(dropdown);
+		}
+		SearchState.dropdown = dropdown;
+		dropdown.addEventListener('click', SearchLogic.handleClick);
+
 		// Prevent native Shopify search
 		const form = input.closest('form');
 		if (form) {
@@ -569,17 +695,92 @@ const SearchInit = {
 		input.addEventListener('blur', SearchLogic.handleBlur);
 		input.addEventListener('keydown', SearchLogic.handleKeyDown);
 
-		// Add data attribute to identify replaced inputs
+		// Add data attribute to identify replaced inputs (does not affect styling)
+		// IMPORTANT: We never modify input.style, input.width, input.height, or any CSS properties
 		input.setAttribute('data-afs-search', 'true');
 		SearchState.replacedInputs.add(input);
+	},
+
+	isFilterSectionInput(input: HTMLInputElement): boolean {
+		// Exclude filter section search inputs
+		// Filter inputs have class 'afs-filter-group__search-input' or are inside filter containers
+		if (input.classList.contains('afs-filter-group__search-input')) {
+			return true;
+		}
+		
+		// Check if input is inside filter container
+		const filterContainer = input.closest('[data-afs-container]');
+		if (filterContainer) {
+			return true;
+		}
+		
+		// Check if input is inside filter group
+		const filterGroup = input.closest('.afs-filter-group');
+		if (filterGroup) {
+			return true;
+		}
+		
+		// Check if input name starts with 'afs-search-' (filter search inputs)
+		if (input.name && input.name.startsWith('afs-search-')) {
+			return true;
+		}
+		
+		return false;
+	},
+
+	isShopifySearchInput(input: HTMLInputElement): boolean {
+		// Primary: name="q" (standard Shopify search)
+		if (input.name === 'q') {
+			return true;
+		}
+		
+		// Secondary: name="search" (alternative Shopify format)
+		if (input.name === 'search') {
+			return true;
+		}
+		
+		// Check if input is in a form that submits to /search
+		const form = input.closest('form');
+		if (form) {
+			const action = form.getAttribute('action');
+			if (action && (action.includes('/search') || action.includes('search'))) {
+				// Only if it's a search or text input type
+				if (input.type === 'search' || input.type === 'text' || !input.type) {
+					return true;
+				}
+			}
+		}
+		
+		// Check for Shopify search input classes
+		if (input.classList.contains('search__input')) {
+			return true;
+		}
+		
+		// Check if input has data-search-input attribute
+		if (input.hasAttribute('data-search-input')) {
+			return true;
+		}
+		
+		return false;
 	},
 
 	findAndReplaceInputs(): void {
 		const inputs = document.querySelectorAll<HTMLInputElement>(SearchState.config.searchInputSelector);
 		inputs.forEach(input => {
-			if (input.type === 'search' || input.name?.toLowerCase().includes('search') || 
-			    input.placeholder?.toLowerCase().includes('search') ||
-			    input.closest('.search') || input.hasAttribute('data-search-input')) {
+			// Skip if already replaced
+			if (SearchState.replacedInputs.has(input)) {
+				return;
+			}
+			
+			// Skip filter section inputs
+			if (this.isFilterSectionInput(input)) {
+				Log.debug('Skipping filter section input', { name: input.name, class: input.className });
+				return;
+			}
+			
+			// Only process Shopify search inputs
+			if (this.isShopifySearchInput(input)) {
+				Log.debug('Processing Shopify search input', { name: input.name, type: input.type });
 				this.replaceInput(input);
 			}
 		});
@@ -599,10 +800,6 @@ const SearchInit = {
 			SearchState.config.apiBaseUrl = API.baseURL;
 		}
 
-		// Create dropdown
-		SearchState.dropdown = SearchDOM.createDropdown();
-		SearchState.dropdown.addEventListener('click', SearchLogic.handleClick);
-
 		// Find and replace search inputs
 		this.findAndReplaceInputs();
 
@@ -618,11 +815,38 @@ const SearchInit = {
 
 		// Close dropdown on outside click
 		document.addEventListener('click', (e) => {
-			if (SearchState.isOpen && 
-			    !SearchState.dropdown?.contains(e.target as Node) && 
-			    !SearchState.activeInput?.contains(e.target as Node)) {
-				SearchDOM.hideDropdown();
+			if (SearchState.isOpen && SearchState.container) {
+				const target = e.target as Node;
+				if (!SearchState.container.contains(target) && 
+				    !SearchState.activeInput?.contains(target)) {
+					SearchDOM.hideDropdown();
+				}
 			}
+		});
+
+		// Update dropdown position and container width on scroll/resize
+		let resizeTimer: ReturnType<typeof setTimeout>;
+		const updatePosition = () => {
+			if (SearchState.activeInput && SearchState.container) {
+				// Update container position and width to match input (min 280px)
+				// This does NOT modify the input or its parent
+				SearchDOM.updateContainerPosition(SearchState.activeInput, SearchState.container);
+				
+				// Update dropdown position if open
+				if (SearchState.isOpen) {
+					SearchDOM.positionDropdown(SearchState.activeInput);
+				}
+			}
+		};
+
+		window.addEventListener('scroll', () => {
+			clearTimeout(resizeTimer);
+			resizeTimer = setTimeout(updatePosition, 10);
+		}, true);
+
+		window.addEventListener('resize', () => {
+			clearTimeout(resizeTimer);
+			resizeTimer = setTimeout(updatePosition, 10);
 		});
 
 		Log.info('Search module initialized', { config: SearchState.config });

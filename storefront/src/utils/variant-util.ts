@@ -1,4 +1,4 @@
-import { Product, ProductVariant } from "../collections-main";
+import { ProductType as Product, ProductVariantType as ProductVariant } from "../type";
 
 export function getSelectedOptions(
     dialog: HTMLElement,

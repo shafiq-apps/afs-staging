@@ -19,32 +19,28 @@ export function waitForElement(
       return;
     }
 
-    // Use MutationObserver to watch for element
-    const observer = new MutationObserver((mutations, obs) => {
-      const element = container.querySelector<HTMLElement>(selector);
-      if (element) {
-        obs.disconnect();
-        resolve(element);
-      }
-    });
-
-    observer.observe(container.body || container, {
-      childList: true,
-      subtree: true,
-    });
-
     // Timeout fallback
     const timeoutId = setTimeout(() => {
       observer.disconnect();
       reject(new Error(`Element ${selector} not found within ${timeout}ms`));
     }, timeout);
 
-    // Clean up timeout if element is found
-    const originalResolve = resolve;
-    resolve = (element: HTMLElement) => {
-      clearTimeout(timeoutId);
-      originalResolve(element);
-    };
+    // Use MutationObserver to watch for element
+    const observer = new MutationObserver((mutations, obs) => {
+      const element = container.querySelector<HTMLElement>(selector);
+      if (element) {
+        obs.disconnect();
+        clearTimeout(timeoutId);
+        resolve(element);
+      }
+    });
+
+    // Observe the correct container
+    const target = container instanceof Document ? container.body : container;
+    observer.observe(target, {
+      childList: true,
+      subtree: true,
+    });
   });
 }
 

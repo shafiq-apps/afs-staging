@@ -7,11 +7,31 @@
 @use './_components' as *;
 
 /* ============================================================================
+   Search Container (Positioned Absolutely)
+   ============================================================================ */
+
+.afs-search-container {
+  position: absolute !important;
+  display: block !important;
+  min-width: 280px !important;
+  z-index: 999999 !important;
+  
+  // Container is positioned absolutely (not wrapping the input)
+  // Position and width are set dynamically via JavaScript
+  // to match input position and width, with minimum 280px
+  // IMPORTANT: We never wrap the input or modify its parent
+  // The input maintains all its original width, height, and styles
+}
+
+/* ============================================================================
    Search Dropdown Container
    ============================================================================ */
 
 .afs-search-dropdown {
-  position: absolute;
+  position: absolute !important;
+  top: 100% !important;
+  left: 0 !important;
+  width: 100% !important;
   background: var(--afs-bg-color);
   border: 1px solid var(--afs-border-color);
   border-radius: $border-radius-md;
@@ -19,13 +39,13 @@
   max-height: 400px;
   overflow-y: auto;
   overflow-x: hidden;
-  z-index: $z-index-dropdown;
+  z-index: 999999 !important;
   display: none;
   margin-top: 4px;
   @include custom-scrollbar(6px, transparent, var(--afs-scrollbar-thumb));
 
   &--visible {
-    display: block;
+    display: block !important;
   }
 
   @media (max-width: $breakpoint-mobile) {
