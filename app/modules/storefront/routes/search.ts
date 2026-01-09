@@ -106,22 +106,137 @@ export const GET = handler(async (req: HttpRequest) => {
     }
   }
 
-  // Perform advanced search with autocomplete and typo tolerance
-  let result;
+  // ULTRA-FAST: Use msearch to combine all queries in single request
+  // This is inspired by filters endpoint which uses msearch for parallel queries
+  let result: any;
+  let suggestions: string[] = [];
+  let alternativeQueries: string[] | undefined;
+  let formattedFilters: any[] = [];
+  
   if (searchInput.search) {
-    // Use advanced search with autocomplete and typo tolerance
-    // This method already returns only: id, title, imageUrl, vendor, productType, tags, minPrice, maxPrice
-    result = await (productsService as any).searchProductsWithAutocomplete(
-      shopParam,
-      searchInput.search,
-      searchInput,
-      filterConfig
-    );
-  } else {
-    // Fallback to regular search if no query provided
-    result = await productsService.searchProducts(shopParam, searchInput, filterConfig);
+    // Use msearch approach for maximum speed
+    const needsSuggestions = (searchInput.suggestions && searchInput.search) || 
+                            (searchInput.handleZeroResults !== false);
+    const needsFacets = searchInput.includeFacets && filtersRepository;
     
-    // Filter to only return specified fields
+    try {
+      // Use msearch method from repository
+      const msearchResult = await (productsService as any).repo.searchProductsWithMsearch(
+        shopParam,
+        searchInput.search,
+        searchInput,
+        filterConfig,
+        {
+          includeSuggestions: needsSuggestions,
+          includeFacets: needsFacets,
+          suggestionLimit: 5,
+        }
+      );
+      
+      result = msearchResult.result;
+      suggestions = msearchResult.suggestions || [];
+      
+      // Format facets if we got them
+      if (msearchResult.facets && filterConfig) {
+        formattedFilters = formatFilters({ aggregations: msearchResult.facets }, filterConfig);
+        if (searchInput.facetLimit) {
+          formattedFilters = formattedFilters.slice(0, searchInput.facetLimit);
+        }
+      }
+      
+      // Handle zero results "did you mean" suggestions (only if zero results)
+      if (result.total === 0 && searchInput.handleZeroResults !== false && searchInput.search) {
+        try {
+          const didYouMeanSuggestions = await (productsService as any).getDidYouMeanSuggestions(
+            shopParam,
+            searchInput.search,
+            3
+          );
+          if (didYouMeanSuggestions && didYouMeanSuggestions.length > 0) {
+            alternativeQueries = didYouMeanSuggestions;
+          }
+        } catch (error: any) {
+          logger.debug('Failed to get did you mean suggestions', { error: error?.message });
+        }
+      }
+    } catch (msearchError: any) {
+      // Fallback to regular search if msearch fails
+      logger.debug('msearch failed, falling back to regular search', { error: msearchError?.message });
+      result = await (productsService as any).searchProductsWithAutocomplete(
+        shopParam,
+        searchInput.search,
+        searchInput,
+        filterConfig
+      );
+      
+      // Fallback to parallel approach for suggestions/facets
+      const zeroResults = result.total === 0;
+      const needsSuggestions = (zeroResults && searchInput.handleZeroResults !== false) || 
+                              (searchInput.suggestions && result.total > 0);
+      const needsFacets = searchInput.includeFacets && filtersRepository;
+      
+      const [suggestionsData, facetsData] = await Promise.all([
+        needsSuggestions ? (async () => {
+          try {
+            if (zeroResults && searchInput.handleZeroResults !== false) {
+              const [titleSuggestions, didYouMeanSuggestions] = await Promise.all([
+                (productsService as any).getSearchSuggestions(shopParam, searchInput.search!, 5),
+                (productsService as any).getDidYouMeanSuggestions(shopParam, searchInput.search!, 3)
+              ]);
+              const cleanedQuery = searchInput.search!.replace(/[^\w\s]/g, '');
+              const altQueries = [
+                ...(didYouMeanSuggestions || []),
+                ...(cleanedQuery !== searchInput.search && !titleSuggestions.includes(cleanedQuery) ? [cleanedQuery] : [])
+              ];
+              return {
+                suggestions: titleSuggestions || [],
+                alternativeQueries: altQueries.length > 0 ? altQueries : undefined
+              };
+            } else if (searchInput.suggestions && result.total > 0) {
+              const suggestResponse = await (productsService as any).getSearchSuggestions(
+                shopParam,
+                searchInput.search!,
+                5
+              );
+              return {
+                suggestions: suggestResponse || [],
+                alternativeQueries: undefined
+              };
+            }
+          } catch (suggestError: any) {
+            logger.debug('Failed to get ES suggestions', { error: suggestError?.message });
+            return { suggestions: [], alternativeQueries: undefined };
+          }
+          return { suggestions: [], alternativeQueries: undefined };
+        })() : Promise.resolve({ suggestions: [], alternativeQueries: undefined }),
+        
+        needsFacets ? (async () => {
+          try {
+            const aggregations = await productsService.getRawAggregations(
+              shopParam,
+              searchInput,
+              filterConfig
+            );
+            if (aggregations) {
+              const formatted = formatFilters(aggregations, filterConfig);
+              return searchInput.facetLimit 
+                ? formatted.slice(0, searchInput.facetLimit)
+                : formatted;
+            }
+          } catch (facetError: any) {
+            logger.debug('Failed to get facets', { error: facetError?.message });
+          }
+          return [];
+        })() : Promise.resolve([])
+      ]);
+      
+      suggestions = suggestionsData.suggestions;
+      alternativeQueries = suggestionsData.alternativeQueries;
+      formattedFilters = facetsData;
+    }
+  } else {
+    // Fallback to regular search (no search query)
+    result = await productsService.searchProducts(shopParam, searchInput, filterConfig);
     result.products = result.products.map((product: any) => ({
       id: product.id,
       title: product.title,
@@ -133,97 +248,8 @@ export const GET = handler(async (req: HttpRequest) => {
       maxPrice: product.maxPrice,
     }));
   }
-
-  // Handle zero results with suggestions
-  let suggestions: string[] = [];
-  let alternativeQueries: string[] = [];
-  let zeroResults = false;
-
-  if (result.total === 0) {
-    zeroResults = true;
-    
-    if (searchInput.handleZeroResults !== false) {
-      logger.info('Zero results found, generating suggestions', { query: searchInput.search });
-
-      // Generate suggestions based on actual ES product data
-      // Get both product title suggestions and "Did you mean" suggestions
-      if (searchInput.search) {
-        try {
-          // Get product title suggestions (e.g., "Sheep" → "Sheepskin products")
-          const titleSuggestions = await (productsService as any).getSearchSuggestions(
-            shopParam,
-            searchInput.search,
-            5 // Get at least 5 suggestions
-          );
-          
-          // Get "Did you mean" suggestions (similar queries that would return results)
-          const didYouMeanSuggestions = await (productsService as any).getDidYouMeanSuggestions(
-            shopParam,
-            searchInput.search,
-            3 // Get up to 3 "did you mean" suggestions
-          );
-          
-          // Combine suggestions
-          suggestions = [...titleSuggestions];
-          
-          // Add "Did you mean" suggestions if we have them
-          if (didYouMeanSuggestions && didYouMeanSuggestions.length > 0) {
-            // Store separately for "did you mean" display
-            alternativeQueries = didYouMeanSuggestions;
-          }
-          
-          // Also add cleaned query if different
-          const cleanedQuery = searchInput.search.replace(/[^\w\s]/g, '');
-          if (cleanedQuery !== searchInput.search && !suggestions.includes(cleanedQuery)) {
-            alternativeQueries.push(cleanedQuery);
-          }
-        } catch (suggestError: any) {
-          logger.debug('Failed to get ES suggestions for zero results', { error: suggestError?.message });
-          // Don't show fake suggestions
-          suggestions = [];
-        }
-      }
-    }
-  }
-
-  // Get suggestions if requested - based on actual ES product data
-  if (searchInput.suggestions && searchInput.search && result.total > 0) {
-    try {
-      // Get actual suggestions from Elasticsearch based on product titles
-      const suggestResponse = await (productsService as any).getSearchSuggestions(
-        shopParam,
-        searchInput.search,
-        5 // Get at least 5 suggestions
-      );
-      
-      if (suggestResponse && suggestResponse.length > 0) {
-        suggestions = suggestResponse;
-      }
-    } catch (suggestError: any) {
-      logger.debug('Failed to get ES suggestions', { error: suggestError?.message });
-      // Fallback: don't show fake suggestions
-      suggestions = [];
-    }
-  }
-
-  // Get facets if requested
-  let formattedFilters: any[] = [];
-  if (searchInput.includeFacets && filtersRepository) {
-    const aggregations = await productsService.getRawAggregations(
-      shopParam,
-      searchInput,
-      filterConfig
-    );
-
-    if (aggregations) {
-      formattedFilters = formatFilters(aggregations, filterConfig);
-      
-      // Limit facets if specified
-      if (searchInput.facetLimit) {
-        formattedFilters = formattedFilters.slice(0, searchInput.facetLimit);
-      }
-    }
-  }
+  
+  const zeroResults = result.total === 0;
 
   // Build response with only relevant fields
   // Products are already filtered to: id, title, imageUrl, vendor, productType, tags, minPrice, maxPrice
@@ -256,7 +282,7 @@ export const GET = handler(async (req: HttpRequest) => {
 
   if (zeroResults) {
     responseBody.data.zeroResults = true;
-    if (alternativeQueries.length > 0) {
+    if (alternativeQueries && alternativeQueries.length > 0) {
       responseBody.data.alternativeQueries = alternativeQueries;
       responseBody.data.didYouMean = alternativeQueries[0]; // Primary "Did you mean" suggestion
     }
@@ -268,10 +294,11 @@ export const GET = handler(async (req: HttpRequest) => {
   }
 
   // Include search metadata
+  // Note: semanticSearch is currently not implemented (no actual semantic search logic)
   responseBody.data.searchMetadata = {
     query: searchInput.search,
     autocomplete: searchInput.autocomplete || false,
-    semanticSearch: searchInput.semanticSearch || false,
+    semanticSearch: false, // Not implemented yet
     typoTolerance: searchInput.typoTolerance !== false,
     synonymsEnabled: searchInput.enableSynonyms !== false,
   };

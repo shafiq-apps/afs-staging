@@ -1758,6 +1758,281 @@ export class StorefrontSearchRepository {
   }
 
   /**
+   * ULTRA-FAST search using msearch to combine all queries in single request
+   * Combines: main search + suggestions + facets in single msearch request
+   * Inspired by filters endpoint which uses msearch for parallel queries
+   */
+  async searchProductsWithMsearch(
+    shopDomain: string,
+    searchQuery: string,
+    filters?: ProductSearchInput,
+    filterConfig?: Filter | null,
+    options?: {
+      includeSuggestions?: boolean;
+      includeFacets?: boolean;
+      suggestionLimit?: number;
+    }
+  ): Promise<{
+    result: ProductSearchResult;
+    suggestions?: string[];
+    facets?: any;
+  }> {
+    const index = PRODUCT_INDEX_NAME(shopDomain);
+    const sanitizedFilters = filters ? sanitizeFilterInput(filters) : undefined;
+    
+    const page = filters?.page || 1;
+    const limit = Math.min(filters?.limit || 10, 10);
+    const from = (page - 1) * limit;
+    
+    // Build base must queries (status, document type, filters)
+    const baseMustQueries: any[] = [
+      { term: { [ES_FIELDS.STATUS]: 'ACTIVE' } },
+      { term: { [ES_FIELDS.DOCUMENT_TYPE]: 'product' } },
+    ];
+    
+    // Add filters
+    if (hasValues(sanitizedFilters?.vendors)) {
+      baseMustQueries.push({ terms: { [ES_FIELDS.VENDOR_KEYWORD]: sanitizedFilters!.vendors } });
+    }
+    if (hasValues(sanitizedFilters?.productTypes)) {
+      baseMustQueries.push({ terms: { [ES_FIELDS.PRODUCT_TYPE_KEYWORD]: sanitizedFilters!.productTypes } });
+    }
+    if (hasValues(sanitizedFilters?.tags)) {
+      baseMustQueries.push({ terms: { [ES_FIELDS.TAGS]: sanitizedFilters!.tags } });
+    }
+    if (hasValues(sanitizedFilters?.collections)) {
+      baseMustQueries.push({ terms: { [ES_FIELDS.COLLECTIONS]: sanitizedFilters!.collections } });
+    }
+    if (sanitizedFilters?.priceMin !== undefined || sanitizedFilters?.priceMax !== undefined) {
+      const priceRange: any = {};
+      if (sanitizedFilters.priceMin !== undefined) priceRange.gte = sanitizedFilters.priceMin;
+      if (sanitizedFilters.priceMax !== undefined) priceRange.lte = sanitizedFilters.priceMax;
+      baseMustQueries.push({ range: { [ES_FIELDS.MIN_PRICE]: priceRange } });
+    }
+    
+    // Build search query - ULTRA SIMPLIFIED for maximum speed
+    let searchMustQueries = [...baseMustQueries];
+    if (searchQuery && searchQuery.trim()) {
+      const query = searchQuery.trim();
+      const searchConfig = await this.getSearchConfig(shopDomain);
+      const searchFields = this.buildSearchFields(searchConfig);
+      
+      // Use configured fields or fallback to top 2 fields only (title + tags)
+      let fieldsToUse = searchFields.length > 0 
+        ? searchFields 
+        : ['title^5', 'tags^3'];
+      
+      // CRITICAL: Limit to top 2 fields ONLY for maximum speed
+      if (fieldsToUse.length > 2) {
+        fieldsToUse = fieldsToUse
+          .map(f => {
+            const match = f.match(/^(.+)\^(.+)$/);
+            return match ? { field: match[1], weight: parseFloat(match[2]), full: f } : { field: f, weight: 1, full: f };
+          })
+          .sort((a, b) => b.weight - a.weight)
+          .slice(0, 2)
+          .map(f => f.full);
+      }
+      
+      // Prefer single field match (fastest) if only one field
+      const fieldMatch = fieldsToUse.length === 1 ? fieldsToUse[0].match(/^(.+)\^(.+)$/) : null;
+      const fieldName = fieldMatch ? fieldMatch[1] : null;
+      
+      if (fieldName) {
+        searchMustQueries.push({
+          match: {
+            [fieldName]: {
+              query: query,
+              operator: 'or',
+              fuzziness: 1,
+              prefix_length: 2,
+              max_expansions: 20,
+            },
+          },
+        });
+      } else {
+        searchMustQueries.push({
+          multi_match: {
+            query: query,
+            fields: fieldsToUse,
+            type: 'best_fields',
+            operator: 'or',
+            fuzziness: 1,
+            prefix_length: 2,
+            max_expansions: 20,
+          },
+        });
+      }
+    } else {
+      searchMustQueries.push({ match_all: {} });
+    }
+    
+    // Build msearch body - combine all queries
+    const msearchBody: any[] = [];
+    
+    // 1. Main search query - ULTRA OPTIMIZED
+    msearchBody.push({ index });
+    msearchBody.push({
+      from,
+      size: limit,
+      query: { bool: { must: searchMustQueries } },
+      sort: searchQuery ? [{ _score: 'desc' }] : [{ [ES_FIELDS.BEST_SELLER_RANK]: { order: 'asc', missing: '_last' } }],
+      track_total_hits: false,
+      timeout: '300ms',
+      _source: ['id', 'title', 'imageUrl', 'vendor', 'productType', 'tags', 'minPrice', 'maxPrice'],
+      batched_reduce_size: 128,
+      pre_filter_shard_size: 64,
+    });
+    
+    // 2. Suggestions query (if needed) - simplified
+    if (options?.includeSuggestions && searchQuery) {
+      msearchBody.push({ index });
+      msearchBody.push({
+        size: Math.min((options.suggestionLimit || 5) * 2, 30),
+        query: {
+          bool: {
+            must: [
+              ...baseMustQueries,
+              {
+                multi_match: {
+                  query: searchQuery.toLowerCase().trim(),
+                  fields: ['title^3'],
+                  type: 'phrase_prefix',
+                  operator: 'or',
+                },
+              },
+            ],
+          },
+        },
+        sort: [{ _score: 'desc' }],
+        _source: ['title'],
+        timeout: '300ms',
+        track_total_hits: false,
+      });
+    }
+    
+    // 3. Facets query (if needed)
+    if (options?.includeFacets && filterConfig) {
+      const aggs: any = {};
+      if (filterConfig.vendors?.enabled) {
+        aggs.vendors = { terms: { field: ES_FIELDS.VENDOR_KEYWORD, size: 20 } };
+      }
+      if (filterConfig.productTypes?.enabled) {
+        aggs.productTypes = { terms: { field: ES_FIELDS.PRODUCT_TYPE_KEYWORD, size: 20 } };
+      }
+      if (filterConfig.tags?.enabled) {
+        aggs.tags = { terms: { field: ES_FIELDS.TAGS, size: 50 } };
+      }
+      if (filterConfig.collections?.enabled) {
+        aggs.collections = { terms: { field: ES_FIELDS.COLLECTIONS, size: 20 } };
+      }
+      if (filterConfig.price?.enabled) {
+        aggs.minPrice = { min: { field: ES_FIELDS.MIN_PRICE } };
+        aggs.maxPrice = { max: { field: ES_FIELDS.MAX_PRICE } };
+      }
+      
+      if (Object.keys(aggs).length > 0) {
+        msearchBody.push({ index });
+        msearchBody.push({
+          size: 0,
+          query: { bool: { must: baseMustQueries } },
+          aggs,
+          track_total_hits: false,
+          timeout: '400ms',
+        });
+      }
+    }
+    
+    // Execute msearch - all queries in parallel
+    let msearchResponse: { responses: any[] };
+    try {
+      if (msearchBody.length > 0) {
+        msearchResponse = await this.esClient.msearch({ body: msearchBody });
+      } else {
+        msearchResponse = { responses: [] };
+      }
+    } catch (error: any) {
+      logger.error('[searchProductsWithMsearch] msearch failed', {
+        shopDomain,
+        index,
+        error: error?.message || error,
+      });
+      throw error;
+    }
+    
+    // Process main search result
+    const mainResponse = msearchResponse.responses[0];
+    if (!mainResponse || mainResponse.error) {
+      throw new Error(mainResponse?.error?.reason || 'Search failed');
+    }
+    
+    const total = typeof mainResponse.hits.total === 'number'
+      ? mainResponse.hits.total
+      : (mainResponse.hits.total as any)?.value || mainResponse.hits.hits.length;
+    const totalPages = Math.ceil(total / limit);
+    
+    const products = mainResponse.hits.hits.map((hit: any) => {
+      const product = hit._source as shopifyProduct;
+      return {
+        id: product.id,
+        title: product.title,
+        imageUrl: product.imageUrl,
+        vendor: product.vendor,
+        productType: product.productType,
+        tags: product.tags || [],
+        minPrice: product.minPrice,
+        maxPrice: product.maxPrice,
+      };
+    });
+    
+    const result: ProductSearchResult = {
+      products,
+      total,
+      page,
+      limit,
+      totalPages,
+    };
+    
+    // Process suggestions (if requested)
+    let suggestions: string[] | undefined;
+    if (options?.includeSuggestions && msearchResponse.responses.length > 1) {
+      const suggestResponse = msearchResponse.responses[1];
+      if (suggestResponse && !suggestResponse.error) {
+        const seen = new Set<string>();
+        const queryLower = searchQuery.toLowerCase().trim();
+        
+        for (const hit of suggestResponse.hits.hits) {
+          const title = hit._source?.title;
+          if (title && typeof title === 'string') {
+            const titleLower = title.toLowerCase();
+            if (titleLower.startsWith(queryLower) || titleLower.includes(' ' + queryLower)) {
+              const key = titleLower;
+              if (!seen.has(key) && title.length > queryLower.length) {
+                suggestions = suggestions || [];
+                suggestions.push(title.length <= 60 ? title : title.substring(0, 60) + '...');
+                seen.add(key);
+                if (suggestions.length >= (options.suggestionLimit || 5)) break;
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    // Process facets (if requested)
+    let facets: any;
+    const facetsIndex = options?.includeSuggestions ? 2 : 1;
+    if (options?.includeFacets && msearchResponse.responses.length > facetsIndex) {
+      const facetsResponse = msearchResponse.responses[facetsIndex];
+      if (facetsResponse && !facetsResponse.error && facetsResponse.aggregations) {
+        facets = facetsResponse.aggregations;
+      }
+    }
+    
+    return { result, suggestions, facets };
+  }
+
+  /**
    * Get search suggestions based on actual product data
    * Returns real terms from product titles that match the query (including partial matches)
    * Example: "Sheep" should find "Sheepskin" products
@@ -1776,11 +2051,12 @@ export class StorefrontSearchRepository {
     }
 
     try {
+      // PERFORMANCE: Optimized suggestions query - simpler and faster
       // Get actual product titles that match the query (including partial matches)
       // This finds products like "Sheepskin" when searching for "Sheep"
       const response = await this.esClient.search({
         index,
-        size: Math.min(limit * 4, 100), // Get more results to find good suggestions
+        size: Math.min(limit * 2, 50), // Reduced from 100 to 50 for speed
         query: {
           bool: {
             must: [
@@ -1795,56 +2071,21 @@ export class StorefrontSearchRepository {
                 },
               },
               {
-                bool: {
-                  should: [
-                    // Exact match or starts with
-                    {
-                      multi_match: {
-                        query: queryLower,
-                        fields: ['title^3', 'tags^2'],
-                        type: 'phrase_prefix',
-                        boost: 3.0,
-                      },
-                    },
-                    // Contains as word
-                    {
-                      multi_match: {
-                        query: queryLower,
-                        fields: ['title^2', 'tags'],
-                        type: 'best_fields',
-                        operator: 'or',
-                        boost: 2.0,
-                      },
-                    },
-                    // Partial match (e.g., "Sheep" in "Sheepskin")
-                    {
-                      wildcard: {
-                        'title': `*${queryLower}*`,
-                      },
-                    },
-                    // Fuzzy match for typos
-                    {
-                      multi_match: {
-                        query: queryLower,
-                        fields: ['title', 'tags'],
-                        type: 'best_fields',
-                        fuzziness: 'AUTO',
-                        operator: 'or',
-                        boost: 1.5,
-                      },
-                    },
-                  ],
-                  minimum_should_match: 1,
+                // Simplified query - use phrase_prefix for autocomplete (fastest)
+                multi_match: {
+                  query: queryLower,
+                  fields: ['title^3', 'tags^2'],
+                  type: 'phrase_prefix', // Fastest for autocomplete
+                  operator: 'or',
                 },
               },
             ],
           },
         },
-        sort: [
-          { _score: 'desc' },
-          { [ES_FIELDS.BEST_SELLER_RANK]: { order: 'asc', missing: '_last' } },
-        ],
+        sort: [{ _score: 'desc' }], // Removed best_seller_rank sort for speed
         _source: ['title'],
+        timeout: '500ms', // Faster timeout for suggestions
+        track_total_hits: false, // Don't need total count
       } as any);
 
       const suggestions: string[] = [];
@@ -1953,40 +2194,11 @@ export class StorefrontSearchRepository {
             suggestedText.toLowerCase() !== queryLower &&
             option.score > 0.3) { // Only accept reasonable suggestions
           
-          // Verify this suggestion would actually return results
-          const verifyResponse = await this.esClient.search({
-            index,
-            size: 1,
-            query: {
-              bool: {
-                must: [
-                  {
-                    term: {
-                      [ES_FIELDS.STATUS]: 'ACTIVE',
-                    },
-                  },
-                  {
-                    term: {
-                      [ES_FIELDS.DOCUMENT_TYPE]: 'product',
-                    },
-                  },
-                  {
-                    multi_match: {
-                      query: suggestedText,
-                      fields: ['title^2', 'tags'],
-                      type: 'best_fields',
-                      operator: 'or',
-                    },
-                  },
-                ],
-              },
-            },
-          } as any);
-
-          if (verifyResponse.hits.hits.length > 0) {
-            suggestions.push(suggestedText);
-            if (suggestions.length >= limit) break;
-          }
+          // PERFORMANCE: Skip verification query - it doubles the latency (100-200ms per suggestion)
+          // Just use the suggestion if score is reasonable (already checked: option.score > 0.3)
+          // Verification adds significant latency without much benefit
+          suggestions.push(suggestedText);
+          if (suggestions.length >= limit) break;
         }
       }
 
