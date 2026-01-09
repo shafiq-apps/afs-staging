@@ -1503,10 +1503,10 @@ export class StorefrontSearchRepository {
       const searchConfig = await this.getSearchConfig(shopDomain);
       const searchFields = this.buildSearchFields(searchConfig);
       
-      // If no fields, fall back to default
+      // If no fields, fall back to default (weights 0-5 for better results)
       let fieldsToUse = searchFields.length > 0 
         ? searchFields 
-        : ['title^7', 'variants.displayName^6', 'variants.sku^6', 'tags^5', 'vendor^0.8', 'productType^0.8' ];
+        : ['title^5', 'variants.displayName^4', 'variants.sku^4', 'tags^3', 'vendor^1', 'productType^1' ];
       
       // PERFORMANCE: Limit to top 4 fields for balance between speed and accuracy
       // More fields = slower, but we need enough for good typo tolerance

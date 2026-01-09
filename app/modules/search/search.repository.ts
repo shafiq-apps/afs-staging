@@ -127,10 +127,10 @@ export class SearchRepository {
       id: normalizeShopId(shop),
       shop: shop.trim(),
       fields: [
-        { field: 'title', weight: 7 },
-        { field: 'variants.displayName', weight: 6 },
-        { field: 'variants.sku', weight: 6 },
-        { field: 'tags', weight: 5 },
+        { field: 'title', weight: 5 },
+        { field: 'variants.displayName', weight: 4 },
+        { field: 'variants.sku', weight: 4 },
+        { field: 'tags', weight: 3 },
       ],
       createdAt: new Date().toISOString(),
       updatedAt: null,
@@ -171,9 +171,9 @@ export class SearchRepository {
         }
         fieldNames.add(trimmedField);
 
-        // Validate weight (must be between 1 and 10)
-        if (field.weight < 1 || field.weight > 10) {
-          throw new Error(`Weight for field ${trimmedField} must be between 1 and 10, got ${field.weight}`);
+        // Validate weight (must be between 0 and 5 for better results)
+        if (field.weight < 0 || field.weight > 5) {
+          throw new Error(`Weight for field ${trimmedField} must be between 0 and 5, got ${field.weight}`);
         }
       }
 

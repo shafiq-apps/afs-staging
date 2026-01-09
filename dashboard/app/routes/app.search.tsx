@@ -33,37 +33,33 @@ interface SearchPageData {
 // Master list of all available ES searchable fields with default weights
 const ALL_AVAILABLE_FIELDS: Array<{ field: string; defaultWeight: number }> = [
   // Default fields
-  { field: "title", defaultWeight: 10 },
+  { field: "title", defaultWeight: 5 },
   { field: "vendor", defaultWeight: 1 },
   { field: "productType", defaultWeight: 1 },
-  { field: "tags", defaultWeight: 5 },
+  { field: "tags", defaultWeight: 3 },
   // Additional fields
-  { field: "variants.title", defaultWeight: 3 },
-  { field: "variants.displayName", defaultWeight: 4 },
-  { field: "variants.sku", defaultWeight: 5 },
-  { field: "variants.barcode", defaultWeight: 7 }
+  { field: "variants.title", defaultWeight: 2 },
+  { field: "variants.displayName", defaultWeight: 3 },
+  { field: "variants.sku", defaultWeight: 4 },
+  { field: "variants.barcode", defaultWeight: 4 }
 ];
 
-// Weight options for select dropdown
+// Weight options for select dropdown (0-5 range for better results)
 const WEIGHT_OPTIONS = [
+  { value: 0, label: "Disabled" },
   { value: 1, label: "Very Low" },
   { value: 2, label: "Low" },
-  { value: 3, label: "Below Average" },
-  { value: 4, label: "Average" },
-  { value: 5, label: "Above Average" },
-  { value: 6, label: "High" },
-  { value: 7, label: "Very High" },
-  { value: 8, label: "Critical" },
-  { value: 9, label: "Dominant" },
-  { value: 10, label: "Maximum" },
+  { value: 3, label: "Medium" },
+  { value: 4, label: "High" },
+  { value: 5, label: "Maximum" },
 ];
 
 // Default fields that should be initialized
 const DEFAULT_FIELDS: SearchField[] = [
-  { field: "title", weight: 7 },
-  { field: "variants.displayName", weight: 6 },
-  { field: "variants.sku", weight: 6 },
-  { field: "tags", weight: 5 },
+  { field: "title", weight: 5 },
+  { field: "variants.displayName", weight: 4 },
+  { field: "variants.sku", weight: 4 },
+  { field: "tags", weight: 3 },
 ];
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
