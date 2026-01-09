@@ -11,7 +11,7 @@ import { Lang } from './locals';
 import { ProductType, ProductModalElement, ProductVariantType, SliderOptionsType, SliderSlideChangeEventDetailType, SpecialValueType } from './type';
 import { $ } from './utils/$.utils';
 import { waitForElement, waitForElements } from './utils/dom-ready';
-import { findMatchingVariants, getSelectedOptions, isOptionValueAvailable } from './utils/variant-util';
+import { findMatchingVariants, getSelectedOptions, isOptionValueAvailable, isVariantAvailable } from './utils/variant-util';
 
 // ============================================================================
 // SLIDER CLASS
@@ -772,7 +772,7 @@ export async function createProductModal(handle: string, modalId: string): Promi
     }
 
     // Find first available variant or first variant
-    const selectedVariant = productData.variants.find(v => v.available) || productData.variants[0];
+    const selectedVariant = productData.variants.find(v => isVariantAvailable(v)) || productData.variants[0];
     let currentVariantId: number | string | null = selectedVariant ? selectedVariant.id : null;
 
     // Build variant selector HTML
@@ -804,14 +804,35 @@ export async function createProductModal(handle: string, modalId: string): Promi
           return v.option3;
         }).filter(Boolean))];
 
+        // Build selected options array based on selectedVariant for availability checking
+        const selectedOptions: (string | null)[] = Array.from({ length: productData.options?.length || 0 }, (_, idx) => {
+          if (idx === optionIndex) return null; // Don't include current option being checked
+          if (!selectedVariant) return null;
+          if (idx === 0) return selectedVariant.option1 || null;
+          if (idx === 1) return selectedVariant.option2 || null;
+          return selectedVariant.option3 || null;
+        });
+
         uniqueValues.forEach(value => {
+          if (!value) return; // Skip undefined/null values
+          
+          // Use isOptionValueAvailable to check if this option value is available
+          // given the currently selected options from other option groups
+          const isAvailable = isOptionValueAvailable(productData, optionIndex, value, selectedOptions);
+          
+          // Check if this option value matches the selected variant's option value for this option index
+          const isSelected = selectedVariant && (
+            (optionIndex === 0 && selectedVariant.option1 === value) ||
+            (optionIndex === 1 && selectedVariant.option2 === value) ||
+            (optionIndex === 2 && selectedVariant.option3 === value)
+          );
+          
+          // Find variant for data-variant-id attribute (any variant with this option value)
           const variant = productData.variants!.find(v => {
             if (optionIndex === 0) return v.option1 === value;
             if (optionIndex === 1) return v.option2 === value;
             return v.option3 === value;
           });
-          const isAvailable = variant && variant.available;
-          const isSelected = variant && variant.id === currentVariantId;
 
           html += `<button 
               class="afs-product-modal__option-value ${isSelected ? 'afs-product-modal__option-value--selected' : ''} ${!isAvailable ? 'afs-product-modal__option-value--unavailable' : ''}"
@@ -977,17 +998,17 @@ export async function createProductModal(handle: string, modalId: string): Promi
                       class="afs-product-modal__add-button"
                       id="${modalId}-add-button"
                       data-variant-id="${currentVariantId}"
-                      ${!currentVariant.available ? 'disabled' : ''}
+                      ${!isVariantAvailable(currentVariant) ? 'disabled' : ''}
                       type="button"
                     >
-                      ${!currentVariant.available ? (Lang?.buttons?.soldOut || 'Sold out') : (Lang?.buttons?.addToCart || 'Add to cart')}
+                      ${!isVariantAvailable(currentVariant) ? (Lang?.buttons?.soldOut || 'Sold out') : (Lang?.buttons?.addToCart || 'Add to cart')}
                     </button>
                   </div>
                   <button
                     class="afs-product-modal__buy-button"
                     id="${modalId}-buy-button"
                     data-variant-id="${currentVariantId}"
-                    ${!currentVariant.available ? 'disabled' : ''}
+                    ${!isVariantAvailable(currentVariant) ? 'disabled' : ''}
                     type="button"
                   >
                     ${Lang?.buttons?.buyNow || 'Buy it now'}
@@ -1188,27 +1209,34 @@ function setupModalHandlers(
 
       // Resolve final variant
       const matches = findMatchingVariants(product.variants!, selected);
-      const availableVariant = matches.find(v => v.available);
+      const availableVariant = matches.find(v => isVariantAvailable(v));
+      // If no available variant found, use first matching variant (will show as sold out)
+      const selectedVariant = availableVariant || matches[0];
 
-      if (availableVariant) {
+      if (selectedVariant) {
         // Wait for slider to be ready if it's still initializing
         if (!dialog._slider) {
           // Wait up to 2 seconds for slider to initialize
           const waitForSlider = (attempts = 0): void => {
             if (dialog._slider) {
-              updateVariantInModal(dialog, modalId, availableVariant, formatPrice);
+              updateVariantInModal(dialog, modalId, selectedVariant, formatPrice);
             } else if (attempts < 20) {
               setTimeout(() => waitForSlider(attempts + 1), 100);
             } else {
               Log.warn('Slider not ready for variant update', { modalId });
               // Update price and buttons even if slider isn't ready
-              updateVariantInModal(dialog, modalId, availableVariant, formatPrice);
+              updateVariantInModal(dialog, modalId, selectedVariant, formatPrice);
             }
           };
           waitForSlider();
         } else {
-          updateVariantInModal(dialog, modalId, availableVariant, formatPrice);
+          updateVariantInModal(dialog, modalId, selectedVariant, formatPrice);
         }
+      } else {
+        Log.warn('No matching variant found for selected options', { 
+          selected: selected.filter(Boolean) as string[], 
+          matchesCount: matches.length 
+        });
       }
     });
   });
@@ -1277,9 +1305,10 @@ function updateVariantInModal(
   // Update add to cart button
   const addButton = dialog.querySelector<HTMLButtonElement>(`#${modalId}-add-button`);
   if (addButton) {
+    const variantAvailable = isVariantAvailable(variant);
     addButton.dataset.variantId = String(variant.id);
-    addButton.disabled = !variant.available;
-    addButton.innerHTML = !variant.available 
+    addButton.disabled = !variantAvailable;
+    addButton.innerHTML = !variantAvailable 
       ? (Lang?.buttons?.soldOut || 'Sold out') 
       : (Lang?.buttons?.addToCart || 'Add to cart');
   }
@@ -1287,8 +1316,9 @@ function updateVariantInModal(
   // Update buy now button
   const buyButton = dialog.querySelector<HTMLButtonElement>(`#${modalId}-buy-button`);
   if (buyButton) {
+    const variantAvailable = isVariantAvailable(variant);
     buyButton.dataset.variantId = String(variant.id);
-    buyButton.disabled = !variant.available;
+    buyButton.disabled = !variantAvailable;
   }
 
   // Update images if variant has specific image
