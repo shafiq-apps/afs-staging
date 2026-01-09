@@ -1,398 +1,16 @@
-/**
- * Advanced Filter Search
- * 
- * Describe hardcoded values and their means and functionality
- */
-
-import {
-	ConstantsType,
-	DisplayType,
-	FilterKeyType,
-	IconsType,
-	LanguageTextsType,
-	SelectionType,
-	// Type aliases for backward compatibility
-	ProductVariantType,
-	AppStateType,
-	FilterOptionType,
-	FilterMetadataType,
-	FiltersStateType,
-	PaginationStateType,
-	SortStateType,
-	ProductsResponseDataType,
-	FiltersResponseDataType,
-	PriceRangeType,
-	AFSConfigType,
-	FilterValueType,
-	ProductModalElement,
-	ShopifyWindow,
-	SpecialValueType,
-	SortFieldType,
-	SortOrderType,
-	OptionType,
-	AppliedFilterType,
-	ParsedUrlParamsType,
-	LoggableData,
-	ImageOptimizationOptionsType,
-	FilterGroupStateType,
-	ProductType,
-	APIResponse,
-	AFSInterfaceType,
-	FilterItemsElement
-} from "./type";
+import './digitalcoo-quickview';
+import { Icons } from './components/Icons';
+import { Config } from './config';
+import { Lang } from './locals';
+import { FilterKeyType, AppStateType, FilterOptionType, FilterMetadataType, FiltersStateType, PaginationStateType, SortStateType, ProductsResponseDataType, FiltersResponseDataType, PriceRangeType, AFSConfigType, FilterValueType, ShopifyWindow, SpecialValueType, SortFieldType, SortOrderType, AppliedFilterType, ParsedUrlParamsType, LoggableData, FilterGroupStateType, ProductType, APIResponse, AFSInterfaceType, FilterItemsElement } from "./type";
 import { handleLoadError } from "./utils";
-// ============================================================================
-// MINIMAL CONSTANTS
-// ============================================================================
-export const C: ConstantsType = {
-	DEBOUNCE: 200,
-	TIMEOUT: 10000,
-	CACHE_TTL: 300000,
-	PAGE_SIZE: 24
-};
+import { $ } from './utils/$.utils';
 
 // Persistent map for filter group UI states (collapsed/search/lastUpdated)
 const States = new Map<string, FilterGroupStateType>();
 
-// Store SVG HTML content for inline use (allows CSS color control)
-export const Icons: IconsType = {
-	rightArrow: '<svg xmlns="http://www.w3.org/2000/svg" width="34px" height="34px" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M9.39862 4.32752C9.69152 4.03463 10.1664 4.03463 10.4593 4.32752L16.8232 10.6915C17.5067 11.3749 17.5067 12.4829 16.8232 13.1664L10.4593 19.5303C10.1664 19.8232 9.69152 19.8232 9.39863 19.5303C9.10573 19.2374 9.10573 18.7625 9.39863 18.4697L15.7626 12.1057C15.8602 12.0081 15.8602 11.8498 15.7626 11.7521L9.39863 5.38818C9.10573 5.09529 9.10573 4.62041 9.39862 4.32752Z" fill="currentColor"/></svg>',
-	downArrow: '<svg xmlns="http://www.w3.org/2000/svg" width="34px" height="34px" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M4.46938 9.39966C4.76227 9.10677 5.23715 9.10677 5.53004 9.39966L11.894 15.7636C11.9916 15.8613 12.1499 15.8613 12.2476 15.7636L18.6115 9.39966C18.9044 9.10677 19.3793 9.10677 19.6722 9.39966C19.9651 9.69256 19.9651 10.1674 19.6722 10.4603L13.3082 16.8243C12.6248 17.5077 11.5168 17.5077 10.8333 16.8243L4.46938 10.4603C4.17649 10.1674 4.17649 9.69256 4.46938 9.39966Z" fill="currentColor"/></svg>',
-	eye: '<svg xmlns="http://www.w3.org/2000/svg" width="34px" height="34px" viewBox="0 0 32 32" fill="currentColor"><path d="M16.108 10.044c-3.313 0-6 2.687-6 6s2.687 6 6 6 6-2.686 6-6-2.686-6-6-6zM16.108 20.044c-2.206 0-4.046-1.838-4.046-4.044s1.794-4 4-4c2.206 0 4 1.794 4 4s-1.748 4.044-3.954 4.044zM31.99 15.768c-0.012-0.050-0.006-0.104-0.021-0.153-0.006-0.021-0.020-0.033-0.027-0.051-0.011-0.028-0.008-0.062-0.023-0.089-2.909-6.66-9.177-10.492-15.857-10.492s-13.074 3.826-15.984 10.486c-0.012 0.028-0.010 0.057-0.021 0.089-0.007 0.020-0.021 0.030-0.028 0.049-0.015 0.050-0.009 0.103-0.019 0.154-0.018 0.090-0.035 0.178-0.035 0.269s0.017 0.177 0.035 0.268c0.010 0.050 0.003 0.105 0.019 0.152 0.006 0.023 0.021 0.032 0.028 0.052 0.010 0.027 0.008 0.061 0.021 0.089 2.91 6.658 9.242 10.428 15.922 10.428s13.011-3.762 15.92-10.422c0.015-0.029 0.012-0.058 0.023-0.090 0.007-0.017 0.020-0.030 0.026-0.050 0.015-0.049 0.011-0.102 0.021-0.154 0.018-0.090 0.034-0.177 0.034-0.27 0-0.088-0.017-0.175-0.035-0.266zM16 25.019c-5.665 0-11.242-2.986-13.982-8.99 2.714-5.983 8.365-9.047 14.044-9.047 5.678 0 11.203 3.067 13.918 9.053-2.713 5.982-8.301 8.984-13.981 8.984z"/></svg>',
-	minus: '<svg xmlns="http://www.w3.org/2000/svg" width="34px" height="34px" viewBox="0 0 20 20" fill="none"><path fill="currentColor" fill-rule="evenodd" d="M18 10a1 1 0 01-1 1H3a1 1 0 110-2h14a1 1 0 011 1z"/></svg>',
-	plus: '<svg xmlns="http://www.w3.org/2000/svg" width="34px" height="34px" viewBox="0 0 20 20" fill="none"><path fill="currentColor" fill-rule="evenodd" d="M9 17a1 1 0 102 0v-6h6a1 1 0 100-2h-6V3a1 1 0 10-2 0v6H3a1 1 0 000 2h6v6z"/></svg>',
-	close: '<svg xmlns="http://www.w3.org/2000/svg" width="34px" height="34px" viewBox="0 0 24 24" fill="currentColor"><path d="M19 5L4.99998 19M5.00001 5L19 19" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>'
-};
-
 // Excluded query parameter keys (not processed as filters)
 export const EXCLUDED_QUERY_PARAMS = new Set<string>([FilterKeyType.SHOP, FilterKeyType.SHOP_DOMAIN, FilterKeyType.CPID]);
-
-// ============================================================================
-// LANGUAGE/TEXT CONSTANTS
-// ============================================================================
-
-export const Lang: LanguageTextsType = {
-	buttons: {
-		quickAdd: 'Quick Add',
-		quickAddToCart: 'Quick add to cart',
-		quickView: 'Quick view',
-		addToCart: 'Add to cart',
-		soldOut: 'Sold out',
-		buyNow: 'Buy it now',
-		clear: 'Clear',
-		clearAll: 'Clear All',
-		close: '✕',
-		closeFilters: 'Close filters',
-		toggleFilters: 'Filters',
-		filters: 'Filters',
-		previous: 'Previous',
-		next: 'Next',
-		apply: 'Apply'
-	},
-	labels: {
-		sortBy: 'Sort by: ',
-		appliedFilters: 'Applied Filters:',
-		search: 'Search: ',
-		price: 'Price: ',
-		collection: 'Collection: ',
-		productUnavailable: 'Product unavailable',
-		loading: 'Loading...',
-		loadingProduct: 'Loading product...'
-	},
-	sortOptions: {
-		bestSelling: 'Best Selling',
-		titleAsc: 'Title (A-Z)',
-		titleDesc: 'Title (Z-A)',
-		priceAsc: 'Price (Low to High)',
-		priceDesc: 'Price (High to Low)',
-		createdAsc: 'Oldest First',
-		createdDesc: 'Newest First'
-	},
-	messages: {
-		noProductsFound: 'No products found',
-		oneProductFound: '1 product found',
-		productsFound: 'products found',
-		showingProducts: 'Showing',
-		pageOf: 'Page',
-		addedToCart: 'Added to cart!',
-		failedToLoad: 'Failed to load',
-		failedToLoadProducts: 'Failed to load products',
-		failedToLoadProduct: 'Failed to load product',
-		failedToAddToCart: 'Failed to add product to cart. Please try again.',
-		failedToProceedToCheckout: 'Failed to proceed to checkout. Please try again.',
-		failedToLoadProductModal: 'Failed to load product. Please try again.',
-		failedToLoadFilters: 'Failed to load filters, continuing with empty filters',
-		initializationFailed: 'Initialization failed',
-		loadFailed: 'Load failed',
-		unknownError: 'Unknown error',
-		checkConsole: 'Check console for details.'
-	},
-	placeholders: {
-		searchProducts: 'Search products...',
-		searchFilter: 'Search'
-	}
-};
-
-// ============================================================================
-// TINY REUSABLE UTILITIES (Smallest possible functions)
-// ============================================================================
-
-export const $ = {
-	// Fastest debounce
-	debounce: <T extends (...args: never[]) => void>(fn: T, ms: number): ((...args: Parameters<T>) => void) => {
-		let t: ReturnType<typeof setTimeout> | undefined;
-		return (...a: Parameters<T>) => {
-			if (t !== undefined) clearTimeout(t);
-			t = setTimeout(() => fn(...a), ms);
-		};
-	},
-
-	toLowerCase: (s: string | number | null | undefined): string => String(s || '').toLowerCase(),
-
-	inputDisplayType: (option: { displayType?: string } | undefined): 'radio' | 'checkbox' => {
-		return $.equalsAny($.toLowerCase(option?.displayType), DisplayType.RADIO) ? 'radio' : 'checkbox';
-	},
-
-	isMultiSelect: (option: { selectionType?: string } | undefined): boolean => {
-		return $.equalsAny($.toLowerCase(option?.selectionType), SelectionType.MULTIPLE) || $.equalsAny(option?.selectionType, SelectionType.MULTIPLE_UPPER);
-	},
-
-	// Fast array split
-	split: (v: string | string[] | null | undefined): string[] => {
-		if (!v) return [];
-		if (Array.isArray(v)) return v.map(s => String(s).trim()).filter(Boolean);
-		return String(v).split(',').map(s => s.trim()).filter(Boolean);
-	},
-
-	// Fast ID getter
-	id: (p: { productId?: string | number; id?: string | number; gid?: string | number } | undefined | null): string | null => {
-		if (!p) return null;
-		const id = p.productId || p.id || p.gid;
-		if (!id) return null;
-		return String(id).split('/').pop() || null;
-	},
-
-	// Fast string check
-	str: (v: string | number | null | undefined): string => String(v || '').trim(),
-
-	// Fast empty check
-	empty: (v: string | string[] | number | boolean | Record<string, string | string[] | number | boolean | null | undefined | PriceRangeType> | PriceRangeType | null | undefined): boolean => {
-		if (!v) return true;
-		if (Array.isArray(v)) return v.length === 0;
-		if (typeof v === 'object') return Object.keys(v).length === 0;
-		return false;
-	},
-
-	// Fast element creator
-	el: (tag: string, cls: string, attrs: Record<string, string> = {}): HTMLElement => {
-		const e = document.createElement(tag);
-		if (cls) e.className = cls;
-		Object.entries(attrs).forEach(([k, v]) => e.setAttribute(k, v));
-		return e;
-	},
-
-	// Fast text setter
-	txt: (el: HTMLElement, text: string): HTMLElement => {
-		el.textContent = text;
-		return el;
-	},
-
-	// Fast clear (replaces innerHTML)
-	clear: (el: HTMLElement): void => {
-		while (el.firstChild) {
-			const child = el.firstChild;
-			if (child) el.removeChild(child);
-		}
-	},
-
-	// Fast fragment append
-	frag: <T>(items: T[], fn: (item: T) => Node): DocumentFragment => {
-		const f = document.createDocumentFragment();
-		items.forEach(item => f.appendChild(fn(item)));
-		return f;
-	},
-
-	// Optimize Shopify image URL with transformations
-	optimizeImageUrl: (url: string | null | undefined, options: ImageOptimizationOptionsType = {}): string => {
-		if (!url || typeof url !== "string") return "";
-
-		const {
-			width = 500,
-			height = width,
-			quality = 80,
-			format = "webp",
-			crop = null
-		} = options;
-
-		// Only modify Shopify CDN URLs
-		const shopifyCdnPattern = /(cdn\.shopify\.com|shopifycdn\.com)/i;
-		if (!shopifyCdnPattern.test(url)) return url;
-
-		try {
-			const urlObj = new URL(url);
-			const params = new URLSearchParams(urlObj.search);
-
-			// Remove any existing Shopify image params
-			params.delete("width");
-			params.delete("height");
-			params.delete("crop");
-			params.delete("format");
-			params.delete("quality");
-
-			// Apply new optimization params
-			params.set("width", String(width));
-			params.set("height", String(height));
-
-			if (crop) params.set("crop", crop);
-			if (quality !== 100) params.set("quality", String(quality));
-
-			// Avoid format for GIF (Shopify does not convert animated GIFs)
-			const isGif = urlObj.pathname.toLowerCase().endsWith(".gif");
-			if (!isGif && format) params.set("format", format);
-
-			return `${urlObj.origin}${urlObj.pathname}?${params.toString()}`;
-		} catch (err) {
-			return url;
-		}
-	},
-
-	// Build responsive srcset for Shopify images
-	buildImageSrcset: (baseUrl: string | null | undefined, sizes: number[] = [200, 300, 500]): string => {
-		if (!baseUrl) return '';
-
-		return sizes.map(size => {
-			const optimized = $.optimizeImageUrl(baseUrl, { width: size, format: 'webp', quality: size <= 200 ? 75 : size <= 300 ? 80 : 85 });
-			return `${optimized} ${size}w`;
-		}).join(', ');
-	},
-
-	// Format money using Shopify money format
-	formatMoney: (cents: string | number | null | undefined, moneyFormat: string | null | undefined, currency: string = ''): string => {
-		if (isNaN(Number(cents))) return '';
-
-		// Convert cents to dollars
-		const amount = parseFloat(String(cents)) / 100;
-
-		// If no money format provided, use default format
-		if (!moneyFormat || typeof moneyFormat !== 'string') {
-			return `${currency || ''}${amount.toFixed(2)}`;
-		}
-
-		// Replace {{amount}} placeholder with formatted amount
-		// Shopify money format examples:
-		// - "${{amount}}" → "$10.00"
-		// - "{{amount}} USD" → "10.00 USD"
-		// - "{{amount_no_decimals}}" → "10"
-		// - "{{amount_with_comma_separator}}" → "10,00"
-		// - "{{amount_no_decimals_with_comma_separator}}" → "10"
-		// - "{{amount_with_apostrophe_separator}}" → "10'00"
-
-		let formattedAmount = amount.toFixed(2);
-
-		// Handle different amount formats
-		if (moneyFormat.includes('{{amount_no_decimals}}')) {
-			formattedAmount = Math.round(amount).toString();
-			return moneyFormat.replace('{{amount_no_decimals}}', formattedAmount);
-		}
-
-		if (moneyFormat.includes('{{amount_with_comma_separator}}')) {
-			formattedAmount = amount.toFixed(2).replace('.', ',');
-			return moneyFormat.replace('{{amount_with_comma_separator}}', formattedAmount);
-		}
-
-		if (moneyFormat.includes('{{amount_no_decimals_with_comma_separator}}')) {
-			formattedAmount = Math.round(amount).toString();
-			return moneyFormat.replace('{{amount_no_decimals_with_comma_separator}}', formattedAmount);
-		}
-
-		if (moneyFormat.includes('{{amount_with_apostrophe_separator}}')) {
-			formattedAmount = amount.toFixed(2).replace('.', "'");
-			return moneyFormat.replace('{{amount_with_apostrophe_separator}}', formattedAmount);
-		}
-
-		// Default: replace {{amount}} with formatted amount
-		return moneyFormat.replace('{{amount}}', formattedAmount);
-	},
-
-	// Reusable comparison functions
-	// Compare two values (string, number, boolean, array, or object) with case-insensitive and trimmed string comparison
-	equals: (a: string | number | boolean | string[] | null | undefined, b: string | number | boolean | string[] | null | undefined): boolean => {
-		if (a === b) return true;
-		if (a === null || a === undefined || b === null || b === undefined) return false;
-
-		// For arrays, convert to string representation
-		if (Array.isArray(a)) {
-			a = a.join(',');
-		}
-		if (Array.isArray(b)) {
-			b = b.join(',');
-		}
-
-		// For strings, compare case-insensitively and trimmed
-		if (typeof a === 'string' && typeof b === 'string') {
-			return a.trim().toLowerCase() === b.trim().toLowerCase();
-		}
-
-		// For numbers, compare directly
-		if (typeof a === 'number' && typeof b === 'number') {
-			return a === b;
-		}
-
-		// For booleans, compare directly
-		if (typeof a === 'boolean' && typeof b === 'boolean') {
-			return a === b;
-		}
-
-		// Mixed types: convert both to strings and compare
-		return String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
-	},
-
-	// Check if value equals any of the provided enum/constant values (case-insensitive, trimmed)
-	equalsAny: (value: string | number | boolean | string[] | null | undefined, ...values: (string | number | boolean)[]): boolean => {
-		if (value === null || value === undefined) return false;
-		return values.some(v => $.equals(value, v));
-	},
-
-	// Check if a filter key matches vendor (handles 'vendor' or 'vendors')
-	isVendorKey: (key: string | null | undefined): boolean => {
-		return $.equalsAny(key, FilterKeyType.VENDOR, FilterKeyType.VENDORS);
-	},
-
-	// Check if a filter key matches productType (handles 'productType' or 'productTypes')
-	isProductTypeKey: (key: string | null | undefined): boolean => {
-		return $.equalsAny(key, FilterKeyType.PRODUCT_TYPE, FilterKeyType.PRODUCT_TYPES);
-	},
-
-	// Check if a filter key matches tags (handles 'tag' or 'tags')
-	isTagKey: (key: string | null | undefined): boolean => {
-		return $.equalsAny(key, FilterKeyType.TAG, FilterKeyType.TAGS);
-	},
-
-	// Check if a filter key matches collections (handles 'collection' or 'collections')
-	isCollectionKey: (key: string | null | undefined): boolean => {
-		return $.equalsAny(key, FilterKeyType.COLLECTION, FilterKeyType.COLLECTIONS);
-	},
-
-	// Check if a filter key matches priceRange (handles 'priceRange' or 'price')
-	isPriceRangeKey: (key: string | null | undefined): boolean => {
-		return $.equalsAny(key, FilterKeyType.PRICE_RANGE, FilterKeyType.PRICE);
-	},
-
-	// Check if sort field is best-selling (handles 'best-selling' or 'bestselling')
-	isBestSelling: (field: string | null | undefined): boolean => {
-		return $.equalsAny(field, SortFieldType.BEST_SELLING, SortFieldType.BESTSELLING);
-	},
-
-	// Check if option type is Collection
-	isCollectionOptionType: (optionType: string | null | undefined): boolean => {
-		return $.equals(optionType, OptionType.COLLECTION);
-	},
-
-	// Check if option type is priceRange
-	isPriceRangeOptionType: (optionType: string | null | undefined): boolean => {
-		return $.equals(optionType, OptionType.PRICE_RANGE);
-	}
-};
 
 // ============================================================================
 // METADATA BUILDERS (For display only, not for state management)
@@ -430,7 +48,7 @@ export const State: AppStateType = {
 	products: [],
 	collections: [],
 	selectedCollection: { id: null, sortBy: null },
-	pagination: { page: 1, limit: C.PAGE_SIZE, total: 0, totalPages: 0 },
+	pagination: { page: 1, limit: Config.PAGE_SIZE, total: 0, totalPages: 0 },
 	sort: { field: 'best-selling', order: 'asc' },
 	loading: false,
 	availableFilters: [],
@@ -530,7 +148,7 @@ export const UrlManager = {
 				}
 			}
 			else if ($.equals(key, FilterKeyType.PAGE)) params.page = parseInt(value, 10) || 1;
-			else if ($.equals(key, FilterKeyType.LIMIT)) params.limit = parseInt(value, 10) || C.PAGE_SIZE;
+			else if ($.equals(key, FilterKeyType.LIMIT)) params.limit = parseInt(value, 10) || Config.PAGE_SIZE;
 			else if ($.equals(key, FilterKeyType.SORT)) {
 				// Handle sort parameter - can be "best-selling", "title-ascending", "price:asc", etc.
 				const sortValue = value.toLowerCase().trim();
@@ -646,7 +264,7 @@ export const API = {
 
 	get(key: string): ProductsResponseDataType | null {
 		const ts = this.timestamps.get(key);
-		if (!ts || Date.now() - ts > C.CACHE_TTL) {
+		if (!ts || Date.now() - ts > Config.CACHE_TTL) {
 			this.cache.delete(key);
 			this.timestamps.delete(key);
 			return null;
@@ -659,7 +277,7 @@ export const API = {
 		this.timestamps.set(key, Date.now());
 	},
 
-	async fetch(url: string, timeout: number = C.TIMEOUT): Promise<APIResponse<ProductsResponseDataType | FiltersResponseDataType>> {
+	async fetch(url: string, timeout: number = Config.TIMEOUT): Promise<APIResponse<ProductsResponseDataType | FiltersResponseDataType>> {
 		const controller = new AbortController();
 		const timeoutId = setTimeout(() => controller.abort(), timeout);
 		try {
@@ -2456,7 +2074,7 @@ export const DOM = {
 		$.clear(this.productsGrid);
 
 		// Determine skeleton count
-		const pageSize = State.pagination?.limit || C.PAGE_SIZE || 24;
+		const pageSize = State.pagination?.limit || Config.PAGE_SIZE || 24;
 		const skeletonCount = Math.max(pageSize, 24); // minimum 24
 
 		const skeletonCards: HTMLElement[] = [];
@@ -2560,9 +2178,9 @@ export const DOM = {
 			State.products = State.fallbackProducts;
 			State.pagination = {
 				page: 1,
-				limit: C.PAGE_SIZE,
+				limit: Config.PAGE_SIZE,
 				total: State.fallbackProducts.length,
-				totalPages: Math.ceil(State.fallbackProducts.length / C.PAGE_SIZE)
+				totalPages: Math.ceil(State.fallbackProducts.length / Config.PAGE_SIZE)
 			};
 
 			// Render fallback products
@@ -2621,7 +2239,7 @@ export const FallbackMode = {
 
 		return {
 			page: currentPage,
-			limit: C.PAGE_SIZE,
+			limit: Config.PAGE_SIZE,
 			total: totalProducts,
 			totalPages: totalPages
 		};
@@ -2935,7 +2553,7 @@ export const Filters = {
 		// Scroll to top when products are being fetched
 		DOM.scrollToProducts();
 		API.products(State.filters, State.pagination, State.sort).then(Products.process);
-	}, C.DEBOUNCE),
+	}, Config.DEBOUNCE),
 
 	// Apply filters and products (for filter changes - needs to update both)
 	apply: $.debounce(async (): Promise<void> => {
@@ -2943,7 +2561,7 @@ export const Filters = {
 		DOM.scrollToProducts();
 		API.products(State.filters, State.pagination, State.sort).then(Products.process);
 		API.filters(State.filters).then(Filters.process);
-	}, C.DEBOUNCE)
+	}, Config.DEBOUNCE)
 };
 
 // ============================================================================

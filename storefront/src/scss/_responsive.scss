@@ -7,9 +7,14 @@
 @use 'variables' as *;
 @use 'components' as *;
 
+[data-block-handle="digitalcoo-filter"] {
+  width: 100% !important;
+  min-width: 100%;
+}
+
 /* ============================================================================
    Mobile Filter Controls
-   ============================================================================ */
+============================================================================ */
 
 [data-afs-container] {
   .afs-mobile-filter-button {

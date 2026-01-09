@@ -2,10 +2,19 @@
 // TYPE DEFINITIONS
 // ============================================================================
 
-import { $, API, DOM, Icons, Log, QuickAdd } from "../digitalcoo-filter";
+import { Icons } from "../components/Icons";
+import { API, DOM, Log, QuickAdd } from "../digitalcoo-filter";
 import type { AFSInterface } from "../digitalcoo-filter";
+import { $ } from "../utils/$.utils";
 
 export interface ConstantsType {
+	readonly DEBOUNCE: number;
+	readonly TIMEOUT: number;
+	readonly CACHE_TTL: number;
+	readonly PAGE_SIZE: number;
+}
+
+export interface ConfigType {
 	readonly DEBOUNCE: number;
 	readonly TIMEOUT: number;
 	readonly CACHE_TTL: number;
@@ -471,4 +480,42 @@ export interface AFSInterfaceType {
 	init(config?: AFSConfigType): void;
 	load(): Promise<void>;
 	Logger: typeof Log;
+}
+
+
+// ============================================================================
+// TYPES FOR SEARCH MODULES
+// ============================================================================
+
+export interface SearchConfigtype {
+	apiBaseUrl?: string;
+	shop?: string;
+	searchInputSelector?: string;
+	minQueryLength?: number;
+	debounceMs?: number;
+	maxSuggestions?: number;
+	maxProducts?: number;
+	showSuggestions?: boolean;
+	showProducts?: boolean;
+	enableKeyboardNav?: boolean;
+}
+
+export interface SearchResultType {
+	products: ProductType[];
+	suggestions?: string[];
+	alternativeQueries?: string[];
+	didYouMean?: string;
+	zeroResults?: boolean;
+	pagination?: {
+		total: number;
+		page: number;
+		limit: number;
+		totalPages: number;
+	};
+}
+
+export interface SearchAPIResponseType {
+	success: boolean;
+	data: SearchResultType;
+	message?: string;
 }

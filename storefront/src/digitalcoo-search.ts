@@ -1,54 +1,19 @@
 /**
  * Advanced Filter Search - Storefront Search Module
  * Replaces native Shopify search bars with intelligent, performant search
- */
+*/
 
 // Import utilities from collections-main
-import { $, API, Lang, Log, State, Icons } from './digitalcoo-filter';
-import { ProductType as Product, ShopifyWindow } from './type';
-
-// ============================================================================
-// TYPES
-// ============================================================================
-
-interface SearchConfig {
-	apiBaseUrl?: string;
-	shop?: string;
-	searchInputSelector?: string;
-	minQueryLength?: number;
-	debounceMs?: number;
-	maxSuggestions?: number;
-	maxProducts?: number;
-	showSuggestions?: boolean;
-	showProducts?: boolean;
-	enableKeyboardNav?: boolean;
-}
-
-interface SearchResult {
-	products: Product[];
-	suggestions?: string[];
-	alternativeQueries?: string[];
-	didYouMean?: string;
-	zeroResults?: boolean;
-	pagination?: {
-		total: number;
-		page: number;
-		limit: number;
-		totalPages: number;
-	};
-}
-
-interface SearchAPIResponse {
-	success: boolean;
-	data: SearchResult;
-	message?: string;
-}
+import { API, Log, State } from './digitalcoo-filter';
+import { Lang } from './locals';
+import { ProductType, SearchAPIResponseType, SearchConfigtype, SearchResultType, ShopifyWindow } from './type';
+import { $ } from './utils/$.utils';
 
 // ============================================================================
 // CONSTANTS
 // ============================================================================
 
-const DEFAULT_CONFIG: Required<SearchConfig> = {
+const DEFAULT_CONFIG: Required<SearchConfigtype> = {
 	apiBaseUrl: 'http://localhost:3554/storefront',
 	shop: '',
 	searchInputSelector: 'input[name="q"], input[name="search"], input[type="search"][name*="q"], input[type="search"][name*="search"], .search__input, form[action*="/search"] input[type="search"], form[action*="/search"] input[name*="q"]',
@@ -73,7 +38,7 @@ const SearchState = {
 	currentQuery: '',
 	isOpen: false,
 	selectedIndex: -1,
-	searchResults: null as SearchResult | null,
+	searchResults: null as SearchResultType | null,
 	isLoading: false,
 	abortController: null as AbortController | null,
 	replacedInputs: new Set<HTMLInputElement>(),
@@ -198,7 +163,7 @@ const SearchDOM = {
 		return item;
 	},
 
-	createProductItem(product: Product, index: number): HTMLElement {
+	createProductItem(product: ProductType, index: number): HTMLElement {
 		const item = $.el('a', 'afs-search-dropdown__product', {
 			'href': `/products/${product.handle || ''}`,
 			'role': 'option',
@@ -283,7 +248,7 @@ const SearchDOM = {
 		return item;
 	},
 
-	renderDropdown(results: SearchResult | null, query: string): void {
+	renderDropdown(results: SearchResultType | null, query: string): void {
 		if (!SearchState.dropdown) return;
 
 		// Clear existing content
@@ -329,7 +294,7 @@ const SearchDOM = {
 			productsHeader.textContent = `Products (${results.pagination?.total || results.products.length})`;
 			fragment.appendChild(productsHeader);
 
-			results.products.slice(0, SearchState.config.maxProducts).forEach(product => {
+			results.products.slice(0, SearchState.config.maxProducts).forEach((product: ProductType) => {
 				const item = this.createProductItem(product, itemIndex);
 				fragment.appendChild(item);
 				itemIndex++;
@@ -429,7 +394,7 @@ const SearchDOM = {
 // ============================================================================
 
 const SearchAPI = {
-	async search(query: string): Promise<SearchResult | null> {
+	async search(query: string): Promise<SearchResultType | null> {
 		// Try to get shop and API baseURL from State/API if not set in config
 		let shop = SearchState.config.shop;
 		let apiBaseUrl = SearchState.config.apiBaseUrl;
@@ -482,7 +447,7 @@ const SearchAPI = {
 				throw new Error(`HTTP ${response.status}: ${response.statusText}`);
 			}
 
-			const data = await response.json() as SearchAPIResponse;
+			const data = await response.json() as SearchAPIResponseType;
 			
 			if (!data.success || !data.data) {
 				Log.error('Invalid search response', { data });
@@ -786,7 +751,7 @@ const SearchInit = {
 		});
 	},
 
-	init(config: SearchConfig = {}): void {
+	init(config: SearchConfigtype = {}): void {
 		// Merge config
 		SearchState.config = { ...DEFAULT_CONFIG, ...config };
 
@@ -860,7 +825,7 @@ const SearchInit = {
 declare global {
 	interface Window {
 		AFSSearch?: {
-			init: (config?: SearchConfig) => void;
+			init: (config?: SearchConfigtype) => void;
 		};
 	}
 }
@@ -880,4 +845,3 @@ if (document.readyState === 'loading') {
 } else {
 	SearchInit.init();
 }
-

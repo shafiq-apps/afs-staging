@@ -5,8 +5,11 @@
  * Exports reusable functions for use in advanced-filter-search.ts
  */
 
-import { $, AFSW, DOM, Icons, Lang, Log, QuickAdd, State } from './digitalcoo-filter';
-import { ProductType as Product, ProductModalElement, ProductVariantType as ProductVariant, SliderOptionsType, SliderSlideChangeEventDetailType, SpecialValueType as SpecialValue } from './type';
+import { Icons } from './components/Icons';
+import { AFSW, DOM, Log, QuickAdd, State } from './digitalcoo-filter';
+import { Lang } from './locals';
+import { ProductType, ProductModalElement, ProductVariantType, SliderOptionsType, SliderSlideChangeEventDetailType, SpecialValueType } from './type';
+import { $ } from './utils/$.utils';
 import { waitForElement, waitForElements } from './utils/dom-ready';
 import { findMatchingVariants, getSelectedOptions, isOptionValueAvailable } from './utils/variant-util';
 
@@ -563,7 +566,7 @@ class AFSSlider {
    * @param allVariants - Optional: Array of all product variants for variant_ids optimization
    * @returns Returns true if image was found and updated, false otherwise
    */
-  updateVariantImage(variant: ProductVariant, productImages: string[], allVariants?: ProductVariant[]): boolean {
+  updateVariantImage(variant: ProductVariantType, productImages: string[], allVariants?: ProductVariantType[]): boolean {
     if (!variant || !productImages || !Array.isArray(productImages) || productImages.length === 0) {
       return false;
     }
@@ -760,7 +763,7 @@ export async function createProductModal(handle: string, modalId: string): Promi
       Log.error('Product fetch failed', { status: response.status, statusText: response.statusText, url: productUrl, errorText });
       throw new Error(errorMsg);
     }
-    const productData = await response.json() as Product;
+    const productData = await response.json() as ProductType;
 
     // Ajax API returns product directly (not wrapped in {product: ...})
     // Verify it has the expected structure
@@ -781,7 +784,7 @@ export async function createProductModal(handle: string, modalId: string): Promi
       if (productData.variants.length === 1) {
         const firstVariant = productData.variants[0];
         const variantTitle = (firstVariant as { title?: string }).title;
-        if (variantTitle && $.equals(variantTitle, SpecialValue.DEFAULT_TITLE)) {
+        if (variantTitle && $.equals(variantTitle, SpecialValueType.DEFAULT_TITLE)) {
           return '';
         }
       }
@@ -1086,7 +1089,7 @@ export async function createProductModal(handle: string, modalId: string): Promi
 function setupModalHandlers(
   dialog: ProductModalElement,
   modalId: string,
-  product: Product,
+  product: ProductType,
   formatPrice: (price: number | string) => string
 ): void {
   const closeBtn = dialog.querySelector<HTMLButtonElement>('.afs-product-modal__close');
@@ -1253,7 +1256,7 @@ function setupModalHandlers(
 function updateVariantInModal(
   dialog: ProductModalElement,
   modalId: string,
-  variant: ProductVariant,
+  variant: ProductVariantType,
   formatPrice: (price: number | string) => string
 ): void {
   dialog._currentVariantId = variant.id;
@@ -1462,7 +1465,7 @@ function setupCloseHandler(dialog: ProductModalElement): void {
  * Creates a quick view button for a product card
  * This function should be called from the main AFS module when creating product cards
  */
-export function createQuickViewButton(product: Product): HTMLElement | null {
+export function createQuickViewButton(product: ProductType): HTMLElement | null {
   if (!product.handle) return null;
 
   // Safety check: ensure Lang.buttons exists before accessing quickView
@@ -1552,7 +1555,7 @@ if (typeof window !== 'undefined') {
 if (typeof window !== 'undefined') {
   (window as typeof window & {
     AFSQuickView?: {
-      createQuickViewButton: (product: Product) => HTMLElement | null;
+      createQuickViewButton: (product: ProductType) => HTMLElement | null;
       handleQuickViewClick: (handle: string) => void;
       createProductModal: (handle: string, modalId: string) => Promise<ProductModalElement>;
     };
