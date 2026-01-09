@@ -1913,20 +1913,23 @@ export class StorefrontSearchRepository {
     
     // 3. Facets query (if needed)
     if (options?.includeFacets && filterConfig) {
+      // Use getEnabledAggregations helper to check which aggregations are enabled
+      const enabledAggregations = getEnabledAggregations(filterConfig, false);
       const aggs: any = {};
-      if (filterConfig.vendors?.enabled) {
+      
+      if (enabledAggregations.standard.has('vendors')) {
         aggs.vendors = { terms: { field: ES_FIELDS.VENDOR_KEYWORD, size: 20 } };
       }
-      if (filterConfig.productTypes?.enabled) {
+      if (enabledAggregations.standard.has('productTypes')) {
         aggs.productTypes = { terms: { field: ES_FIELDS.PRODUCT_TYPE_KEYWORD, size: 20 } };
       }
-      if (filterConfig.tags?.enabled) {
+      if (enabledAggregations.standard.has('tags')) {
         aggs.tags = { terms: { field: ES_FIELDS.TAGS, size: 50 } };
       }
-      if (filterConfig.collections?.enabled) {
+      if (enabledAggregations.standard.has('collections')) {
         aggs.collections = { terms: { field: ES_FIELDS.COLLECTIONS, size: 20 } };
       }
-      if (filterConfig.price?.enabled) {
+      if (enabledAggregations.standard.has('price')) {
         aggs.minPrice = { min: { field: ES_FIELDS.MIN_PRICE } };
         aggs.maxPrice = { max: { field: ES_FIELDS.MAX_PRICE } };
       }

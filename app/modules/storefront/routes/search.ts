@@ -138,7 +138,8 @@ export const GET = handler(async (req: HttpRequest) => {
       
       // Format facets if we got them
       if (msearchResult.facets && filterConfig) {
-        formattedFilters = formatFilters({ aggregations: msearchResult.facets }, filterConfig);
+        // formatFilters expects FacetAggregations directly
+        formattedFilters = formatFilters(msearchResult.facets as any, filterConfig);
         if (searchInput.facetLimit) {
           formattedFilters = formattedFilters.slice(0, searchInput.facetLimit);
         }
