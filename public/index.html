@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FILTERS</title>
-
     <link rel="stylesheet" href="../dashboard/extensions/theme-extension/assets/digitalcoo-filter.min.css">
     <link rel="stylesheet" href="../dashboard/extensions/theme-extension/assets/digitalcoo-search.min.css">
 </head>
@@ -34,8 +33,6 @@
             --afs-font-weight-bold: 600;
             --afs-font-style: normal;
         }
-    </style>
-    <style>
         body {
             margin: 0;
             padding: 0;
@@ -197,18 +194,34 @@
                 }
             }
 
+            // Function to initialize Search
+            function initializeSearch() {
+                if (typeof window.AFSSearch !== 'undefined') {
+                    try {
+                        window.AFSSearch.init(config);
+                    } catch (error) {
+                        console.error('Failed to initialize Digitalcoo Search:', error);
+                    }
+                } else {
+                    setTimeout(initializeSearch, 100);
+                }
+            }
+
             // Wait for both DOM and script to be ready
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', function () {
                     // Wait a bit for the deferred script to load
                     setTimeout(initializeAFS, 50);
+                    setTimeout(initializeSearch, 50);
                 });
             } else {
                 // DOM is already ready, just wait for script
                 setTimeout(initializeAFS, 50);
+                setTimeout(initializeSearch, 50);
             }
 
             window.initializeAFS = initializeAFS;
+            window.initializeSearch = initializeSearch;
         })();
     </script>
 </body>

@@ -43,13 +43,29 @@
   }
 </style>
 
-<div data-afs-container id="afs-container-{{ block.id }}">
+<div 
+  data-afs-search-container
+  data-afs-container
+  id="afs-container-{{ block.id }}"
+  data-afs-search-shop="{{ shop.permanent_domain }}"
+  data-afs-search-api-base-url="{{ block.settings.api_base_url | default: 'https://fstaging.digitalcoo.com/storefront' }}"
+  data-afs-search-money-format="{{ shop.money_format | escape }}"
+  data-afs-search-currency="{{ cart.currency.iso_code | default: shop.currency }}"
+  data-afs-search-money-with-currency-format="{{ shop.money_with_currency_format | escape }}"
+  data-afs-search-debug="{{ block.settings.enable_logging | default: false }}"
+  data-afs-search-min-query-length="{{ block.settings.min_query_length | default: 2 }}"
+  data-afs-search-debounce-ms="{{ block.settings.debounce_ms | default: 300 }}"
+  data-afs-search-max-suggestions="{{ block.settings.max_suggestions | default: 5 }}"
+  data-afs-search-max-products="{{ block.settings.max_products | default: 6 }}"
+  data-afs-search-show-suggestions="{{ block.settings.show_suggestions | default: true }}"
+  data-afs-search-show-products="{{ block.settings.show_products | default: true }}"
+  data-afs-search-enable-keyboard-nav="{{ block.settings.enable_keyboard_nav | default: true }}"
+  {% if block.settings.search_input_selector != blank %}data-afs-search-input-selector="{{ block.settings.search_input_selector | escape }}"{% endif %}
+>
   {% comment %} Container will be populated by JavaScript {% endcomment %}
 </div>
 
 <script src="{{ 'digitalcoo-search.min.js' | asset_url }}" defer></script>
-
-{% render 'digitalcoo-search-init', block: block %}
 
 {% schema %}
 {
@@ -69,6 +85,61 @@
       "label": "Enable Debug Logging",
       "default": false,
       "info": "Enable console logging for debugging"
+    },
+    {
+      "type": "number",
+      "id": "min_query_length",
+      "label": "Minimum Query Length",
+      "default": 2,
+      "info": "Minimum number of characters before search triggers"
+    },
+    {
+      "type": "number",
+      "id": "debounce_ms",
+      "label": "Debounce Delay (ms)",
+      "default": 300,
+      "info": "Delay in milliseconds before triggering search"
+    },
+    {
+      "type": "number",
+      "id": "max_suggestions",
+      "label": "Max Suggestions",
+      "default": 5,
+      "info": "Maximum number of search suggestions to show"
+    },
+    {
+      "type": "number",
+      "id": "max_products",
+      "label": "Max Products",
+      "default": 6,
+      "info": "Maximum number of products to show in dropdown"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_suggestions",
+      "label": "Show Suggestions",
+      "default": true,
+      "info": "Display search suggestions in dropdown"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_products",
+      "label": "Show Products",
+      "default": true,
+      "info": "Display products in dropdown"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_keyboard_nav",
+      "label": "Enable Keyboard Navigation",
+      "default": true,
+      "info": "Allow arrow keys to navigate search results"
+    },
+    {
+      "type": "text",
+      "id": "search_input_selector",
+      "label": "Search Input Selector",
+      "info": "Custom CSS selector for search inputs (leave empty for auto-detect)"
     },
     {
       "type": "header",

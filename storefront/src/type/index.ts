@@ -218,7 +218,7 @@ export interface AppliedFilterType {
 	value: string | typeof SpecialValueType.CLEAR;
 }
 
-export interface AppStateType {
+export interface FilterStateType {
 	shop: string | null;
 	filters: FiltersStateType;
 	products: ProductType[];
@@ -293,7 +293,7 @@ export interface ShopifyWindow extends Window {
 	}) => SliderInstanceType;
 	AFS?: AFSInterface;
 	DOM?: typeof DOM;
-	AFS_State?: AppStateType;
+	AFS_State?: FilterStateType;
 	AFS_API?: typeof API;
 	AFS_LOG?: typeof Log;
 	AFSQuickView?: {
@@ -489,7 +489,10 @@ export interface AFSInterfaceType {
 
 export interface SearchConfigtype {
 	apiBaseUrl?: string;
-	shop?: string;
+	shop: string | null;
+	moneyFormat: string | null;
+	moneyWithCurrencyFormat: string | null;
+	currency: string | null;
 	searchInputSelector?: string;
 	minQueryLength?: number;
 	debounceMs?: number;

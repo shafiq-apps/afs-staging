@@ -1,10 +1,13 @@
 /**
  * Advanced Filter Search - Storefront Search Module
  * Replaces native Shopify search bars with intelligent, performant search
+ * 
+ * This module is completely independent and does not rely on the filter module.
+ * All configuration comes from data attributes in the Liquid block or explicit config.
 */
 
-// Import utilities from collections-main
-import { API, Log, State } from './digitalcoo-filter';
+// Import lightweight shared utilities
+import { Log } from './utils/shared';
 import { Lang } from './locals';
 import { ProductType, SearchAPIResponseType, SearchConfigtype, SearchResultType, ShopifyWindow } from './type';
 import { $ } from './utils/$.utils';
@@ -15,7 +18,10 @@ import { $ } from './utils/$.utils';
 
 const DEFAULT_CONFIG: Required<SearchConfigtype> = {
 	apiBaseUrl: 'http://localhost:3554/storefront',
-	shop: '',
+	shop: null,
+	moneyFormat: null,
+	currency: null,
+	moneyWithCurrencyFormat: null,
 	searchInputSelector: 'input[name="q"], input[name="search"], input[type="search"][name*="q"], input[type="search"][name*="search"], .search__input, form[action*="/search"] input[type="search"], form[action*="/search"] input[name*="q"]',
 	minQueryLength: 2,
 	debounceMs: 300,
@@ -222,7 +228,10 @@ const SearchDOM = {
 			const price = $.el('div', 'afs-search-dropdown__product-price');
 			const minPrice = parseFloat(String(product.minPrice || 0)) * 100;
 			const maxPrice = parseFloat(String(product.maxPrice || 0)) * 100;
-			const formattedMin = $.formatMoney(minPrice, State.moneyFormat || '{{amount}}', State.currency || '');
+			// Get money format from config
+			const moneyFormat = SearchState.config.moneyFormat || '{{amount}}';
+			const currency = SearchState.config.currency || '';
+			const formattedMin = $.formatMoney(minPrice, moneyFormat, currency);
 			const priceText = minPrice === maxPrice ? formattedMin : `from ${formattedMin}`;
 			price.textContent = priceText;
 			info.appendChild(price);
@@ -422,20 +431,10 @@ const SearchAPI = {
 		let shop = SearchState.config.shop;
 		let apiBaseUrl = SearchState.config.apiBaseUrl;
 
-		if (!shop && State.shop) {
-			shop = State.shop;
-		}
-
-		if (!apiBaseUrl && API.baseURL) {
-			apiBaseUrl = API.baseURL;
-		}
-
 		if (!shop || !apiBaseUrl) {
 			Log.error('Search API: shop or apiBaseUrl not configured', { 
 				hasShop: !!shop, 
-				hasApiBaseUrl: !!apiBaseUrl,
-				stateShop: State.shop,
-				apiBaseURL: API.baseURL
+				hasApiBaseUrl: !!apiBaseUrl
 			});
 			return null;
 		}
@@ -673,6 +672,107 @@ const SearchLogic = {
 // ============================================================================
 
 const SearchInit = {
+	/**
+	 * Read config from data attributes on container element
+	 */
+	readConfigFromDataAttributes(): Partial<SearchConfigtype> | null {
+		// Look for container with data-afs-search-container attribute
+		const container = document.querySelector<HTMLElement>('[data-afs-search-container]');
+		if (!container) {
+			return null;
+		}
+
+		const config: Partial<SearchConfigtype> = {};
+
+		// Read shop from data attribute
+		if (container.dataset.afsSearchShop) {
+			config.shop = container.dataset.afsSearchShop;
+		}
+
+		// Read API base URL
+		if (container.dataset.afsSearchApiBaseUrl) {
+			config.apiBaseUrl = container.dataset.afsSearchApiBaseUrl;
+		}
+
+		// Read money format
+		if (container.dataset.afsSearchMoneyFormat) {
+			config.moneyFormat = container.dataset.afsSearchMoneyFormat;
+		}
+
+		// Read currency
+		if (container.dataset.afsSearchCurrency) {
+			config.currency = container.dataset.afsSearchCurrency;
+		}
+
+		// Read money with currency format
+		if (container.dataset.afsSearchMoneyWithCurrencyFormat) {
+			config.moneyWithCurrencyFormat = container.dataset.afsSearchMoneyWithCurrencyFormat;
+		}
+
+		// Read debug flag (always present from Liquid, parse as boolean)
+		if (container.dataset.afsSearchDebug !== undefined) {
+			const value = container.dataset.afsSearchDebug;
+			config.debug = value === 'true' || value === '1' || value === true;
+		}
+
+		// Read min query length (always present from Liquid with default)
+		if (container.dataset.afsSearchMinQueryLength) {
+			const minQueryLength = parseInt(container.dataset.afsSearchMinQueryLength, 10);
+			if (!isNaN(minQueryLength) && minQueryLength > 0) {
+				config.minQueryLength = minQueryLength;
+			}
+		}
+
+		// Read debounce ms (always present from Liquid with default)
+		if (container.dataset.afsSearchDebounceMs) {
+			const debounceMs = parseInt(container.dataset.afsSearchDebounceMs, 10);
+			if (!isNaN(debounceMs) && debounceMs >= 0) {
+				config.debounceMs = debounceMs;
+			}
+		}
+
+		// Read max suggestions (always present from Liquid with default)
+		if (container.dataset.afsSearchMaxSuggestions) {
+			const maxSuggestions = parseInt(container.dataset.afsSearchMaxSuggestions, 10);
+			if (!isNaN(maxSuggestions) && maxSuggestions > 0) {
+				config.maxSuggestions = maxSuggestions;
+			}
+		}
+
+		// Read max products (always present from Liquid with default)
+		if (container.dataset.afsSearchMaxProducts) {
+			const maxProducts = parseInt(container.dataset.afsSearchMaxProducts, 10);
+			if (!isNaN(maxProducts) && maxProducts > 0) {
+				config.maxProducts = maxProducts;
+			}
+		}
+
+		// Read show suggestions flag (always present from Liquid with default)
+		if (container.dataset.afsSearchShowSuggestions !== undefined) {
+			const value = container.dataset.afsSearchShowSuggestions;
+			config.showSuggestions = value === 'true' || value === '1' || value === true;
+		}
+
+		// Read show products flag (always present from Liquid with default)
+		if (container.dataset.afsSearchShowProducts !== undefined) {
+			const value = container.dataset.afsSearchShowProducts;
+			config.showProducts = value === 'true' || value === '1' || value === true;
+		}
+
+		// Read enable keyboard nav flag (always present from Liquid with default)
+		if (container.dataset.afsSearchEnableKeyboardNav !== undefined) {
+			const value = container.dataset.afsSearchEnableKeyboardNav;
+			config.enableKeyboardNav = value === 'true' || value === '1' || value === true;
+		}
+
+		// Read search input selector
+		if (container.dataset.afsSearchInputSelector) {
+			config.searchInputSelector = container.dataset.afsSearchInputSelector;
+		}
+
+		return Object.keys(config).length > 0 ? config : null;
+	},
+
 	/**
 	 * Create custom search box that will override theme's search
 	 */
@@ -1045,19 +1145,23 @@ const SearchInit = {
 		});
 	},
 
-	init(config: SearchConfigtype = {}): void {
-		// Merge config
-		SearchState.config = { ...DEFAULT_CONFIG, ...config };
-
-		// Use shop from State if available
-		if (!SearchState.config.shop && State.shop) {
-			SearchState.config.shop = State.shop;
+	init(config?: SearchConfigtype): void {
+		// Priority: 1. Explicit config parameter, 2. Data attributes, 3. Defaults
+		let finalConfig: SearchConfigtype = {};
+		
+		// First, try to read from data attributes (from Liquid block)
+		const dataConfig = this.readConfigFromDataAttributes();
+		if (dataConfig) {
+			finalConfig = { ...finalConfig, ...dataConfig };
+		}
+		
+		// Then, override with explicit config if provided (for programmatic initialization)
+		if (config && Object.keys(config).length > 0) {
+			finalConfig = { ...finalConfig, ...config };
 		}
 
-		// Use API baseURL from API if available
-		if (!SearchState.config.apiBaseUrl && API.baseURL) {
-			SearchState.config.apiBaseUrl = API.baseURL;
-		}
+		// Merge with defaults (lowest priority)
+		SearchState.config = { ...DEFAULT_CONFIG, ...finalConfig };
 
 		// Override search buttons and containers FIRST (before finding inputs)
 		this.overrideSearchButtons();
@@ -1156,11 +1260,18 @@ if (typeof window !== 'undefined') {
 	};
 }
 
-// Auto-initialize if DOM is ready
-if (document.readyState === 'loading') {
-	document.addEventListener('DOMContentLoaded', () => {
+// Auto-initialize from data attributes if DOM is ready
+const autoInit = () => {
+	// Only auto-init if container with data attributes exists
+	const container = document.querySelector<HTMLElement>('[data-afs-search-container]');
+	if (container) {
 		SearchInit.init();
-	});
+	}
+};
+
+if (document.readyState === 'loading') {
+	document.addEventListener('DOMContentLoaded', autoInit);
 } else {
-	SearchInit.init();
+	// DOM already ready, but wait a bit for Liquid to render
+	setTimeout(autoInit, 50);
 }
