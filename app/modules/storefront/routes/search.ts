@@ -100,6 +100,7 @@ export const GET = handler(async (req: HttpRequest) => {
     data: {
       products: result.products.map((product: any) => ({
         id: product.id,
+        handle: product.handle, // Product handle for URL generation
         title: product.title,
         image: product.imageUrl, // Map imageUrl to image for frontend
         vendor: product.vendor,

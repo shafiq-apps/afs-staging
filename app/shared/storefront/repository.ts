@@ -1881,7 +1881,7 @@ export class StorefrontSearchRepository {
       sort: [{ _score: 'desc' }],
       track_total_hits: false,
       timeout: '150ms', // Very aggressive timeout
-      _source: ['id', 'title', 'imageUrl', 'vendor', 'productType', 'tags', 'minPrice', 'maxPrice'],
+      _source: ['id', 'handle', 'title', 'imageUrl', 'vendor', 'productType', 'tags', 'minPrice', 'maxPrice'],
       terminate_after: limit * 2, // Stop early
     });
     

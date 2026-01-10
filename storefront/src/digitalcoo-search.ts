@@ -42,7 +42,10 @@ const SearchState = {
 	isLoading: false,
 	abortController: null as AbortController | null,
 	replacedInputs: new Set<HTMLInputElement>(),
-	inputContainers: new Map<HTMLInputElement, HTMLElement>()
+	inputContainers: new Map<HTMLInputElement, HTMLElement>(),
+	overriddenContainers: new Set<HTMLElement>(),
+	searchButtons: new Set<HTMLElement>(),
+	customSearchBox: null as HTMLElement | null
 };
 
 // ============================================================================
@@ -164,12 +167,25 @@ const SearchDOM = {
 	},
 
 	createProductItem(product: ProductType, index: number): HTMLElement {
+		// Use handle if available, otherwise fallback to empty string (will be handled by click handler)
+		const handle = product.handle || '';
+		const productUrl = handle ? `/products/${handle}` : '#';
+		
 		const item = $.el('a', 'afs-search-dropdown__product', {
-			'href': `/products/${product.handle || ''}`,
+			'href': productUrl,
 			'role': 'option',
 			'data-index': String(index),
+			'data-handle': handle,
 			'tabindex': '-1'
 		});
+
+		// Prevent navigation if no handle (shouldn't happen, but safety check)
+		if (!handle) {
+			item.addEventListener('click', (e) => {
+				e.preventDefault();
+				Log.warn('Product item clicked but no handle available', { product });
+			});
+		}
 
 		// Image
 		if (product.imageUrl || product.featuredImage) {
@@ -248,7 +264,7 @@ const SearchDOM = {
 		return item;
 	},
 
-	renderDropdown(results: SearchResultType | null, query: string): void {
+	renderDropdown(results: SearchResultType | null, query: string, showEmptyState: boolean = false): void {
 		if (!SearchState.dropdown) return;
 
 		// Clear existing content
@@ -257,6 +273,13 @@ const SearchDOM = {
 
 		if (SearchState.isLoading) {
 			SearchState.dropdown.appendChild(this.createLoadingState());
+			return;
+		}
+
+		// Show empty state if no query and showEmptyState is true
+		if (!query && showEmptyState) {
+			const emptyState = this.createEmptyState('Start typing to search...');
+			SearchState.dropdown.appendChild(emptyState);
 			return;
 		}
 
@@ -518,8 +541,18 @@ const SearchLogic = {
 			SearchState.dropdown = SearchState.container.querySelector('.afs-search-dropdown') as HTMLElement;
 		}
 		
-		if (input.value.trim().length >= SearchState.config.minQueryLength && SearchState.searchResults) {
-			SearchDOM.renderDropdown(SearchState.searchResults, input.value.trim());
+		// Always show dropdown on focus
+		const query = input.value.trim();
+		if (query.length >= SearchState.config.minQueryLength && SearchState.searchResults) {
+			// Show existing results if available
+			SearchDOM.renderDropdown(SearchState.searchResults, query);
+			SearchDOM.showDropdown();
+		} else if (query.length > 0) {
+			// If input has value but no results yet, trigger search
+			SearchLogic.debouncedSearch(query);
+		} else {
+			// Show empty state when focused with no query (better UX)
+			SearchDOM.renderDropdown(null, '', true);
 			SearchDOM.showDropdown();
 		}
 	},
@@ -599,8 +632,22 @@ const SearchLogic = {
 		if (!item) return;
 
 		if (item.tagName === 'A') {
-			// Let the link navigate naturally
-			return;
+			// For product links, ensure handle is present before navigation
+			const handle = item.getAttribute('data-handle');
+			if (handle) {
+				// Let the link navigate naturally to /products/{handle}
+				// Close dropdown after click
+				SearchDOM.hideDropdown();
+				if (SearchState.customSearchBox) {
+					SearchInit.hideCustomSearchBox();
+				}
+				return;
+			} else {
+				// Prevent navigation if no handle
+				e.preventDefault();
+				Log.warn('Product link clicked but no handle available');
+				return;
+			}
 		}
 
 		e.preventDefault();
@@ -626,6 +673,246 @@ const SearchLogic = {
 // ============================================================================
 
 const SearchInit = {
+	/**
+	 * Create custom search box that will override theme's search
+	 */
+	createCustomSearchBox(): HTMLElement {
+		if (SearchState.customSearchBox) {
+			return SearchState.customSearchBox;
+		}
+
+		const searchBox = $.el('div', 'afs-search-override-box');
+		searchBox.style.cssText = `
+			position: fixed;
+			top: 0;
+			left: 0;
+			right: 0;
+			background: var(--afs-bg-color, #fff);
+			border-bottom: 1px solid var(--afs-border-color, #e0e0e0);
+			z-index: 999998;
+			padding: 16px;
+			box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+			display: none;
+		`;
+
+		const searchForm = $.el('form', 'afs-search-override-form');
+		searchForm.style.cssText = `
+			display: flex;
+			align-items: center;
+			gap: 12px;
+			max-width: 1200px;
+			margin: 0 auto;
+		`;
+
+		const searchInput = $.el('input', 'afs-search-override-input') as HTMLInputElement;
+		searchInput.type = 'search';
+		searchInput.name = 'q';
+		searchInput.placeholder = 'Search products...';
+		searchInput.autocomplete = 'off';
+		searchInput.style.cssText = `
+			flex: 1;
+			padding: 12px 16px;
+			border: 1px solid var(--afs-border-color, #e0e0e0);
+			border-radius: 4px;
+			font-size: 16px;
+			outline: none;
+		`;
+
+		const closeButton = $.el('button', 'afs-search-override-close');
+		closeButton.type = 'button';
+		closeButton.innerHTML = '✕';
+		closeButton.setAttribute('aria-label', 'Close search');
+		closeButton.style.cssText = `
+			padding: 8px 16px;
+			background: transparent;
+			border: none;
+			font-size: 24px;
+			cursor: pointer;
+			color: var(--afs-text-color, #333);
+		`;
+
+		closeButton.addEventListener('click', () => {
+			this.hideCustomSearchBox();
+		});
+
+		searchForm.appendChild(searchInput);
+		searchForm.appendChild(closeButton);
+		searchBox.appendChild(searchForm);
+		document.body.appendChild(searchBox);
+
+		// Replace this input with our enhanced search
+		this.replaceInput(searchInput);
+
+		SearchState.customSearchBox = searchBox;
+		return searchBox;
+	},
+
+	showCustomSearchBox(): void {
+		const searchBox = this.createCustomSearchBox();
+		searchBox.style.display = 'block';
+		
+		// Focus the input
+		const input = searchBox.querySelector('input') as HTMLInputElement;
+		if (input) {
+			setTimeout(() => input.focus(), 100);
+		}
+
+		// Prevent body scroll
+		document.body.style.overflow = 'hidden';
+	},
+
+	hideCustomSearchBox(): void {
+		if (SearchState.customSearchBox) {
+			SearchState.customSearchBox.style.display = 'none';
+			SearchDOM.hideDropdown();
+		}
+		document.body.style.overflow = '';
+	},
+
+	/**
+	 * Find search icon buttons (common theme patterns)
+	 */
+	findSearchButtons(): HTMLElement[] {
+		const selectors = [
+			'button[aria-label*="search" i]',
+			'button[aria-label*="Search" i]',
+			'a[aria-label*="search" i]',
+			'a[aria-label*="Search" i]',
+			'button.search',
+			'a.search',
+			'button[class*="search"]',
+			'a[class*="search"]',
+			'button[data-search]',
+			'a[data-search]',
+			'[data-search-toggle]',
+			'[data-search-trigger]',
+			'.search-icon',
+			'.search-button',
+			'[id*="search" i]',
+			'[class*="search-icon" i]',
+			'[class*="search-button" i]',
+			// Shopify common patterns
+			'header button[type="button"]:has(svg[class*="search"])',
+			'header a:has(svg[class*="search"])',
+			'.header__icon--search',
+			'.site-header__search',
+		];
+
+		const buttons: HTMLElement[] = [];
+		selectors.forEach(selector => {
+			try {
+				const elements = document.querySelectorAll<HTMLElement>(selector);
+				elements.forEach(el => {
+					// Check if it looks like a search button (has search icon or text)
+					const text = el.textContent?.toLowerCase() || '';
+					const ariaLabel = el.getAttribute('aria-label')?.toLowerCase() || '';
+					const hasSearchIcon = el.querySelector('svg[class*="search"], svg[aria-label*="search" i]');
+					
+					if (hasSearchIcon || text.includes('search') || ariaLabel.includes('search')) {
+						buttons.push(el);
+					}
+				});
+			} catch (e) {
+				// Invalid selector, skip
+			}
+		});
+
+		return buttons;
+	},
+
+	/**
+	 * Find predictive search containers (common theme patterns)
+	 */
+	findPredictiveSearchContainers(): HTMLElement[] {
+		const selectors = [
+			'[data-predictive-search]',
+			'[id*="predictive" i]',
+			'[class*="predictive" i]',
+			'[class*="search-results" i]',
+			'[class*="search-dropdown" i]',
+			'[class*="search-suggestions" i]',
+			'.predictive-search',
+			'.search-results',
+			'.search-dropdown',
+			'.search-suggestions',
+			'[data-search-results]',
+			'[data-search-dropdown]',
+			// Shopify common patterns
+			'[id*="Search" i]',
+			'[class*="Search" i]',
+		];
+
+		const containers: HTMLElement[] = [];
+		selectors.forEach(selector => {
+			try {
+				const elements = document.querySelectorAll<HTMLElement>(selector);
+				elements.forEach(el => {
+					// Check if it's a search results container (not our own)
+					if (!el.classList.contains('afs-search-container') && 
+					    !el.classList.contains('afs-search-dropdown')) {
+						containers.push(el);
+					}
+				});
+			} catch (e) {
+				// Invalid selector, skip
+			}
+		});
+
+		return containers;
+	},
+
+	/**
+	 * Override search button click to show our custom search
+	 */
+	overrideSearchButton(button: HTMLElement): void {
+		if (SearchState.searchButtons.has(button)) return;
+
+		// Prevent default behavior
+		button.addEventListener('click', (e) => {
+			e.preventDefault();
+			e.stopPropagation();
+			e.stopImmediatePropagation();
+
+			// Hide any theme search containers
+			this.hideThemeSearchContainers();
+
+			// Show our custom search box
+			this.showCustomSearchBox();
+		}, true); // Use capture phase to intercept early
+
+		SearchState.searchButtons.add(button);
+		Log.debug('Overridden search button', { button });
+	},
+
+	/**
+	 * Hide theme's native search containers
+	 */
+	hideThemeSearchContainers(): void {
+		const containers = this.findPredictiveSearchContainers();
+		containers.forEach(container => {
+			container.style.display = 'none';
+			container.setAttribute('data-afs-hidden', 'true');
+			SearchState.overriddenContainers.add(container);
+		});
+	},
+
+	/**
+	 * Override search containers by replacing their content
+	 */
+	overrideSearchContainers(): void {
+		const containers = this.findPredictiveSearchContainers();
+		containers.forEach(container => {
+			if (SearchState.overriddenContainers.has(container)) return;
+
+			// Hide the container
+			container.style.display = 'none';
+			container.setAttribute('data-afs-hidden', 'true');
+			SearchState.overriddenContainers.add(container);
+
+			Log.debug('Overridden search container', { container });
+		});
+	},
+
 	replaceInput(input: HTMLInputElement): void {
 		if (SearchState.replacedInputs.has(input)) return;
 
@@ -729,6 +1016,13 @@ const SearchInit = {
 		return false;
 	},
 
+	overrideSearchButtons(): void {
+		const buttons = this.findSearchButtons();
+		buttons.forEach(button => {
+			this.overrideSearchButton(button);
+		});
+	},
+
 	findAndReplaceInputs(): void {
 		const inputs = document.querySelectorAll<HTMLInputElement>(SearchState.config.searchInputSelector);
 		inputs.forEach(input => {
@@ -765,11 +1059,17 @@ const SearchInit = {
 			SearchState.config.apiBaseUrl = API.baseURL;
 		}
 
+		// Override search buttons and containers FIRST (before finding inputs)
+		this.overrideSearchButtons();
+		this.overrideSearchContainers();
+
 		// Find and replace search inputs
 		this.findAndReplaceInputs();
 
-		// Watch for dynamically added inputs
+		// Watch for dynamically added inputs, buttons, and containers
 		const observer = new MutationObserver(() => {
+			this.overrideSearchButtons();
+			this.overrideSearchContainers();
 			this.findAndReplaceInputs();
 		});
 
@@ -786,6 +1086,25 @@ const SearchInit = {
 				    !SearchState.activeInput?.contains(target)) {
 					SearchDOM.hideDropdown();
 				}
+			}
+
+			// Close custom search box if clicking outside
+			if (SearchState.customSearchBox && SearchState.customSearchBox.style.display === 'block') {
+				const target = e.target as Node;
+				if (!SearchState.customSearchBox.contains(target)) {
+					// Don't close if clicking on search buttons
+					const clickedButton = (target as HTMLElement).closest('button, a');
+					if (!clickedButton || !SearchState.searchButtons.has(clickedButton as HTMLElement)) {
+						this.hideCustomSearchBox();
+					}
+				}
+			}
+		});
+
+		// Close on Escape key
+		document.addEventListener('keydown', (e) => {
+			if (e.key === 'Escape' && SearchState.customSearchBox && SearchState.customSearchBox.style.display === 'block') {
+				this.hideCustomSearchBox();
 			}
 		});
 
