@@ -215,7 +215,7 @@ export const UrlManager = {
 export const API = {
 	baseURL: 'https://fstaging.digitalcoo.com/storefront', // Default, should be set via config
 	__v: 'v2.0.1',
-	__id: '01-09-2026',
+	__id: '01-10-2026',
 	cache: new Map<string, ProductsResponseDataType>(),
 	timestamps: new Map<string, number>(),
 	pending: new Map<string, Promise<ProductsResponseDataType>>(),
@@ -683,8 +683,8 @@ export const DOM = {
 				UrlManager.update(FilterState.filters, FilterState.pagination, FilterState.sort);
 				// Scroll to top when clearing all filters
 				DOM.scrollToProducts();
-				// Show loading skeleton immediately (before debounce)
-				DOM.showLoading();
+				// Show loading skeleton immediately (before debounce) - only products, filters will update via Filters.process
+				DOM.showLoading('products');
 				Filters.apply();
 			}
 			else if (action === 'toggle-filters' || action === 'close-filters') {
@@ -711,7 +711,7 @@ export const DOM = {
 					}
 					UrlManager.update(FilterState.filters, FilterState.pagination, FilterState.sort);
 					DOM.scrollToProducts();
-					DOM.showLoading();
+					DOM.showLoading('products');
 					Filters.apply();
 					return;
 				}
@@ -721,7 +721,7 @@ export const DOM = {
 					FilterState.pagination.page = 1;
 					UrlManager.update(FilterState.filters, FilterState.pagination, FilterState.sort);
 					DOM.scrollToProducts();
-					DOM.showLoading();
+					DOM.showLoading('products');
 					Filters.apply();
 					return;
 				}
@@ -731,7 +731,7 @@ export const DOM = {
 					FilterState.pagination.page = 1;
 					UrlManager.update(FilterState.filters, FilterState.pagination, FilterState.sort);
 					DOM.scrollToProducts();
-					DOM.showLoading();
+					DOM.showLoading('products');
 					Filters.apply();
 					return;
 				}
@@ -779,8 +779,8 @@ export const DOM = {
 					UrlManager.update(FilterState.filters, FilterState.pagination, FilterState.sort);
 					// Scroll to top when pagination changes
 					DOM.scrollToProducts();
-					// Show loading skeleton immediately (before debounce)
-					DOM.showLoading();
+					// Show loading skeleton immediately (before debounce) - only products, not filters
+					DOM.showLoading('products');
 					// Only fetch products, not filters (filters haven't changed)
 					Filters.applyProductsOnly();
 				}
@@ -821,9 +821,9 @@ export const DOM = {
 					// Update URL
 					UrlManager.update(FilterState.filters, FilterState.pagination, FilterState.sort);
 
-					// Scroll to top and show loading
+					// Scroll to top and show loading - only products, filters will update via Filters.process
 					DOM.scrollToProducts();
-					DOM.showLoading();
+					DOM.showLoading('products');
 
 					// Apply filters to refresh products and filters
 					Filters.apply();
@@ -955,9 +955,9 @@ export const DOM = {
 			FilterState.pagination.page = 1;
 			UrlManager.update(FilterState.filters, FilterState.pagination, FilterState.sort);
 			Log.info('Calling applyProductsOnly after sort change', { sort: FilterState.sort });
-			// Show loading skeleton immediately (before debounce)
+			// Show loading skeleton immediately (before debounce) - only products, not filters
 			DOM.scrollToProducts();
-			DOM.showLoading();
+			DOM.showLoading('products');
 			// Only fetch products, not filters (filters haven't changed)
 			Filters.applyProductsOnly();
 		};
@@ -1665,8 +1665,19 @@ export const DOM = {
 				fetchpriority: 'low'
 			}) as HTMLImageElement;
 
-			// Get base image URL
-			const baseImageUrl = p.featuredImage?.url || p.featuredImage?.urlFallback || p.imageUrl || '';
+			// Get base image URL (first image)
+			const baseImageUrl = p.imageUrl || '';
+			
+			// Get second image for hover effect (from imagesUrls array)
+			let secondImageUrl: string | null = null;
+			const imagesArray = (p as any).imagesUrls;
+			if (imagesArray && Array.isArray(imagesArray) && imagesArray.length > 1) {
+				secondImageUrl = imagesArray[1];
+				Log.debug('Second image found for hover', { 
+					secondImageUrl, 
+					totalImages: imagesArray.length 
+				});
+			}
 
 			if (baseImageUrl) {
 				// Use responsive images with srcset for optimal loading
@@ -1697,6 +1708,9 @@ export const DOM = {
 					img.src = optimizedUrl || baseImageUrl;
 				}
 
+				// Store original image URL for hover revert
+				img.setAttribute('data-original-src', img.src);
+
 				// Add error handling for failed image loads
 				img.onerror = function (this: HTMLImageElement) {
 					// Fallback to original format if WebP fails
@@ -1704,11 +1718,13 @@ export const DOM = {
 					if (fallbackUrl && this.src !== fallbackUrl) {
 						// Try original format
 						this.src = fallbackUrl;
+						this.setAttribute('data-original-src', fallbackUrl);
 					} else if (this.src.includes('_webp.')) {
 						// If WebP failed, try original format
 						const originalUrl = baseImageUrl.replace(/_(?:small|medium|large|grande|compact|master|\d+x\d+)_webp\./i, '_300x300.');
 						if (originalUrl !== this.src) {
 							this.src = originalUrl;
+							this.setAttribute('data-original-src', originalUrl);
 						} else {
 							// Hide broken image
 							this.style.display = 'none';
@@ -1721,6 +1737,93 @@ export const DOM = {
 			}
 
 			imgContainer.appendChild(img);
+
+			// Add hover effect for second image if available
+			if (secondImageUrl) {
+				// Use original second image URL directly (no optimization for hover to avoid issues)
+				// Optimization can cause problems if the URL format changes
+				const hoverImageUrl = secondImageUrl;
+				
+				// Preload second image for smooth hover transition
+				const hoverImg = new Image();
+				hoverImg.src = hoverImageUrl;
+
+				// Store original src - use the actual current src after image loads
+				let originalSrc = img.src || baseImageUrl;
+				
+				// Update original src when main image loads (in case srcset changes it)
+				const updateOriginalSrc = () => {
+					const currentSrc = img.src;
+					if (currentSrc && currentSrc !== hoverImageUrl) {
+						originalSrc = currentSrc;
+					}
+				};
+				
+				// Capture original src after image loads
+				if (img.complete) {
+					updateOriginalSrc();
+				} else {
+					img.addEventListener('load', updateOriginalSrc, { once: true });
+				}
+
+				// Add hover event listeners with smooth transition
+				imgContainer.addEventListener('mouseenter', () => {
+					// Update original src if it changed (e.g., due to srcset)
+					updateOriginalSrc();
+
+					// Swap to hover image
+					const swapToHover = () => {
+						img.style.opacity = '0';
+						setTimeout(() => {
+							img.src = hoverImageUrl;
+							img.style.opacity = '1';
+						}, 150);
+					};
+
+					if (hoverImg.complete) {
+						// Image already loaded, swap immediately
+						swapToHover();
+					} else {
+						// Wait for image to load, then swap
+						const loadHandler = () => {
+							swapToHover();
+						};
+						
+						// Check again in case it loaded between checks (race condition)
+						if (hoverImg.complete) {
+							swapToHover();
+						} else {
+							hoverImg.addEventListener('load', loadHandler, { once: true });
+							// If image fails to load, log error but don't swap
+							hoverImg.addEventListener('error', () => {
+								Log.debug('Hover image failed to load', { 
+									url: secondImageUrl,
+									hoverImageUrl 
+								});
+							}, { once: true });
+						}
+					}
+				});
+
+				imgContainer.addEventListener('mouseleave', () => {
+					// Revert to original image with fade
+					img.style.opacity = '0';
+					setTimeout(() => {
+						img.src = originalSrc;
+						img.style.opacity = '1';
+					}, 150);
+				});
+			}
+
+			// Add sold out badge if product is unavailable
+			const isSoldOut = parseInt(String(p.totalInventory || 0), 10) <= 0 || (p.variants && !p.variants.some(v => v.availableForSale));
+			if (isSoldOut) {
+				const soldOutBadge = $.el('div', 'afs-product-card__badge', {
+					'class': 'afs-product-card__badge--sold-out'
+				});
+				soldOutBadge.textContent = Lang.buttons.soldOut || 'Sold out';
+				imgContainer.appendChild(soldOutBadge);
+			}
 
 			// Add Quick Add button - bottom right corner with + icon
 			const quickAddBtn = $.el('button', 'afs-product-card__quick-add', {
@@ -2467,8 +2570,8 @@ export const Filters = {
 		DOM.updateFilterState(handle, normalized, !isActive);
 		// Scroll to top when filter is clicked
 		DOM.scrollToProducts();
-		// Show loading skeleton immediately (before debounce)
-		DOM.showLoading();
+		// Show loading skeleton immediately (before debounce) - only products, filters will update via Filters.process
+		DOM.showLoading('products');
 
 		// Close mobile filters after applying filter (on mobile devices)
 		if (window.innerWidth <= 768 && DOM.filtersContainer?.classList.contains('afs-filters-container--open')) {
@@ -2761,8 +2864,8 @@ export const AFS: AFSInterface = {
 			DOM.init(containerSelector, filtersSelector, productsSelector);
 			Log.info('DOM initialized');
 
-			// Show loading skeleton immediately on initial load (before API calls)
-			DOM.showLoading();
+			// Show loading skeleton immediately on initial load (before API calls) - both filters and products
+			DOM.showLoading('both');
 
 			DOM.attachEvents();
 			Log.info('DOM events attached');
@@ -2778,8 +2881,8 @@ export const AFS: AFSInterface = {
 	},
 
 	async load(): Promise<void> {
-		// Loading skeleton is already shown in init(), but ensure it's visible
-		DOM.showLoading();
+		// Loading skeleton is already shown in init(), but ensure it's visible - both filters and products on initial load
+		DOM.showLoading('both');
 		try {
 			// Parse URL params FIRST before loading filters, so filters endpoint gets the correct filters
 			const urlParams = UrlManager.parse();

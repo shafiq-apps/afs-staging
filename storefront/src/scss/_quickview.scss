@@ -583,7 +583,23 @@
     &:disabled {
       opacity: 0.5;
       cursor: not-allowed;
-      text-decoration: line-through;
+      position: relative;
+      overflow: visible;
+      
+      // Diagonal line from top-right edge to bottom-left edge
+      &::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 141.42%; // sqrt(2) * 100% to cover diagonal distance
+        height: 2px;
+        background: var(--afs-text-color);
+        transform: rotate(-45deg);
+        transform-origin: top right;
+        pointer-events: none;
+        z-index: 1;
+      }
     }
   }
 }

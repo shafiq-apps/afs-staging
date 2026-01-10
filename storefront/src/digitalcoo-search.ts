@@ -17,7 +17,7 @@ import { $ } from './utils/$.utils';
 // ============================================================================
 
 const DEFAULT_CONFIG: Required<SearchConfigtype> = {
-	apiBaseUrl: 'http://localhost:3554/storefront',
+	apiBaseUrl: 'https://fstaging.digitalcoo.com/storefront',
 	shop: null,
 	moneyFormat: null,
 	currency: null,
