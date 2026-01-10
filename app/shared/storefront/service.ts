@@ -153,6 +153,64 @@ export class StorefrontSearchService implements Injectable {
   }
 
   /**
+   * Simple search - ONLY query string, NO filters
+   * Uses cached search config with boosted weights
+   * Optimized for maximum speed with caching
+   */
+  async searchProductsSimple(
+    shop: string,
+    searchQuery: string,
+    limit: number = 10,
+    options?: {
+      includeSuggestions?: boolean;
+      suggestionLimit?: number;
+    }
+  ): Promise<{
+    result: ProductSearchResult;
+    suggestions?: string[];
+  }> {
+    if (!shop) {
+      throw new Error('Shop parameter is required');
+    }
+
+    // Create simple filter input for cache key
+    const filters: ProductSearchInput = {
+      search: searchQuery,
+      limit,
+    };
+
+    // Try to get from cache first
+    const cachedResult = this.cache.getSearchResults(shop, filters);
+    if (cachedResult) {
+      this.log.info('Cache hit for simple search', { shop, query: searchQuery });
+      // For cached results, we need to get suggestions separately if needed
+      // But for simplicity, we'll skip suggestions for cached results
+      // (suggestions are usually not cached anyway)
+      return {
+        result: cachedResult,
+        suggestions: options?.includeSuggestions ? [] : undefined,
+      };
+    }
+
+    this.log.info(`Simple search for shop: ${shop}`, { query: searchQuery, limit });
+
+    // Use simple search method from repository
+    const msearchResult = await this.repo.searchProductsSimple(
+      shop,
+      searchQuery,
+      limit,
+      options
+    );
+
+    // Cache the result
+    this.cache.setSearchResults(shop, filters, msearchResult.result);
+
+    this.log.info(`Found ${msearchResult.result.total} products`);
+
+    return msearchResult;
+  }
+
+  /**
    * Advanced search with autocomplete and typo tolerance
    * Uses Elasticsearch fuzzy matching and prefix queries for partial word matching
    * Optimized for maximum speed with caching

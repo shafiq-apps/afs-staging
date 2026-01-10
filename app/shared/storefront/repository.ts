@@ -277,12 +277,43 @@ export class StorefrontSearchRepository {
   }
 
   /**
+   * Boost weights from 0-5 range to higher values while maintaining ratio
+   * This improves Elasticsearch query performance with low weights
+   * Example: [1, 2, 3, 4, 5] -> [5, 10, 15, 20, 25] (multiplied by 5)
+   * 
+   * The multiplier of 5 scales the 0-5 range to 0-25 range, which gives ES
+   * better signal for ranking. Weights maintain their relative proportions.
+   */
+  private boostWeights(fields: Array<{ field: string; weight: number }>): Array<{ field: string; weight: number }> {
+    // Filter out disabled fields (weight 0)
+    const activeFields = fields.filter(f => f.weight > 0);
+    if (activeFields.length === 0) {
+      return [];
+    }
+    
+    // Boost multiplier: scales 0-5 range to 0-25 range (5x multiplier)
+    // This ensures better ES performance while maintaining weight ratios
+    // Minimum weight (1) becomes 5, maximum weight (5) becomes 25
+    const BOOST_MULTIPLIER = 5;
+    
+    // Boost all weights while maintaining the ratio
+    return activeFields.map(field => ({
+      field: field.field,
+      weight: Math.round(field.weight * BOOST_MULTIPLIER)
+    }));
+  }
+
+  /**
    * Build search fields array from search configuration
-   * Returns array of field strings with weights (e.g., ['title^5', 'vendor^3'])
-   * Only active fields are in the array, so no need to filter
+   * Returns array of field strings with boosted weights (e.g., ['title^25', 'vendor^5'])
+   * Weights are boosted from 0-5 range to 5-25 range for better ES performance
+   * Only active fields (weight > 0) are included
    */
   private buildSearchFields(config: SearchConfig): string[] {
-    return config.fields
+    // Boost weights from 0-5 range to higher values
+    const boostedFields = this.boostWeights(config.fields);
+    
+    return boostedFields
       .map(field => `${field.field}^${field.weight}`)
       .filter(Boolean);
   }
@@ -1503,10 +1534,10 @@ export class StorefrontSearchRepository {
       const searchConfig = await this.getSearchConfig(shopDomain);
       const searchFields = this.buildSearchFields(searchConfig);
       
-      // If no fields, fall back to default (weights 0-5 for better results)
+      // If no fields, fall back to default with boosted weights (original 0-5 range boosted to 5-25)
       let fieldsToUse = searchFields.length > 0 
         ? searchFields 
-        : ['title^5', 'variants.displayName^4', 'variants.sku^4', 'tags^3', 'vendor^1', 'productType^1' ];
+        : ['title^25', 'variants.displayName^20', 'variants.sku^20', 'tags^15', 'vendor^5', 'productType^5' ];
       
       // PERFORMANCE: Limit to top 4 fields for balance between speed and accuracy
       // More fields = slower, but we need enough for good typo tolerance
@@ -1539,9 +1570,9 @@ export class StorefrontSearchRepository {
         fieldsToUse = [...topLevelFields, ...sortedNested];
       }
       
-      // If no fields left, use title only
+      // If no fields left, use title only with boosted weight
       if (fieldsToUse.length === 0) {
-        fieldsToUse = ['title^10'];
+        fieldsToUse = ['title^25']; // Boosted from 5
       }
 
       // OPTIMIZED: Single query with controlled fuzziness for typo tolerance + speed
@@ -1758,9 +1789,211 @@ export class StorefrontSearchRepository {
   }
 
   /**
+   * ULTRA-SIMPLE search - ONLY query string, NO filters
+   * Uses cached search config (from app_search index) with boosted weights
+   * Fastest possible search for search module
+   */
+  async searchProductsSimple(
+    shopDomain: string,
+    searchQuery: string,
+    limit: number = 10,
+    options?: {
+      includeSuggestions?: boolean;
+      suggestionLimit?: number;
+    }
+  ): Promise<{
+    result: ProductSearchResult;
+    suggestions?: string[];
+  }> {
+    const index = PRODUCT_INDEX_NAME(shopDomain);
+    const query = searchQuery.trim();
+    const from = 0;
+    
+    // Get cached search config (fast - cached for 30 seconds)
+    // This uses the app_search index with weights 0-5, which we boost to 5-25
+    const searchConfig = await this.getSearchConfig(shopDomain);
+    const searchFields = this.buildSearchFields(searchConfig);
+    
+    // Use configured fields with boosted weights, or fallback to title only
+    let fieldsToUse = searchFields.length > 0 
+      ? searchFields 
+      : ['title^25']; // Boosted default (5 * 5 = 25)
+    
+    // CRITICAL: Limit to top 2 fields ONLY for maximum speed
+    if (fieldsToUse.length > 2) {
+      fieldsToUse = fieldsToUse
+        .map(f => {
+          const match = f.match(/^(.+)\^(.+)$/);
+          return match ? { field: match[1], weight: parseFloat(match[2]), full: f } : { field: f, weight: 1, full: f };
+        })
+        .sort((a, b) => b.weight - a.weight)
+        .slice(0, 2)
+        .map(f => f.full);
+    }
+    
+    // ULTRA-SIMPLE: Only status and document type filters, NO other filters
+    const mustQueries: any[] = [
+      { term: { [ES_FIELDS.STATUS]: 'ACTIVE' } },
+      { term: { [ES_FIELDS.DOCUMENT_TYPE]: 'product' } },
+    ];
+    
+    // Build search query with cached config fields
+    const fieldMatch = fieldsToUse.length === 1 ? fieldsToUse[0].match(/^(.+)\^(.+)$/) : null;
+    const fieldName = fieldMatch ? fieldMatch[1] : null;
+    
+    if (fieldName) {
+      // Single field match - fastest
+      mustQueries.push({
+        match: {
+          [fieldName]: {
+            query: query,
+            operator: 'or',
+            fuzziness: 'AUTO',
+            prefix_length: 2,
+            max_expansions: 10,
+          },
+        },
+      });
+    } else {
+      // Multi-field match with boosted weights (max 2 fields)
+      mustQueries.push({
+        multi_match: {
+          query: query,
+          fields: fieldsToUse,
+          type: 'best_fields',
+          operator: 'or',
+          fuzziness: 'AUTO',
+          prefix_length: 2,
+          max_expansions: 10,
+        },
+      });
+    }
+    
+    // Build msearch body - only main query (no facets)
+    const msearchBody: any[] = [];
+    
+    // Main search query - ULTRA SIMPLE
+    msearchBody.push({ index });
+    msearchBody.push({
+      from,
+      size: limit,
+      query: { bool: { must: mustQueries } },
+      sort: [{ _score: 'desc' }],
+      track_total_hits: false,
+      timeout: '150ms', // Very aggressive timeout
+      _source: ['id', 'title', 'imageUrl', 'vendor', 'productType', 'tags', 'minPrice', 'maxPrice'],
+      terminate_after: limit * 2, // Stop early
+    });
+    
+    // Suggestions query (if needed) - only if explicitly requested
+    if (options?.includeSuggestions) {
+      msearchBody.push({ index });
+      msearchBody.push({
+        size: Math.min((options.suggestionLimit || 5) * 2, 15),
+        query: {
+          bool: {
+            must: [
+              { term: { [ES_FIELDS.STATUS]: 'ACTIVE' } },
+              { term: { [ES_FIELDS.DOCUMENT_TYPE]: 'product' } },
+              {
+                match_phrase_prefix: {
+                  title: {
+                    query: query.toLowerCase(),
+                    max_expansions: 8,
+                  },
+                },
+              },
+            ],
+          },
+        },
+        sort: [{ _score: 'desc' }],
+        _source: ['title'],
+        timeout: '150ms',
+        track_total_hits: false,
+        terminate_after: (options.suggestionLimit || 5) * 3,
+      });
+    }
+    
+    // Execute msearch
+    let msearchResponse: { responses: any[] };
+    try {
+      msearchResponse = await this.esClient.msearch({ body: msearchBody });
+    } catch (error: any) {
+      logger.error('[searchProductsSimple] msearch failed', {
+        shopDomain,
+        index,
+        error: error?.message || error,
+      });
+      throw error;
+    }
+    
+    // Process main search result
+    const mainResponse = msearchResponse.responses[0];
+    if (!mainResponse || mainResponse.error) {
+      throw new Error(mainResponse?.error?.reason || 'Search failed');
+    }
+    
+    const total = typeof mainResponse.hits.total === 'number'
+      ? mainResponse.hits.total
+      : (mainResponse.hits.total as any)?.value || mainResponse.hits.hits.length;
+    const totalPages = Math.ceil(total / limit);
+    
+    const products = mainResponse.hits.hits.map((hit: any) => {
+      const product = hit._source as shopifyProduct;
+      return {
+        id: product.id,
+        title: product.title,
+        imageUrl: product.imageUrl,
+        vendor: product.vendor,
+        productType: product.productType,
+        tags: product.tags || [],
+        minPrice: product.minPrice,
+        maxPrice: product.maxPrice,
+      };
+    });
+    
+    const result: ProductSearchResult = {
+      products,
+      total,
+      page: 1,
+      limit,
+      totalPages,
+    };
+    
+    // Process suggestions (if requested)
+    let suggestions: string[] | undefined;
+    if (options?.includeSuggestions && msearchResponse.responses.length > 1) {
+      const suggestResponse = msearchResponse.responses[1];
+      if (suggestResponse && !suggestResponse.error) {
+        const seen = new Set<string>();
+        const queryLower = query.toLowerCase();
+        
+        for (const hit of suggestResponse.hits.hits) {
+          const title = hit._source?.title;
+          if (title && typeof title === 'string') {
+            const titleLower = title.toLowerCase();
+            if (titleLower.startsWith(queryLower) || titleLower.includes(' ' + queryLower)) {
+              const key = titleLower;
+              if (!seen.has(key) && title.length > queryLower.length) {
+                suggestions = suggestions || [];
+                suggestions.push(title.length <= 60 ? title : title.substring(0, 60) + '...');
+                seen.add(key);
+                if (suggestions.length >= (options.suggestionLimit || 5)) break;
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    return { result, suggestions };
+  }
+
+  /**
    * ULTRA-FAST search using msearch to combine all queries in single request
    * Combines: main search + suggestions + facets in single msearch request
    * Inspired by filters endpoint which uses msearch for parallel queries
+   * NOTE: Use searchProductsSimple for search module (faster, no filters)
    */
   async searchProductsWithMsearch(
     shopDomain: string,
@@ -1810,17 +2043,20 @@ export class StorefrontSearchRepository {
       baseMustQueries.push({ range: { [ES_FIELDS.MIN_PRICE]: priceRange } });
     }
     
-    // Build search query - ULTRA SIMPLIFIED for maximum speed
+    // Build search query - OPTIMIZED with boosted weights from config
     let searchMustQueries = [...baseMustQueries];
     if (searchQuery && searchQuery.trim()) {
       const query = searchQuery.trim();
+      
+      // Get search config (cached, so fast)
+      // This uses the app_search index with weights 0-5, which we boost to 5-25
       const searchConfig = await this.getSearchConfig(shopDomain);
       const searchFields = this.buildSearchFields(searchConfig);
       
-      // Use configured fields or fallback to top 2 fields only (title + tags)
+      // Use configured fields with boosted weights, or fallback to title only
       let fieldsToUse = searchFields.length > 0 
         ? searchFields 
-        : ['title^5', 'tags^3'];
+        : ['title^25']; // Boosted default (5 * 5 = 25)
       
       // CRITICAL: Limit to top 2 fields ONLY for maximum speed
       if (fieldsToUse.length > 2) {
@@ -1839,27 +2075,29 @@ export class StorefrontSearchRepository {
       const fieldName = fieldMatch ? fieldMatch[1] : null;
       
       if (fieldName) {
+        // Single field match - fastest
         searchMustQueries.push({
           match: {
             [fieldName]: {
               query: query,
               operator: 'or',
-              fuzziness: 1,
+              fuzziness: 'AUTO',
               prefix_length: 2,
-              max_expansions: 20,
+              max_expansions: 10, // Reduced from 20 for speed
             },
           },
         });
       } else {
+        // Multi-field match with boosted weights
         searchMustQueries.push({
           multi_match: {
             query: query,
             fields: fieldsToUse,
             type: 'best_fields',
             operator: 'or',
-            fuzziness: 1,
+            fuzziness: 'AUTO',
             prefix_length: 2,
-            max_expansions: 20,
+            max_expansions: 10, // Reduced from 20 for speed
           },
         });
       }
@@ -1870,35 +2108,37 @@ export class StorefrontSearchRepository {
     // Build msearch body - combine all queries
     const msearchBody: any[] = [];
     
-    // 1. Main search query - ULTRA OPTIMIZED
+    // 1. Main search query - ULTRA OPTIMIZED for speed
     msearchBody.push({ index });
     msearchBody.push({
       from,
       size: limit,
       query: { bool: { must: searchMustQueries } },
       sort: searchQuery ? [{ _score: 'desc' }] : [{ [ES_FIELDS.BEST_SELLER_RANK]: { order: 'asc', missing: '_last' } }],
-      track_total_hits: false,
-      timeout: '300ms',
+      track_total_hits: false, // Skip total count for speed
+      timeout: '200ms', // Reduced from 300ms
       _source: ['id', 'title', 'imageUrl', 'vendor', 'productType', 'tags', 'minPrice', 'maxPrice'],
-      batched_reduce_size: 128,
-      pre_filter_shard_size: 64,
+      // Performance optimizations
+      batched_reduce_size: 64, // Reduced from 128
+      pre_filter_shard_size: 32, // Reduced from 64
+      terminate_after: limit * 2, // Stop after finding enough results
     });
     
-    // 2. Suggestions query (if needed) - simplified
+    // 2. Suggestions query (if needed) - ultra simplified for speed
     if (options?.includeSuggestions && searchQuery) {
       msearchBody.push({ index });
       msearchBody.push({
-        size: Math.min((options.suggestionLimit || 5) * 2, 30),
+        size: Math.min((options.suggestionLimit || 5) * 2, 20), // Reduced from 30
         query: {
           bool: {
             must: [
               ...baseMustQueries,
               {
-                multi_match: {
-                  query: searchQuery.toLowerCase().trim(),
-                  fields: ['title^3'],
-                  type: 'phrase_prefix',
-                  operator: 'or',
+                match_phrase_prefix: { // Simpler than multi_match
+                  title: {
+                    query: searchQuery.toLowerCase().trim(),
+                    max_expansions: 10, // Reduced for speed
+                  },
                 },
               },
             ],
@@ -1906,8 +2146,9 @@ export class StorefrontSearchRepository {
         },
         sort: [{ _score: 'desc' }],
         _source: ['title'],
-        timeout: '300ms',
+        timeout: '200ms', // Reduced from 300ms
         track_total_hits: false,
+        terminate_after: (options.suggestionLimit || 5) * 3, // Stop early
       });
     }
     
@@ -1941,7 +2182,7 @@ export class StorefrontSearchRepository {
           query: { bool: { must: baseMustQueries } },
           aggs,
           track_total_hits: false,
-          timeout: '400ms',
+          timeout: '300ms', // Reduced from 400ms
         });
       }
     }

@@ -30,9 +30,7 @@ export interface SearchInput extends ProductSearchInput {
   handleZeroResults?: boolean;
   suggestAlternatives?: boolean;
   
-  // Faceted search
-  includeFacets?: boolean;
-  facetLimit?: number;
+  // Facets removed from search module - use /storefront/filters endpoint for facets
 }
 
 /**
@@ -90,17 +88,7 @@ export function buildSearchInput(query: Record<string, unknown>): SearchInput {
     searchInput.semanticSearch = true;
   }
 
-  // Faceted / Filtered Search
-  const includeFacets = query.includeFacets === 'true' || query.includeFacets === '1' || query.includeFacets === true;
-  if (includeFacets) {
-    searchInput.includeFacets = true;
-  }
-
-  const facetLimit = typeof query.facetLimit === 'string' ? parseInt(query.facetLimit, 10) :
-                     typeof query.facetLimit === 'number' ? query.facetLimit : undefined;
-  if (facetLimit && facetLimit > 0) {
-    searchInput.facetLimit = facetLimit;
-  }
+  // Facets removed from search module - use /storefront/filters endpoint for facets
 
   // Zero-Results Handling
   const handleZeroResults = query.handleZeroResults !== 'false' && query.handleZeroResults !== '0'; // Default true
