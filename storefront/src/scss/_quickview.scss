@@ -584,19 +584,27 @@
       opacity: 0.5;
       cursor: not-allowed;
       position: relative;
-      overflow: visible;
+      overflow: hidden; // Clip the diagonal line to button boundaries
       
       // Diagonal line from top-right edge to bottom-left edge
+      // Always touches both corners regardless of button size
       &::after {
         content: '';
         position: absolute;
+        // Cover the entire button area
         top: 0;
         right: 0;
-        width: 141.42%; // sqrt(2) * 100% to cover diagonal distance
-        height: 2px;
-        background: var(--afs-text-color);
-        transform: rotate(-45deg);
-        transform-origin: top right;
+        bottom: 0;
+        left: 0;
+        // Create diagonal line using linear gradient
+        // This ensures it always goes from top-right to bottom-left corner
+        background: linear-gradient(
+          to bottom left,
+          transparent calc(50% - 1px),
+          var(--afs-text-color) calc(50% - 1px),
+          var(--afs-text-color) calc(50% + 1px),
+          transparent calc(50% + 1px)
+        );
         pointer-events: none;
         z-index: 1;
       }
