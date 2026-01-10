@@ -301,6 +301,18 @@ export default function SearchPage() {
         </s-section>
       )}
 
+      <s-stack alignItems="end" padding="base none base none">
+        <s-button
+          variant="primary"
+          onClick={handleSave}
+          loading={isSaving}
+          disabled={searchConfig.fields.length === 0}
+          accessibilityLabel="Save search configuration"
+        >
+          Save Configuration
+        </s-button>
+      </s-stack>
+
       <s-section>
         <s-stack direction="block" gap="base">
           <s-stack direction="block" gap="small">
@@ -412,50 +424,55 @@ export default function SearchPage() {
           <s-stack direction="block" gap="small">
             <s-text type="strong">How Search Weights Work</s-text>
             <s-text tone="auto">
-              Search weights determine the relative importance of each field when matching search queries.
-              Fields with higher weights will have more influence on search result rankings.
+              Search weights control how important each field is when matching search queries. 
+              Fields with higher weights have more influence on search result rankings and will boost products 
+              that match in those fields. The system automatically scales these weights (0-5) to a higher range (0-25) 
+              for optimal Elasticsearch performance.
             </s-text>
             <s-unordered-list>
               <s-list-item>
                 <s-text tone="auto">
-                  <s-text type="strong">Weight 8-10:</s-text> Maximum/Critical priority (e.g., Product Title)
+                  <s-text type="strong">Weight 5 (Maximum):</s-text> Critical priority fields that should have the strongest influence 
+                  on search results. Best for Product Title, which is the most important field for matching user queries.
                 </s-text>
               </s-list-item>
               <s-list-item>
                 <s-text tone="auto">
-                  <s-text type="strong">Weight 5-7:</s-text> Very High priority (e.g., Tags, SKU)
+                  <s-text type="strong">Weight 4 (High):</s-text> Very important fields like SKU, Variant Display Name, or Barcode 
+                  that are frequently used in searches and should rank highly.
                 </s-text>
               </s-list-item>
               <s-list-item>
                 <s-text tone="auto">
-                  <s-text type="strong">Weight 3-4:</s-text> High priority (e.g., Variant Display Name)
+                  <s-text type="strong">Weight 3 (Medium):</s-text> Important supporting fields such as Tags that provide additional 
+                  context and help match related products.
                 </s-text>
               </s-list-item>
               <s-list-item>
                 <s-text tone="auto">
-                  <s-text type="strong">Weight 1-2:</s-text> Low to Medium priority (e.g., Vendor, Product Type)
+                  <s-text type="strong">Weight 2 (Low):</s-text> Secondary fields like Variant Title that provide supplementary 
+                  matching but shouldn't override primary fields.
+                </s-text>
+              </s-list-item>
+              <s-list-item>
+                <s-text tone="auto">
+                  <s-text type="strong">Weight 1 (Very Low):</s-text> Supporting fields such as Vendor or Product Type that add 
+                  minimal influence but can help differentiate similar products.
+                </s-text>
+              </s-list-item>
+              <s-list-item>
+                <s-text tone="auto">
+                  <s-text type="strong">Weight 0 (Disabled):</s-text> Fields that are not used in search queries. 
+                  You can remove disabled fields and add them back later if needed.
                 </s-text>
               </s-list-item>
             </s-unordered-list>
             <s-text tone="auto">
-              <s-text type="strong">Note:</s-text> Only active fields in the array will be used in search queries.
-              When you remove a field, it becomes available to add again.
+              <s-text type="strong">Best Practice:</s-text> Start with Product Title at maximum weight (5), then adjust other fields 
+              based on how important they are for your store. Only active fields (weight 1-5) are used in search queries. 
+              The system optimizes performance by using only the top 2 weighted fields for fastest search results.
             </s-text>
           </s-stack>
-      </s-section>
-
-      <s-section>
-        <s-stack direction="inline" gap="base" alignItems="end">
-          <s-button
-            variant="primary"
-            onClick={handleSave}
-            loading={isSaving}
-            disabled={searchConfig.fields.length === 0}
-            accessibilityLabel="Save search configuration"
-          >
-            Save Configuration
-          </s-button>
-        </s-stack>
       </s-section>
     </s-page>
   );
