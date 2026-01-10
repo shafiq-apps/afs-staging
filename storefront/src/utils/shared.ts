@@ -1,5 +1,8 @@
 // ============================================================================
 // LOGGER (Minimal, production-safe)
+
+import { LoggableData } from "../type";
+
 // ============================================================================
 export const Log = {
 	enabled: true, // Always enabled for debugging

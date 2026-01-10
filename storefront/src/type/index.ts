@@ -3,7 +3,7 @@
 // ============================================================================
 
 import { Icons } from "../components/Icons";
-import { API, DOM, Log, QuickAdd } from "../digitalcoo-filter";
+import { API, DOM, QuickAdd } from "../digitalcoo-filter";
 import type { AFSInterface } from "../digitalcoo-filter";
 import { $ } from "../utils/$.utils";
 
@@ -295,7 +295,7 @@ export interface ShopifyWindow extends Window {
 	DOM?: typeof DOM;
 	AFS_State?: FilterStateType;
 	AFS_API?: typeof API;
-	AFS_LOG?: typeof Log;
+	AFS_LOG?: any;
 	AFSQuickView?: {
 		createQuickViewButton: (product: ProductType) => HTMLElement | null;
 		handleQuickViewClick: (handle: string) => void;
@@ -479,7 +479,7 @@ export interface SliderSlideChangeEventDetailType {
 export interface AFSInterfaceType {
 	init(config?: AFSConfigType): void;
 	load(): Promise<void>;
-	Logger: typeof Log;
+	Logger: any;
 }
 
 
@@ -501,6 +501,7 @@ export interface SearchConfigtype {
 	showSuggestions?: boolean;
 	showProducts?: boolean;
 	enableKeyboardNav?: boolean;
+	debug?: boolean,
 }
 
 export interface SearchResultType {

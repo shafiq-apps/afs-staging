@@ -29,7 +29,8 @@ const DEFAULT_CONFIG: Required<SearchConfigtype> = {
 	maxProducts: 6,
 	showSuggestions: true,
 	showProducts: true,
-	enableKeyboardNav: true
+	enableKeyboardNav: true,
+	debug: false
 };
 
 // ============================================================================
@@ -51,7 +52,9 @@ const SearchState = {
 	inputContainers: new Map<HTMLInputElement, HTMLElement>(),
 	overriddenContainers: new Set<HTMLElement>(),
 	searchButtons: new Set<HTMLElement>(),
-	customSearchBox: null as HTMLElement | null
+	customSearchBox: null as HTMLElement | null,
+	visibilityObserver: null as IntersectionObserver | null,
+	observedInputs: new Set<HTMLInputElement>()
 };
 
 // ============================================================================
@@ -712,7 +715,7 @@ const SearchInit = {
 		// Read debug flag (always present from Liquid, parse as boolean)
 		if (container.dataset.afsSearchDebug !== undefined) {
 			const value = container.dataset.afsSearchDebug;
-			config.debug = value === 'true' || value === '1' || value === true;
+			(config as any).debug = value === 'true' || value === '1';
 		}
 
 		// Read min query length (always present from Liquid with default)
@@ -750,19 +753,19 @@ const SearchInit = {
 		// Read show suggestions flag (always present from Liquid with default)
 		if (container.dataset.afsSearchShowSuggestions !== undefined) {
 			const value = container.dataset.afsSearchShowSuggestions;
-			config.showSuggestions = value === 'true' || value === '1' || value === true;
+			config.showSuggestions = value === 'true' || value === '1';
 		}
 
 		// Read show products flag (always present from Liquid with default)
 		if (container.dataset.afsSearchShowProducts !== undefined) {
 			const value = container.dataset.afsSearchShowProducts;
-			config.showProducts = value === 'true' || value === '1' || value === true;
+			config.showProducts = value === 'true' || value === '1';
 		}
 
 		// Read enable keyboard nav flag (always present from Liquid with default)
 		if (container.dataset.afsSearchEnableKeyboardNav !== undefined) {
 			const value = container.dataset.afsSearchEnableKeyboardNav;
-			config.enableKeyboardNav = value === 'true' || value === '1' || value === true;
+			config.enableKeyboardNav = value === 'true' || value === '1';
 		}
 
 		// Read search input selector
@@ -819,7 +822,7 @@ const SearchInit = {
 		`;
 
 		const closeButton = $.el('button', 'afs-search-override-close');
-		closeButton.type = 'button';
+		// closeButton.type = 'button';
 		closeButton.innerHTML = '✕';
 		closeButton.setAttribute('aria-label', 'Close search');
 		closeButton.style.cssText = `
@@ -845,20 +848,6 @@ const SearchInit = {
 
 		SearchState.customSearchBox = searchBox;
 		return searchBox;
-	},
-
-	showCustomSearchBox(): void {
-		const searchBox = this.createCustomSearchBox();
-		searchBox.style.display = 'block';
-		
-		// Focus the input
-		const input = searchBox.querySelector('input') as HTMLInputElement;
-		if (input) {
-			setTimeout(() => input.focus(), 100);
-		}
-
-		// Prevent body scroll
-		document.body.style.overflow = 'hidden';
 	},
 
 	hideCustomSearchBox(): void {
@@ -967,57 +956,78 @@ const SearchInit = {
 	overrideSearchButton(button: HTMLElement): void {
 		if (SearchState.searchButtons.has(button)) return;
 
-		// Prevent default behavior
+		// Remove inline event handlers (onclick, etc.)
+		this.removeInlineHandlers(button);
+		
+		// Add our click handler in capture phase to intercept before native handlers
 		button.addEventListener('click', (e) => {
 			e.preventDefault();
 			e.stopPropagation();
 			e.stopImmediatePropagation();
-
-			// Hide any theme search containers
-			this.hideThemeSearchContainers();
-
-			// Show our custom search box
-			this.showCustomSearchBox();
-		}, true); // Use capture phase to intercept early
+			// Find the search input and focus it
+			const searchInput = document.querySelector<HTMLInputElement>('input[name="q"], input[name="search"], input[type="search"]');
+			if (searchInput) {
+				searchInput.focus();
+			}
+		}, true); // Capture phase - runs before native handlers
 
 		SearchState.searchButtons.add(button);
-		Log.debug('Overridden search button', { button });
+		Log.debug('Removed inline handlers and added capture-phase listener to search button', { button });
 	},
 
 	/**
-	 * Hide theme's native search containers
-	 */
-	hideThemeSearchContainers(): void {
-		const containers = this.findPredictiveSearchContainers();
-		containers.forEach(container => {
-			container.style.display = 'none';
-			container.setAttribute('data-afs-hidden', 'true');
-			SearchState.overriddenContainers.add(container);
-		});
-	},
-
-	/**
-	 * Override search containers by replacing their content
+	 * Override search containers by removing their event listeners (don't hide them)
 	 */
 	overrideSearchContainers(): void {
 		const containers = this.findPredictiveSearchContainers();
 		containers.forEach(container => {
 			if (SearchState.overriddenContainers.has(container)) return;
 
-			// Hide the container
-			container.style.display = 'none';
-			container.setAttribute('data-afs-hidden', 'true');
+			// Remove inline event handlers
+			this.removeInlineHandlers(container);
+			
+			// Add capture-phase listeners to intercept any clicks/events
+			container.addEventListener('click', (e) => {
+				e.stopImmediatePropagation();
+			}, true); // Capture phase
+			
+			container.setAttribute('data-afs-handled', 'true');
 			SearchState.overriddenContainers.add(container);
 
-			Log.debug('Overridden search container', { container });
+			Log.debug('Removed inline handlers and added capture-phase listeners to search container', { container });
+		});
+	},
+
+	/**
+	 * Remove inline event handlers from an element (onclick, onsubmit, etc.)
+	 */
+	removeInlineHandlers(element: HTMLElement): void {
+		// Remove all inline event handlers by setting them to null
+		const inlineHandlers = ['onclick', 'onsubmit', 'onfocus', 'onblur', 'oninput', 'onchange', 'onkeydown', 'onkeyup'];
+		inlineHandlers.forEach(handler => {
+			if (element.hasAttribute(handler)) {
+				element.removeAttribute(handler);
+			}
+			// Also remove from element properties (some themes set these directly)
+			try {
+				(element as any)[handler] = null;
+			} catch (e) {
+				// Ignore errors if property is read-only
+			}
 		});
 	},
 
 	replaceInput(input: HTMLInputElement): void {
 		if (SearchState.replacedInputs.has(input)) return;
 
+		// Remove inline event handlers (onclick, oninput, etc.)
+		this.removeInlineHandlers(input);
+
+		// Use the original input - no cloning needed!
+		const newInput = input;
+
 		// Setup container for this input
-		const container = SearchDOM.setupInputContainer(input);
+		const container = SearchDOM.setupInputContainer(newInput);
 		SearchState.container = container;
 
 		// Get or create dropdown for this container
@@ -1029,28 +1039,54 @@ const SearchInit = {
 		SearchState.dropdown = dropdown;
 		dropdown.addEventListener('click', SearchLogic.handleClick);
 
-		// Prevent native Shopify search
-		const form = input.closest('form');
-		if (form) {
+		// Prevent native Shopify search form submission
+		// Remove inline handlers and use capture phase to intercept before native handlers
+		const form = newInput.closest('form');
+		if (form && !form.hasAttribute('data-afs-form-handled')) {
+			// Remove inline form handlers
+			this.removeInlineHandlers(form);
+			
+			// Add our submit handler in capture phase to intercept before native handlers
 			form.addEventListener('submit', (e) => {
 				e.preventDefault();
-				const query = input.value.trim();
+				e.stopPropagation();
+				e.stopImmediatePropagation();
+				const query = newInput.value.trim();
 				if (query) {
+					// Use our search instead of native Shopify search
 					window.location.href = `/search?q=${encodeURIComponent(query)}`;
 				}
-			});
+			}, true); // Capture phase - runs before native handlers
+			
+			form.setAttribute('data-afs-form-handled', 'true');
 		}
 
-		// Add event listeners
-		input.addEventListener('input', SearchLogic.handleInput);
-		input.addEventListener('focus', SearchLogic.handleFocus);
-		input.addEventListener('blur', SearchLogic.handleBlur);
-		input.addEventListener('keydown', SearchLogic.handleKeyDown);
+		// Add our event listeners in capture phase to intercept before native handlers
+		// stopImmediatePropagation() will prevent native handlers from running
+		newInput.addEventListener('input', (e: Event) => {
+			e.stopImmediatePropagation();
+			SearchLogic.handleInput(e);
+		}, true); // Capture phase
+		
+		newInput.addEventListener('focus', (e: Event) => {
+			e.stopImmediatePropagation();
+			SearchLogic.handleFocus(e);
+		}, true); // Capture phase
+		
+		newInput.addEventListener('blur', (e: Event) => {
+			// Don't stop propagation on blur - let it bubble normally
+			SearchLogic.handleBlur(e);
+		}, true); // Capture phase
+		
+		newInput.addEventListener('keydown', (e: KeyboardEvent) => {
+			e.stopImmediatePropagation();
+			SearchLogic.handleKeyDown(e);
+		}, true); // Capture phase
 
 		// Add data attribute to identify replaced inputs (does not affect styling)
 		// IMPORTANT: We never modify input.style, input.width, input.height, or any CSS properties
-		input.setAttribute('data-afs-search', 'true');
-		SearchState.replacedInputs.add(input);
+		newInput.setAttribute('data-afs-search', 'true');
+		SearchState.replacedInputs.add(newInput);
 	},
 
 	isFilterSectionInput(input: HTMLInputElement): boolean {
@@ -1123,6 +1159,90 @@ const SearchInit = {
 		});
 	},
 
+	/**
+	 * Check if an element is actually visible to the user (not just in DOM)
+	 */
+	isElementVisible(element: HTMLElement): boolean {
+		if (!element) return false;
+		
+		// Check computed style
+		const style = window.getComputedStyle(element);
+		if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
+			return false;
+		}
+		
+		// Check if element has dimensions
+		const rect = element.getBoundingClientRect();
+		if (rect.width === 0 && rect.height === 0) {
+			return false;
+		}
+		
+		// Check if element is in viewport (at least partially)
+		const isInViewport = rect.top < window.innerHeight && 
+		                     rect.bottom > 0 && 
+		                     rect.left < window.innerWidth && 
+		                     rect.right > 0;
+		
+		// Check if element or any parent is hidden
+		let parent: HTMLElement | null = element.parentElement;
+		while (parent && parent !== document.body) {
+			const parentStyle = window.getComputedStyle(parent);
+			if (parentStyle.display === 'none' || parentStyle.visibility === 'hidden') {
+				return false;
+			}
+			parent = parent.parentElement;
+		}
+		
+		return isInViewport;
+	},
+
+	/**
+	 * Observe an input element for when it becomes visible, then initialize search on it
+	 */
+	observeInputForVisibility(input: HTMLInputElement): void {
+		// Skip if already observing this input
+		if (SearchState.observedInputs.has(input)) {
+			return;
+		}
+		
+		// Create IntersectionObserver if it doesn't exist
+		if (!SearchState.visibilityObserver) {
+			SearchState.visibilityObserver = new IntersectionObserver((entries) => {
+				entries.forEach(entry => {
+					const input = entry.target as HTMLInputElement;
+					
+					// If input becomes visible and is intersecting
+					if (entry.isIntersecting && entry.intersectionRatio > 0) {
+						// Check if it's actually visible (not just in viewport but also has display/visibility)
+						if (this.isElementVisible(input)) {
+							// Check if it's a Shopify search input and not already replaced
+							if (this.isShopifySearchInput(input) && 
+							    !SearchState.replacedInputs.has(input) &&
+							    !this.isFilterSectionInput(input)) {
+								Log.debug('Search input became visible, initializing search', { 
+									name: input.name, 
+									type: input.type 
+								});
+								this.replaceInput(input);
+								// Stop observing this input
+								SearchState.visibilityObserver?.unobserve(input);
+								SearchState.observedInputs.delete(input);
+							}
+						}
+					}
+				});
+			}, {
+				// Observe when element enters viewport
+				threshold: 0.01,
+				rootMargin: '0px'
+			});
+		}
+		
+		// Start observing the input
+		SearchState.visibilityObserver.observe(input);
+		SearchState.observedInputs.add(input);
+	},
+
 	findAndReplaceInputs(): void {
 		const inputs = document.querySelectorAll<HTMLInputElement>(SearchState.config.searchInputSelector);
 		inputs.forEach(input => {
@@ -1139,15 +1259,22 @@ const SearchInit = {
 			
 			// Only process Shopify search inputs
 			if (this.isShopifySearchInput(input)) {
-				Log.debug('Processing Shopify search input', { name: input.name, type: input.type });
-				this.replaceInput(input);
+				// Check if input is visible
+				if (this.isElementVisible(input)) {
+					Log.debug('Processing visible Shopify search input', { name: input.name, type: input.type });
+					this.replaceInput(input);
+				} else {
+					// Input is not visible yet, observe it for when it becomes visible
+					Log.debug('Shopify search input found but not visible, observing for visibility', { name: input.name });
+					this.observeInputForVisibility(input);
+				}
 			}
 		});
 	},
 
-	init(config?: SearchConfigtype): void {
+	init(config?: Partial<SearchConfigtype>): void {
 		// Priority: 1. Explicit config parameter, 2. Data attributes, 3. Defaults
-		let finalConfig: SearchConfigtype = {};
+		let finalConfig: Partial<SearchConfigtype> = {};
 		
 		// First, try to read from data attributes (from Liquid block)
 		const dataConfig = this.readConfigFromDataAttributes();
@@ -1174,6 +1301,7 @@ const SearchInit = {
 		const observer = new MutationObserver(() => {
 			this.overrideSearchButtons();
 			this.overrideSearchContainers();
+			// This will check visibility and observe hidden inputs
 			this.findAndReplaceInputs();
 		});
 
@@ -1181,6 +1309,40 @@ const SearchInit = {
 			childList: true,
 			subtree: true
 		});
+		
+		// Also check for inputs that might become visible on scroll/resize
+		let visibilityCheckTimeout: number | null = null;
+		const checkVisibleInputs = () => {
+			if (visibilityCheckTimeout) {
+				clearTimeout(visibilityCheckTimeout);
+			}
+			visibilityCheckTimeout = window.setTimeout(() => {
+				// Re-check all inputs that are in DOM but not yet replaced
+				const inputs = document.querySelectorAll<HTMLInputElement>(SearchState.config.searchInputSelector);
+				inputs.forEach(input => {
+					if (!SearchState.replacedInputs.has(input) && 
+					    !this.isFilterSectionInput(input) &&
+					    this.isShopifySearchInput(input)) {
+						if (this.isElementVisible(input)) {
+							Log.debug('Input became visible on scroll/resize, initializing', { name: input.name });
+							this.replaceInput(input);
+							// Stop observing if we were observing it
+							if (SearchState.observedInputs.has(input)) {
+								SearchState.visibilityObserver?.unobserve(input);
+								SearchState.observedInputs.delete(input);
+							}
+						} else if (!SearchState.observedInputs.has(input)) {
+							// Start observing if not already
+							this.observeInputForVisibility(input);
+						}
+					}
+				});
+			}, 100); // Debounce visibility checks
+		};
+		
+		// Check on scroll and resize
+		window.addEventListener('scroll', checkVisibleInputs, { passive: true });
+		window.addEventListener('resize', checkVisibleInputs, { passive: true });
 
 		// Close dropdown on outside click
 		document.addEventListener('click', (e) => {
