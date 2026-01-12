@@ -219,7 +219,9 @@ export async function authenticatedFetch(
   }
 
   // Fallback to regular fetch if auth not configured
-  return fetch(url, options);
+  // Remove bodyForAuth from options before passing to fetch
+  const { bodyForAuth: _, ...fetchOptions } = options;
+  return fetch(url, fetchOptions);
 }
 
 /**

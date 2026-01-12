@@ -100,7 +100,9 @@ export function authenticate(options: AuthMiddlewareOptions = {}) {
       }
 
       // Get authorization header
-      const authHeader = req.headers.authorization || req.headers['x-api-key'];
+      // Headers can be string | string[], so we need to handle both
+      const authHeaderValue = req.headers.authorization || req.headers['x-api-key'];
+      const authHeader = Array.isArray(authHeaderValue) ? authHeaderValue[0] : authHeaderValue;
       
       if (!authHeader) {
         if (required) {
