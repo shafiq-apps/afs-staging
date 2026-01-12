@@ -362,7 +362,7 @@ export class StorefrontSearchRepository {
         baseMustQueries.push({
           multi_match: {
             query: sanitizedFilters.search,
-            fields: [`${ES_FIELDS.TITLE_KEYWORD}^3`, 'vendor^2', 'productType', ES_FIELDS.TAGS],
+            fields: [`${ES_FIELDS.TITLE_KEYWORD}^3`, `${ES_FIELDS.VENDOR}^2`, `${ES_FIELDS.PRODUCT_TYPE}`, `${ES_FIELDS.TAGS}^1.5` ],
             type: 'best_fields',
             operator: 'and',
           },
@@ -721,9 +721,21 @@ export class StorefrontSearchRepository {
     }
 
     if (enabledAggregations.standard.has('tags')) {
+      // For aggregations on array fields, we need to use the keyword subfield if it exists
+      // However, if the index doesn't have tags.keyword indexed, we should use 'tags' directly
+      // Try tags.keyword first (ES_FIELDS.TAGS), but this might need to be 'tags' if keyword subfield isn't available
+      const tagsAggQuery = buildAggregationQuery('tags', { name: 'tags', field: ES_FIELDS.TAGS, sizeMult: 2, type: 'terms' });
+      logger.info('[getFacets] Building tags aggregation query', {
+        field: ES_FIELDS.TAGS,
+        hasQuery: !!tagsAggQuery.query,
+        queryType: tagsAggQuery.query?.match_all ? 'match_all' : 'bool',
+        mustQueriesCount: tagsAggQuery.query?.bool?.must?.length || 0,
+        hasPostFilter: !!tagsAggQuery.post_filter,
+        aggregationField: tagsAggQuery.aggs?.tags?.terms?.field,
+      });
       aggregationQueries.push({
         filterType: 'tags',
-        query: buildAggregationQuery('tags', { name: 'tags', field: 'tags', sizeMult: 2, type: 'terms' }),
+        query: tagsAggQuery,
       });
     }
 
@@ -857,10 +869,17 @@ export class StorefrontSearchRepository {
       }
     }
 
+    const tagsAgg = mergedAggregations.tags as { buckets?: Array<{ key: string; doc_count: number }> } | undefined;
     logger.info('Aggregation queries completed', {
       shop: shopDomain,
       mergedAggregationsKeys: Object.keys(mergedAggregations),
       responsesCount: msearchResponse.responses.length,
+      tagsBucketsCount: tagsAgg?.buckets?.length || 0,
+      tagsAggregation: tagsAgg ? {
+        hasBuckets: !!tagsAgg.buckets,
+        bucketsCount: tagsAgg.buckets?.length || 0,
+        sampleBuckets: tagsAgg.buckets?.slice(0, 3) || [],
+      } : 'missing',
     });
 
     // Use merged aggregations for processing
@@ -1068,10 +1087,11 @@ export class StorefrontSearchRepository {
       if (hasMultipleHandles && sanitizedFilters!.tags.length > 1) {
         // Different handles = AND logic: each value must be present
         // Use multiple term queries in bool.must for AND logic
+        // Use tags.keyword for exact matching (tags is text field with keyword subfield)
         clause = {
           bool: {
             must: sanitizedFilters!.tags.map((tag: string) => ({
-              term: { 'tags': tag }
+              term: { [ES_FIELDS.TAGS]: tag }
             }))
           }
         };
@@ -1081,7 +1101,8 @@ export class StorefrontSearchRepository {
         });
       } else {
         // Same handle or single value = OR logic: any value can match
-        clause = { terms: { 'tags': sanitizedFilters!.tags } };
+        // Use tags.keyword for exact matching (tags is text field with keyword subfield)
+        clause = { terms: { [ES_FIELDS.TAGS]: sanitizedFilters!.tags } };
         logger.info('Tags filter using OR logic (same handle or single value)', {
           tags: sanitizedFilters!.tags,
           handles: standardFieldToHandles,

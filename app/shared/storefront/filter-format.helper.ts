@@ -359,10 +359,14 @@ function createBaseFilter(
 
 /**
  * Format filter aggregations into array of descriptors
+ * @param aggregations - Elasticsearch aggregation results
+ * @param filterConfig - Filter configuration
+ * @param appliedFilters - Currently applied filters (to show filters with selected values even if aggregations are empty)
 */
 export function formatFilters(
   aggregations?: FacetAggregations,
-  filterConfig?: Filter | null
+  filterConfig?: Filter | null,
+  appliedFilters?: { tags?: string[]; vendors?: string[]; productTypes?: string[]; collections?: string[]; options?: Record<string, string[]> } | null
 ): StorefrontFilterDescriptor[] {
   if (!aggregations) {
     return [];
@@ -455,10 +459,86 @@ export function formatFilters(
       }
       
       // Type guard: standard filters are TermsAggregation (have buckets property)
-      if (!aggregation || !('buckets' in aggregation)) continue;
+      if (!aggregation || !('buckets' in aggregation)) {
+        // Check if this filter has selected values - if so, show it even with empty aggregations
+        const hasSelectedValues = appliedFilters && standardFilterMapping.aggregationKey && (
+          (standardFilterMapping.aggregationKey === 'tags' && appliedFilters.tags && appliedFilters.tags.length > 0) ||
+          (standardFilterMapping.aggregationKey === 'vendors' && appliedFilters.vendors && appliedFilters.vendors.length > 0) ||
+          (standardFilterMapping.aggregationKey === 'productTypes' && appliedFilters.productTypes && appliedFilters.productTypes.length > 0) ||
+          (standardFilterMapping.aggregationKey === 'collections' && appliedFilters.collections && appliedFilters.collections.length > 0)
+        );
+        if (!hasSelectedValues) continue;
+        // If it has selected values but no aggregation, create an empty filter
+        const label = option.label || option.optionType || standardFilterMapping.queryKey;
+        const baseFilter = createBaseFilter(
+          `${standardFilterMapping.type}:${option.handle}`,
+          standardFilterMapping.type,
+          standardFilterMapping.queryKey,
+          label,
+          option.handle,
+          filters.length
+        );
+        filters.push({
+          ...baseFilter,
+          handle: option.handle,
+          position: option.position,
+          optionType: option.optionType,
+          optionKey: standardFilterMapping.queryKey,
+          displayType: option.displayType || baseFilter.displayType || 'LIST',
+          selectionType: option.selectionType || baseFilter.selectionType || 'MULTIPLE',
+          allowedOptions: option.allowedOptions,
+          collapsed: option.collapsed ?? baseFilter.collapsed ?? false,
+          searchable: option.searchable ?? baseFilter.searchable ?? false,
+          showTooltip: option.showTooltip ?? baseFilter.showTooltip ?? false,
+          tooltipContent: option.tooltipContent || baseFilter.tooltipContent || '',
+          showCount: option.showCount !== undefined ? option.showCount : (baseFilter.showCount ?? true),
+          showMenu: option.showMenu ?? baseFilter.showMenu ?? false,
+          status: option.status || baseFilter.status || 'PUBLISHED',
+          values: [], // Empty values array since aggregation is empty
+        } as StorefrontFilterDescriptor);
+        continue;
+      }
 
       const values = normalizeBuckets(aggregation);
-      if (!values || values.length === 0) continue;
+      // Check if this filter has selected values - if so, show it even with empty aggregations
+      const hasSelectedValues = appliedFilters && standardFilterMapping.aggregationKey && (
+        (standardFilterMapping.aggregationKey === 'tags' && appliedFilters.tags && appliedFilters.tags.length > 0) ||
+        (standardFilterMapping.aggregationKey === 'vendors' && appliedFilters.vendors && appliedFilters.vendors.length > 0) ||
+        (standardFilterMapping.aggregationKey === 'productTypes' && appliedFilters.productTypes && appliedFilters.productTypes.length > 0) ||
+        (standardFilterMapping.aggregationKey === 'collections' && appliedFilters.collections && appliedFilters.collections.length > 0)
+      );
+      if (!values || values.length === 0) {
+        if (!hasSelectedValues) continue;
+        // If it has selected values but no aggregation results, create an empty filter
+        const label = option.label || option.optionType || standardFilterMapping.queryKey;
+        const baseFilter = createBaseFilter(
+          `${standardFilterMapping.type}:${option.handle}`,
+          standardFilterMapping.type,
+          standardFilterMapping.queryKey,
+          label,
+          option.handle,
+          filters.length
+        );
+        filters.push({
+          ...baseFilter,
+          handle: option.handle,
+          position: option.position,
+          optionType: option.optionType,
+          optionKey: standardFilterMapping.queryKey,
+          displayType: option.displayType || baseFilter.displayType || 'LIST',
+          selectionType: option.selectionType || baseFilter.selectionType || 'MULTIPLE',
+          allowedOptions: option.allowedOptions,
+          collapsed: option.collapsed ?? baseFilter.collapsed ?? false,
+          searchable: option.searchable ?? baseFilter.searchable ?? false,
+          showTooltip: option.showTooltip ?? baseFilter.showTooltip ?? false,
+          tooltipContent: option.tooltipContent || baseFilter.tooltipContent || '',
+          showCount: option.showCount !== undefined ? option.showCount : (baseFilter.showCount ?? true),
+          showMenu: option.showMenu ?? baseFilter.showMenu ?? false,
+          status: option.status || baseFilter.status || 'PUBLISHED',
+          values: [], // Empty values array since aggregation is empty
+        } as StorefrontFilterDescriptor);
+        continue;
+      }
 
       const processedValues = applyOptionSettings(values, option);
       if (!processedValues.length) continue;
@@ -518,7 +598,40 @@ export function formatFilters(
 
       if (!matchedKey) continue;
       const optionValues = rawOptions[matchedKey];
-      if (!optionValues || optionValues.length === 0) continue;
+      // Check if this option filter has selected values - if so, show it even with empty aggregations
+      const hasSelectedValues = appliedFilters?.options && appliedFilters.options[matchedKey] && appliedFilters.options[matchedKey].length > 0;
+      if (!optionValues || optionValues.length === 0) {
+        if (!hasSelectedValues) continue;
+        // If it has selected values but no aggregation results, create an empty filter
+        const label = option.label || option.optionType || matchedKey;
+        const baseFilter = createBaseFilter(
+          `option:${option.handle}`,
+          'option',
+          matchedKey,
+          label,
+          option.handle,
+          filters.length
+        );
+        filters.push({
+          ...baseFilter,
+          handle: option.handle,
+          position: option.position,
+          optionType: option.optionType,
+          optionKey: matchedKey,
+          displayType: option.displayType || baseFilter.displayType || 'LIST',
+          selectionType: option.selectionType || baseFilter.selectionType || 'MULTIPLE',
+          allowedOptions: option.allowedOptions,
+          collapsed: option.collapsed ?? baseFilter.collapsed ?? false,
+          searchable: option.searchable ?? baseFilter.searchable ?? false,
+          showTooltip: option.showTooltip ?? baseFilter.showTooltip ?? false,
+          tooltipContent: option.tooltipContent || baseFilter.tooltipContent || '',
+          showCount: option.showCount !== undefined ? option.showCount : (baseFilter.showCount ?? true),
+          showMenu: option.showMenu ?? baseFilter.showMenu ?? false,
+          status: option.status || baseFilter.status || 'PUBLISHED',
+          values: [], // Empty values array since aggregation is empty
+        } as StorefrontFilterDescriptor);
+        continue;
+      }
 
       usedOptionKeys.add(matchedKey);
       const processedValues = applyOptionSettings(optionValues, option);

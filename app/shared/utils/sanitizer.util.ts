@@ -13,7 +13,7 @@ import {
   MAX_TERMS_ARRAY_ITEMS,
 } from '@shared/constants/sanitization.constants';
 
-const logger = createModuleLogger('sanitizer');
+const logger = createModuleLogger('sanitizer.util');
 
 /**
  * Sanitize string input

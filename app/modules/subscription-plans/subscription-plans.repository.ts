@@ -5,7 +5,7 @@ import { createModuleLogger } from '@shared/utils/logger.util';
 import { getESClient } from '@core/elasticsearch';
 import { SUBSCRIPTION_PLANS_INDEX_NAME } from '@shared/constants/es.constant';
 
-const logger = createModuleLogger('subscription-plans-repo');
+const logger = createModuleLogger('subscription-plans-repository');
 
 
 export class SubscriptionPlansRepository {

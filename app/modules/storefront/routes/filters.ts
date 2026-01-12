@@ -122,7 +122,8 @@ export const GET = handler(async (req: HttpRequest) => {
   // This pre-compiles filters on server-side for optimal performance
   // formatFilters expects FacetAggregations (raw ES format), not ProductFilters
   // For REST endpoint, pass null as filterConfig to formatFilters to get ALL filters (not just configured ones)
-  const formattedFilters = formatFilters(aggregations, filterConfig)
+  // Pass appliedFilters to show filters with selected values even if aggregations are empty
+  const formattedFilters = formatFilters(aggregations, filterConfig, filterInput)
 
   logger.info('Formatted filters', {
     shop: shopParam,
