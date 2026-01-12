@@ -19,6 +19,7 @@ const logger = createModuleLogger('graphql-route');
  * Middleware for GraphQL endpoint
  */
 export const middleware = [
+  authenticate(),
   validateShopDomain(),
   validate({
     body: {
@@ -40,8 +41,7 @@ export const middleware = [
     max: RATE_LIMIT.GRAPHQL_ENDPOINT.MAX,
     windowMs: RATE_LIMIT.GRAPHQL_ENDPOINT.BUCKET_DURATION_MS,
     message: 'Too many GraphQL requests',
-  }),
-  authenticate()
+  })
 ];
 
 /**

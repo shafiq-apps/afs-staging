@@ -1,5 +1,6 @@
 import { buildGraphQLEndpoint } from "./utils/build-graphQL-endpoint";
 import { createModuleLogger } from "./utils/logger";
+import { authenticatedFetch, shouldAuthenticate } from "./utils/auth.server";
 
 const logger = createModuleLogger("graphql.server");
 
@@ -13,13 +14,28 @@ export async function graphqlRequest<T = any>(
   logger.info("variables",variables);
   logger.info("query",query);
 
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ query, variables }),
-  });
+  // Use authenticated fetch if authentication is configured and endpoint requires it
+  const useAuth = shouldAuthenticate(endpoint);
+  const requestBodyObj = { query, variables };
+  const requestBody = JSON.stringify(requestBodyObj);
+  
+  const response = useAuth
+    ? await authenticatedFetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: requestBody,
+        // Pass the parsed object for authentication (will be hashed with sorted keys)
+        bodyForAuth: requestBodyObj,
+      })
+    : await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: requestBody,
+      });
 
   const result = await response.json().catch(() => ({}));
 

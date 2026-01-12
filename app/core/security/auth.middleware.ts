@@ -184,6 +184,7 @@ export function authenticate(options: AuthMiddlewareOptions = {}) {
       }
 
       // Hash request body
+      // Note: req.body is already parsed by Express body parser
       const bodyHash = hashRequestBody(req.body);
 
       // Build query string (sorted for deterministic ordering)
@@ -207,13 +208,22 @@ export function authenticate(options: AuthMiddlewareOptions = {}) {
       );
 
       if (!isValid) {
+        // Enhanced logging for debugging
         logger.warn('Signature validation failed', {
           path: req.path,
           method: req.method,
           apiKey,
           ip: req.ip || req.socket?.remoteAddress,
-          // Don't log signatures in production
           signatureMatch: false,
+          // Debug info (only in development)
+          debug: process.env.NODE_ENV === 'development' ? {
+            expectedBodyHash: bodyHash,
+            queryString,
+            timestamp,
+            nonce: nonce.substring(0, 10) + '...',
+            path: req.path,
+            method: req.method,
+          } : undefined,
         });
 
         res.status(401).json({
