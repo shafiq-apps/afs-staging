@@ -218,11 +218,15 @@ export function authenticate(options: AuthMiddlewareOptions = {}) {
           // Debug info (only in development)
           debug: process.env.NODE_ENV === 'development' ? {
             expectedBodyHash: bodyHash,
+            providedSignature: providedSignature.substring(0, 20) + '...',
+            expectedSignature: expectedSignature.substring(0, 20) + '...',
             queryString,
             timestamp,
             nonce: nonce.substring(0, 10) + '...',
             path: req.path,
             method: req.method,
+            bodyType: typeof req.body,
+            bodyKeys: req.body && typeof req.body === 'object' ? Object.keys(req.body).sort() : null,
           } : undefined,
         });
 
