@@ -280,9 +280,15 @@ export const API = {
 
 		const params = new URLSearchParams();
 		params.set('shop', FilterState.shop);
+
+		if (FilterState.selectedCollection.id) {
+			params.set('cpid', FilterState.selectedCollection.id!);
+			Log.debug('cpid sent to products API', { cpid: FilterState.selectedCollection.id, filters });
+		}
+		else{
+			Log.error('cpid not found', FilterState.selectedCollection.id);
+		}
 		
-		params.set('cpid', FilterState.selectedCollection.id!);
-		Log.debug('cpid sent to products API', { cpid: FilterState.selectedCollection.id, filters });
 		// Send ALL filters as direct query parameters using handles as keys
 		// URL format: ?handle1=value1&handle2=value2
 		// API format: ?handle1=value1&handle2=value2 (same as URL)
@@ -365,6 +371,14 @@ export const API = {
 
 		const params = new URLSearchParams();
 		params.set('shop', FilterState.shop);
+
+		if (FilterState.selectedCollection.id) {
+			params.set('cpid', FilterState.selectedCollection.id!);
+			Log.debug('cpid sent to products API', { cpid: FilterState.selectedCollection.id, filters });
+		}
+		else{
+			Log.error('cpid not found', FilterState.selectedCollection.id);
+		}
 		
 		params.set('cpid', FilterState.selectedCollection.id!);
 		Log.debug('cpid sent to filters API', { cpid: FilterState.selectedCollection.id, filters });
@@ -456,9 +470,6 @@ export const API = {
 				}
 			}
 		});
-
-		// Clear cpid if filters are present (other than page, sort, size, limit)
-		clearCpidIfFiltersPresent(FilterState.filters);
 	},
 
 	setPaginationFromUrl(urlParams: Record<string, any>): void {
@@ -674,10 +685,8 @@ export const DOM = {
 				const value = removeBtn?.getAttribute('data-afs-filter-value');
 				if (!key) return;
 
-				// Special-case: applied chips for non-toggle filters
 				if ($.equals(key, FilterKeyType.CPID)) {
 					if (FilterState.selectedCollection?.id) {
-						FilterState.selectedCollection.id = null;
 						Log.debug('cpid removed, cleared selectedCollection');
 					}
 					UrlManager.update(FilterState.filters, FilterState.pagination, FilterState.sort);
@@ -771,21 +780,7 @@ export const DOM = {
 
 				// Remove the filter from FilterState.filters
 				if (FilterState.filters[handle]) {
-					// If clearing collection filter and cpid exists, check if cpid was in the filter values
-					if (isCollectionFilter && FilterState.selectedCollection?.id) {
-						const filterValues = FilterState.filters[handle];
-						const originalCpid = FilterState.selectedCollection.id;
-						const cpidInValues = Array.isArray(filterValues) &&
-							filterValues.some(v => String(v) === String(originalCpid));
-						if (cpidInValues) {
-							FilterState.selectedCollection.id = null;
-							Log.debug('Collection filter cleared (contained cpid), cleared cpid', {
-								handle,
-								cpid: originalCpid
-							});
-						}
-					}
-
+					
 					delete FilterState.filters[handle];
 					Log.debug('Filter cleared', { handle, isCollectionFilter });
 
@@ -1966,7 +1961,10 @@ export const DOM = {
 		const activeFilters: AppliedFilterType[] = [];
 		Object.keys(filters).forEach(key => {
 			const value = filters[key];
-			if ($.equals(key, FilterKeyType.SEARCH) && value && typeof value === 'string' && value.trim()) {
+			if($.equals(key, FilterKeyType.CPID)){
+				// no cpid to render
+			}
+			else if ($.equals(key, FilterKeyType.SEARCH) && value && typeof value === 'string' && value.trim()) {
 				activeFilters.push({ handle: key, label: `${Lang.labels.search}${value}`, value });
 			} else if ($.isPriceRangeKey(key) && value && typeof value === 'object' && !Array.isArray(value)) {
 				const priceRange = value as PriceRangeType;
@@ -2319,44 +2317,6 @@ export const FallbackMode = {
 	}
 };
 
-/**
- * Check if filters are present (other than page, sort, size, limit)
- * If filters are present, clear cpid so it won't be sent automatically
- */
-export const clearCpidIfFiltersPresent = (filters: FiltersStateType): void => {
-	return;
-	// if (!FilterState.selectedCollection?.id) {
-	// 	return; // No cpid to clear
-	// }
-
-	// // Check if there are any filters other than page, sort, size, limit
-	// const hasFilters = Object.keys(filters || {}).some(key => {
-	// 	const value = filters[key];
-	// 	// Skip empty values
-	// 	if ($.empty(value)) return false;
-	// 	// Skip pagination/sort params (these don't count as filters)
-	// 	if ($.equalsAny(key, FilterKeyType.PAGE, FilterKeyType.LIMIT, FilterKeyType.SORT, FilterKeyType.SIZE)) return false;
-	// 	// Skip priceRange if it's null or empty
-	// 	if ($.isPriceRangeKey(key)) {
-	// 		if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
-	// 		const priceRange = value as PriceRangeType;
-	// 		const hasMin = typeof priceRange.min === 'number' && !isNaN(priceRange.min);
-	// 		const hasMax = typeof priceRange.max === 'number' && !isNaN(priceRange.max);
-	// 		if (!hasMin && !hasMax) return false;
-	// 	}
-	// 	// Skip search if empty
-	// 	if ($.equals(key, FilterKeyType.SEARCH) && (!value || typeof value !== 'string' || !value.trim())) return false;
-	// 	// All other keys are considered filters
-	// 	return true;
-	// });
-
-	// if (hasFilters) {
-	// 	// Keep CPID hidden and managed server-side. Do NOT clear it when client
-	// 	// filters are present — we will send CPID in background API requests instead.
-	// 	Log.debug('Filters present, keeping cpid (server-managed)', { filters });
-	// }
-};
-
 export function handleLoadError(e: unknown) {
     DOM.hideLoading();
     Log.error('Load failed', {
@@ -2494,36 +2454,6 @@ export const Filters = {
 		const filterValues = isActive
 			? current.filter(v => v !== normalized)
 			: [...current, normalized];
-
-		// Check if this is a collection filter and if cpid should be cleared
-		const metadata = FilterState.filterMetadata.get(handle);
-		const isCollectionFilter = (metadata?.optionType === 'Collection' || handle === 'collections');
-
-		if (isCollectionFilter && FilterState.selectedCollection?.id) {
-			// Store original cpid value before any modifications
-			const originalCpid = FilterState.selectedCollection.id;
-
-			// If unchecking (removing) and the value matches cpid, clear cpid
-			if (isActive && String(normalized) === String(originalCpid)) {
-				FilterState.selectedCollection.id = null;
-				Log.debug('Collection filter unchecked (was cpid), cleared cpid', {
-					handle,
-					value: normalized,
-					cpid: originalCpid
-				});
-			}
-			// Also check if cpid is no longer in the filter values after toggle
-			else if (!filterValues.some(v => String(v) === String(originalCpid))) {
-				FilterState.selectedCollection.id = null;
-				Log.debug('Collection filter toggled, cpid no longer in values, cleared cpid', {
-					handle,
-					value: normalized,
-					filterValues,
-					wasCpid: String(normalized) === String(originalCpid),
-					originalCpid
-				});
-			}
-		}
 
 		if (filterValues.length === 0) {
 			delete FilterState.filters[handle];
