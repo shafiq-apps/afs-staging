@@ -116,8 +116,6 @@ export class SubscriptionsRepository {
         },
       });
 
-      console.log("shopifyRes",Date.now(), shopifyRes);
-
       if (shopifyRes.errors?.length) {
         logger.error('Errors fetching subscription from Shopify', {
           shop,

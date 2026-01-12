@@ -116,8 +116,6 @@ export const GET = handler(async (req: HttpRequest) => {
     optionPairsBucketCount: aggregations?.optionPairs?.buckets?.length || 0,
   });
 
-  // console.log("aggregations", aggregations?.optionPairs?.buckets?.filter(b => b.key.includes("Ships From")));
-
   // Format filters with filterConfig settings applied (position sorting, filtering, etc.)
   // This pre-compiles filters on server-side for optimal performance
   // formatFilters expects FacetAggregations (raw ES format), not ProductFilters

@@ -5,7 +5,9 @@ import {
   shopifyApp,
 } from "@shopify/shopify-app-react-router/server";
 import { ElasticsearchSessionStorage } from "./session-storage/elasticsearch-session-storage";
+import { createModuleLogger } from "./utils/logger";
 
+const logger = createModuleLogger("shopify.server");
 const esSessionStorage = new ElasticsearchSessionStorage();
 
 const shopify = shopifyApp({
@@ -27,7 +29,7 @@ const shopify = shopifyApp({
           await esSessionStorage.storeSession(session);
         }
       } catch (err) {
-        console.error("Failed to store session", err);
+        logger.error("Failed to store session", err);
       }
     }
   }

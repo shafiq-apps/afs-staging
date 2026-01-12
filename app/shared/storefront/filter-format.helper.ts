@@ -32,7 +32,6 @@ export function formatOptionPairs(optionPairsBuckets?: Array<{ key: string; doc_
   const buckets = optionPairsBuckets ?? [];
 
   var index = 0;
-  // console.log("buckets", buckets.filter(b => b.key.includes("Ships From")));
   for (const bucket of buckets) {
 
     const key = bucket.key || '';
@@ -42,12 +41,6 @@ export function formatOptionPairs(optionPairsBuckets?: Array<{ key: string; doc_
 
     if (!optionEntries[optionName]) {
       optionEntries[optionName] = [];
-    }
-    if(optionName === "Ships From") {
-      // console.log("#"+index, bucket.key, bucket.doc_count);
-    }
-    else{
-      // console.log("optionName:", optionName, bucket.key);
     }
     
     index++;
@@ -132,12 +125,6 @@ function applyOptionSettings(
   optionItems: FacetValue[],
   configOption?: Filter['options'][number]
 ): FacetValue[] {
-
-  if (configOption.handle === "comcj5" && false) {
-    console.log("************************************************************");
-    console.log("optionItems", optionItems);
-    console.log("************************************************************");
-  }
 
   if (!configOption) {
     return [...optionItems];
@@ -377,10 +364,6 @@ export function formatFilters(
     return [];
   }
 
-  // console.log("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
-  // console.log(aggregations?.optionPairs?.buckets);
-  // console.log("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
-
   const filters: StorefrontFilterDescriptor[] = [];
   const rawOptions = formatOptionPairs(aggregations.optionPairs?.buckets);
   const usedOptionKeys = new Set<string>();
@@ -586,15 +569,6 @@ export function formatFilters(
         option.optionType,
         option.label,
       ]);
-
-      // if(derivedVariantOptionKey === "Ships From") {
-      //   console.log("**********************************************");
-      //   console.log("matchedKey", matchedKey);
-      //   console.log("rawOptions", rawOptions["Ships From"]);
-      //   console.log("**********************************************");
-      // }
-
-      // console.log(derivedVariantOptionKey);
 
       if (!matchedKey) continue;
       const optionValues = rawOptions[matchedKey];

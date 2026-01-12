@@ -222,9 +222,6 @@ export default function SearchPage() {
 
       const result = await response.json();
 
-      // Log response for debugging
-      console.log("GraphQL response:", result);
-
       // Check for GraphQL errors
       if (result.errors && result.errors.length > 0) {
         const errorMessage = result.errors[0]?.message || "Failed to update search configuration";
@@ -235,12 +232,10 @@ export default function SearchPage() {
 
       // Check if data exists
       if (!result.data) {
-        console.error("No data in response:", result);
         throw new Error("Unexpected response format: missing data field. Response: " + JSON.stringify(result));
       }
 
       if (!result.data.updateSearchConfig) {
-        console.error("Missing updateSearchConfig in data:", result.data);
         throw new Error("Unexpected response format: missing updateSearchConfig data. Available keys: " + Object.keys(result.data || {}).join(", "));
       }
 
