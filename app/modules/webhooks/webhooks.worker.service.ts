@@ -15,7 +15,7 @@ import { GET_PRODUCT_QUERY } from '@modules/indexing/indexing.graphql';
 import { transformProductToESDoc } from '@modules/indexing/indexing.helper';
 import { buildShopifyGid } from '@shared/utils/shopify-id.util';
 import { filterProductFields } from '@shared/storefront/field.filter';
-import type { productOption, productCategory, productPriceRangeV2 } from '@shared/storefront/types';
+import type { ShopifyAdminProductGraphQLResponse } from '@shared/types/shopify-admin.type';
 
 const logger = createModuleLogger('webhooks-worker');
 
@@ -227,91 +227,7 @@ export class WebhookWorkerService {
 
     // Fetch full product data from Shopify Admin API using GraphQL
     // This ensures we get all required fields (collections, variants, options, etc.)
-    
-    /**
-     * Raw Shopify Admin API GraphQL product response structure
-     * Matches the structure returned by GET_PRODUCT_QUERY
-     */
-    interface ShopifyAdminProduct {
-      id: string;
-      title?: string | null;
-      handle?: string | null;
-      category?: productCategory | null;
-      createdAt?: string | null;
-      updatedAt?: string | null;
-      publishedAt?: string | null;
-      tags?: string[];
-      vendor?: string | null;
-      productType?: string | null;
-      status?: string | null;
-      templateSuffix?: string | null;
-      totalInventory?: number | null;
-      tracksInventory?: boolean | null;
-      priceRangeV2?: productPriceRangeV2 | null;
-      options?: productOption[];
-      media?: {
-        edges?: Array<{
-          node?: {
-            id?: string;
-            alt?: string | null;
-            preview?: {
-              image?: {
-                url?: string;
-                altText?: string | null;
-              } | null;
-            } | null;
-            status?: string | null;
-          } | null;
-        } | null>;
-      } | null;
-      variants?: {
-        edges?: Array<{
-          node?: {
-            id?: string;
-            title?: string | null;
-            displayName?: string | null;
-            sku?: string | null;
-            barcode?: string | null;
-            price?: string | null;
-            compareAtPrice?: string | null;
-            availableForSale?: boolean | null;
-            inventoryQuantity?: number | null;
-            position?: number | null;
-            sellableOnlineQuantity?: number | null;
-            taxable?: boolean | null;
-            createdAt?: string | null;
-            selectedOptions?: Array<{
-              name?: string | null;
-              value?: string | null;
-            } | null>;
-          } | null;
-        } | null>;
-      } | null;
-      collections?: {
-        edges?: Array<{
-          node?: {
-            id?: string;
-          } | null;
-        } | null>;
-      } | null;
-      metafields?: {
-        edges?: Array<{
-          node?: {
-            id?: string;
-            namespace?: string | null;
-            key?: string | null;
-            value?: string | null;
-            type?: string | null;
-          } | null;
-        } | null>;
-      } | null;
-    }
-
-    interface ProductGraphQLResponse {
-      product: ShopifyAdminProduct | null;
-    }
-
-    const graphqlResponse = await this.graphqlRepo.post<ProductGraphQLResponse>(shop, {
+    const graphqlResponse = await this.graphqlRepo.post<ShopifyAdminProductGraphQLResponse>(shop, {
       query: GET_PRODUCT_QUERY,
       variables: { id: productGID },
     });
