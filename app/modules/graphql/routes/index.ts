@@ -11,6 +11,7 @@ import { rateLimit } from '@core/security/rate-limit.middleware';
 import { createModuleLogger } from '@shared/utils/logger.util';
 import { GraphQLRequest, GraphQLContext } from '../graphql.type';
 import { RATE_LIMIT } from '@shared/constants/app.constant';
+import { authenticate } from '@core/security';
 
 const logger = createModuleLogger('graphql-route');
 
@@ -40,6 +41,7 @@ export const middleware = [
     windowMs: RATE_LIMIT.GRAPHQL_ENDPOINT.BUCKET_DURATION_MS,
     message: 'Too many GraphQL requests',
   }),
+  authenticate()
 ];
 
 /**

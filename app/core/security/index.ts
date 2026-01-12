@@ -9,6 +9,9 @@ export * from './request-size.middleware';
 export * from './csrf.middleware';
 export * from './csrf.helper';
 export * from './default-security.middleware';
+export * from './auth.middleware';
+export * from './auth.helper';
+export * from './api-keys.helper';
 
 // Re-export sanitizers from shared utils
 export {
