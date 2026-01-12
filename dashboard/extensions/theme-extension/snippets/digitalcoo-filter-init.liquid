@@ -68,7 +68,12 @@
       fallbackPagination: liquidPagination,
       moneyFormat: {{ shop.money_format | json }},
       moneyWithCurrencyFormat: {{ shop.money_with_currency_format | json }},
-      currency: {{ cart.currency.iso_code | default: shop.currency | json }}
+      currency: {{ cart.currency.iso_code | default: shop.currency | json }},
+      {% comment %} Pass search query from Liquid for search template {% endcomment %}
+      {% if template.name == 'search' and search.terms %}
+      initialSearchQuery: {{ search.terms | json }},
+      {% endif %}
+      isSearchTemplate: {% if template.name == 'search' %}true{% else %}false{% endif %}
     };
 
     // Function to initialize AFS

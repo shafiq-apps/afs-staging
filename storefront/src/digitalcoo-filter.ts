@@ -90,6 +90,8 @@ export const UrlManager = {
 			else if ($.isTagKey(key)) params.tags = $.split(value);
 			else if ($.isCollectionKey(key)) params.collections = $.split(value);
 			else if ($.equals(key, FilterKeyType.SEARCH)) params.search = value;
+			// Support Shopify search page 'q' parameter (map to 'search')
+			else if ($.equals(key, 'q')) params.search = value;
 			// Server-supported price range params
 			else if ($.equals(key, FilterKeyType.PRICE_MIN)) {
 				const v = Math.round(parseFloat(value));
@@ -179,8 +181,12 @@ export const UrlManager = {
 					}
 				}
 				else if ($.equals(key, FilterKeyType.SEARCH) && typeof value === 'string' && value.trim()) {
-					url.searchParams.set(key, value.trim());
-					Log.debug('Search URL param set', { key, value: value.trim() });
+					// For search template, use 'q' parameter (Shopify standard)
+					// For other templates, use 'search' parameter
+					const isSearchTemplate = (window as any).AFS_Config?.isSearchTemplate || false;
+					const paramKey = isSearchTemplate ? 'q' : 'search';
+					url.searchParams.set(paramKey, value.trim());
+					Log.debug('Search URL param set', { key: paramKey, value: value.trim(), isSearchTemplate });
 				}
 			});
 		}
@@ -449,12 +455,14 @@ export const API = {
 	buildFiltersFromUrl(urlParams: Record<string, any>): void {
 		// Rebuild filters from URL params BEFORE calling API.filters()
 		// This ensures filters endpoint receives the correct filters from URL
+		// Support both 'search' and 'q' parameters (Shopify search page uses 'q')
+		const searchQuery = urlParams.search || urlParams.q || '';
 		FilterState.filters = {
 			vendor: urlParams.vendor || [],
 			productType: urlParams.productType || [],
 			tags: urlParams.tags || [],
 			collections: urlParams.collections || [],
-			search: urlParams.search || '',
+			search: searchQuery,
 			priceRange: urlParams.priceRange || null
 		};
 
@@ -541,6 +549,9 @@ export const DOM = {
 
 		this.container.setAttribute('data-afs-container', 'true');
 
+		// Initialize search bar for search template
+		this.initSearchBar();
+
 		const main = this.container.querySelector<HTMLElement>('.afs-main-content') || $.el('div', 'afs-main-content');
 		if (!main.parentNode) this.container.appendChild(main);
 
@@ -551,6 +562,20 @@ export const DOM = {
 
 		if (!this.filtersContainer) {
 			this.filtersContainer = $.el('div', 'afs-filters-container');
+		}
+
+		// Move search bar above applied filters (for search template)
+		// The search bar should appear before the applied filters section
+		const searchBar = this.container.querySelector<HTMLElement>('[data-afs-search-bar]');
+		if (searchBar) {
+			// Remove from current position if it exists
+			if (searchBar.parentNode) {
+				searchBar.parentNode.removeChild(searchBar);
+			}
+			// Insert at the beginning of container (before applied filters and filters container)
+			if (this.container && !searchBar.parentNode) {
+				this.container.insertBefore(searchBar, this.container.firstChild);
+			}
 		}
 
 		if (!this.filtersContainer.parentNode && main) main.appendChild(this.filtersContainer);
@@ -641,6 +666,76 @@ export const DOM = {
 		if (this.productsContainer) {
 			this.productsContainer.appendChild(this.productsGrid);
 		}
+	},
+
+	initSearchBar(): void {
+		if (!this.container) return;
+		
+		const searchBar = this.container.querySelector<HTMLElement>('[data-afs-search-bar]');
+		if (!searchBar) return;
+
+		const searchInput = searchBar.querySelector<HTMLInputElement>('[data-afs-search-input]');
+		const searchForm = searchBar.querySelector<HTMLFormElement>('[data-afs-search-form]');
+		
+		if (!searchInput || !searchForm) return;
+
+		// Show search bar
+		searchBar.style.display = '';
+
+		// Set initial value from URL or config
+		const urlParams = UrlManager.parse();
+		const initialQuery = urlParams.q || urlParams.search || '';
+		if (initialQuery) {
+			searchInput.value = initialQuery;
+		}
+
+		// Handle form submission
+		searchForm.addEventListener('submit', (e) => {
+			e.preventDefault();
+			const query = searchInput.value.trim();
+			if (query) {
+				// Update search filter
+				FilterState.filters.search = query;
+				FilterState.pagination.page = 1;
+				UrlManager.update(FilterState.filters, FilterState.pagination, FilterState.sort);
+				DOM.scrollToProducts();
+				DOM.showLoading('products');
+				Filters.apply();
+			}
+		});
+
+		// Handle input change with debounce
+		let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+		searchInput.addEventListener('input', () => {
+			if (debounceTimer) clearTimeout(debounceTimer);
+			debounceTimer = setTimeout(() => {
+				const query = searchInput.value.trim();
+				// Update search filter
+				FilterState.filters.search = query;
+				FilterState.pagination.page = 1;
+				UrlManager.update(FilterState.filters, FilterState.pagination, FilterState.sort);
+				DOM.scrollToProducts();
+				DOM.showLoading('products');
+				Filters.apply();
+			}, Config.DEBOUNCE);
+		});
+
+		// Sync search input with URL changes (back/forward navigation)
+		const syncSearchInput = () => {
+			const urlParams = UrlManager.parse();
+			const currentQuery = urlParams.q || urlParams.search || '';
+			if (searchInput.value !== currentQuery) {
+				searchInput.value = currentQuery;
+			}
+		};
+
+		// Listen for URL changes
+		window.addEventListener('popstate', syncSearchInput);
+		
+		// Store reference to sync function for use in popstate handler
+		(searchInput as any)._syncSearchInput = syncSearchInput;
+
+		Log.debug('Search bar initialized', { hasInput: !!searchInput, hasForm: !!searchForm });
 	},
 
 	attachEvents(): void {
@@ -984,6 +1079,12 @@ export const DOM = {
 		}, true);
 
 		window.addEventListener('popstate', () => {
+			// Sync search input if it exists
+			const searchInput = DOM.container?.querySelector<HTMLInputElement>('[data-afs-search-input]');
+			if (searchInput && (searchInput as any)._syncSearchInput) {
+				(searchInput as any)._syncSearchInput();
+			}
+
 			const params = UrlManager.parse();
 
 			// Store old state to detect if filters changed
@@ -992,12 +1093,14 @@ export const DOM = {
 			const oldSort = JSON.stringify(FilterState.sort);
 
 			// Rebuild filters from params (includes standard filters + handles)
+			// Support both 'search' and 'q' parameters (Shopify search page uses 'q')
+			const searchQuery = params.search || params.q || '';
 			FilterState.filters = {
 				vendor: params.vendor || [],
 				productType: params.productType || [],
 				tags: params.tags || [],
 				collections: params.collections || [],
-				search: params.search || '',
+				search: searchQuery,
 				priceRange: params.priceRange || null
 			};
 			// Add all handle-based filters (everything that's not a standard filter)
@@ -1955,6 +2058,9 @@ export const DOM = {
 		const existing = this.container.querySelector<HTMLElement>('.afs-applied-filters');
 		if (existing) existing.remove();
 
+		// Find search bar to position applied filters after it
+		const searchBar = this.container.querySelector<HTMLElement>('[data-afs-search-bar]');
+
 		// Count active filters
 		// key here is the handle (for option filters) or queryKey (for standard filters)
 		const activeFilters: AppliedFilterType[] = [];
@@ -2037,7 +2143,16 @@ export const DOM = {
 		list.appendChild(clearAll);
 
 		appliedContainer.appendChild(list);
-		this.container.insertBefore(appliedContainer, this.container.firstChild);
+
+		// Insert applied filters after search bar (if exists) or at the beginning
+		if (searchBar && searchBar.nextSibling) {
+			this.container.insertBefore(appliedContainer, searchBar.nextSibling);
+		} else if (searchBar) {
+			// Search bar exists but has no next sibling, append after it
+			searchBar.insertAdjacentElement('afterend', appliedContainer);
+		} else {
+			this.container.insertBefore(appliedContainer, this.container.firstChild);
+		}
 	},
 
 	scrollToProducts(): void {
@@ -2715,6 +2830,18 @@ export const AFS: AFSInterface = {
 				sortBy: config.selectedCollection?.sortBy ?? null
 			};
 			FilterState.scrollToProductsOnFilter = config.scrollToProductsOnFilter !== false;
+
+			// Store search template flag and initial search query
+			if ((config as any).isSearchTemplate) {
+				(window as any).AFS_Config = { isSearchTemplate: true };
+			}
+			if ((config as any).initialSearchQuery) {
+				// Set initial search query from Liquid
+				const urlParams = UrlManager.parse();
+				if (!urlParams.search && !urlParams.q) {
+					FilterState.filters.search = (config as any).initialSearchQuery;
+				}
+			}
 
 			// Store money format from Shopify
 			if (config.moneyFormat) {
