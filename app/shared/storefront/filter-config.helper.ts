@@ -19,6 +19,11 @@ const FILTER_TYPE = {
   DEFAULT: 'default',
 } as const;
 
+const FILTER_SCOPE = {
+  ALL: 'all',
+  ENTITLED: 'entitled',
+} as const;
+
 const STANDARD_FILTER_MAPPING: Record<string, keyof ProductFilterInput> = {
   vendor: 'vendors',
   vendors: 'vendors',
@@ -165,7 +170,7 @@ export async function getActiveFilterConfig(
   try {
     // Use cpid (collection page ID) as the primary identifier for collection matching
     // cpid is the current page collection ID where filters should be rendered
-    const targetCollectionId = cpid || collectionId;
+    const targetCollectionId = cpid;
     
     // Pass cpid to listFilters for cache key generation
     // If cpid changes and there are multiple filters, cache will be invalidated
@@ -189,8 +194,7 @@ export async function getActiveFilterConfig(
       
       const collectionSpecificFilters = publishedFilters.filter((f) => {
         // Use normalized comparison for targetScope (handles both 'entitled' and legacy 'specific')
-        const normalizedScope = normalizeString(f.targetScope);
-        const isEntitled = normalizedScope === 'entitled';
+        const isEntitled = normalizeString(f.targetScope) === normalizeString(FILTER_SCOPE.ENTITLED);
         if (!isEntitled) return false;
         
         // Check if collection is in allowedCollections array
@@ -288,39 +292,39 @@ export async function getActiveFilterConfig(
     }
 
     // Priority 3: Custom published filter (fallback, any scope)
-    const customFilter = publishedFilters.find((f) => normalizeString(f.filterType) === normalizeString(FILTER_TYPE.CUSTOM));
-    if (customFilter) {
-      logger.info('Custom published filter found (fallback)', {
-        shop,
-        filterId: customFilter.id,
-        title: customFilter.title,
-        optionsCount: customFilter.options?.length || 0,
-      });
-      return customFilter;
-    }
+    // const customFilter = publishedFilters.find((f) => normalizeString(f.filterType) === normalizeString(FILTER_TYPE.CUSTOM));
+    // if (customFilter) {
+    //   logger.info('Custom published filter found (fallback)', {
+    //     shop,
+    //     filterId: customFilter.id,
+    //     title: customFilter.title,
+    //     optionsCount: customFilter.options?.length || 0,
+    //   });
+    //   return customFilter;
+    // }
 
     // Priority 4: Default published filter (fallback, any scope)
-    const defaultFilter = publishedFilters.find((f) => normalizeString(f.filterType) === FILTER_TYPE.DEFAULT);
-    if (defaultFilter) {
-      logger.info('Default published filter found (fallback)', {
-        shop,
-        filterId: defaultFilter.id,
-        title: defaultFilter.title,
-        optionsCount: defaultFilter.options?.length || 0,
-      });
-      return defaultFilter;
-    }
+    // const defaultFilter = publishedFilters.find((f) => normalizeString(f.filterType) === FILTER_TYPE.DEFAULT);
+    // if (defaultFilter) {
+    //   logger.info('Default published filter found (fallback)', {
+    //     shop,
+    //     filterId: defaultFilter.id,
+    //     title: defaultFilter.title,
+    //     optionsCount: defaultFilter.options?.length || 0,
+    //   });
+    //   return defaultFilter;
+    // }
 
     // Priority 5: Any published filter (last resort)
-    const anyFilter = publishedFilters[0];
-    logger.info('Using first available published filter (last resort)', {
-      shop,
-      filterId: anyFilter.id,
-      title: anyFilter.title,
-      filterType: anyFilter.filterType,
-      optionsCount: anyFilter.options?.length || 0,
-    });
-    return anyFilter;
+    // const anyFilter = publishedFilters[0];
+    // logger.info('Using first available published filter (last resort)', {
+    //   shop,
+    //   filterId: anyFilter.id,
+    //   title: anyFilter.title,
+    //   filterType: anyFilter.filterType,
+    //   optionsCount: anyFilter.options?.length || 0,
+    // });
+    // return anyFilter;
   } catch (error: any) {
     logger.error('Error getting active filter configuration', {
       shop,

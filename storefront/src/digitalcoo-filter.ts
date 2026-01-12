@@ -261,17 +261,6 @@ export const API = {
 		}
 	},
 
-	/**
-	 * Check if cpid should be sent to API
-	 * Since clearCpidIfFiltersPresent() already clears cpid when filters are present,
-	 * we only need to check if cpid exists and if it's not already in collection filter handle
-	 */
-	shouldSendCpid(): boolean {
-		// For the server-managed CPID approach we always send CPID when present.
-		// The server will decide how to apply it; client must never expose it in URL/UI.
-		return !!FilterState.selectedCollection?.id;
-	},
-
 	async products(filters: FiltersStateType, pagination: PaginationStateType, sort: SortStateType): Promise<ProductsResponseDataType> {
 		if (!this.baseURL) throw new Error('API baseURL not set. Call AFS.init({ apiBaseUrl: "..." })');
 		if (!FilterState.shop) throw new Error('Shop not set');
@@ -291,18 +280,9 @@ export const API = {
 
 		const params = new URLSearchParams();
 		params.set('shop', FilterState.shop);
-
-		// Only send cpid if conditions are met (clean page or only sort/page/limit, and not in collection filter)
-		if (this.shouldSendCpid()) {
-			params.set('cpid', FilterState.selectedCollection.id!);
-			Log.debug('cpid sent to products API', { cpid: FilterState.selectedCollection.id, filters });
-		} else {
-			Log.debug('cpid not sent to products API', {
-				hasCpid: !!FilterState.selectedCollection?.id,
-				filters,
-				reason: 'filters present or cpid already in collection filter'
-			});
-		}
+		
+		params.set('cpid', FilterState.selectedCollection.id!);
+		Log.debug('cpid sent to products API', { cpid: FilterState.selectedCollection.id, filters });
 		// Send ALL filters as direct query parameters using handles as keys
 		// URL format: ?handle1=value1&handle2=value2
 		// API format: ?handle1=value1&handle2=value2 (same as URL)
@@ -385,18 +365,9 @@ export const API = {
 
 		const params = new URLSearchParams();
 		params.set('shop', FilterState.shop);
-
-		// Only send cpid if conditions are met (clean page or only sort/page/limit, and not in collection filter)
-		if (this.shouldSendCpid()) {
-			params.set('cpid', FilterState.selectedCollection.id!);
-			Log.debug('cpid sent to filters API', { cpid: FilterState.selectedCollection.id, filters });
-		} else {
-			Log.debug('cpid not sent to filters API', {
-				hasCpid: !!FilterState.selectedCollection?.id,
-				filters,
-				reason: 'filters present or cpid already in collection filter'
-			});
-		}
+		
+		params.set('cpid', FilterState.selectedCollection.id!);
+		Log.debug('cpid sent to filters API', { cpid: FilterState.selectedCollection.id, filters });
 
 		// When calculating aggregations for a specific filter, that filter should be excluded
 		// from the query so we get all possible values based on other active filters
@@ -2353,36 +2324,37 @@ export const FallbackMode = {
  * If filters are present, clear cpid so it won't be sent automatically
  */
 export const clearCpidIfFiltersPresent = (filters: FiltersStateType): void => {
-	if (!FilterState.selectedCollection?.id) {
-		return; // No cpid to clear
-	}
+	return;
+	// if (!FilterState.selectedCollection?.id) {
+	// 	return; // No cpid to clear
+	// }
 
-	// Check if there are any filters other than page, sort, size, limit
-	const hasFilters = Object.keys(filters || {}).some(key => {
-		const value = filters[key];
-		// Skip empty values
-		if ($.empty(value)) return false;
-		// Skip pagination/sort params (these don't count as filters)
-		if ($.equalsAny(key, FilterKeyType.PAGE, FilterKeyType.LIMIT, FilterKeyType.SORT, FilterKeyType.SIZE)) return false;
-		// Skip priceRange if it's null or empty
-		if ($.isPriceRangeKey(key)) {
-			if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
-			const priceRange = value as PriceRangeType;
-			const hasMin = typeof priceRange.min === 'number' && !isNaN(priceRange.min);
-			const hasMax = typeof priceRange.max === 'number' && !isNaN(priceRange.max);
-			if (!hasMin && !hasMax) return false;
-		}
-		// Skip search if empty
-		if ($.equals(key, FilterKeyType.SEARCH) && (!value || typeof value !== 'string' || !value.trim())) return false;
-		// All other keys are considered filters
-		return true;
-	});
+	// // Check if there are any filters other than page, sort, size, limit
+	// const hasFilters = Object.keys(filters || {}).some(key => {
+	// 	const value = filters[key];
+	// 	// Skip empty values
+	// 	if ($.empty(value)) return false;
+	// 	// Skip pagination/sort params (these don't count as filters)
+	// 	if ($.equalsAny(key, FilterKeyType.PAGE, FilterKeyType.LIMIT, FilterKeyType.SORT, FilterKeyType.SIZE)) return false;
+	// 	// Skip priceRange if it's null or empty
+	// 	if ($.isPriceRangeKey(key)) {
+	// 		if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+	// 		const priceRange = value as PriceRangeType;
+	// 		const hasMin = typeof priceRange.min === 'number' && !isNaN(priceRange.min);
+	// 		const hasMax = typeof priceRange.max === 'number' && !isNaN(priceRange.max);
+	// 		if (!hasMin && !hasMax) return false;
+	// 	}
+	// 	// Skip search if empty
+	// 	if ($.equals(key, FilterKeyType.SEARCH) && (!value || typeof value !== 'string' || !value.trim())) return false;
+	// 	// All other keys are considered filters
+	// 	return true;
+	// });
 
-	if (hasFilters) {
-		// Keep CPID hidden and managed server-side. Do NOT clear it when client
-		// filters are present — we will send CPID in background API requests instead.
-		Log.debug('Filters present, keeping cpid (server-managed)', { filters });
-	}
+	// if (hasFilters) {
+	// 	// Keep CPID hidden and managed server-side. Do NOT clear it when client
+	// 	// filters are present — we will send CPID in background API requests instead.
+	// 	Log.debug('Filters present, keeping cpid (server-managed)', { filters });
+	// }
 };
 
 export function handleLoadError(e: unknown) {
@@ -2559,9 +2531,6 @@ export const Filters = {
 			FilterState.filters[handle] = filterValues;
 		}
 
-		// Clear cpid if filters are present (other than page, sort, size, limit)
-		clearCpidIfFiltersPresent(FilterState.filters);
-
 		FilterState.pagination.page = 1;
 
 		Log.debug('Filter toggled', { handle, value: normalized, wasActive: isActive, isActive: !isActive, filterValues });
@@ -2618,9 +2587,6 @@ export const Filters = {
 		} else {
 			FilterState.filters.priceRange = { min, max };
 		}
-
-		// Clear cpid if filters are present (other than page, sort, size, limit)
-		clearCpidIfFiltersPresent(FilterState.filters);
 
 		FilterState.pagination.page = 1;
 
