@@ -9,8 +9,12 @@ import { WebhooksRepository, WebhookEvent } from './webhooks.repository';
 import { PRODUCT_INDEX_NAME } from '@shared/constants/products.constants';
 import { ShopsRepository } from '@modules/shops/shops.repository';
 import { SHOPS_INDEX_NAME } from '@shared/constants/es.constant';
-// Note: For full product transformation, consider using ProductBulkIndexer's logic
 import { ensureProductIndex } from '@shared/storefront/index.util';
+import { ShopifyGraphQLRepository } from '@modules/indexing/indexing.graphql.repository';
+import { GET_PRODUCT_QUERY } from '@modules/indexing/indexing.graphql';
+import { transformProductToESDoc } from '@modules/indexing/indexing.helper';
+import { buildShopifyGid } from '@shared/utils/shopify-id.util';
+import { filterProductFields } from '@shared/storefront/field.filter';
 
 const logger = createModuleLogger('webhooks-worker');
 
@@ -18,6 +22,7 @@ export class WebhookWorkerService {
   private esClient: Client;
   private webhooksRepository: WebhooksRepository;
   private shopsRepository: ShopsRepository;
+  private graphqlRepo: ShopifyGraphQLRepository;
   private isProcessing: boolean = false;
   private processingInterval: NodeJS.Timeout | null = null;
 
@@ -25,6 +30,7 @@ export class WebhookWorkerService {
     this.esClient = esClient;
     this.webhooksRepository = new WebhooksRepository(esClient);
     this.shopsRepository = new ShopsRepository(esClient, SHOPS_INDEX_NAME);
+    this.graphqlRepo = new ShopifyGraphQLRepository(this.shopsRepository);
     
     // Cleanup on process termination
     process.on('SIGTERM', () => this.stop());
@@ -178,17 +184,14 @@ export class WebhookWorkerService {
 
   /**
    * Process product create/update webhook
-   * Uses payload data directly from webhook
+   * Fetches full product data via GraphQL and uses the same transformation logic as indexing
+   * to ensure data consistency (collections, variants, options, etc.)
    */
   private async processProductWebhook(webhook: WebhookEvent): Promise<void> {
     const { shop, productGid, productId, payload } = webhook;
 
     if (!productGid && !productId) {
       throw new Error('Product GID or ID is required');
-    }
-
-    if (!payload || typeof payload !== 'object') {
-      throw new Error('Invalid webhook payload');
     }
 
     // Get shop data to verify shop exists
@@ -201,32 +204,53 @@ export class WebhookWorkerService {
     await ensureProductIndex(this.esClient, shop);
     const indexName = PRODUCT_INDEX_NAME(shop);
 
-    // Use payload data directly - webhooks contain product information
-    // Extract product ID from payload
-    const docId = productGid || productId || payload?.admin_graphql_api_id || payload?.id;
-
-    if (!docId) {
+    // Build product GID - prefer productGid, otherwise build from productId
+    let productGID: string;
+    if (productGid) {
+      productGID = productGid;
+    } else if (productId) {
+      // Convert numeric ID to GraphQL GID format
+      productGID = buildShopifyGid('Product', productId);
+    } else if (payload?.admin_graphql_api_id) {
+      productGID = payload.admin_graphql_api_id;
+    } else if (payload?.id) {
+      productGID = buildShopifyGid('Product', payload.id);
+    } else {
       throw new Error('Product ID not found in webhook payload');
     }
 
-    // Transform payload to product document format
-    // Note: This is a simplified version - for full transformation,
-    // you may want to use ProductBulkIndexer's transformation logic
-    const productDoc = {
-      id: docId,
-      productId: payload?.id?.toString() || productId || docId,
-      title: payload?.title || '',
-      handle: payload?.handle || '',
-      status: payload?.status || 'ACTIVE',
-      vendor: payload?.vendor || null,
-      productType: payload?.product_type || null,
-      tags: Array.isArray(payload?.tags) ? payload.tags : [],
-      createdAt: payload?.created_at || new Date().toISOString(),
-      updatedAt: payload?.updated_at || new Date().toISOString(),
-      publishedAt: payload?.published_at || null,
-      // Add other fields from payload as needed
-      ...payload,
-    };
+    logger.info('Fetching product data via GraphQL', {
+      shop,
+      productGID,
+    });
+
+    // Fetch full product data from Shopify Admin API using GraphQL
+    // This ensures we get all required fields (collections, variants, options, etc.)
+    const graphqlResponse = await this.graphqlRepo.post(shop, {
+      query: GET_PRODUCT_QUERY,
+      variables: { id: productGID },
+    });
+
+    if (graphqlResponse.errors && graphqlResponse.errors.length > 0) {
+      const errorMessages = graphqlResponse.errors.map(e => e.message).join(', ');
+      throw new Error(`GraphQL errors: ${errorMessages}`);
+    }
+
+    if (!graphqlResponse.data?.product) {
+      throw new Error(`Product not found: ${productGID}`);
+    }
+
+    const rawProduct = graphqlResponse.data.product;
+
+    // Transform product using the same logic as bulk indexing
+    // This ensures data consistency: collections, variants, options, price calculations, etc.
+    const transformedProduct = transformProductToESDoc(rawProduct);
+
+    // Filter fields to match ES mapping (remove any extra fields)
+    const productDoc = filterProductFields(transformedProduct);
+
+    // Use the normalized product ID as the document ID
+    const docId = productDoc.id || productGID;
 
     await this.esClient.index({
       index: indexName,
@@ -235,10 +259,13 @@ export class WebhookWorkerService {
       refresh: true, // Refresh for immediate visibility
     });
 
-    logger.info('Product indexed from webhook', {
+    logger.info('Product indexed from webhook with full data', {
       shop,
       productId: productDoc.productId,
       productGid: docId,
+      hasCollections: Array.isArray(productDoc.collections) && productDoc.collections.length > 0,
+      collectionsCount: productDoc.collections?.length || 0,
+      variantsCount: productDoc.variants?.length || 0,
     });
   }
 
