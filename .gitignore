@@ -105,8 +105,8 @@ pnpm-lock.yaml
 ecosystem.config*
 ecosystem.config.js
 nginx.conf
-# build-production.sh
-# deploy.sh
+build-production.sh
+deploy.sh
 
 gitpush.sh
 

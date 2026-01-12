@@ -75,6 +75,12 @@ export interface AuthMiddlewareOptions {
    * Custom error message for authentication failures
    */
   errorMessage?: string;
+
+  /**
+   * Allow bypass in development/sandbox environment (default: true)
+   * When true, allows requests without auth in non-production environments
+   */
+  allowDevBypass?: boolean;
 }
 
 /**
@@ -89,7 +95,10 @@ export function authenticate(options: AuthMiddlewareOptions = {}) {
     maxTimestampDiffMs = 5 * 60 * 1000, // 5 minutes
     skip,
     errorMessage = 'Authentication required',
+    allowDevBypass = true, // Allow bypass in development by default
   } = options;
+
+  const isDevelopment = process.env.NODE_ENV !== 'production';
 
   return async (req: HttpRequest, res: HttpResponse, next: HttpNextFunction): Promise<void> => {
     try {
@@ -105,6 +114,18 @@ export function authenticate(options: AuthMiddlewareOptions = {}) {
       const authHeader = Array.isArray(authHeaderValue) ? authHeaderValue[0] : authHeaderValue;
       
       if (!authHeader) {
+        // Allow bypass in development/sandbox environment (even if required)
+        if (isDevelopment && allowDevBypass) {
+          logger.debug('Authentication bypassed in development/sandbox', {
+            path: req.path,
+            method: req.method,
+            env: process.env.NODE_ENV,
+          });
+          // Attach a default dev API key for reference
+          (req as any).authenticatedApiKey = 'dev-bypass';
+          return next();
+        }
+
         if (required) {
           logger.warn('Missing authorization header', {
             path: req.path,
