@@ -5,6 +5,7 @@
 
 import { ProductFilterInput, ProductSearchInput } from '@shared/storefront/types';
 import { parseCommaSeparated, parseOptionFilters } from '@shared/helpers/query.helper';
+import { normalizeShopifyId } from '@shared/utils/shopify-id.util';
 
 /**
  * Check if any filters are present
@@ -66,18 +67,27 @@ export function buildFilterInput(query: Record<string, unknown>): ProductFilterI
   }
 
   // Collection page ID - filters products to only show those from the collection the user is viewing
-  // If cpid is provided, it takes precedence and filters to only that collection
+  // CPID acts as an AND operator with collections - if both are provided, products must be in BOTH
   // Collections are stored as numeric strings in ES (e.g., "169207070801"), not GIDs
   const cpid = typeof query.cpid === 'string' ? query.cpid.trim() : undefined;
   if (cpid) {
     filters.cpid = cpid;
-    // Extract numeric ID if cpid is in GID format, otherwise use as-is
-    // cpid can be numeric string (169207070801) or GID format (gid://shopify/Collection/169207070801)
-    const collectionId = cpid.startsWith('gid://') 
-      ? cpid.split('/').pop() || cpid  // Extract numeric ID from GID
-      : cpid;  // Use numeric string directly
-    // cpid takes precedence - filter to only the collection the user is viewing
-    filters.collections = [collectionId];
+    // Normalize CPID to numeric ID (handles both GID format and numeric string)
+    const collectionId = normalizeShopifyId(cpid);
+    
+    if (collectionId) {
+      // CPID acts as AND operator: add CPID collection to existing collections array
+      // This ensures products must be in BOTH the CPID collection AND any other specified collections
+      if (filters.collections && filters.collections.length > 0) {
+        // If collections already exist, add CPID collection (AND logic)
+        if (!filters.collections.includes(collectionId)) {
+          filters.collections.push(collectionId);
+        }
+      } else {
+        // If no collections specified, CPID becomes the only collection filter
+        filters.collections = [collectionId];
+      }
+    }
   }
 
   // Set keep in filters object
@@ -166,18 +176,27 @@ export function buildSearchInput(query: Record<string, unknown>): ProductSearchI
   if (collectionValues.length) filters.collections = collectionValues;
 
   // Collection page ID - filters products to only show those from the collection the user is viewing
-  // If cpid is provided, it takes precedence and filters to only that collection
+  // CPID acts as an AND operator with collections - if both are provided, products must be in BOTH
   // Collections are stored as numeric strings in ES (e.g., "169207070801"), not GIDs
   const cpid = typeof query.cpid === 'string' ? query.cpid.trim() : undefined;
   if (cpid) {
     filters.cpid = cpid;
-    // Extract numeric ID if cpid is in GID format, otherwise use as-is
-    // cpid can be numeric string (169207070801) or GID format (gid://shopify/Collection/169207070801)
-    const collectionId = cpid.startsWith('gid://') 
-      ? cpid.split('/').pop() || cpid  // Extract numeric ID from GID
-      : cpid;  // Use numeric string directly
-    // cpid takes precedence - filter to only the collection the user is viewing
-    filters.collections = [collectionId];
+    // Normalize CPID to numeric ID (handles both GID format and numeric string)
+    const collectionId = normalizeShopifyId(cpid);
+    
+    if (collectionId) {
+      // CPID acts as AND operator: add CPID collection to existing collections array
+      // This ensures products must be in BOTH the CPID collection AND any other specified collections
+      if (filters.collections && filters.collections.length > 0) {
+        // If collections already exist, add CPID collection (AND logic)
+        if (!filters.collections.includes(collectionId)) {
+          filters.collections.push(collectionId);
+        }
+      } else {
+        // If no collections specified, CPID becomes the only collection filter
+        filters.collections = [collectionId];
+      }
+    }
   }
 
   const optionFilters = parseOptionFilters(query);

@@ -281,12 +281,13 @@ export const API = {
 		const params = new URLSearchParams();
 		params.set('shop', FilterState.shop);
 
-		if (FilterState.selectedCollection.id) {
-			params.set('cpid', FilterState.selectedCollection.id!);
+		// Always send CPID if it exists - never drop it
+		// CPID is server-managed and should always be sent to products API
+		if (FilterState.selectedCollection?.id) {
+			params.set('cpid', FilterState.selectedCollection.id);
 			Log.debug('cpid sent to products API', { cpid: FilterState.selectedCollection.id, filters });
-		}
-		else{
-			Log.error('cpid not found', FilterState.selectedCollection.id);
+		} else {
+			Log.warn('cpid not available in selectedCollection', { selectedCollection: FilterState.selectedCollection });
 		}
 		
 		// Send ALL filters as direct query parameters using handles as keys
@@ -372,16 +373,14 @@ export const API = {
 		const params = new URLSearchParams();
 		params.set('shop', FilterState.shop);
 
-		if (FilterState.selectedCollection.id) {
-			params.set('cpid', FilterState.selectedCollection.id!);
-			Log.debug('cpid sent to products API', { cpid: FilterState.selectedCollection.id, filters });
+		// Always send CPID if it exists - never drop it
+		// CPID is server-managed and should always be sent to filters API
+		if (FilterState.selectedCollection?.id) {
+			params.set('cpid', FilterState.selectedCollection.id);
+			Log.debug('cpid sent to filters API', { cpid: FilterState.selectedCollection.id, filters });
+		} else {
+			Log.warn('cpid not available in selectedCollection', { selectedCollection: FilterState.selectedCollection });
 		}
-		else{
-			Log.error('cpid not found', FilterState.selectedCollection.id);
-		}
-		
-		params.set('cpid', FilterState.selectedCollection.id!);
-		Log.debug('cpid sent to filters API', { cpid: FilterState.selectedCollection.id, filters });
 
 		// When calculating aggregations for a specific filter, that filter should be excluded
 		// from the query so we get all possible values based on other active filters

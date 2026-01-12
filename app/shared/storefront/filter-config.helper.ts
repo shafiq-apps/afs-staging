@@ -496,8 +496,12 @@ export function applyFilterConfigToInput(
       // If a specific collection is requested, check if it's allowed
       if (!allowedCollectionIds.includes(currentCollection)) {
         // Collection not allowed, return empty result by filtering to non-existent collection
+        // CPID acts as AND operator - preserve it if it exists
         if (result.cpid) {
-          result.collections = [result.cpid];
+          const cpidCollectionId = result.cpid.startsWith('gid://') 
+            ? result.cpid.split('/').pop() || result.cpid
+            : result.cpid;
+          result.collections = [cpidCollectionId, '__none__'];
         }
         else {
           result.collections = ['__none__'];
@@ -505,10 +509,30 @@ export function applyFilterConfigToInput(
       }
     } else if (!result.collections || result.collections.length === 0) {
       // No collection specified, but filter is scoped - apply allowed collections
-      result.collections = allowedCollectionIds;
+      // CPID acts as AND operator - add it to allowed collections if it exists
+      if (result.cpid) {
+        const cpidCollectionId = result.cpid.startsWith('gid://') 
+          ? result.cpid.split('/').pop() || result.cpid
+          : result.cpid;
+        result.collections = [...allowedCollectionIds];
+        if (!result.collections.includes(cpidCollectionId)) {
+          result.collections.push(cpidCollectionId);
+        }
+      } else {
+        result.collections = allowedCollectionIds;
+      }
     } else {
       // Collection specified - filter to only allowed ones
+      // CPID acts as AND operator - ensure it's included
       result.collections = result.collections.filter((c) => allowedCollectionIds.includes(c));
+      if (result.cpid) {
+        const cpidCollectionId = result.cpid.startsWith('gid://') 
+          ? result.cpid.split('/').pop() || result.cpid
+          : result.cpid;
+        if (!result.collections.includes(cpidCollectionId)) {
+          result.collections.push(cpidCollectionId);
+        }
+      }
     }
   }
 
@@ -660,23 +684,35 @@ export function applyFilterConfigToInput(
         // Move to standard filter field
         if (standardField === 'vendors' || standardField === 'productTypes' || 
             standardField === 'tags' || standardField === 'collections') {
-          // For collections, preserve cpid if it exists (cpid takes precedence)
+          // For collections, CPID acts as AND operator - add collection values to existing collections
           if (standardField === 'collections' && result.cpid) {
-            // cpid already set collections - don't overwrite it
-            // Extract collection ID from cpid to verify it matches
+            // Extract collection ID from cpid
             const cpidCollectionId = result.cpid.startsWith('gid://') 
               ? result.cpid.split('/').pop() || result.cpid
               : result.cpid;
             
-            logger.info('Skipping collection option conversion - cpid takes precedence', {
+            // CPID acts as AND operator - ensure CPID collection is included with other collections
+            // Initialize collections array if it doesn't exist
+            if (!result.collections) {
+              result.collections = [];
+            }
+            
+            // Add CPID collection if not already present
+            if (!result.collections.includes(cpidCollectionId)) {
+              result.collections.push(cpidCollectionId);
+            }
+            
+            logger.info('Collection option conversion with CPID (AND logic)', {
               optionName,
               cpid: result.cpid,
               cpidCollectionId,
               optionValues: values,
               existingCollections: result.collections,
             });
-            // Still remove from options since it's a standard filter
-          } else {
+            // Still remove from options since it's a standard filter, but we'll add the values below
+          }
+          
+          if (standardField === 'collections') {
             // Track which handles contributed to this standard field
             const handleMapping = (result as any).__handleMapping || {};
             const handleToBaseField = handleMapping.handleToBaseField || {};
