@@ -964,37 +964,11 @@ export class StorefrontSearchRepository {
     });
 
     const mustQueries: any[] = [];
-    const postFilterQueries: any[] = [];
-    // keep now contains handles (e.g., "pr_a3k9x", "sd5d3s") instead of option names
-    const keep = new Set(
-      (sanitizedFilters?.keep || []).map((key) => key.toLowerCase())
-    );
-    const keepAll = keep.has('__all__');
-
-    // Helper to check if a filter should be kept
-    // For standard filters, check by key directly
-    // For option filters, map option name back to handle and check
-    const shouldKeep = (key: string, isOptionFilter: boolean = false) => {
-      if (keepAll) return true;
-
-      const lowerKey = key.toLowerCase();
-
-      // For standard filters, check directly
-      if (!isOptionFilter) {
-        return keep.has(lowerKey);
-      }
-
-      // For option filters, we need to map option name back to handle
-      // because keep contains handles, but key is the option name
-      if (filterConfig) {
-        const handle = mapOptionNameToHandle(filterConfig, key);
-        if (handle) {
-          return keep.has(handle.toLowerCase());
-        }
-      }
-
-      return false;
-    };
+    
+    // NOTE: The 'keep' parameter is no longer used for product filtering
+    // Aggregations (facets) handle auto-exclusion automatically in getFacets() method
+    // All filters must always be applied in mustQueries to filter products correctly
+    // post_filter is not used here - it's only used in getFacets() for aggregations
 
     if (sanitizedFilters?.search) {
       mustQueries.push({
@@ -1036,11 +1010,9 @@ export class StorefrontSearchRepository {
         });
       }
 
-      if (shouldKeep('vendors')) {
-        postFilterQueries.push(clause);
-      } else {
-        mustQueries.push(clause);
-      }
+      // Always apply vendor filters to mustQueries to filter products correctly
+      // Aggregations are handled separately in getFacets() with auto-exclusion
+      mustQueries.push(clause);
     }
 
     if (hasValues(sanitizedFilters?.productTypes)) {
@@ -1072,11 +1044,9 @@ export class StorefrontSearchRepository {
         });
       }
 
-      if (shouldKeep('productTypes')) {
-        postFilterQueries.push(clause);
-      } else {
-        mustQueries.push(clause);
-      }
+      // Always apply productType filters to mustQueries to filter products correctly
+      // Aggregations are handled separately in getFacets() with auto-exclusion
+      mustQueries.push(clause);
     }
 
     if (hasValues(sanitizedFilters?.tags)) {
@@ -1118,11 +1088,9 @@ export class StorefrontSearchRepository {
         });
       }
 
-      if (shouldKeep('tags')) {
-        postFilterQueries.push(clause);
-      } else {
-        mustQueries.push(clause);
-      }
+      // Always apply tag filters to mustQueries to filter products correctly
+      // Aggregations are handled separately in getFacets() with auto-exclusion
+      mustQueries.push(clause);
     }
 
     if (hasValues(sanitizedFilters?.collections)) {
@@ -1157,11 +1125,9 @@ export class StorefrontSearchRepository {
         });
       }
 
-      if (shouldKeep('collections')) {
-        postFilterQueries.push(clause);
-      } else {
-        mustQueries.push(clause);
-      }
+      // Always apply collection filters to mustQueries to filter products correctly
+      // Aggregations are handled separately in getFacets() with auto-exclusion
+      mustQueries.push(clause);
     }
 
     // Options filter - encode option pairs
@@ -1194,22 +1160,15 @@ export class StorefrontSearchRepository {
           terms: { [ES_FIELDS.OPTION_PAIRS]: encodedValues },
         };
 
-        // For filters endpoint, we want to preserve option aggregations even when filtering
-        // This allows users to see available filter values even when current filters match 0 products
-        // Use post_filter for option filters to preserve aggregations
-        if (shouldKeep(optionName, true) || keepAll) {
-          postFilterQueries.push(termsQuery);
-          logger.info('Option filter added to post_filter (preserve aggregations)', {
-            optionName,
-            encodedValues,
-          });
-        } else {
-          mustQueries.push(termsQuery);
-          logger.info('Option filter added to must query (affects aggregations)', {
-            optionName,
-            encodedValues,
-          });
-        }
+        // Always apply option filters to mustQueries to filter products correctly
+        // Aggregations are handled separately in getFacets() with auto-exclusion
+        // The 'keep' parameter is no longer used - getFacets() automatically excludes
+        // each filter from its own aggregation to enable OR operations
+        mustQueries.push(termsQuery);
+        logger.info('Option filter added to must query (always filter products)', {
+          optionName,
+          encodedValues,
+        });
       }
     }
 
@@ -1423,7 +1382,7 @@ export class StorefrontSearchRepository {
       sortFields: sort.map((s: any) => Object.keys(s)[0]),
     });
 
-    // console.log(JSON.stringify(query, null, 4));
+    logger.log(JSON.stringify(query, null, 4));
 
     // Note: We don't pre-check index existence to avoid race conditions.
     // The search operation will handle index not found errors appropriately.
@@ -1436,13 +1395,8 @@ export class StorefrontSearchRepository {
         query,
         sort,
         track_total_hits: true,
-        post_filter: postFilterQueries.length
-          ? {
-            bool: {
-              must: postFilterQueries,
-            },
-          }
-          : undefined,
+        // post_filter removed - all filters now go to mustQueries for correct product filtering
+        // Aggregations handle auto-exclusion separately in getFacets()
       });
     } catch (error: any) {
       logger.error('[searchProducts] ES query failed', {

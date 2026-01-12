@@ -678,7 +678,43 @@ export function applyFilterConfigToInput(
         continue;
       }
 
-      const standardField = STANDARD_FILTER_MAPPING[normalizedName as keyof typeof STANDARD_FILTER_MAPPING];
+      // Check if option name matches a standard field name
+      let standardField = STANDARD_FILTER_MAPPING[normalizedName as keyof typeof STANDARD_FILTER_MAPPING];
+      
+      // CRITICAL FIX: Also check baseOptionType in filter config
+      // This handles cases where handles (like "tgipuy") map to options with baseOptionType: 'TAGS'
+      // but the option name itself doesn't match "tags" or "tag"
+      if (!standardField && filterConfig?.options) {
+        for (const option of filterConfig.options) {
+          if (!isPublishedStatus(option.status)) continue;
+          const derivedVariantOptionKey = deriveVariantOptionKey(option);
+          const mappedName = derivedVariantOptionKey || option.optionType?.trim() || option.handle;
+          
+          // Check if this option matches the current optionName (could be handle or mapped name)
+          if (mappedName === optionName || option.handle === optionName) {
+            const baseField = option.optionSettings?.baseOptionType?.trim().toUpperCase();
+            if (baseField === 'TAGS') {
+              standardField = 'tags';
+            } else if (baseField === 'VENDOR') {
+              standardField = 'vendors';
+            } else if (baseField === 'PRODUCT_TYPE') {
+              standardField = 'productTypes';
+            } else if (baseField === 'COLLECTION') {
+              standardField = 'collections';
+            }
+            if (standardField) {
+              logger.info('Found standard field via baseOptionType', {
+                optionName,
+                optionHandle: option.handle,
+                mappedName,
+                baseField,
+                standardField,
+              });
+              break;
+            }
+          }
+        }
+      }
       
       if (standardField) {
         // Move to standard filter field
@@ -712,80 +748,104 @@ export function applyFilterConfigToInput(
             // Still remove from options since it's a standard filter, but we'll add the values below
           }
           
-          if (standardField === 'collections') {
-            // Track which handles contributed to this standard field
-            const handleMapping = (result as any).__handleMapping || {};
-            const handleToBaseField = handleMapping.handleToBaseField || {};
-            
-            // Find which handles map to this option name and base field
-            const contributingHandles: string[] = [];
-            if (filterConfig.options) {
-              for (const option of filterConfig.options) {
-                if (!isPublishedStatus(option.status)) continue;
-                const derivedVariantOptionKey = deriveVariantOptionKey(option);
-                const mappedName = derivedVariantOptionKey || option.optionType?.trim() || option.handle;
-                if (mappedName === optionName) {
-                  const baseField = option.optionSettings?.baseOptionType?.trim().toUpperCase();
-                  // Check if this handle's base field matches the standard field
-                  const standardFieldUpper = standardField.toUpperCase();
-                  if (baseField === 'TAGS' && standardField === 'tags') {
-                    contributingHandles.push(option.handle);
-                  } else if (baseField === 'VENDOR' && standardField === 'vendors') {
-                    contributingHandles.push(option.handle);
-                  } else if (baseField === 'PRODUCT_TYPE' && standardField === 'productTypes') {
-                    contributingHandles.push(option.handle);
-                  } else if (baseField === 'COLLECTION' && standardField === 'collections') {
-                    contributingHandles.push(option.handle);
-                  }
+          // Track which handles contributed to this standard field (for all standard fields, not just collections)
+          const handleMapping = (result as any).__handleMapping || {};
+          
+          // Find which handles map to this option name and base field
+          const contributingHandles: string[] = [];
+          if (filterConfig.options) {
+            for (const option of filterConfig.options) {
+              if (!isPublishedStatus(option.status)) continue;
+              const derivedVariantOptionKey = deriveVariantOptionKey(option);
+              const mappedName = derivedVariantOptionKey || option.optionType?.trim() || option.handle;
+              // Check if this option matches the current optionName (could be handle or mapped name)
+              if (mappedName === optionName || option.handle === optionName) {
+                const baseField = option.optionSettings?.baseOptionType?.trim().toUpperCase();
+                // Check if this handle's base field matches the standard field
+                if (baseField === 'TAGS' && standardField === 'tags') {
+                  contributingHandles.push(option.handle);
+                } else if (baseField === 'VENDOR' && standardField === 'vendors') {
+                  contributingHandles.push(option.handle);
+                } else if (baseField === 'PRODUCT_TYPE' && standardField === 'productTypes') {
+                  contributingHandles.push(option.handle);
+                } else if (baseField === 'COLLECTION' && standardField === 'collections') {
+                  contributingHandles.push(option.handle);
                 }
               }
             }
+          }
+          
+          // For collections, CPID acts as AND operator - add collection values to existing collections
+          if (standardField === 'collections' && result.cpid) {
+            // Extract collection ID from cpid
+            const cpidCollectionId = result.cpid.startsWith('gid://') 
+              ? result.cpid.split('/').pop() || result.cpid
+              : result.cpid;
             
-            // Track handles for AND logic
-            if (contributingHandles.length > 0) {
-              if (!handleMapping.standardFieldToHandles) {
-                handleMapping.standardFieldToHandles = {};
-              }
-              const baseFieldKey = standardField === 'tags' ? 'TAGS' :
-                                  standardField === 'vendors' ? 'VENDOR' :
-                                  standardField === 'productTypes' ? 'PRODUCT_TYPE' :
-                                  standardField === 'collections' ? 'COLLECTION' : null;
-              if (baseFieldKey) {
-                if (!handleMapping.standardFieldToHandles[baseFieldKey]) {
-                  handleMapping.standardFieldToHandles[baseFieldKey] = [];
-                }
-                // Add handles that aren't already tracked
-                for (const handle of contributingHandles) {
-                  if (!handleMapping.standardFieldToHandles[baseFieldKey].includes(handle)) {
-                    handleMapping.standardFieldToHandles[baseFieldKey].push(handle);
-                  }
-                }
-                // Merge back into result, preserving existing properties
-                const existingMapping = (result as any).__handleMapping || {};
-                (result as any).__handleMapping = {
-                  ...existingMapping,
-                  ...handleMapping,
-                  // Preserve nested objects
-                  handleToBaseField: { ...existingMapping.handleToBaseField, ...handleMapping.handleToBaseField },
-                  baseFieldToHandles: { ...existingMapping.baseFieldToHandles, ...handleMapping.baseFieldToHandles },
-                  handleToValues: { ...existingMapping.handleToValues, ...handleMapping.handleToValues },
-                  standardFieldToHandles: { ...existingMapping.standardFieldToHandles, ...handleMapping.standardFieldToHandles },
-                };
-              }
+            // CPID acts as AND operator - ensure CPID collection is included with other collections
+            // Initialize collections array if it doesn't exist
+            if (!result.collections) {
+              result.collections = [];
             }
             
-            const existing = result[standardField] || [];
-            result[standardField] = [...new Set([...existing, ...values])];
+            // Add CPID collection if not already present
+            if (!result.collections.includes(cpidCollectionId)) {
+              result.collections.push(cpidCollectionId);
+            }
             
-            logger.info('Converted standard filter from options to dedicated field', {
+            logger.info('Collection option conversion with CPID (AND logic)', {
               optionName,
-              standardField,
-              values,
-              contributingHandles,
-              existingCount: existing.length,
-              newCount: result[standardField].length,
+              cpid: result.cpid,
+              cpidCollectionId,
+              optionValues: values,
+              existingCollections: result.collections,
             });
           }
+          
+          // Track handles for AND logic (for all standard fields)
+          if (contributingHandles.length > 0) {
+            if (!handleMapping.standardFieldToHandles) {
+              handleMapping.standardFieldToHandles = {};
+            }
+            const baseFieldKey = standardField === 'tags' ? 'TAGS' :
+                                standardField === 'vendors' ? 'VENDOR' :
+                                standardField === 'productTypes' ? 'PRODUCT_TYPE' :
+                                standardField === 'collections' ? 'COLLECTION' : null;
+            if (baseFieldKey) {
+              if (!handleMapping.standardFieldToHandles[baseFieldKey]) {
+                handleMapping.standardFieldToHandles[baseFieldKey] = [];
+              }
+              // Add handles that aren't already tracked
+              for (const handle of contributingHandles) {
+                if (!handleMapping.standardFieldToHandles[baseFieldKey].includes(handle)) {
+                  handleMapping.standardFieldToHandles[baseFieldKey].push(handle);
+                }
+              }
+              // Merge back into result, preserving existing properties
+              const existingMapping = (result as any).__handleMapping || {};
+              (result as any).__handleMapping = {
+                ...existingMapping,
+                ...handleMapping,
+                // Preserve nested objects
+                handleToBaseField: { ...existingMapping.handleToBaseField, ...handleMapping.handleToBaseField },
+                baseFieldToHandles: { ...existingMapping.baseFieldToHandles, ...handleMapping.baseFieldToHandles },
+                handleToValues: { ...existingMapping.handleToValues, ...handleMapping.handleToValues },
+                standardFieldToHandles: { ...existingMapping.standardFieldToHandles, ...handleMapping.standardFieldToHandles },
+              };
+            }
+          }
+          
+          const existing = result[standardField] || [];
+          result[standardField] = [...new Set([...existing, ...values])];
+          
+          logger.info('Converted standard filter from options to dedicated field', {
+            optionName,
+            standardField,
+            values,
+            contributingHandles,
+            existingCount: existing.length,
+            newCount: result[standardField].length,
+          });
         }
         // Don't add to remainingOptions - it's been moved to standard filter field
       } else {
