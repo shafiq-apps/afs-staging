@@ -2183,7 +2183,6 @@ export const DOM = {
 		if (!this.productsContainer) {
 			// Last resort: log to console
 			Log.error('Cannot show error: productsContainer not found', { message });
-			console.error('[AFS Error]', message);
 			return;
 		}
 
@@ -2828,7 +2827,7 @@ class AFSSlider {
 	const containerElement = typeof container === 'string' ? document.querySelector<HTMLElement>(container) : container;
 
 	if (!containerElement) {
-	  console.error('AFSSlider: Container not found');
+	  Log.error('AFSSlider: Container not found');
 	  throw new Error('AFSSlider: Container not found');
 	}
 
@@ -2856,14 +2855,14 @@ class AFSSlider {
 	// Find main image container
 	this.mainContainer = this.container.querySelector<HTMLElement>('.afs-slider__main');
 	if (!this.mainContainer) {
-	  console.error('AFSSlider: Main container (.afs-slider__main) not found');
+	  Log.error('AFSSlider: Main container (.afs-slider__main) not found');
 	  return;
 	}
 
 	// Find thumbnail container
 	this.thumbnailContainer = this.container.querySelector<HTMLElement>('.afs-slider__thumbnails');
 	if (!this.thumbnailContainer) {
-	  console.error('AFSSlider: Thumbnail container (.afs-slider__thumbnails) not found');
+	  Log.error('AFSSlider: Thumbnail container (.afs-slider__thumbnails) not found');
 	  return;
 	}
 
@@ -2871,7 +2870,7 @@ class AFSSlider {
 	const imageElements = this.mainContainer.querySelectorAll<HTMLImageElement>('.afs-slider__image');
 	this.images = Array.from(imageElements);
 	if (this.images.length === 0) {
-	  console.error('AFSSlider: No images found');
+	  Log.error('AFSSlider: No images found');
 	  return;
 	}
 
@@ -2881,7 +2880,7 @@ class AFSSlider {
 	
 	// If no thumbnails found, log warning but continue (thumbnails might be optional)
 	if (this.thumbnails.length === 0) {
-	  console.warn('AFSSlider: No thumbnails found, continuing without thumbnails');
+	  Log.warn('AFSSlider: No thumbnails found, continuing without thumbnails');
 	}
 
 	// Set thumbnail position
@@ -2891,7 +2890,7 @@ class AFSSlider {
 	try {
 	  this.buildSlider();
 	} catch (e) {
-	  console.error('AFSSlider: Error building slider structure', e);
+	  Log.error('AFSSlider: Error building slider structure', {error: e instanceof Error ? e.message : String(e)});
 	  return;
 	}
 
@@ -2899,7 +2898,7 @@ class AFSSlider {
 	try {
 	  this.setupEvents();
 	} catch (e) {
-	  console.error('AFSSlider: Error setting up events', e);
+	  Log.error('AFSSlider: Error setting up events', {error: e instanceof Error ? e.message : String(e)});
 	  // Continue anyway - basic functionality should still work
 	}
 
@@ -2912,7 +2911,7 @@ class AFSSlider {
 		  this.setupPanZoom();
 		}, 0);
 	  } catch (e) {
-		console.error('AFSSlider: Error setting up pan-zoom', e);
+		Log.error('AFSSlider: Error setting up pan-zoom', {error: e instanceof Error ? e.message : String(e)});
 		// Continue anyway - magnifier is optional
 	  }
 	}
@@ -2922,7 +2921,7 @@ class AFSSlider {
 	  try {
 		this.setupPinchZoom();
 	  } catch (e) {
-		console.error('AFSSlider: Error setting up pinch-zoom', e);
+		Log.error('AFSSlider: Error setting up pinch-zoom', {error: e instanceof Error ? e.message : String(e)});
 		// Continue anyway - zoom is optional
 	  }
 	}
@@ -2931,7 +2930,7 @@ class AFSSlider {
 	try {
 	  this.goToSlide(0);
 	} catch (e) {
-	  console.error('AFSSlider: Error showing first slide', e);
+	  Log.error('AFSSlider: Error showing first slide', {error: e instanceof Error ? e.message : String(e)});
 	  // Continue anyway
 	}
 
@@ -3161,7 +3160,7 @@ class AFSSlider {
 
 	const viewport = this.mainContainer.querySelector<HTMLElement>('.afs-slider__viewport');
 	if (!viewport) {
-	  console.warn('AFSSlider: Viewport not found for pan-zoom, skipping zoom setup');
+	  Log.warn('AFSSlider: Viewport not found for pan-zoom, skipping zoom setup');
 	  return;
 	}
 
@@ -3913,8 +3912,6 @@ export async function createProductModal(handle: string, modalId: string): Promi
 		  Log.warn('No images found for slider', { modalId });
 		}
 	  } catch (error) {
-
-		console.log("error", error);
 
 		Log.error('Failed to initialize slider', {
 		  error: error instanceof Error ? error.message : String(error),

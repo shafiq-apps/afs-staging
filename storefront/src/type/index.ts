@@ -308,7 +308,6 @@ export interface ShopifyWindow extends Window {
 
 // Type for loggable data (any JSON-serializable value)
 // Using a more permissive type for logging that allows complex objects
-// This is safe because console.log/error/etc. accept any value
 // We use a type that allows any object structure for logging purposes
 // Note: This intentionally allows any object structure since logging needs flexibility
 // We explicitly include all our custom types plus allow objects with index signatures
