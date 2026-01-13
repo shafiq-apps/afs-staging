@@ -114,14 +114,13 @@ export function buildSearchInput(query: Record<string, unknown>): SearchInput {
   const collectionValues = parseCommaSeparated(query.collection || query.collections);
   if (collectionValues.length) searchInput.collections = collectionValues;
 
-  // Collection page ID
+  // Collection page ID - immutable page context representing the collection page the user is on
+  // CPID is kept separate from user-selected collections and NEVER excluded from aggregations
+  // This ensures all aggregations show counts within the current collection page context
   const cpid = typeof query.cpid === 'string' ? query.cpid.trim() : undefined;
   if (cpid) {
     searchInput.cpid = cpid;
-    const collectionId = cpid.startsWith('gid://') 
-      ? cpid.split('/').pop() || cpid
-      : cpid;
-    searchInput.collections = [collectionId];
+    // DO NOT merge cpid into collections array - keep it separate as immutable page context
   }
 
   // Option filters

@@ -22,7 +22,8 @@ export function hasAnyFilters(filters?: ProductFilterInput): boolean {
     filters.search ||
     filters.priceMin !== undefined ||
     filters.priceMax !== undefined ||
-    (filters.variantSkus && filters.variantSkus.length)
+    (filters.variantSkus && filters.variantSkus.length) ||
+    filters.cpid // ✅ CRITICAL FIX: cpid is a filter (immutable page context)
   );
 }
 
@@ -66,28 +67,13 @@ export function buildFilterInput(query: Record<string, unknown>): ProductFilterI
     filters.collections = collectionValues;
   }
 
-  // Collection page ID - filters products to only show those from the collection the user is viewing
-  // CPID acts as an AND operator with collections - if both are provided, products must be in BOTH
-  // Collections are stored as numeric strings in ES (e.g., "169207070801"), not GIDs
+  // Collection page ID - immutable page context representing the collection page the user is on
+  // CPID is kept separate from user-selected collections and NEVER excluded from aggregations
+  // This ensures all aggregations show counts within the current collection page context
   const cpid = typeof query.cpid === 'string' ? query.cpid.trim() : undefined;
   if (cpid) {
     filters.cpid = cpid;
-    // Normalize CPID to numeric ID (handles both GID format and numeric string)
-    const collectionId = normalizeShopifyId(cpid);
-    
-    if (collectionId) {
-      // CPID acts as AND operator: add CPID collection to existing collections array
-      // This ensures products must be in BOTH the CPID collection AND any other specified collections
-      if (filters.collections && filters.collections.length > 0) {
-        // If collections already exist, add CPID collection (AND logic)
-        if (!filters.collections.includes(collectionId)) {
-          filters.collections.push(collectionId);
-        }
-      } else {
-        // If no collections specified, CPID becomes the only collection filter
-        filters.collections = [collectionId];
-      }
-    }
+    // DO NOT merge cpid into collections array - keep it separate as immutable page context
   }
 
   // Set keep in filters object
@@ -175,28 +161,13 @@ export function buildSearchInput(query: Record<string, unknown>): ProductSearchI
   const collectionValues = parseCommaSeparated(query.collection || query.collections);
   if (collectionValues.length) filters.collections = collectionValues;
 
-  // Collection page ID - filters products to only show those from the collection the user is viewing
-  // CPID acts as an AND operator with collections - if both are provided, products must be in BOTH
-  // Collections are stored as numeric strings in ES (e.g., "169207070801"), not GIDs
+  // Collection page ID - immutable page context representing the collection page the user is on
+  // CPID is kept separate from user-selected collections and NEVER excluded from aggregations
+  // This ensures all aggregations show counts within the current collection page context
   const cpid = typeof query.cpid === 'string' ? query.cpid.trim() : undefined;
   if (cpid) {
     filters.cpid = cpid;
-    // Normalize CPID to numeric ID (handles both GID format and numeric string)
-    const collectionId = normalizeShopifyId(cpid);
-    
-    if (collectionId) {
-      // CPID acts as AND operator: add CPID collection to existing collections array
-      // This ensures products must be in BOTH the CPID collection AND any other specified collections
-      if (filters.collections && filters.collections.length > 0) {
-        // If collections already exist, add CPID collection (AND logic)
-        if (!filters.collections.includes(collectionId)) {
-          filters.collections.push(collectionId);
-        }
-      } else {
-        // If no collections specified, CPID becomes the only collection filter
-        filters.collections = [collectionId];
-      }
-    }
+    // DO NOT merge cpid into collections array - keep it separate as immutable page context
   }
 
   const optionFilters = parseOptionFilters(query);

@@ -71,6 +71,37 @@ function calculateEditDistance(str1: string, str2: string): number {
 }
 
 /**
+ * Normalize CPID (Collection Page ID) to numeric collection ID
+ * Handles both GID format (gid://shopify/Collection/123) and numeric strings
+ * 
+ * @param cpid - Collection page ID in any format
+ * @returns Normalized numeric collection ID or null if invalid
+ */
+function normalizeCpid(cpid: string | undefined | null): string | null {
+  if (!cpid || typeof cpid !== 'string') return null;
+  
+  const trimmed = cpid.trim();
+  if (!trimmed) return null;
+  
+  // If already numeric, return as-is
+  if (/^\d+$/.test(trimmed)) {
+    return trimmed;
+  }
+  
+  // Extract from GID format: gid://shopify/Collection/123
+  if (trimmed.startsWith('gid://')) {
+    const parts = trimmed.split('/');
+    const lastPart = parts[parts.length - 1];
+    if (lastPart && /^\d+$/.test(lastPart)) {
+      return lastPart;
+    }
+  }
+  
+  // Return original if it's not numeric and not a valid GID
+  return trimmed;
+}
+
+/**
  * Determine which aggregations should be calculated based on filter configuration
  * Only includes aggregations for published filter options
  * Returns specific aggregations for variant options (option.Color, option.Size, etc.)
@@ -357,6 +388,27 @@ export class StorefrontSearchRepository {
       const handleMapping = sanitizedFilters ? (sanitizedFilters as SanitizedFilterInputWithMapping).__handleMapping : undefined;
       const handleToValues = handleMapping?.handleToValues || {};
 
+      /** 
+       * CPID (Collection Page ID) - Always apply as immutable page context
+       * This is NEVER excluded from aggregations as it represents the collection page the user is on
+       * All aggregations must be calculated within the cpid collection context
+       */
+      if (sanitizedFilters?.cpid) {
+        const cpidCollectionId = normalizeCpid(sanitizedFilters.cpid);
+        
+        if (cpidCollectionId) {
+          baseMustQueries.push({
+            term: { [ES_FIELDS.COLLECTIONS]: cpidCollectionId }
+          });
+          
+          logger.info('[getFacets] Applied CPID as mandatory page context', {
+            cpid: sanitizedFilters.cpid,
+            normalizedCpid: cpidCollectionId,
+            excludeFilterType,
+          });
+        }
+      }
+
       /** Search */
       if (sanitizedFilters?.search) {
         baseMustQueries.push({
@@ -553,6 +605,12 @@ export class StorefrontSearchRepository {
       const postFilterQueries: ESQuery[] = [];
       const handleMapping = sanitizedFilters ? (sanitizedFilters as SanitizedFilterInputWithMapping).__handleMapping : undefined;
       const handleToValues = handleMapping?.handleToValues || {};
+
+      /**
+       * NOTE: CPID is NOT included in post_filter
+       * CPID is only in buildBaseMustQueries so aggregations are calculated on cpid-filtered documents
+       * post_filter is applied AFTER aggregations, but we want cpid to filter BEFORE
+       */
 
       // Handle standard filters
       const simpleFilters: Record<string, { field: string; values?: any[]; baseFieldKey: string }> = {
@@ -1110,6 +1168,23 @@ export class StorefrontSearchRepository {
       // Always apply tag filters to mustQueries to filter products correctly
       // Aggregations are handled separately in getFacets() with auto-exclusion
       mustQueries.push(clause);
+    }
+
+    // CPID (Collection Page ID) - Always apply as immutable page context
+    // This is NEVER excluded and ensures products are filtered to the current collection page
+    if (sanitizedFilters?.cpid) {
+      const cpidCollectionId = normalizeCpid(sanitizedFilters.cpid);
+      
+      if (cpidCollectionId) {
+        mustQueries.push({
+          term: { 'collections': cpidCollectionId }
+        });
+        
+        logger.info('[searchProducts] Applied CPID as mandatory page context', {
+          cpid: sanitizedFilters.cpid,
+          normalizedCpid: cpidCollectionId,
+        });
+      }
     }
 
     if (hasValues(sanitizedFilters?.collections)) {

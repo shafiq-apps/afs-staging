@@ -45,7 +45,7 @@ export class StorefrontSearchService implements Injectable {
       this.log.info('Cache hit for filters', { shop, filters, filterConfigHash });
       return this.formatAggregations(cachedAggregations);
     }
-
+    
     this.log.info(`Fetching filters for shop: ${shop}`, filters);
 
     // When filterConfig is null/undefined, include all options (for GraphQL and general use)
