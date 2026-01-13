@@ -61,7 +61,8 @@ function parseMinMaxRange(value: string): { min?: number; max?: number } | null 
   if (max !== undefined && !isNaN(max) && max >= 0) out.max = max;
 
   if (out.min === undefined && out.max === undefined) return null;
-  if (out.min !== undefined && out.max !== undefined && !(out.max > out.min)) return null;
+  // Allow min === max (e.g., "3.1-3.1" is valid for exact price matching)
+  if (out.min !== undefined && out.max !== undefined && out.max < out.min) return null;
 
   return out;
 }

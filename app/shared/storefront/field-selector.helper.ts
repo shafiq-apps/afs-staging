@@ -12,17 +12,17 @@ import { shopifyProduct, StorefrontProduct } from './types';
  * Can be overridden via ?fields= query parameter
  */
 export const DEFAULT_STOREFRONT_FIELDS = [
-  'id',
-  'productId',
-  'handle',
-  'title',
-  'imageUrl',
-  'imagesUrls',
-  'vendor',
+  // 'id',
+  // 'productId',
+  // 'handle',
+  // 'title',
+  // 'imageUrl',
+  // 'imagesUrls',
+  // 'vendor',
   'minPrice',
   'maxPrice',
-  'bestSellerRank',
-  'totalInventory'
+  // 'bestSellerRank',
+  // 'totalInventory'
 ] as const;
 
 /**
@@ -30,12 +30,12 @@ export const DEFAULT_STOREFRONT_FIELDS = [
  * Can be overridden via ?fields=variants.id,variants.title,... query parameter
  */
 export const DEFAULT_VARIANT_FIELDS = [
-  'id',
-  'displayName',
-  'price',
-  'sku',
-  'availableForSale',
-  'sellableOnlineQuantity',
+  // 'id',
+  // 'displayName',
+  // 'price',
+  // 'sku',
+  // 'availableForSale',
+  // 'sellableOnlineQuantity',
 ] as const;
 
 /**

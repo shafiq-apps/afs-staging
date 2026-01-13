@@ -14,6 +14,22 @@ const States = new Map<string, FilterGroupStateType>();
 const EXCLUDED_QUERY_PARAMS = new Set<string>([FilterKeyType.SHOP, FilterKeyType.SHOP_DOMAIN, FilterKeyType.CPID]);
 
 // ============================================================================
+// PRICE FORMATTING UTILITY
+// ============================================================================
+
+/**
+ * Format price to 2 decimal places without rounding up/down too much
+ * Keeps prices accurate and consistent with backend aggregation values
+ * @param value - Price value to format
+ * @returns Formatted price with max 2 decimal places
+ */
+const formatPrice = (value: number): number => {
+	if (typeof value !== 'number' || isNaN(value)) return 0;
+	// Use toFixed(2) to limit to 2 decimal places, then parse back to number
+	return parseFloat(value.toFixed(2));
+};
+
+// ============================================================================
 // METADATA BUILDERS (For display only, not for state management)
 // ============================================================================
 const Metadata = {
@@ -93,23 +109,23 @@ const UrlManager = {
 			// Support Shopify search page 'q' parameter (map to 'search')
 			else if ($.equals(key, 'q')) params.search = value;
 			// Server-supported price range params
-			else if ($.equals(key, FilterKeyType.PRICE_MIN)) {
-				const v = Math.round(parseFloat(value));
-				if (!isNaN(v) && v >= 0) parsedPriceMin = v;
+		else if ($.equals(key, FilterKeyType.PRICE_MIN)) {
+			const v = formatPrice(parseFloat(value));
+			if (!isNaN(v) && v >= 0) parsedPriceMin = v;
+		}
+		else if ($.equals(key, FilterKeyType.PRICE_MAX)) {
+			const v = formatPrice(parseFloat(value));
+			if (!isNaN(v) && v >= 0) parsedPriceMax = v;
+		}
+		// Legacy price range params: "min-max"
+		else if ($.isPriceRangeKey(key)) {
+			const parts = value.split('-');
+			if (parts.length === 2) {
+				const min = formatPrice(parseFloat(parts[0]));
+				const max = formatPrice(parseFloat(parts[1]));
+				if (!isNaN(min) && min >= 0) parsedPriceMin = min;
+				if (!isNaN(max) && max >= 0) parsedPriceMax = max;
 			}
-			else if ($.equals(key, FilterKeyType.PRICE_MAX)) {
-				const v = Math.round(parseFloat(value));
-				if (!isNaN(v) && v >= 0) parsedPriceMax = v;
-			}
-			// Legacy price range params: "min-max"
-			else if ($.isPriceRangeKey(key)) {
-				const parts = value.split('-');
-				if (parts.length === 2) {
-					const min = Math.round(parseFloat(parts[0]));
-					const max = Math.round(parseFloat(parts[1]));
-					if (!isNaN(min) && min >= 0) parsedPriceMin = min;
-					if (!isNaN(max) && max >= 0) parsedPriceMax = max;
-				}
 			}
 			else if ($.equals(key, FilterKeyType.PAGE)) params.page = parseInt(value, 10) || 1;
 			else if ($.equals(key, FilterKeyType.LIMIT)) params.limit = parseInt(value, 10) || Config.PAGE_SIZE;
@@ -163,11 +179,11 @@ const UrlManager = {
 					url.searchParams.set(key, value.join(','));
 					Log.debug('URL param set', { key, value: value.join(',') });
 				}
-				// Price range: write as server-supported params
-				else if ($.isPriceRangeKey(key) && value && typeof value === 'object' && !Array.isArray(value)) {
-					const priceRange = value as PriceRangeType;
-					const min = typeof priceRange.min === 'number' && !isNaN(priceRange.min) ? Math.round(priceRange.min) : undefined;
-					const max = typeof priceRange.max === 'number' && !isNaN(priceRange.max) ? Math.round(priceRange.max) : undefined;
+			// Price range: write as server-supported params
+			else if ($.isPriceRangeKey(key) && value && typeof value === 'object' && !Array.isArray(value)) {
+				const priceRange = value as PriceRangeType;
+				const min = typeof priceRange.min === 'number' && !isNaN(priceRange.min) ? formatPrice(priceRange.min) : undefined;
+				const max = typeof priceRange.max === 'number' && !isNaN(priceRange.max) ? formatPrice(priceRange.max) : undefined;
 					if (FilterState.priceRangeHandle) {
 						// Handle-style: {handle}=min-max
 						const handleValue = `${min !== undefined ? min : ''}-${max !== undefined ? max : ''}`;
@@ -320,11 +336,11 @@ const API = {
 			const v = filters[k];
 			if ($.empty(v)) return;
 
-			// Direct params (search, price range)
-			if ($.isPriceRangeKey(k) && v && typeof v === 'object' && !Array.isArray(v)) {
-				const priceRange = v as PriceRangeType;
-				const min = typeof priceRange.min === 'number' && !isNaN(priceRange.min) ? Math.round(priceRange.min) : undefined;
-				const max = typeof priceRange.max === 'number' && !isNaN(priceRange.max) ? Math.round(priceRange.max) : undefined;
+		// Direct params (search, price range)
+		if ($.isPriceRangeKey(k) && v && typeof v === 'object' && !Array.isArray(v)) {
+			const priceRange = v as PriceRangeType;
+			const min = typeof priceRange.min === 'number' && !isNaN(priceRange.min) ? formatPrice(priceRange.min) : undefined;
+			const max = typeof priceRange.max === 'number' && !isNaN(priceRange.max) ? formatPrice(priceRange.max) : undefined;
 				if (FilterState.priceRangeHandle) {
 					params.set(FilterState.priceRangeHandle, `${min !== undefined ? min : ''}-${max !== undefined ? max : ''}`);
 				} else {
@@ -1549,11 +1565,11 @@ const DOM = {
 			return null;
 		}
 
-		const minRange = Math.round(filter.range.min);
-		const maxRange = Math.round(filter.range.max);
-		const currentRange = FilterState.filters.priceRange || { min: minRange, max: maxRange };
-		const currentMin = Math.round(Math.max(minRange, Math.min(maxRange, currentRange.min || minRange)));
-		const currentMax = Math.round(Math.max(minRange, Math.min(maxRange, currentRange.max || maxRange)));
+	const minRange = formatPrice(filter.range.min);
+	const maxRange = formatPrice(filter.range.max);
+	const currentRange = FilterState.filters.priceRange || { min: minRange, max: maxRange };
+	const currentMin = formatPrice(Math.max(minRange, Math.min(maxRange, typeof currentRange.min === 'number' ? currentRange.min : minRange)));
+	const currentMax = formatPrice(Math.max(minRange, Math.min(maxRange, typeof currentRange.max === 'number' ? currentRange.max : maxRange)));
 
 		const group = $.el('div', 'afs-filter-group', {
 			'data-afs-filter-type': 'priceRange',
@@ -1574,9 +1590,11 @@ const DOM = {
 		toggle.appendChild($.txt($.el('label', 'afs-filter-group__label', { 'for': 'afs-filter-group__label' }), filter.label || 'Price'));
 		header.appendChild(toggle);
 
-		// Add clear button for price range (only show if price range is active and not at default)
-		const isPriceRangeActive = FilterState.filters.priceRange &&
-			(FilterState.filters.priceRange.min !== minRange || FilterState.filters.priceRange.max !== maxRange);
+	// Add clear button for price range (only show if price range is active and not at default)
+	const isPriceRangeActive = FilterState.filters.priceRange && (
+		(typeof FilterState.filters.priceRange.min === 'number' && FilterState.filters.priceRange.min !== minRange) ||
+		(typeof FilterState.filters.priceRange.max === 'number' && FilterState.filters.priceRange.max !== maxRange)
+	);
 		if (isPriceRangeActive) {
 			const clearBtn = $.el('button', 'afs-filter-group__clear', {
 				type: 'button',
@@ -1626,33 +1644,33 @@ const DOM = {
 
 		// Value display
 		const valueDisplay = $.el('div', 'afs-price-range-values');
-		const minDisplay = $.el('span', 'afs-price-range-value afs-price-range-value--min');
-		const maxDisplay = $.el('span', 'afs-price-range-value afs-price-range-value--max');
-		const formatPrice = (val: number | string): string => `$${parseFloat(String(val)).toFixed(0)}`;
-		minDisplay.textContent = formatPrice(currentMin);
-		maxDisplay.textContent = formatPrice(currentMax);
+	const minDisplay = $.el('span', 'afs-price-range-value afs-price-range-value--min');
+	const maxDisplay = $.el('span', 'afs-price-range-value afs-price-range-value--max');
+	const formatPriceDisplay = (val: number | string): string => `$${parseFloat(String(val)).toFixed(2)}`;
+	minDisplay.textContent = formatPriceDisplay(currentMin);
+	maxDisplay.textContent = formatPriceDisplay(currentMax);
 		valueDisplay.appendChild(minDisplay);
 		valueDisplay.appendChild($.txt($.el('span', 'afs-price-range-separator'), ' - '));
 		valueDisplay.appendChild(maxDisplay);
 		sliderContainer.appendChild(valueDisplay);
 
-		// Update active track position
-		const updateActiveTrack = (): void => {
-			const min = Math.round(parseFloat(minHandle.value));
-			const max = Math.round(parseFloat(maxHandle.value));
-			const range = maxRange - minRange;
-			const leftPercent = ((min - minRange) / range) * 100;
-			const rightPercent = ((maxRange - max) / range) * 100;
-			activeTrack.style.left = `${leftPercent}%`;
-			activeTrack.style.right = `${rightPercent}%`;
-			minDisplay.textContent = formatPrice(min);
-			maxDisplay.textContent = formatPrice(max);
+	// Update active track position
+	const updateActiveTrack = (): void => {
+		const min = formatPrice(parseFloat(minHandle.value));
+		const max = formatPrice(parseFloat(maxHandle.value));
+		const range = maxRange - minRange;
+		const leftPercent = ((min - minRange) / range) * 100;
+		const rightPercent = ((maxRange - max) / range) * 100;
+		activeTrack.style.left = `${leftPercent}%`;
+		activeTrack.style.right = `${rightPercent}%`;
+		minDisplay.textContent = String(min);
+		maxDisplay.textContent = String(max);
 		};
 
-		// Ensure min <= max
-		const constrainValues = (): void => {
-			const min = Math.round(parseFloat(minHandle.value));
-			const max = Math.round(parseFloat(maxHandle.value));
+	// Ensure min <= max
+	const constrainValues = (): void => {
+		const min = formatPrice(parseFloat(minHandle.value));
+		const max = formatPrice(parseFloat(maxHandle.value));
 			if (min > max) {
 				minHandle.value = String(max);
 				maxHandle.value = String(min);
@@ -1660,16 +1678,20 @@ const DOM = {
 			updateActiveTrack();
 		};
 
-		// Event handlers
-		minHandle.addEventListener('input', () => {
-			constrainValues();
-			Filters.updatePriceRange(Math.round(parseFloat(minHandle.value)), Math.round(parseFloat(maxHandle.value)));
-		});
+	// Event handlers
+	minHandle.addEventListener('input', () => {
+		constrainValues();
+		const minVal = formatPrice(parseFloat(minHandle.value));
+		const maxVal = formatPrice(parseFloat(maxHandle.value));
+		Filters.updatePriceRange(minVal, maxVal);
+	});
 
-		maxHandle.addEventListener('input', () => {
-			constrainValues();
-			Filters.updatePriceRange(Math.round(parseFloat(minHandle.value)), Math.round(parseFloat(maxHandle.value)));
-		});
+	maxHandle.addEventListener('input', () => {
+		constrainValues();
+		const minVal = formatPrice(parseFloat(minHandle.value));
+		const maxVal = formatPrice(parseFloat(maxHandle.value));
+		Filters.updatePriceRange(minVal, maxVal);
+	});
 
 		// Initialize active track
 		updateActiveTrack();
@@ -2090,19 +2112,19 @@ const DOM = {
 				activeFilters.push({ handle: key, label: `${Lang.labels.search}${value}`, value });
 			} else if ($.isPriceRangeKey(key) && value && typeof value === 'object' && !Array.isArray(value)) {
 				const priceRange = value as PriceRangeType;
-				const hasMin = typeof priceRange.min === 'number' && !isNaN(priceRange.min);
-				const hasMax = typeof priceRange.max === 'number' && !isNaN(priceRange.max);
-				if (hasMin && hasMax) {
-					const roundedMin = Math.round(priceRange.min!);
-					const roundedMax = Math.round(priceRange.max!);
-					activeFilters.push({ handle: key, label: `${Lang.labels.price}$${roundedMin} - $${roundedMax}`, value: SpecialValueType.CLEAR });
-				} else if (hasMin) {
-					const roundedMin = Math.round(priceRange.min!);
-					activeFilters.push({ handle: key, label: `${Lang.labels.price}$${roundedMin}+`, value: SpecialValueType.CLEAR });
-				} else if (hasMax) {
-					const roundedMax = Math.round(priceRange.max!);
-					activeFilters.push({ handle: key, label: `${Lang.labels.price}Up to $${roundedMax}`, value: SpecialValueType.CLEAR });
-				}
+			const hasMin = typeof priceRange.min === 'number' && !isNaN(priceRange.min);
+			const hasMax = typeof priceRange.max === 'number' && !isNaN(priceRange.max);
+			if (hasMin && hasMax) {
+				const formattedMin = formatPrice(priceRange.min!);
+				const formattedMax = formatPrice(priceRange.max!);
+				activeFilters.push({ handle: key, label: `${Lang.labels.price}$${formattedMin} - $${formattedMax}`, value: SpecialValueType.CLEAR });
+			} else if (hasMin) {
+				const formattedMin = formatPrice(priceRange.min!);
+				activeFilters.push({ handle: key, label: `${Lang.labels.price}$${formattedMin}+`, value: SpecialValueType.CLEAR });
+			} else if (hasMax) {
+				const formattedMax = formatPrice(priceRange.max!);
+				activeFilters.push({ handle: key, label: `${Lang.labels.price}Up to $${formattedMax}`, value: SpecialValueType.CLEAR });
+			}
 			} else if (Array.isArray(value) && value.length > 0) {
 				value.forEach(v => {
 					const metadata = FilterState.filterMetadata.get(key);
@@ -2421,10 +2443,10 @@ const FallbackMode = {
 
 			if (Array.isArray(value) && value.length > 0) {
 				url.searchParams.set(key, value.join(','));
-			} else if ($.isPriceRangeKey(key) && value && typeof value === 'object' && !Array.isArray(value)) {
-				const priceRange = value as PriceRangeType;
-				const min = typeof priceRange.min === 'number' && !isNaN(priceRange.min) ? Math.round(priceRange.min) : undefined;
-				const max = typeof priceRange.max === 'number' && !isNaN(priceRange.max) ? Math.round(priceRange.max) : undefined;
+		} else if ($.isPriceRangeKey(key) && value && typeof value === 'object' && !Array.isArray(value)) {
+			const priceRange = value as PriceRangeType;
+			const min = typeof priceRange.min === 'number' && !isNaN(priceRange.min) ? formatPrice(priceRange.min) : undefined;
+			const max = typeof priceRange.max === 'number' && !isNaN(priceRange.max) ? formatPrice(priceRange.max) : undefined;
 				if (FilterState.priceRangeHandle) {
 					url.searchParams.set(FilterState.priceRangeHandle, `${min !== undefined ? min : ''}-${max !== undefined ? max : ''}`);
 				} else {
@@ -2629,22 +2651,22 @@ const Filters = {
 		this.apply();
 	},
 
-	updatePriceRange(min: number, max: number): void {
-		// Round to integers
-		min = Math.round(min);
-		max = Math.round(max);
+updatePriceRange(min: number, max: number): void {
+	// Format to 2 decimal places for consistency
+	min = formatPrice(min);
+	max = formatPrice(max);
 
-		if (typeof min !== 'number' || typeof max !== 'number' || min < 0 || max < min) {
-			Log.warn('Invalid price range', { min, max });
-			return;
-		}
+	if (typeof min !== 'number' || typeof max !== 'number' || min < 0 || max < min) {
+		Log.warn('Invalid price range', { min, max });
+		return;
+	}
 
-		// Check if range matches the full range (no filter applied)
-		const priceFilter = FilterState.availableFilters.find(f => $.isPriceRangeOptionType(f.optionType) || $.equals(f.optionKey, FilterKeyType.PRICE_RANGE));
-		if (priceFilter && priceFilter.range) {
-			const roundedMinRange = Math.round(priceFilter.range.min);
-			const roundedMaxRange = Math.round(priceFilter.range.max);
-			if (min === roundedMinRange && max === roundedMaxRange) {
+	// Check if range matches the full range (no filter applied)
+	const priceFilter = FilterState.availableFilters.find(f => $.isPriceRangeOptionType(f.optionType) || $.equals(f.optionKey, FilterKeyType.PRICE_RANGE));
+	if (priceFilter && priceFilter.range) {
+		const formattedMinRange = formatPrice(priceFilter.range.min);
+		const formattedMaxRange = formatPrice(priceFilter.range.max);
+		if (min === formattedMinRange && max === formattedMaxRange) {
 				FilterState.filters.priceRange = null;
 			} else {
 				FilterState.filters.priceRange = { min, max };

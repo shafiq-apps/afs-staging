@@ -1682,20 +1682,37 @@ export class StorefrontSearchRepository {
       mustQueries.push(clause);
     }
 
-    // Price filters
+    // Price filters - Use correct overlap logic
     if (sanitizedFilters?.priceMin !== undefined || sanitizedFilters?.priceMax !== undefined) {
-      const priceRange: any = {};
+      const priceMustQueries: any[] = [];
+      
+      // Product's maxPrice must be >= requested minPrice (product has variants at or above min)
       if (sanitizedFilters.priceMin !== undefined) {
-        priceRange.gte = sanitizedFilters.priceMin;
+        priceMustQueries.push({
+          range: {
+            [ES_FIELDS.MAX_PRICE]: {
+              gte: sanitizedFilters.priceMin
+            }
+          },
+        });
       }
+      
+      // Product's minPrice must be <= requested maxPrice (product has variants at or below max)
       if (sanitizedFilters.priceMax !== undefined) {
-        priceRange.lte = sanitizedFilters.priceMax;
+        priceMustQueries.push({
+          range: {
+            [ES_FIELDS.MIN_PRICE]: {
+              lte: sanitizedFilters.priceMax,
+            }
+          },
+        });
       }
-      mustQueries.push({
-        range: {
-          [ES_FIELDS.MIN_PRICE]: priceRange,
-        },
-      });
+      
+      if (priceMustQueries.length > 0) {
+        mustQueries.push({
+          bool: { must: priceMustQueries },
+        });
+      }
     }
 
     // Build main query
@@ -2145,11 +2162,38 @@ export class StorefrontSearchRepository {
     if (hasValues(sanitizedFilters?.collections)) {
       baseMustQueries.push({ terms: { [ES_FIELDS.COLLECTIONS]: sanitizedFilters!.collections } });
     }
+    
+    // Price filters - Use correct overlap logic
     if (sanitizedFilters?.priceMin !== undefined || sanitizedFilters?.priceMax !== undefined) {
-      const priceRange: any = {};
-      if (sanitizedFilters.priceMin !== undefined) priceRange.gte = sanitizedFilters.priceMin;
-      if (sanitizedFilters.priceMax !== undefined) priceRange.lte = sanitizedFilters.priceMax;
-      baseMustQueries.push({ range: { [ES_FIELDS.MIN_PRICE]: priceRange } });
+      const priceMustQueries: any[] = [];
+      
+      // Product's maxPrice must be >= requested minPrice (product has variants at or above min)
+      if (sanitizedFilters.priceMin !== undefined) {
+        priceMustQueries.push({
+          range: {
+            [ES_FIELDS.MAX_PRICE]: {
+              gte: sanitizedFilters.priceMin
+            }
+          }
+        });
+      }
+      
+      // Product's minPrice must be <= requested maxPrice (product has variants at or below max)
+      if (sanitizedFilters.priceMax !== undefined) {
+        priceMustQueries.push({
+          range: {
+            [ES_FIELDS.MIN_PRICE]: {
+              lte: sanitizedFilters.priceMax
+            }
+          }
+        });
+      }
+      
+      if (priceMustQueries.length > 0) {
+        baseMustQueries.push({
+          bool: { must: priceMustQueries }
+        });
+      }
     }
     
     // Build search query - OPTIMIZED with boosted weights from config
