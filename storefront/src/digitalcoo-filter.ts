@@ -11,12 +11,12 @@ import { Log } from './utils/shared';
 const States = new Map<string, FilterGroupStateType>();
 
 // Excluded query parameter keys (not processed as filters)
-export const EXCLUDED_QUERY_PARAMS = new Set<string>([FilterKeyType.SHOP, FilterKeyType.SHOP_DOMAIN, FilterKeyType.CPID]);
+const EXCLUDED_QUERY_PARAMS = new Set<string>([FilterKeyType.SHOP, FilterKeyType.SHOP_DOMAIN, FilterKeyType.CPID]);
 
 // ============================================================================
 // METADATA BUILDERS (For display only, not for state management)
 // ============================================================================
-export const Metadata = {
+const Metadata = {
 	// Build metadata map from filters array (for display labels, types, etc.)
 	buildFilterMetadata: (filters: FilterOptionType[]): Map<string, FilterMetadataType> => {
 		const m = new Map<string, FilterMetadataType>();
@@ -39,7 +39,7 @@ export const Metadata = {
 // ============================================================================
 // STATE (Minimal, no copying)
 // ============================================================================
-export const FilterState: FilterStateType = {
+const FilterState: FilterStateType = {
 	shop: null,
 	// Filters: standard filters (fixed keys) + dynamic option filters (handles as keys)
 	// Example: { vendor: [], ef4gd: ["red"], pr_a3k9x: ["M"], search: '', priceRange: null }
@@ -71,7 +71,7 @@ export const FilterState: FilterStateType = {
 // ============================================================================
 // URL PARSER (Optimized with lookup maps)
 // ============================================================================
-export const UrlManager = {
+const UrlManager = {
 	parse(): ParsedUrlParamsType {
 		const url = new URL(window.location.href);
 		const params: ParsedUrlParamsType = {};
@@ -363,7 +363,7 @@ const API = {
 
 		const url = `${this.baseURL}/products?${params}`;
 		Log.info('Fetching products', { url, shop: FilterState.shop, page: safePagination.page });
-		DOM.showLoading('products');
+		DOM.showProductsSkeleton();
 
 		const promise = this.fetch(url).then(res => {
 			if (!res.success || !res.data) {
@@ -384,7 +384,7 @@ const API = {
 			Log.error('Products fetch failed', { error: e instanceof Error ? e.message : String(e), url });
 			throw e;
 		});
-		DOM.showLoading('products');
+		DOM.showProductsSkeleton();
 		this.pending.set(key, promise);
 		return promise;
 	},
@@ -442,7 +442,7 @@ const API = {
 		const url = `${this.baseURL}/filters?${params}`;
 		Log.info('Fetching filters', { url, shop: FilterState.shop });
 
-		DOM.showLoading('filters');
+		DOM.showLoading();
 
 		const res = await this.fetch(url);
 		if (!res.success || !res.data) {
@@ -539,7 +539,7 @@ const API = {
 // DOM RENDERER (Optimized, batched operations)
 // ============================================================================
 
-export const DOM = {
+const DOM = {
 	container: null as HTMLElement | null,
 	filtersContainer: null as HTMLElement | null,
 	productsContainer: null as HTMLElement | null,
@@ -715,7 +715,7 @@ export const DOM = {
 				FilterState.pagination.page = 1;
 				UrlManager.update(FilterState.filters, FilterState.pagination, FilterState.sort);
 				DOM.scrollToProducts();
-				DOM.showLoading('products');
+				DOM.showProductsSkeleton();
 				Filters.apply();
 			}
 		});
@@ -731,7 +731,7 @@ export const DOM = {
 				FilterState.pagination.page = 1;
 				UrlManager.update(FilterState.filters, FilterState.pagination, FilterState.sort);
 				DOM.scrollToProducts();
-				DOM.showLoading('products');
+				DOM.showProductsSkeleton();
 				Filters.apply();
 			}, Config.DEBOUNCE);
 		});
@@ -776,7 +776,7 @@ export const DOM = {
 				// Scroll to top when clearing all filters
 				DOM.scrollToProducts();
 				// Show loading skeleton immediately (before debounce) - only products, filters will update via Filters.process
-				DOM.showLoading('products');
+				DOM.showProductsSkeleton();
 				Filters.apply();
 			}
 			else if (action === 'toggle-filters' || action === 'close-filters') {
@@ -801,7 +801,7 @@ export const DOM = {
 					}
 					UrlManager.update(FilterState.filters, FilterState.pagination, FilterState.sort);
 					DOM.scrollToProducts();
-					DOM.showLoading('products');
+					DOM.showProductsSkeleton();
 					Filters.apply();
 					return;
 				}
@@ -811,7 +811,7 @@ export const DOM = {
 					FilterState.pagination.page = 1;
 					UrlManager.update(FilterState.filters, FilterState.pagination, FilterState.sort);
 					DOM.scrollToProducts();
-					DOM.showLoading('products');
+					DOM.showProductsSkeleton();
 					Filters.apply();
 					return;
 				}
@@ -821,7 +821,7 @@ export const DOM = {
 					FilterState.pagination.page = 1;
 					UrlManager.update(FilterState.filters, FilterState.pagination, FilterState.sort);
 					DOM.scrollToProducts();
-					DOM.showLoading('products');
+					DOM.showProductsSkeleton();
 					Filters.apply();
 					return;
 				}
@@ -870,7 +870,7 @@ export const DOM = {
 					// Scroll to top when pagination changes
 					DOM.scrollToProducts();
 					// Show loading skeleton immediately (before debounce) - only products, not filters
-					DOM.showLoading('products');
+					DOM.showProductsSkeleton();
 					// Only fetch products, not filters (filters haven't changed)
 					Filters.applyProductsOnly();
 				}
@@ -899,7 +899,7 @@ export const DOM = {
 
 					// Scroll to top and show loading - only products, filters will update via Filters.process
 					DOM.scrollToProducts();
-					DOM.showLoading('products');
+					DOM.showProductsSkeleton();
 
 					// Apply filters to refresh products and filters
 					Filters.apply();
@@ -1033,7 +1033,7 @@ export const DOM = {
 			Log.info('Calling applyProductsOnly after sort change', { sort: FilterState.sort });
 			// Show loading skeleton immediately (before debounce) - only products, not filters
 			DOM.scrollToProducts();
-			DOM.showLoading('products');
+			DOM.showProductsSkeleton();
 			// Only fetch products, not filters (filters haven't changed)
 			Filters.applyProductsOnly();
 		};
@@ -2188,19 +2188,14 @@ export const DOM = {
 		}
 	},
 
-	showLoading(type: 'filters' | 'products' | 'both' = 'both'): void {
-		if (type === 'products' || type === 'both') {
-			this.showProductsSkeleton();
-		}
-
-		if (type === 'filters' || type === 'both') {
-			this.showFiltersSkeleton();
-		}
+	showLoading(): void {
+		this.showProductsSkeleton();
+		this.showFiltersSkeleton();
 	},
 
-	hideLoading(type: 'filters' | 'products' | 'both' = 'both'): void {
+	hideLoading(): void {
 		// Remove skeleton cards if they exist
-		if (type === 'products' || type === 'both') {
+		try {
 			if (Array.isArray(this.loading)) {
 				// If loading is an array of skeleton cards, remove each one
 				this.loading.forEach(card => {
@@ -2214,11 +2209,11 @@ export const DOM = {
 				this.loading.remove();
 				this.loading = null;
 			}
+		} catch (error) {
+
 		}
 
-		if (type === 'filters' || type === 'both') {
-			this.hideFiltersSkeleton();
-		}
+		this.hideFiltersSkeleton();
 	},
 
 	showProductsSkeleton(): void {
@@ -2312,7 +2307,6 @@ export const DOM = {
 		}
 
 		if (!this.productsContainer) {
-			// Last resort: log to console
 			Log.error('Cannot show error: productsContainer not found', { message });
 			return;
 		}
@@ -2320,27 +2314,25 @@ export const DOM = {
 		// Remove loading if present
 		this.hideLoading();
 
+		const fallbackProductsTotal = FilterState.fallbackProducts.length ?? 0;
+
 		// Check if we have fallback products to show instead of error
-		if (FilterState.fallbackProducts && FilterState.fallbackProducts.length > 0) {
+		if (FilterState.fallbackProducts && fallbackProductsTotal > 0) {
 			Log.warn('API error occurred, using fallback products from Liquid', {
 				error: message,
-				fallbackCount: FilterState.fallbackProducts.length
+				fallbackCount: fallbackProductsTotal
 			});
 
 			// Use fallback products
 			FilterState.products = FilterState.fallbackProducts;
-			FilterState.pagination = {
-				page: 1,
-				limit: Config.PAGE_SIZE,
-				total: FilterState.fallbackProducts.length,
-				totalPages: Math.ceil(FilterState.fallbackProducts.length / Config.PAGE_SIZE)
-			};
+			FilterState.pagination = FallbackMode.getPagination();;
 
 			// Render fallback products
 			this.renderProducts(FilterState.products);
-			this.renderInfo(FilterState.pagination, FilterState.pagination.total);
-			this.renderPagination(FilterState.pagination);
-
+			if (FilterState.pagination) {
+				this.renderInfo(FilterState.pagination, FilterState.pagination.total);
+				this.renderPagination(FilterState.pagination);
+			}
 			return;
 		}
 
@@ -2382,7 +2374,7 @@ export const DOM = {
 // FALLBACK MODE HELPER (Page reload for Liquid products)
 // ============================================================================
 
-export const FallbackMode = {
+const FallbackMode = {
 	// Get pagination info for fallback mode (from URL params and Liquid data)
 	getPagination(): PaginationStateType {
 		const urlParams = UrlManager.parse();
@@ -2446,7 +2438,7 @@ export const FallbackMode = {
 	}
 };
 
-export function handleLoadError(e: unknown) {
+function handleLoadError(e: unknown) {
 	DOM.hideLoading();
 	Log.error('Load failed', {
 		error: e instanceof Error ? e.message : String(e),
@@ -2509,7 +2501,7 @@ const Products = {
 			// Hide filters section when using fallback
 			FilterState.availableFilters = [];
 			DOM.hideFilters();
-			DOM.hideLoading('products');
+			DOM.hideProductsSkeleton();
 		}
 		else {
 			FilterState.usingFallback = false; // Reset fallback flag on success
@@ -2534,7 +2526,6 @@ const Products = {
 const Filters = {
 
 	process: (filtersData: FiltersResponseDataType) => {
-		debugger;
 		try {
 			FilterState.availableFilters = filtersData.filters || [];
 			try {
@@ -2577,7 +2568,7 @@ const Filters = {
 		}
 		finally {
 			Products.updateUI();
-			DOM.hideLoading('filters');
+			DOM.hideFiltersSkeleton();
 		}
 
 	},
@@ -2611,7 +2602,7 @@ const Filters = {
 		// Scroll to top when filter is clicked
 		DOM.scrollToProducts();
 		// Show loading skeleton immediately (before debounce) - only products, filters will update via Filters.process
-		DOM.showLoading('products');
+		DOM.showProductsSkeleton();
 
 		// Close mobile filters after applying filter (on mobile devices)
 		if (window.innerWidth <= 768 && DOM.filtersContainer?.classList.contains('afs-filters-container--open')) {
@@ -2667,7 +2658,7 @@ const Filters = {
 		// Scroll to top when price range is updated
 		DOM.scrollToProducts();
 		// Show loading skeleton immediately (before debounce)
-		DOM.showLoading('products');
+		DOM.showProductsSkeleton();
 		this.apply();
 	},
 
@@ -2703,7 +2694,7 @@ const Filters = {
 // ============================================================================
 // QUICK ADD FUNCTIONALITY
 // ============================================================================
-export const QuickAdd = {
+const QuickAdd = {
 	async add(handle: string, productId: string | null): Promise<void> {
 		try {
 			// Fetch product to get first variant
@@ -2838,7 +2829,7 @@ export const QuickAdd = {
 // MAIN API (Minimal)
 // ============================================================================
 
-export const AFS: AFSInterface = {
+const AFS: AFSInterface = {
 	init(config: AFSConfigType = {}): void {
 		try {
 			Log.init(config.debug);
@@ -2916,7 +2907,7 @@ export const AFS: AFSInterface = {
 			Log.info('DOM initialized');
 
 			// Show loading skeleton immediately on initial load (before API calls) - both filters and products
-			DOM.showLoading('both');
+			DOM.showLoading();
 
 			DOM.attachEvents();
 			Log.info('DOM events attached');
@@ -2933,7 +2924,7 @@ export const AFS: AFSInterface = {
 
 	async load(): Promise<void> {
 		// Loading skeleton is already shown in init(), but ensure it's visible - both filters and products on initial load
-		DOM.showLoading('both');
+		DOM.showLoading();
 		try {
 			// Parse URL params FIRST before loading filters, so filters endpoint gets the correct filters
 			const urlParams = UrlManager.parse();
@@ -2946,7 +2937,7 @@ export const AFS: AFSInterface = {
 
 			Log.info('Loading products & filters...', { shop: FilterState.shop, filters: FilterState.filters });
 
-			
+
 			API.filters(FilterState.filters).then(Filters.process).catch(handleLoadError).finally(() => {
 				DOM.hideFiltersSkeleton();
 			});
@@ -3742,7 +3733,7 @@ class AFSSlider {
 }
 
 // Create Product Modal using Ajax API
-export async function createProductModal(handle: string, modalId: string): Promise<ProductModalElement> {
+async function createProductModal(handle: string, modalId: string): Promise<ProductModalElement> {
 
 	const dialog = $.el('dialog', 'afs-product-modal', { 'id': modalId }) as ProductModalElement;
 
@@ -4498,7 +4489,7 @@ function setupCloseHandler(dialog: ProductModalElement): void {
 	});
 }
 
-export function createQuickViewButton(product: ProductType): HTMLElement | null {
+function createQuickViewButton(product: ProductType): HTMLElement | null {
 	if (!product.handle) return null;
 
 	// Safety check: ensure Lang.buttons exists before accessing quickView
@@ -4516,7 +4507,7 @@ export function createQuickViewButton(product: ProductType): HTMLElement | null 
 	return quickViewBtn;
 }
 
-export function handleQuickViewClick(handle: string): void {
+function handleQuickViewClick(handle: string): void {
 	if (!handle) return;
 
 	// Open product modal using Ajax API
@@ -4572,7 +4563,7 @@ export function handleQuickViewClick(handle: string): void {
 }
 
 // Export to window
-export const AFSW = window as ShopifyWindow;
+const AFSW = window as ShopifyWindow;
 
 // Export
 if (typeof window !== 'undefined') {
