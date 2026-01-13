@@ -158,9 +158,11 @@ const SearchDOM = {
 	},
 
 	createSuggestionItem(suggestion: string, index: number): HTMLElement {
-		const item = $.el('div', 'afs-search-dropdown__suggestion', {
+		const item = $.el('a', 'afs-search-dropdown__suggestion', {
+			'href': `/search?q=${encodeURIComponent(suggestion)}`,
 			'role': 'option',
 			'data-index': String(index),
+			'data-type': 'suggestion',
 			'tabindex': '-1'
 		});
 		
@@ -633,39 +635,65 @@ const SearchLogic = {
 		
 		if (!item) return;
 
-		if (item.tagName === 'A') {
-			// For product links, ensure handle is present before navigation
-			const handle = item.getAttribute('data-handle');
-			if (handle) {
-				// Let the link navigate naturally to /products/{handle}
-				// Close dropdown after click
-				SearchDOM.hideDropdown();
-				if (SearchState.customSearchBox) {
-					SearchInit.hideCustomSearchBox();
-				}
-				return;
-			} else {
-				// Prevent navigation if no handle
-				e.preventDefault();
-				Log.warn('Product link clicked but no handle available');
-				return;
-			}
-		}
+		const itemType = item.getAttribute('data-type');
 
-		e.preventDefault();
-
-		if (item.getAttribute('data-type') === 'did-you-mean') {
+		if (itemType === 'did-you-mean') {
 			const didYouMean = SearchState.searchResults?.didYouMean;
 			if (didYouMean && SearchState.activeInput) {
 				SearchState.activeInput.value = didYouMean;
 				SearchLogic.debouncedSearch(didYouMean);
 			}
+			e.preventDefault();
+			return;
+		}
+
+		if (itemType === 'suggestion') {
+			const suggestion = item.querySelector('.afs-search-dropdown__suggestion-text')?.textContent || item.textContent || '';
+			if (suggestion && SearchState.activeInput) {
+				SearchState.activeInput.value = suggestion;
+			}
+			// Close dropdown and navigate to search results page
+			SearchDOM.hideDropdown();
+			if (SearchState.customSearchBox) {
+				SearchInit.hideCustomSearchBox();
+			}
+			window.location.href = `/search?q=${encodeURIComponent(suggestion)}`;
+			e.preventDefault();
+			return;
+		}
+
+		if (item.tagName === 'A') {
+			// Product or navigation links
+			const handle = item.getAttribute('data-handle');
+			if (handle) {
+				// Let the link navigate naturally to /products/{handle}
+				SearchDOM.hideDropdown();
+				if (SearchState.customSearchBox) {
+					SearchInit.hideCustomSearchBox();
+				}
+				return;
+			}
+
+			// Allow navigation for view-all/suggestion links with href
+			if (item.getAttribute('href')) {
+				SearchDOM.hideDropdown();
+				if (SearchState.customSearchBox) {
+					SearchInit.hideCustomSearchBox();
+				}
+				return;
+			}
+
+			// Prevent navigation if no target found
+			e.preventDefault();
+			Log.warn('Link clicked but no navigation target available');
+			return;
 		} else {
 			const suggestion = item.querySelector('.afs-search-dropdown__suggestion-text')?.textContent;
 			if (suggestion && SearchState.activeInput) {
 				SearchState.activeInput.value = suggestion;
 				SearchLogic.debouncedSearch(suggestion);
 			}
+			e.preventDefault();
 		}
 	}
 };

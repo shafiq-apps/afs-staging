@@ -1809,6 +1809,9 @@ export class StorefrontSearchRepository {
       { term: { [ES_FIELDS.STATUS]: 'ACTIVE' } },
       { term: { [ES_FIELDS.DOCUMENT_TYPE]: 'product' } },
     ];
+
+    // Build search clauses (fuzzy + exact) to guarantee full title/variant matches
+    const shouldQueries: any[] = [];
     
     // Build search query with cached config fields
     const fieldMatch = fieldsToUse.length === 1 ? fieldsToUse[0].match(/^(.+)\^(.+)$/) : null;
@@ -1816,7 +1819,7 @@ export class StorefrontSearchRepository {
     
     if (fieldName) {
       // Single field match - fastest
-      mustQueries.push({
+      shouldQueries.push({
         match: {
           [fieldName]: {
             query: query,
@@ -1829,7 +1832,7 @@ export class StorefrontSearchRepository {
       });
     } else {
       // Multi-field match with boosted weights (max 2 fields)
-      mustQueries.push({
+      shouldQueries.push({
         multi_match: {
           query: query,
           fields: fieldsToUse,
@@ -1841,6 +1844,63 @@ export class StorefrontSearchRepository {
         },
       });
     }
+
+    // Strict AND match to catch exact full-title queries (no fuzziness)
+    shouldQueries.push({
+      multi_match: {
+        query: query,
+        fields: fieldsToUse,
+        type: 'best_fields',
+        operator: 'and',
+      },
+    });
+
+    // Exact keyword/title match for full titles
+    shouldQueries.push({
+      term: { [ES_FIELDS.TITLE_KEYWORD]: query },
+    });
+
+    // Exact phrase match on analyzed title (helps long titles)
+    shouldQueries.push({
+      match_phrase: { title: { query } },
+    });
+
+    // Prefix phrase match on title to keep suggestions appearing for partial endings
+    shouldQueries.push({
+      match_phrase_prefix: {
+        title: {
+          query,
+          max_expansions: 20,
+        },
+      },
+    });
+
+    // Variant displayName and SKU exact matches (nested)
+    shouldQueries.push({
+      nested: {
+        path: 'variants',
+        query: {
+          match_phrase: { 'variants.displayName': { query } },
+        },
+      },
+    });
+
+    shouldQueries.push({
+      nested: {
+        path: 'variants',
+        query: {
+          term: { [ES_FIELDS.VARIANTS_SKU]: query },
+        },
+      },
+    });
+
+    const mainQuery = {
+      bool: {
+        must: mustQueries,
+        should: shouldQueries,
+        minimum_should_match: 1, // ensure we honor exact/fuzzy paths
+      },
+    };
     
     // Build msearch body - only main query (no facets)
     const msearchBody: any[] = [];
@@ -1850,7 +1910,7 @@ export class StorefrontSearchRepository {
     msearchBody.push({
       from,
       size: limit,
-      query: { bool: { must: mustQueries } },
+      query: mainQuery,
       sort: [{ _score: 'desc' }],
       track_total_hits: false,
       timeout: '150ms', // Very aggressive timeout
@@ -1915,6 +1975,7 @@ export class StorefrontSearchRepository {
       const product = hit._source as shopifyProduct;
       return {
         id: product.id,
+        handle: product.handle,
         title: product.title,
         imageUrl: product.imageUrl,
         vendor: product.vendor,

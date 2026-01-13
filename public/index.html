@@ -69,9 +69,30 @@
             padding: 12px 8%;
         }
     </style>
-    <div class="input-shop">
+    <!-- <div class="input-shop">
         <p id="available-shop-name"></p>
         <input type="search" id="shop-url" name="q" style="width: 100%;display: flex;margin: 0 auto;" />
+    </div> -->
+
+
+    <div class="afs-search-bar" data-afs-search-bar>
+      <form class="afs-search-bar__form" data-afs-search-form method="get" action="file:///D:/Kore/public/index.html">
+        <input 
+          type="text" 
+          class="afs-search-bar__input" 
+          data-afs-search-input
+          placeholder="Search products..." 
+          value=""
+          aria-label="Search products"
+          name="q"
+        />
+        <button type="submit" class="afs-search-bar__submit" aria-label="Search">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <path d="m21 21-4.35-4.35"></path>
+          </svg>
+        </button>
+      </form>
     </div>
 
     <div data-afs-container id="afs-container"></div>
@@ -169,9 +190,9 @@
             function initializeAFS() {
                 if (typeof window.AFS !== 'undefined') {
                     try {
-                        const availableShops = Object.keys(shopsCollections);
-                        document.getElementById('available-shop-name').innerText = 'Available shops: ' + availableShops.join(', ');
                         try {
+                            const availableShops = Object.keys(shopsCollections);
+                            document.getElementById('available-shop-name').innerText = 'Available shops: ' + availableShops.join(', ');
                             const removeExisting = document.querySelector('[data-afs-container]');
                             if (removeExisting) {
                                 removeExisting.innerHTML = '';
@@ -188,6 +209,9 @@
                         window.AFS.init(config);
                     } catch (error) {
                         console.error('Failed to initialize Advanced Filter Search:', error);
+                    }
+                    finally{
+                        window.AFS.init(config);
                     }
                 } else {
                     setTimeout(initializeAFS, 100);
