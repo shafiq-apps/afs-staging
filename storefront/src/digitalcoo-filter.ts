@@ -2821,32 +2821,58 @@ const QuickAdd = {
 	},
 
 	showSuccess(): void {
-		// Create or update success message
-		let message = document.querySelector<HTMLElement>('.afs-quick-add-success');
-		if (!message) {
-			message = $.el('div', 'afs-quick-add-success');
-			document.body.appendChild(message);
+		// Create or update success toast
+		let toast = document.querySelector<HTMLElement>('.afs-cart-toast');
+		if (!toast) {
+			toast = $.el('div', 'afs-cart-toast');
+			
+			// Create toast content with icon and message
+			const toastContent = $.el('div', 'afs-cart-toast__content');
+			
+			// Success icon (checkmark circle)
+			const icon = $.el('div', 'afs-cart-toast__icon');
+			icon.innerHTML = `
+				<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+					<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" fill="currentColor"/>
+				</svg>
+			`;
+			
+			// Message text
+			const message = $.el('div', 'afs-cart-toast__message');
+			message.textContent = Lang.messages.addedToCart || 'Product added to cart!';
+			
+			// Close button
+			const closeBtn = $.el('button', 'afs-cart-toast__close');
+			closeBtn.setAttribute('type', 'button');
+			closeBtn.setAttribute('aria-label', 'Close');
+			closeBtn.innerHTML = `
+				<svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+					<path d="M15 5L5 15M5 5l10 10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+				</svg>
+			`;
+			
+			toastContent.appendChild(icon);
+			toastContent.appendChild(message);
+			toast.appendChild(toastContent);
+			toast.appendChild(closeBtn);
+			document.body.appendChild(toast);
+			
+			// Close button handler
+			closeBtn.addEventListener('click', () => {
+				toast?.classList.remove('afs-cart-toast--show');
+			});
 		}
 
-		message.textContent = Lang.messages.addedToCart;
-		message.classList.add('afs-quick-add-success--show');
+		// Show toast with animation
+		toast.classList.add('afs-cart-toast--show');
 
-		// Use CSS animation end event instead of fixed timeout
-		const handleAnimationEnd = () => {
-			message.classList.remove('afs-quick-add-success--show');
-			message.removeEventListener('animationend', handleAnimationEnd);
-		};
-
-		// Fallback timeout if animation doesn't fire
+		// Auto-hide after 4 seconds
 		const timeoutId = setTimeout(() => {
-			message.classList.remove('afs-quick-add-success--show');
-			message.removeEventListener('animationend', handleAnimationEnd);
-		}, 3000);
+			toast?.classList.remove('afs-cart-toast--show');
+		}, 4000);
 
-		message.addEventListener('animationend', () => {
-			clearTimeout(timeoutId);
-			handleAnimationEnd();
-		}, { once: true });
+		// Store timeout ID to clear if user manually closes
+		(toast as any)._timeoutId = timeoutId;
 	}
 };
 
