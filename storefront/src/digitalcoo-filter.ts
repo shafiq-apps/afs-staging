@@ -720,7 +720,8 @@ const DOM = {
 			}
 		});
 
-		// Handle input change with debounce
+		// Handle input change with debounce (longer on search template to reduce request load)
+		const debounceDelay = ((window as any).AFS_Config?.isSearchTemplate) ? 400 : Config.DEBOUNCE;
 		let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 		searchInput.addEventListener('input', () => {
 			if (debounceTimer) clearTimeout(debounceTimer);
@@ -733,7 +734,7 @@ const DOM = {
 				DOM.scrollToProducts();
 				DOM.showProductsSkeleton();
 				Filters.apply();
-			}, Config.DEBOUNCE);
+			}, debounceDelay);
 		});
 
 		// Sync search input with URL changes (back/forward navigation)
@@ -2176,15 +2177,17 @@ const DOM = {
 			return; // stop on debugging mode
 		}
 		// Scroll to products section when filters are applied
-		if (this.productsContainer) {
-			this.productsContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+		const target = this.productsContainer || this.productsGrid || this.productsInfo;
+		if (!target) return;
+
+		const rect = target.getBoundingClientRect();
+		const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+		const topVisible = rect.top >= 0 && rect.top <= viewportHeight;
+
+		// Only scroll if the top of products is outside the viewport (either above or below)
+		if (!topVisible) {
+			target.scrollIntoView({ behavior: 'smooth', block: 'start' });
 			Log.debug('Scrolled to products section');
-		} else if (this.productsGrid) {
-			this.productsGrid.scrollIntoView({ behavior: 'smooth', block: 'start' });
-			Log.debug('Scrolled to products grid');
-		} else if (this.productsInfo) {
-			this.productsInfo.scrollIntoView({ behavior: 'smooth', block: 'start' });
-			Log.debug('Scrolled to products info');
 		}
 	},
 
