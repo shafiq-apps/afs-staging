@@ -486,27 +486,6 @@ export function applyFilterConfigToInput(
     (result as ProductSearchInput).hideOutOfStockItems = true;
   }
 
-  // Default to preserving option aggregations unless explicitly disabled
-  // Apply targetScope restrictions
-  if (filterConfig.targetScope === 'entitled' && filterConfig.allowedCollections?.length > 0) {
-    // If filter is scoped to specific collections, ensure we're filtering by those collections
-    const allowedCollectionIds = filterConfig.allowedCollections.map((c) => c.id);
-    
-    if (currentCollection) {
-      // If a specific collection is requested, check if it's allowed
-      if (!allowedCollectionIds.includes(currentCollection)) {
-        // Collection not allowed, return empty result by filtering to non-existent collection
-        result.collections = ['__none__'];
-      }
-    } else if (!result.collections || result.collections.length === 0) {
-      // No collection specified, but filter is scoped - apply allowed collections
-      result.collections = allowedCollectionIds;
-    } else {
-      // Collection specified - filter to only allowed ones
-      result.collections = result.collections.filter((c) => allowedCollectionIds.includes(c));
-    }
-  }
-
   // Map option handles/IDs to actual option names
   // Query parameters may use handles/IDs (e.g., "pr_a3k9x", "ti7u71") instead of option names (e.g., "Size")
   // Also filter out any keys that don't match actual options in the filter config
