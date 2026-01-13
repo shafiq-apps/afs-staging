@@ -209,6 +209,7 @@ export function sanitizeFilterInput(input: {
   priceMax?: number;
   variantSkus?: string[];
   keep?: string[];
+  cpid?: string; // Collection Page ID - immutable page context
 }): {
   search?: string;
   vendors?: string[];
@@ -221,6 +222,7 @@ export function sanitizeFilterInput(input: {
   priceMax?: number;
   variantSkus?: string[];
   keep?: string[];
+  cpid?: string; // Collection Page ID - immutable page context
 } {
   const sanitized: typeof input = {};
 
@@ -283,6 +285,12 @@ export function sanitizeFilterInput(input: {
 
   if (input.keep) {
     sanitized.keep = sanitizeTermsArray(input.keep);
+  }
+
+  // Sanitize CPID (Collection Page ID) - immutable page context
+  // CPID can be either a numeric ID or GID format (gid://shopify/Collection/123)
+  if (input.cpid) {
+    sanitized.cpid = sanitizeString(input.cpid, 200); // Allow up to 200 chars for GID format
   }
 
   // Preserve handle mapping metadata for AND/OR logic

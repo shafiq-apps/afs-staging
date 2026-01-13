@@ -71,6 +71,37 @@ function calculateEditDistance(str1: string, str2: string): number {
 }
 
 /**
+ * Normalize CPID (Collection Page ID) to numeric collection ID
+ * Handles both GID format (gid://shopify/Collection/123) and numeric strings
+ * 
+ * @param cpid - Collection page ID in any format
+ * @returns Normalized numeric collection ID or null if invalid
+ */
+function normalizeCpid(cpid: string | undefined | null): string | null {
+  if (!cpid || typeof cpid !== 'string') return null;
+  
+  const trimmed = cpid.trim();
+  if (!trimmed) return null;
+  
+  // If already numeric, return as-is
+  if (/^\d+$/.test(trimmed)) {
+    return trimmed;
+  }
+  
+  // Extract from GID format: gid://shopify/Collection/123
+  if (trimmed.startsWith('gid://')) {
+    const parts = trimmed.split('/');
+    const lastPart = parts[parts.length - 1];
+    if (lastPart && /^\d+$/.test(lastPart)) {
+      return lastPart;
+    }
+  }
+  
+  // Return original if it's not numeric and not a valid GID
+  return trimmed;
+}
+
+/**
  * Determine which aggregations should be calculated based on filter configuration
  * Only includes aggregations for published filter options
  * Returns specific aggregations for variant options (option.Color, option.Size, etc.)
@@ -357,6 +388,27 @@ export class StorefrontSearchRepository {
       const handleMapping = sanitizedFilters ? (sanitizedFilters as SanitizedFilterInputWithMapping).__handleMapping : undefined;
       const handleToValues = handleMapping?.handleToValues || {};
 
+      /** 
+       * CPID (Collection Page ID) - Always apply as immutable page context
+       * This is NEVER excluded from aggregations as it represents the collection page the user is on
+       * All aggregations must be calculated within the cpid collection context
+       */
+      if (sanitizedFilters?.cpid) {
+        const cpidCollectionId = normalizeCpid(sanitizedFilters.cpid);
+        
+        if (cpidCollectionId) {
+          baseMustQueries.push({
+            term: { [ES_FIELDS.COLLECTIONS]: cpidCollectionId }
+          });
+          
+          logger.info('[getFacets] Applied CPID as mandatory page context', {
+            cpid: sanitizedFilters.cpid,
+            normalizedCpid: cpidCollectionId,
+            excludeFilterType,
+          });
+        }
+      }
+
       /** Search */
       if (sanitizedFilters?.search) {
         baseMustQueries.push({
@@ -553,6 +605,12 @@ export class StorefrontSearchRepository {
       const postFilterQueries: ESQuery[] = [];
       const handleMapping = sanitizedFilters ? (sanitizedFilters as SanitizedFilterInputWithMapping).__handleMapping : undefined;
       const handleToValues = handleMapping?.handleToValues || {};
+
+      /**
+       * NOTE: CPID is NOT included in post_filter
+       * CPID is only in buildBaseMustQueries so aggregations are calculated on cpid-filtered documents
+       * post_filter is applied AFTER aggregations, but we want cpid to filter BEFORE
+       */
 
       // Handle standard filters
       const simpleFilters: Record<string, { field: string; values?: any[]; baseFieldKey: string }> = {
@@ -1112,6 +1170,23 @@ export class StorefrontSearchRepository {
       mustQueries.push(clause);
     }
 
+    // CPID (Collection Page ID) - Always apply as immutable page context
+    // This is NEVER excluded and ensures products are filtered to the current collection page
+    if (sanitizedFilters?.cpid) {
+      const cpidCollectionId = normalizeCpid(sanitizedFilters.cpid);
+      
+      if (cpidCollectionId) {
+        mustQueries.push({
+          term: { 'collections': cpidCollectionId }
+        });
+        
+        logger.info('[searchProducts] Applied CPID as mandatory page context', {
+          cpid: sanitizedFilters.cpid,
+          normalizedCpid: cpidCollectionId,
+        });
+      }
+    }
+
     if (hasValues(sanitizedFilters?.collections)) {
       // Collections are stored as an array of strings (numeric collection IDs)
       // For array fields in ES, use the field name directly (not .keyword)
@@ -1607,20 +1682,37 @@ export class StorefrontSearchRepository {
       mustQueries.push(clause);
     }
 
-    // Price filters
+    // Price filters - Use correct overlap logic
     if (sanitizedFilters?.priceMin !== undefined || sanitizedFilters?.priceMax !== undefined) {
-      const priceRange: any = {};
+      const priceMustQueries: any[] = [];
+      
+      // Product's maxPrice must be >= requested minPrice (product has variants at or above min)
       if (sanitizedFilters.priceMin !== undefined) {
-        priceRange.gte = sanitizedFilters.priceMin;
+        priceMustQueries.push({
+          range: {
+            [ES_FIELDS.MAX_PRICE]: {
+              gte: sanitizedFilters.priceMin
+            }
+          },
+        });
       }
+      
+      // Product's minPrice must be <= requested maxPrice (product has variants at or below max)
       if (sanitizedFilters.priceMax !== undefined) {
-        priceRange.lte = sanitizedFilters.priceMax;
+        priceMustQueries.push({
+          range: {
+            [ES_FIELDS.MIN_PRICE]: {
+              lte: sanitizedFilters.priceMax,
+            }
+          },
+        });
       }
-      mustQueries.push({
-        range: {
-          [ES_FIELDS.MIN_PRICE]: priceRange,
-        },
-      });
+      
+      if (priceMustQueries.length > 0) {
+        mustQueries.push({
+          bool: { must: priceMustQueries },
+        });
+      }
     }
 
     // Build main query
@@ -1809,6 +1901,9 @@ export class StorefrontSearchRepository {
       { term: { [ES_FIELDS.STATUS]: 'ACTIVE' } },
       { term: { [ES_FIELDS.DOCUMENT_TYPE]: 'product' } },
     ];
+
+    // Build search clauses (fuzzy + exact) to guarantee full title/variant matches
+    const shouldQueries: any[] = [];
     
     // Build search query with cached config fields
     const fieldMatch = fieldsToUse.length === 1 ? fieldsToUse[0].match(/^(.+)\^(.+)$/) : null;
@@ -1816,7 +1911,7 @@ export class StorefrontSearchRepository {
     
     if (fieldName) {
       // Single field match - fastest
-      mustQueries.push({
+      shouldQueries.push({
         match: {
           [fieldName]: {
             query: query,
@@ -1829,7 +1924,7 @@ export class StorefrontSearchRepository {
       });
     } else {
       // Multi-field match with boosted weights (max 2 fields)
-      mustQueries.push({
+      shouldQueries.push({
         multi_match: {
           query: query,
           fields: fieldsToUse,
@@ -1841,6 +1936,63 @@ export class StorefrontSearchRepository {
         },
       });
     }
+
+    // Strict AND match to catch exact full-title queries (no fuzziness)
+    shouldQueries.push({
+      multi_match: {
+        query: query,
+        fields: fieldsToUse,
+        type: 'best_fields',
+        operator: 'and',
+      },
+    });
+
+    // Exact keyword/title match for full titles
+    shouldQueries.push({
+      term: { [ES_FIELDS.TITLE_KEYWORD]: query },
+    });
+
+    // Exact phrase match on analyzed title (helps long titles)
+    shouldQueries.push({
+      match_phrase: { title: { query } },
+    });
+
+    // Prefix phrase match on title to keep suggestions appearing for partial endings
+    shouldQueries.push({
+      match_phrase_prefix: {
+        title: {
+          query,
+          max_expansions: 20,
+        },
+      },
+    });
+
+    // Variant displayName and SKU exact matches (nested)
+    shouldQueries.push({
+      nested: {
+        path: 'variants',
+        query: {
+          match_phrase: { 'variants.displayName': { query } },
+        },
+      },
+    });
+
+    shouldQueries.push({
+      nested: {
+        path: 'variants',
+        query: {
+          term: { [ES_FIELDS.VARIANTS_SKU]: query },
+        },
+      },
+    });
+
+    const mainQuery = {
+      bool: {
+        must: mustQueries,
+        should: shouldQueries,
+        minimum_should_match: 1, // ensure we honor exact/fuzzy paths
+      },
+    };
     
     // Build msearch body - only main query (no facets)
     const msearchBody: any[] = [];
@@ -1850,7 +2002,7 @@ export class StorefrontSearchRepository {
     msearchBody.push({
       from,
       size: limit,
-      query: { bool: { must: mustQueries } },
+      query: mainQuery,
       sort: [{ _score: 'desc' }],
       track_total_hits: false,
       timeout: '150ms', // Very aggressive timeout
@@ -1915,6 +2067,7 @@ export class StorefrontSearchRepository {
       const product = hit._source as shopifyProduct;
       return {
         id: product.id,
+        handle: product.handle,
         title: product.title,
         imageUrl: product.imageUrl,
         vendor: product.vendor,
@@ -2009,11 +2162,38 @@ export class StorefrontSearchRepository {
     if (hasValues(sanitizedFilters?.collections)) {
       baseMustQueries.push({ terms: { [ES_FIELDS.COLLECTIONS]: sanitizedFilters!.collections } });
     }
+    
+    // Price filters - Use correct overlap logic
     if (sanitizedFilters?.priceMin !== undefined || sanitizedFilters?.priceMax !== undefined) {
-      const priceRange: any = {};
-      if (sanitizedFilters.priceMin !== undefined) priceRange.gte = sanitizedFilters.priceMin;
-      if (sanitizedFilters.priceMax !== undefined) priceRange.lte = sanitizedFilters.priceMax;
-      baseMustQueries.push({ range: { [ES_FIELDS.MIN_PRICE]: priceRange } });
+      const priceMustQueries: any[] = [];
+      
+      // Product's maxPrice must be >= requested minPrice (product has variants at or above min)
+      if (sanitizedFilters.priceMin !== undefined) {
+        priceMustQueries.push({
+          range: {
+            [ES_FIELDS.MAX_PRICE]: {
+              gte: sanitizedFilters.priceMin
+            }
+          }
+        });
+      }
+      
+      // Product's minPrice must be <= requested maxPrice (product has variants at or below max)
+      if (sanitizedFilters.priceMax !== undefined) {
+        priceMustQueries.push({
+          range: {
+            [ES_FIELDS.MIN_PRICE]: {
+              lte: sanitizedFilters.priceMax
+            }
+          }
+        });
+      }
+      
+      if (priceMustQueries.length > 0) {
+        baseMustQueries.push({
+          bool: { must: priceMustQueries }
+        });
+      }
     }
     
     // Build search query - OPTIMIZED with boosted weights from config

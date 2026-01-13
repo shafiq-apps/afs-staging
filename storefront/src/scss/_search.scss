@@ -7,6 +7,12 @@
 @use './_components' as *;
 
 /* ============================================================================
+   Base Container Theme Defaults (moved from inline Liquid)
+   These provide sane defaults; per-shop overrides can be added via CSS vars
+   injected elsewhere if needed.
+   ============================================================================ */
+
+/* ============================================================================
    Search Override Box (Custom Search Modal)
    ============================================================================ */
 
@@ -429,16 +435,5 @@
 .afs-search-dropdown__item--selected {
   outline: 2px solid var(--afs-accent-color);
   outline-offset: -2px;
-}
-
-/* ============================================================================
-   Focus States
-   ============================================================================ */
-
-input[data-afs-search="true"] {
-  &:focus {
-    outline: 2px solid var(--afs-accent-color);
-    outline-offset: 2px;
-  }
 }
 

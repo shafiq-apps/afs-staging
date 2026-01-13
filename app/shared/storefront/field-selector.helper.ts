@@ -17,7 +17,7 @@ export const DEFAULT_STOREFRONT_FIELDS = [
   'handle',
   'title',
   'imageUrl',
-  'imagesUrls',
+  // 'imagesUrls',
   'vendor',
   'minPrice',
   'maxPrice',

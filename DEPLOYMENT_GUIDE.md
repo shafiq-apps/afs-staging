@@ -191,10 +191,10 @@ sudo su - appuser
 cd ~
 
 # Clone your repository (replace with your actual repository URL)
-git clone https://github.com/your-username/your-repo.git kore
+git clone git@github.com:shafiq-apps/afs-staging.git afsv2
 
 # Navigate to project directory
-cd kore
+cd afsv2
 ```
 
 ### Install Root Dependencies
@@ -212,7 +212,7 @@ npm install
 Create the environment file for the backend:
 
 ```bash
-cd ~/kore/app
+cd ~/afsv2/app
 nano .env
 ```
 
@@ -253,7 +253,7 @@ DEBUG=false
 Create the environment file for the dashboard:
 
 ```bash
-cd ~/kore/dashboard
+cd ~/afsv2/dashboard
 nano .env
 ```
 
@@ -283,7 +283,7 @@ GRAPHQL_ENDPOINT=https://your-domain.com/graphql
 ### Build Backend API
 
 ```bash
-cd ~/kore/app
+cd ~/afsv2/app
 
 # Install dependencies
 npm install
@@ -295,7 +295,7 @@ npm run build
 ### Build Dashboard
 
 ```bash
-cd ~/kore/dashboard
+cd ~/afsv2/dashboard
 
 # Install dependencies
 npm install
@@ -309,7 +309,7 @@ npm run build
 You can also use the provided build script:
 
 ```bash
-cd ~/kore
+cd ~/afsv2
 bash build-production.sh
 ```
 
@@ -320,7 +320,7 @@ bash build-production.sh
 ### Create Nginx Configuration
 
 ```bash
-sudo nano /etc/nginx/sites-available/kore
+sudo nano /etc/nginx/sites-available/afsv2
 ```
 
 Copy the contents of your `nginx.conf` file and modify the `server_name` to match your domain:
@@ -414,7 +414,7 @@ server {
 
 ```bash
 # Create symbolic link
-sudo ln -s /etc/nginx/sites-available/kore /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/afsv2 /etc/nginx/sites-enabled/
 
 # Remove default site (optional)
 sudo rm /etc/nginx/sites-enabled/default
@@ -464,7 +464,7 @@ sudo certbot renew --dry-run
 Edit the `ecosystem.config.js` file in the project root:
 
 ```bash
-cd ~/kore
+cd ~/afsv2
 nano ecosystem.config.js
 ```
 
@@ -478,7 +478,7 @@ Ensure the configuration points to the correct paths and uses the correct enviro
 ### Create Logs Directory
 
 ```bash
-cd ~/kore
+cd ~/afsv2
 mkdir -p logs
 ```
 
@@ -489,7 +489,7 @@ mkdir -p logs
 ### Start Applications with PM2
 
 ```bash
-cd ~/kore
+cd ~/afsv2
 
 # Start both applications
 pm2 start ecosystem.config.js
@@ -572,7 +572,7 @@ top
 ### Update Application Code
 
 ```bash
-cd ~/kore
+cd ~/afsv2
 
 # Pull latest changes
 git pull
@@ -641,8 +641,8 @@ curl -X PUT "localhost:9200/_snapshot/backup_repo" -H 'Content-Type: application
 ```bash
 # Backup environment files
 tar -czf ~/backup-env-$(date +%Y%m%d).tar.gz \
-  ~/kore/app/.env \
-  ~/kore/dashboard/.env
+  ~/afsv2/app/.env \
+  ~/afsv2/dashboard/.env
 ```
 
 ### Monitor Disk Space
@@ -652,7 +652,7 @@ tar -czf ~/backup-env-$(date +%Y%m%d).tar.gz \
 df -h
 
 # Check directory sizes
-du -sh ~/kore/*
+du -sh ~/afsv2/*
 ```
 
 ### Set Up Log Rotation
@@ -683,8 +683,8 @@ pm2 set pm2-logrotate:retain 7
 
 3. **Verify environment variables:**
    ```bash
-   cat ~/kore/app/.env
-   cat ~/kore/dashboard/.env
+   cat ~/afsv2/app/.env
+   cat ~/afsv2/dashboard/.env
    ```
 
 ### Nginx Issues

@@ -16,13 +16,16 @@ This document provides comprehensive documentation for all available API endpoin
 
 ## Storefront Endpoints
 
+> **Note:** All storefront endpoints are **public** and do not require authentication. They are designed for use in storefront themes and customer-facing applications.
+
 ### GET /storefront/products
 
-Search and retrieve products with filtering, pagination, and sorting capabilities.
+Search and retrieve products with filtering, pagination, and sorting capabilities. Supports dynamic option handles for flexible filtering.
 
 **Middleware:**
 - `validateShopDomain()` - Validates shop domain parameter
 - `rateLimit()` - Rate limiting protection
+- **No authentication required** (public endpoint)
 
 **Query Parameters:**
 
@@ -34,23 +37,34 @@ Search and retrieve products with filtering, pagination, and sorting capabilitie
 | `productType` / `productTypes` | string | No | Comma-separated product types | `Jacket,Shirt` |
 | `tag` / `tags` | string | No | Comma-separated tags | `sale,new` |
 | `collection` / `collections` | string | No | Comma-separated collection IDs | `gid://shopify/Collection/123` |
-| `{handle}` | string | No | Filter by option handle (dynamic) | `ef4gd=red` |
+| `cpid` | string | No | Collection page ID for filter config matching | `page-123` |
+| `{handle}` | string | No | Filter by option handle (dynamic) | `ef4gd=red` or `ef4gd=red,blue` |
 | `variantKey` / `variantKeys` | string | No | Comma-separated variant option keys | `Color,Size` |
 | `priceMin` | number | No | Minimum product price | `10.00` |
 | `priceMax` | number | No | Maximum product price | `100.00` |
 | `variantSku` / `variantSkus` | string | No | Comma-separated SKUs | `SKU-001,SKU-002` |
-| `keep` | string | No | Keep filter aggregations (by handle) | `sd5d3s,dopd8i` |
+| `keep` | string | No | Keep filter aggregations (by handle) | `ef4gd,sd5d3s` |
 | `preserveOptionAggregations` | boolean | No | Preserve all option aggregations | `true` |
 | `page` | number | No | Page number (default: 1) | `1` |
 | `limit` | number | No | Items per page (max: 100, default: 20) | `20` |
 | `sort` | string | No | Sort order | `price_asc`, `price_desc`, `title_asc` |
-| `includeFilters` | boolean | No | Include filter aggregations in response | `true` |
-| `fields` | string/array | No | Specific fields to return | `id,title,price` |
+
+**Option Handles:**
+- Option handles are dynamically generated short identifiers (e.g., `ef4gd`, `sd5d3s`) that map to option names (e.g., `Color`, `Size`)
+- Handles are automatically resolved based on active filter configuration
+- Multiple values can be passed: `ef4gd=red,blue` filters for both red and blue
+- Handles are collection/page-specific when `cpid` is provided
 
 **Example Request:**
 
 ```bash
 GET /storefront/products?shop=shop.myshopify.com&vendor=Nike&ef4gd=red&page=1&limit=20
+```
+
+**Example Request (Multiple Option Values):**
+
+```bash
+GET /storefront/products?shop=shop.myshopify.com&ef4gd=red,blue&sd5d3s=large&collection=gid://shopify/Collection/123
 ```
 
 **Example Response:**
@@ -72,69 +86,52 @@ GET /storefront/products?shop=shop.myshopify.com&vendor=Nike&ef4gd=red&page=1&li
       "page": 1,
       "limit": 20,
       "totalPages": 8
-    },
-    "appliedFilters": {
-      "vendors": ["Nike"],
-      "options": {
-        "Color": ["red"]
-      }
-    },
-    "filters": [
-      {
-        "type": "option",
-        "name": "Color",
-        "handle": "ef4gd",
-        "values": [
-          {
-            "value": "red",
-            "label": "Red",
-            "count": 45
-          }
-        ]
-      }
-    ]
+    }
   }
 }
 ```
 
 **Notes:**
-- Option handles (e.g., `ef4gd`) are dynamically mapped to option names (e.g., `Color`) based on filter configuration
-- Filter aggregations are pre-formatted on the server with filter configuration settings applied
-- The `filterConfig` is not included in the response to save payload size
+- Option handles (e.g., `ef4gd`) are dynamically mapped to option names (e.g., `Color`) based on active filter configuration
+- Filter configuration is automatically applied based on collection/page context when `cpid` is provided
+- Response does not include filters to optimize payload size (use `/storefront/filters` endpoint for filter data)
+- Filter aggregations respect filter configuration settings (position sorting, targetScope filtering, etc.)
 
 ---
 
 ### GET /storefront/filters
 
-Retrieve filter aggregations (facets) and filter configuration for storefront display.
+Retrieve filter aggregations (facets) with filter configuration settings applied. Returns pre-formatted filters ready for storefront display.
 
 **Middleware:**
 - `validateShopDomain()` - Validates shop domain parameter
 - `rateLimit()` - Rate limiting protection
+- **No authentication required** (public endpoint)
 
 **Query Parameters:**
 
 | Parameter | Type | Required | Description | Example |
 |-----------|------|----------|-------------|---------|
 | `shop` | string | Yes | Shopify shop domain | `shop.myshopify.com` |
-| `collection` | string | No | Collection ID for priority matching | `gid://shopify/Collection/123` |
+| `collection` | string | No | Collection ID for filter config priority matching | `gid://shopify/Collection/123` |
+| `cpid` | string | No | Collection page ID for filter config matching | `page-123` |
 | `search` | string | No | Search query text | `nike shoes` |
 | `vendor` / `vendors` | string | No | Comma-separated vendor names | `Nike,Adidas` |
 | `productType` / `productTypes` | string | No | Comma-separated product types | `Jacket,Shirt` |
 | `tag` / `tags` | string | No | Comma-separated tags | `sale,new` |
 | `collection` / `collections` | string | No | Comma-separated collection IDs | `gid://shopify/Collection/123` |
-| `{handle}` | string | No | Filter by option handle (dynamic) | `ef4gd=red` |
+| `{handle}` | string | No | Filter by option handle (dynamic) | `ef4gd=red` or `ef4gd=red,blue` |
 | `variantKey` / `variantKeys` | string | No | Comma-separated variant option keys | `Color,Size` |
 | `priceMin` | number | No | Minimum product price | `10.00` |
 | `priceMax` | number | No | Maximum product price | `100.00` |
 | `variantSku` / `variantSkus` | string | No | Comma-separated SKUs | `SKU-001,SKU-002` |
-| `keep` | string | No | Keep filter aggregations (by handle) | `sd5d3s,dopd8i` |
+| `keep` | string | No | Keep filter aggregations (by handle) | `ef4gd,sd5d3s` |
 | `preserveOptionAggregations` | boolean | No | Preserve all option aggregations | `true` |
 
 **Example Request:**
 
 ```bash
-GET /storefront/filters?shop=shop.myshopify.com&vendor=Nike&ef4gd=red
+GET /storefront/filters?shop=shop.myshopify.com&vendor=Nike&ef4gd=red&collection=gid://shopify/Collection/123&cpid=page-123
 ```
 
 **Example Response:**
@@ -184,10 +181,15 @@ GET /storefront/filters?shop=shop.myshopify.com&vendor=Nike&ef4gd=red
 ```
 
 **Notes:**
-- This endpoint accepts the same filter parameters as `/storefront/products` to calculate accurate filter counts
-- Filter aggregations are pre-formatted with filter configuration settings (position sorting, targetScope filtering, etc.)
-- The response leverages cache populated by product requests for optimal performance
+- Accepts the same filter parameters as `/storefront/products` to calculate accurate filter counts
+- Filter aggregations are pre-formatted with filter configuration settings applied:
+  - Position-based sorting (as configured in filter settings)
+  - Target scope filtering (collection-specific filters)
+  - Published status filtering (only shows published options)
+- Uses per-filter aggregation queries to prevent count "jumping" when filters are applied
+- Filter configuration is automatically matched by collection/page when `cpid` is provided
 - Filter values use `label` for display and `value` for filtering
+- Option handles are included in response for easy URL construction
 
 ---
 
@@ -637,12 +639,43 @@ Content-Type: application/json
 
 ### Option Handle Filtering
 
-Option handles are dynamically generated identifiers used in URLs. They are mapped to option names internally.
+Option handles are dynamically generated short identifiers (e.g., `ef4gd`, `sd5d3s`) used in URLs for cleaner, SEO-friendly filtering. They are automatically mapped to option names (e.g., `Color`, `Size`) based on active filter configuration.
+
+**How It Works:**
+1. Filter configuration defines option handles for each option
+2. Handles are collection/page-specific when `cpid` is provided
+3. Handles are resolved to option names server-side
+4. Multiple values can be passed as comma-separated: `ef4gd=red,blue`
 
 **Example:**
-- URL: `/storefront/products?shop=shop.myshopify.com&ef4gd=red`
-- Internal mapping: `ef4gd` → `Color`
-- Filter applied: `options[Color] = ["red"]`
+- URL: `/storefront/products?shop=shop.myshopify.com&ef4gd=red&sd5d3s=large`
+- Internal mapping: 
+  - `ef4gd` → `Color`
+  - `sd5d3s` → `Size`
+- Filter applied: 
+  ```json
+  {
+    "options": {
+      "Color": ["red"],
+      "Size": ["large"]
+    }
+  }
+  ```
+
+**Multiple Values:**
+```bash
+# Filter for multiple colors
+GET /storefront/products?shop=shop.myshopify.com&ef4gd=red,blue,green
+
+# Filter for multiple options
+GET /storefront/products?shop=shop.myshopify.com&ef4gd=red&sd5d3s=large,xl
+```
+
+**Collection/Page-Specific Handles:**
+```bash
+# Handles are resolved based on collection/page context
+GET /storefront/products?shop=shop.myshopify.com&collection=gid://shopify/Collection/123&cpid=page-123&ef4gd=red
+```
 
 ### Comma-Separated Values
 
@@ -662,17 +695,23 @@ GET /storefront/products?shop=shop.myshopify.com&priceMin=10&priceMax=100
 
 ### Preserve Filter Aggregations
 
-To maintain filter counts even when a filter is applied:
+To maintain filter counts even when a filter is applied (prevents counts from "jumping"):
 
+**Keep specific filters by handle:**
 ```bash
-GET /storefront/products?shop=shop.myshopify.com&ef4gd=red&keep=ef4gd
+GET /storefront/products?shop=shop.myshopify.com&ef4gd=red&keep=ef4gd,sd5d3s
 ```
 
-Or preserve all option aggregations:
-
+**Preserve all option aggregations:**
 ```bash
 GET /storefront/products?shop=shop.myshopify.com&ef4gd=red&preserveOptionAggregations=true
 ```
+
+**How It Works:**
+- By default, when you apply a filter (e.g., `ef4gd=red`), that filter's counts are excluded from aggregations
+- Using `keep=ef4gd` tells the server to include that filter's aggregations even though it's applied
+- This is useful for showing "selected" states in UI where you want to show the count of the selected option
+- The `/storefront/filters` endpoint automatically uses per-filter aggregation queries to prevent count jumping
 
 ---
 
@@ -723,9 +762,24 @@ Rate limit exceeded responses:
 
 ## Authentication & Authorization
 
-- Shop domain validation is required for storefront and indexing endpoints
-- GraphQL endpoint may require authentication based on implementation
-- App events endpoint validates request body structure
+**Public Endpoints (No Authentication Required):**
+- `/storefront/*` - All storefront endpoints (products, filters, search)
+- `/system/health` - Health check endpoint
+
+**Protected Endpoints (Authentication Required):**
+- `/graphql` - GraphQL endpoint (uses HMAC-SHA256 authentication if configured)
+- `/admin/*` - Admin endpoints (reindex, etc.)
+- `/app/events` - App lifecycle events
+
+**Authentication:**
+- Storefront endpoints: **No authentication** - designed for public use
+- Protected endpoints: Use HMAC-SHA256 authentication (see `AUTHENTICATION.md` for details)
+- Development/Sandbox: Authentication can be bypassed in non-production environments
+- Default dev credentials: `API_KEY=35353535353535353535353535353535` (development only)
+
+**Shop Domain Validation:**
+- All storefront endpoints require valid `shop` parameter
+- Shop domain is validated and normalized automatically
 
 ---
 
@@ -743,6 +797,29 @@ API version information is available in the `/system/status` endpoint response.
 
 ---
 
-*Last Updated: 2024-01-15*
+---
+
+## Recent Updates
+
+### Filter Configuration & Option Handles
+- **Option handles** are now collection/page-aware when `cpid` parameter is provided
+- Filter configuration is automatically matched by collection priority
+- Per-filter aggregation queries prevent count "jumping" when filters are applied
+- Filter aggregations respect filter configuration settings (position, targetScope, published status)
+
+### Search Endpoint
+- New `/storefront/search` endpoint optimized for autocomplete and suggestions
+- Returns minimal product data for fast response times
+- Supports semantic search and typo tolerance
+- Maximum 10 results for optimal performance
+
+### Authentication
+- Storefront endpoints remain **public** (no authentication required)
+- Protected endpoints support HMAC-SHA256 authentication
+- Development bypass available for faster local development
+
+---
+
+*Last Updated: 2026-01-12*
 
 

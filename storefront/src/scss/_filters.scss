@@ -7,6 +7,86 @@
 @use 'components' as *;
 
 /* ============================================================================
+   Search Bar (belongs to filters module)
+   ============================================================================ */
+
+.afs-search-bar {
+  width: 100%;
+  max-width: 720px;
+  margin: 24px auto;
+  padding: 0 8px;
+
+  @media (min-width: 768px) {
+    max-width: 720px;
+  }
+
+  &__form {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    border: 1px solid var(--afs-border-color, #c9c9c9);
+    border-radius: 4px;
+    background: var(--afs-bg-color);
+    color: var(--afs-text-color);
+    padding: 8px 12px;
+  }
+
+  &__input {
+    flex: 1;
+    width: 100%;
+    font-size: 15px;
+    line-height: 1.4;
+    border: none;
+    border-radius: none;
+    background: var(--afs-bg-color);
+    color: var(--afs-text-color);
+    font-family: var(--afs-font-family);
+    box-sizing: border-box;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    outline: none;
+
+    &::placeholder {
+      color: var(--afs-text-color);
+      opacity: 0.6;
+    }
+
+    &:focus {
+      border: none;
+      box-shadow: none;
+      outline: none;
+    }
+  }
+
+  &__submit {
+    flex-shrink: 0;
+    width: 44px;
+    height: auto;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+    outline: none;
+    margin-left: 8px;
+
+    &:active {
+      transform: scale(0.98);
+    }
+
+    svg {
+      width: 20px;
+      height: 20px;
+      stroke: currentColor;
+    }
+  }
+}
+
+/* ============================================================================
    Filter Groups
    ============================================================================ */
 

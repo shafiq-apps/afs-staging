@@ -1,49 +1,27 @@
 {{ 'digitalcoo-filter.min.css' | asset_url | stylesheet_tag }}
 
-{% comment %} Generate CSS Variables from Block Settings {% endcomment %}
-<style>
-  [data-afs-container] {
-    {% comment %} Text Colors {% endcomment %}
-    --afs-text-color: {{ block.settings.text_color | default: '#000000' }};
-    --afs-text-color-inverse: {{ block.settings.text_color_inverse | default: '#ffffff' }};
-    
-    {% comment %} Background Colors {% endcomment %}
-    --afs-bg-color: {{ block.settings.bg_color | default: '#ffffff' }};
-    --afs-bg-color-inverse: {{ block.settings.bg_color_inverse | default: '#000000' }};
-    --afs-bg-secondary: {{ block.settings.bg_secondary | default: '#f5f5f5' }};
-    
-    {% comment %} Border & Accent Colors {% endcomment %}
-    --afs-border-color: {{ block.settings.border_color | default: '#e5e5e5' }};
-    --afs-accent-color: {{ block.settings.accent_color | default: '#000000' }};
-    --afs-accent-color-hover: {{ block.settings.accent_color_hover | default: '#1a1a1a' }};
-    
-    {% comment %} Shadow Colors {% endcomment %}
-    --afs-shadow-color: {{ block.settings.shadow_color | default: 'rgba(0, 0, 0, 0.1)' }};
-    --afs-shadow-color-medium: {{ block.settings.shadow_color_medium | default: 'rgba(0, 0, 0, 0.2)' }};
-    --afs-shadow-color-strong: {{ block.settings.shadow_color_strong | default: 'rgba(0, 0, 0, 0.25)' }};
-    
-    {% comment %} Overlay Colors {% endcomment %}
-    --afs-overlay-color: rgba(0, 0, 0, 0.5);
-    --afs-overlay-color-strong: rgba(0, 0, 0, 0.75);
-    
-    {% comment %} Skeleton Loader Colors {% endcomment %}
-    --afs-skeleton-color-light: #f0f0f0;
-    --afs-skeleton-color-dark: #e0e0e0;
-    
-    {% comment %} Scrollbar Colors {% endcomment %}
-    --afs-scrollbar-track: #f1f1f1;
-    --afs-scrollbar-thumb: #888888;
-    --afs-scrollbar-thumb-hover: #555555;
-    
-    {% comment %} Default Font Variables {% endcomment %}
-    --afs-font-family: {{ block.settings.font_family | default: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }};
-    --afs-font-weight: 400;
-    --afs-font-weight-bold: 600;
-    --afs-font-style: normal;
-  }
-</style>
-
 <div data-afs-container id="afs-container-{{ block.id }}">
+  {% comment %} Search bar for search template {% endcomment %}
+  {% if template.name == 'search' %}
+    <div class="afs-search-bar" data-afs-search-bar style="display: none;">
+      <form class="afs-search-bar__form" data-afs-search-form>
+        <button type="submit" class="afs-search-bar__submit" aria-label="Search">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <path d="m21 21-4.35-4.35"></path>
+          </svg>
+        </button>
+        <input 
+          type="text" 
+          class="afs-search-bar__input" 
+          data-afs-search-input
+          placeholder="Search products..." 
+          value="{{ search.terms | escape }}"
+          aria-label="Search products"
+        />
+      </form>
+    </div>
+  {% endif %}
   {% comment %} Container will be populated by JavaScript {% endcomment %}
 </div>
 

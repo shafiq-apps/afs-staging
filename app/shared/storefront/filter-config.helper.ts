@@ -61,7 +61,8 @@ function parseMinMaxRange(value: string): { min?: number; max?: number } | null 
   if (max !== undefined && !isNaN(max) && max >= 0) out.max = max;
 
   if (out.min === undefined && out.max === undefined) return null;
-  if (out.min !== undefined && out.max !== undefined && !(out.max > out.min)) return null;
+  // Allow min === max (e.g., "3.1-3.1" is valid for exact price matching)
+  if (out.min !== undefined && out.max !== undefined && out.max < out.min) return null;
 
   return out;
 }
@@ -486,56 +487,6 @@ export function applyFilterConfigToInput(
     (result as ProductSearchInput).hideOutOfStockItems = true;
   }
 
-  // Default to preserving option aggregations unless explicitly disabled
-  // Apply targetScope restrictions
-  if (filterConfig.targetScope === 'entitled' && filterConfig.allowedCollections?.length > 0) {
-    // If filter is scoped to specific collections, ensure we're filtering by those collections
-    const allowedCollectionIds = filterConfig.allowedCollections.map((c) => c.id);
-    
-    if (currentCollection) {
-      // If a specific collection is requested, check if it's allowed
-      if (!allowedCollectionIds.includes(currentCollection)) {
-        // Collection not allowed, return empty result by filtering to non-existent collection
-        // CPID acts as AND operator - preserve it if it exists
-        if (result.cpid) {
-          const cpidCollectionId = result.cpid.startsWith('gid://') 
-            ? result.cpid.split('/').pop() || result.cpid
-            : result.cpid;
-          result.collections = [cpidCollectionId, '__none__'];
-        }
-        else {
-          result.collections = ['__none__'];
-        }
-      }
-    } else if (!result.collections || result.collections.length === 0) {
-      // No collection specified, but filter is scoped - apply allowed collections
-      // CPID acts as AND operator - add it to allowed collections if it exists
-      if (result.cpid) {
-        const cpidCollectionId = result.cpid.startsWith('gid://') 
-          ? result.cpid.split('/').pop() || result.cpid
-          : result.cpid;
-        result.collections = [...allowedCollectionIds];
-        if (!result.collections.includes(cpidCollectionId)) {
-          result.collections.push(cpidCollectionId);
-        }
-      } else {
-        result.collections = allowedCollectionIds;
-      }
-    } else {
-      // Collection specified - filter to only allowed ones
-      // CPID acts as AND operator - ensure it's included
-      result.collections = result.collections.filter((c) => allowedCollectionIds.includes(c));
-      if (result.cpid) {
-        const cpidCollectionId = result.cpid.startsWith('gid://') 
-          ? result.cpid.split('/').pop() || result.cpid
-          : result.cpid;
-        if (!result.collections.includes(cpidCollectionId)) {
-          result.collections.push(cpidCollectionId);
-        }
-      }
-    }
-  }
-
   // Map option handles/IDs to actual option names
   // Query parameters may use handles/IDs (e.g., "pr_a3k9x", "ti7u71") instead of option names (e.g., "Size")
   // Also filter out any keys that don't match actual options in the filter config
@@ -720,35 +671,7 @@ export function applyFilterConfigToInput(
         // Move to standard filter field
         if (standardField === 'vendors' || standardField === 'productTypes' || 
             standardField === 'tags' || standardField === 'collections') {
-          // For collections, CPID acts as AND operator - add collection values to existing collections
-          if (standardField === 'collections' && result.cpid) {
-            // Extract collection ID from cpid
-            const cpidCollectionId = result.cpid.startsWith('gid://') 
-              ? result.cpid.split('/').pop() || result.cpid
-              : result.cpid;
-            
-            // CPID acts as AND operator - ensure CPID collection is included with other collections
-            // Initialize collections array if it doesn't exist
-            if (!result.collections) {
-              result.collections = [];
-            }
-            
-            // Add CPID collection if not already present
-            if (!result.collections.includes(cpidCollectionId)) {
-              result.collections.push(cpidCollectionId);
-            }
-            
-            logger.info('Collection option conversion with CPID (AND logic)', {
-              optionName,
-              cpid: result.cpid,
-              cpidCollectionId,
-              optionValues: values,
-              existingCollections: result.collections,
-            });
-            // Still remove from options since it's a standard filter, but we'll add the values below
-          }
-          
-          // Track which handles contributed to this standard field (for all standard fields, not just collections)
+          // Track which handles contributed to this standard field
           const handleMapping = (result as any).__handleMapping || {};
           
           // Find which handles map to this option name and base field
@@ -773,33 +696,6 @@ export function applyFilterConfigToInput(
                 }
               }
             }
-          }
-          
-          // For collections, CPID acts as AND operator - add collection values to existing collections
-          if (standardField === 'collections' && result.cpid) {
-            // Extract collection ID from cpid
-            const cpidCollectionId = result.cpid.startsWith('gid://') 
-              ? result.cpid.split('/').pop() || result.cpid
-              : result.cpid;
-            
-            // CPID acts as AND operator - ensure CPID collection is included with other collections
-            // Initialize collections array if it doesn't exist
-            if (!result.collections) {
-              result.collections = [];
-            }
-            
-            // Add CPID collection if not already present
-            if (!result.collections.includes(cpidCollectionId)) {
-              result.collections.push(cpidCollectionId);
-            }
-            
-            logger.info('Collection option conversion with CPID (AND logic)', {
-              optionName,
-              cpid: result.cpid,
-              cpidCollectionId,
-              optionValues: values,
-              existingCollections: result.collections,
-            });
           }
           
           // Track handles for AND logic (for all standard fields)

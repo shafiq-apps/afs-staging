@@ -2,11 +2,6 @@
 // TYPE DEFINITIONS
 // ============================================================================
 
-import { Icons } from "../components/Icons";
-import { API, DOM, QuickAdd } from "../digitalcoo-filter";
-import type { AFSInterface } from "../digitalcoo-filter";
-import { $ } from "../utils/$.utils";
-
 export interface ConstantsType {
 	readonly DEBOUNCE: number;
 	readonly TIMEOUT: number;
@@ -292,18 +287,12 @@ export interface ShopifyWindow extends Window {
 		magnifierZoom?: number;
 	}) => SliderInstanceType;
 	AFS?: AFSInterface;
-	DOM?: typeof DOM;
 	AFS_State?: FilterStateType;
-	AFS_API?: typeof API;
-	AFS_LOG?: any;
 	AFSQuickView?: {
 		createQuickViewButton: (product: ProductType) => HTMLElement | null;
 		handleQuickViewClick: (handle: string) => void;
 		createProductModal: (handle: string, modalId: string) => Promise<ProductModalElement>;
 	};
-	QuickAdd?: typeof QuickAdd;
-	$?: typeof $;
-	Icons?: typeof Icons;
 }
 
 // Type for loggable data (any JSON-serializable value)
@@ -522,3 +511,6 @@ export interface SearchAPIResponseType {
 	data: SearchResultType;
 	message?: string;
 }
+
+
+export interface AFSInterface extends AFSInterfaceType { }
