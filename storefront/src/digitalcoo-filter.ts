@@ -3,7 +3,7 @@ import { Config } from './config';
 import { Lang } from './locals';
 import { $ } from './utils/$.utils';
 import { waitForElement, waitForElements } from './utils/dom-ready';
-import { FilterKeyType, FilterStateType, FilterOptionType, FilterMetadataType, FiltersStateType, PaginationStateType, SortStateType, ProductsResponseDataType, FiltersResponseDataType, PriceRangeType, AFSConfigType, FilterValueType, ShopifyWindow, SpecialValueType, SortFieldType, SortOrderType, AppliedFilterType, ParsedUrlParamsType, LoggableData, FilterGroupStateType, ProductType, APIResponse, AFSInterfaceType, FilterItemsElement, SliderOptionsType, SliderSlideChangeEventDetailType, ProductVariantType, ProductModalElement } from "./type";
+import { FilterKeyType, FilterStateType, FilterOptionType, FilterMetadataType, FiltersStateType, PaginationStateType, SortStateType, ProductsResponseDataType, FiltersResponseDataType, PriceRangeType, AFSConfigType, FilterValueType, ShopifyWindow, SpecialValueType, SortFieldType, SortOrderType, AppliedFilterType, ParsedUrlParamsType, LoggableData, FilterGroupStateType, ProductType, APIResponse, AFSInterfaceType, FilterItemsElement, SliderOptionsType, SliderSlideChangeEventDetailType, ProductVariantType, ProductModalElement, AFSInterface } from "./type";
 import { findMatchingVariants, getSelectedOptions, isOptionValueAvailable, isVariantAvailable } from './utils/variant-util';
 import { Log } from './utils/shared';
 
@@ -218,16 +218,21 @@ export const UrlManager = {
 // API CLIENT (Optimized with deduplication)
 // ============================================================================
 
-export const API = {
+const API = {
 	baseURL: 'https://fstaging.digitalcoo.com/storefront', // Default, should be set via config
-	__v: 'v2.0.1',
-	__id: '01-10-2026',
+	__v: 'v2.0',
+	__id: '01-13-2026',
 	cache: new Map<string, ProductsResponseDataType>(),
 	timestamps: new Map<string, number>(),
 	pending: new Map<string, Promise<ProductsResponseDataType>>(),
 
 	key(filters: FiltersStateType, pagination: PaginationStateType, sort: SortStateType): string {
-		return `${pagination.page}-${pagination.limit}-${sort.field}-${sort.order}-${JSON.stringify(filters)}`;
+		// Defensive checks for minification safety - ensure pagination and sort are defined
+		const page = (pagination && typeof pagination === 'object' && typeof pagination.page === 'number') ? pagination.page : 1;
+		const limit = (pagination && typeof pagination === 'object' && typeof pagination.limit === 'number') ? pagination.limit : (Config.PAGE_SIZE || 24);
+		const sortField = (sort && typeof sort === 'object' && sort.field) ? sort.field : 'best-selling';
+		const sortOrder = (sort && typeof sort === 'object' && sort.order) ? sort.order : 'asc';
+		return `${page}-${limit}-${sortField}-${sortOrder}-${JSON.stringify(filters)}`;
 	},
 
 	get(key: string): ProductsResponseDataType | null {
@@ -271,7 +276,19 @@ export const API = {
 		if (!this.baseURL) throw new Error('API baseURL not set. Call AFS.init({ apiBaseUrl: "..." })');
 		if (!FilterState.shop) throw new Error('Shop not set');
 
-		const key = this.key(filters, pagination, sort);
+		// Defensive checks for minification safety - ensure pagination and sort are defined
+		const safePagination: PaginationStateType = (pagination && typeof pagination === 'object') ? pagination : {
+			page: FilterState.pagination?.page || 1,
+			limit: FilterState.pagination?.limit || Config.PAGE_SIZE || 24,
+			total: FilterState.pagination?.total || 0,
+			totalPages: FilterState.pagination?.totalPages || 0
+		};
+		const safeSort: SortStateType = (sort && typeof sort === 'object') ? sort : {
+			field: FilterState.sort?.field || 'best-selling',
+			order: FilterState.sort?.order || 'asc'
+		};
+
+		const key = this.key(filters, safePagination, safeSort);
 		const cached = this.get(key);
 		if (cached) {
 			Log.debug('Cache hit', { key });
@@ -295,7 +312,7 @@ export const API = {
 		} else {
 			Log.warn('cpid not available in selectedCollection', { selectedCollection: FilterState.selectedCollection });
 		}
-		
+
 		// Send ALL filters as direct query parameters using handles as keys
 		// URL format: ?handle1=value1&handle2=value2
 		// API format: ?handle1=value1&handle2=value2 (same as URL)
@@ -331,21 +348,21 @@ export const API = {
 				}
 			}
 		});
-		params.set('page', String(pagination.page));
-		params.set('limit', String(pagination.limit));
-		if (sort.field) {
+		params.set('page', String(safePagination.page));
+		params.set('limit', String(safePagination.limit));
+		if (safeSort.field) {
 			// Handle best-selling sort (no order needed, server handles it)
-			if ($.isBestSelling(sort.field)) {
+			if ($.isBestSelling(safeSort.field)) {
 				params.set('sort', SortFieldType.BEST_SELLING);
 			} else {
 				// Convert to new format: "field-direction" (e.g., "title-ascending")
-				const direction = $.equals(sort.order, SortOrderType.ASC) ? SortOrderType.ASCENDING : SortOrderType.DESCENDING;
-				params.set('sort', `${sort.field}-${direction}`);
+				const direction = $.equals(safeSort.order, SortOrderType.ASC) ? SortOrderType.ASCENDING : SortOrderType.DESCENDING;
+				params.set('sort', `${safeSort.field}-${direction}`);
 			}
 		}
 
 		const url = `${this.baseURL}/products?${params}`;
-		Log.info('Fetching products', { url, shop: FilterState.shop, page: pagination.page });
+		Log.info('Fetching products', { url, shop: FilterState.shop, page: safePagination.page });
 		DOM.showLoading('products');
 
 		const promise = this.fetch(url).then(res => {
@@ -453,7 +470,6 @@ export const API = {
 	},
 
 	buildFiltersFromUrl(urlParams: Record<string, any>): void {
-		// Rebuild filters from URL params BEFORE calling API.filters()
 		// This ensures filters endpoint receives the correct filters from URL
 		// Support both 'search' and 'q' parameters (Shopify search page uses 'q')
 		const searchQuery = urlParams.search || urlParams.q || '';
@@ -670,13 +686,13 @@ export const DOM = {
 
 	initSearchBar(): void {
 		if (!this.container) return;
-		
+
 		const searchBar = this.container.querySelector<HTMLElement>('[data-afs-search-bar]');
 		if (!searchBar) return;
 
 		const searchInput = searchBar.querySelector<HTMLInputElement>('[data-afs-search-input]');
 		const searchForm = searchBar.querySelector<HTMLFormElement>('[data-afs-search-form]');
-		
+
 		if (!searchInput || !searchForm) return;
 
 		// Show search bar
@@ -686,7 +702,7 @@ export const DOM = {
 		const urlParams = UrlManager.parse();
 		const initialQuery = urlParams.q || urlParams.search || '';
 		if (initialQuery) {
-			searchInput.value = initialQuery;
+			searchInput.value = String(initialQuery);
 		}
 
 		// Handle form submission
@@ -723,7 +739,7 @@ export const DOM = {
 		// Sync search input with URL changes (back/forward navigation)
 		const syncSearchInput = () => {
 			const urlParams = UrlManager.parse();
-			const currentQuery = urlParams.q || urlParams.search || '';
+			const currentQuery = String(urlParams.q || urlParams.search || '');
 			if (searchInput.value !== currentQuery) {
 				searchInput.value = currentQuery;
 			}
@@ -731,7 +747,7 @@ export const DOM = {
 
 		// Listen for URL changes
 		window.addEventListener('popstate', syncSearchInput);
-		
+
 		// Store reference to sync function for use in popstate handler
 		(searchInput as any)._syncSearchInput = syncSearchInput;
 
@@ -874,7 +890,7 @@ export const DOM = {
 
 				// Remove the filter from FilterState.filters
 				if (FilterState.filters[handle]) {
-					
+
 					delete FilterState.filters[handle];
 					Log.debug('Filter cleared', { handle, isCollectionFilter });
 
@@ -1094,7 +1110,7 @@ export const DOM = {
 
 			// Rebuild filters from params (includes standard filters + handles)
 			// Support both 'search' and 'q' parameters (Shopify search page uses 'q')
-			const searchQuery = params.search || params.q || '';
+			const searchQuery = String(params.search || params.q || '');
 			FilterState.filters = {
 				vendor: params.vendor || [],
 				productType: params.productType || [],
@@ -1735,15 +1751,15 @@ export const DOM = {
 
 			// Get base image URL (first image)
 			const baseImageUrl = p.imageUrl || '';
-			
+
 			// Get second image for hover effect (from imagesUrls array)
 			let secondImageUrl: string | null = null;
 			const imagesArray = (p as any).imagesUrls;
 			if (imagesArray && Array.isArray(imagesArray) && imagesArray.length > 1) {
 				secondImageUrl = imagesArray[1];
-				Log.debug('Second image found for hover', { 
-					secondImageUrl, 
-					totalImages: imagesArray.length 
+				Log.debug('Second image found for hover', {
+					secondImageUrl,
+					totalImages: imagesArray.length
 				});
 			}
 
@@ -1811,14 +1827,14 @@ export const DOM = {
 				// Use original second image URL directly (no optimization for hover to avoid issues)
 				// Optimization can cause problems if the URL format changes
 				const hoverImageUrl = secondImageUrl;
-				
+
 				// Preload second image for smooth hover transition
 				const hoverImg = new Image();
 				hoverImg.src = hoverImageUrl;
 
 				// Store original src - use the actual current src after image loads
 				let originalSrc = img.src || baseImageUrl;
-				
+
 				// Update original src when main image loads (in case srcset changes it)
 				const updateOriginalSrc = () => {
 					const currentSrc = img.src;
@@ -1826,7 +1842,7 @@ export const DOM = {
 						originalSrc = currentSrc;
 					}
 				};
-				
+
 				// Capture original src after image loads
 				if (img.complete) {
 					updateOriginalSrc();
@@ -1856,7 +1872,7 @@ export const DOM = {
 						const loadHandler = () => {
 							swapToHover();
 						};
-						
+
 						// Check again in case it loaded between checks (race condition)
 						if (hoverImg.complete) {
 							swapToHover();
@@ -1864,9 +1880,9 @@ export const DOM = {
 							hoverImg.addEventListener('load', loadHandler, { once: true });
 							// If image fails to load, log error but don't swap
 							hoverImg.addEventListener('error', () => {
-								Log.debug('Hover image failed to load', { 
+								Log.debug('Hover image failed to load', {
 									url: secondImageUrl,
-									hoverImageUrl 
+									hoverImageUrl
 								});
 							}, { once: true });
 						}
@@ -2066,7 +2082,7 @@ export const DOM = {
 		const activeFilters: AppliedFilterType[] = [];
 		Object.keys(filters).forEach(key => {
 			const value = filters[key];
-			if($.equals(key, FilterKeyType.CPID)){
+			if ($.equals(key, FilterKeyType.CPID)) {
 				// no cpid to render
 			}
 			else if ($.equals(key, FilterKeyType.SEARCH) && value && typeof value === 'string' && value.trim()) {
@@ -2431,50 +2447,50 @@ export const FallbackMode = {
 };
 
 export function handleLoadError(e: unknown) {
-    DOM.hideLoading();
-    Log.error('Load failed', {
-        error: e instanceof Error ? e.message : String(e),
-        stack: e instanceof Error ? e.stack : undefined,
-        shop: FilterState.shop,
-        apiBaseURL: API.baseURL
-    });
-    // Try to use fallback products if available
-    if (FilterState.fallbackProducts && FilterState.fallbackProducts.length > 0) {
-        Log.warn('Initial load failed, using fallback products from Liquid', {
-            error: e instanceof Error ? e.message : String(e),
-            fallbackCount: FilterState.fallbackProducts.length
-        });
+	DOM.hideLoading();
+	Log.error('Load failed', {
+		error: e instanceof Error ? e.message : String(e),
+		stack: e instanceof Error ? e.stack : undefined,
+		shop: FilterState.shop,
+		apiBaseURL: API.baseURL
+	});
+	// Try to use fallback products if available
+	if (FilterState.fallbackProducts && FilterState.fallbackProducts.length > 0) {
+		Log.warn('Initial load failed, using fallback products from Liquid', {
+			error: e instanceof Error ? e.message : String(e),
+			fallbackCount: FilterState.fallbackProducts.length
+		});
 
-        FilterState.usingFallback = true; // Set fallback flag
-        FilterState.products = FilterState.fallbackProducts;
-        // Use pagination from URL params and Liquid data
-        FilterState.pagination = FallbackMode.getPagination();
+		FilterState.usingFallback = true; // Set fallback flag
+		FilterState.products = FilterState.fallbackProducts;
+		// Use pagination from URL params and Liquid data
+		FilterState.pagination = FallbackMode.getPagination();
 
-        // Hide filters section when using fallback
-        FilterState.availableFilters = [];
-        DOM.hideFilters();
+		// Hide filters section when using fallback
+		FilterState.availableFilters = [];
+		DOM.hideFilters();
 
-        // Update sort select value based on URL params or current sort state
-        if (DOM.sortSelect) {
-            if ($.isBestSelling(FilterState.sort.field)) {
-                DOM.sortSelect.value = SortFieldType.BEST_SELLING;
-            } else {
-                const direction = $.equals(FilterState.sort.order, SortOrderType.ASC) ? SortOrderType.ASCENDING : SortOrderType.DESCENDING;
-                DOM.sortSelect.value = `${FilterState.sort.field}-${direction}`;
-            }
-        }
+		// Update sort select value based on URL params or current sort state
+		if (DOM.sortSelect) {
+			if ($.isBestSelling(FilterState.sort.field)) {
+				DOM.sortSelect.value = SortFieldType.BEST_SELLING;
+			} else {
+				const direction = $.equals(FilterState.sort.order, SortOrderType.ASC) ? SortOrderType.ASCENDING : SortOrderType.DESCENDING;
+				DOM.sortSelect.value = `${FilterState.sort.field}-${direction}`;
+			}
+		}
 
-        DOM.renderProducts(FilterState.products);
-        DOM.renderInfo(FilterState.pagination, FilterState.pagination.total);
-        DOM.renderPagination(FilterState.pagination);
-        DOM.renderApplied(FilterState.filters);
+		DOM.renderProducts(FilterState.products);
+		DOM.renderInfo(FilterState.pagination, FilterState.pagination.total);
+		DOM.renderPagination(FilterState.pagination);
+		DOM.renderApplied(FilterState.filters);
 
-    } else {
-        DOM.showError(`${Lang.messages.failedToLoad}: ${e instanceof Error ? e.message : Lang.messages.unknownError}. ${Lang.messages.checkConsole}`);
-    }
+	} else {
+		DOM.showError(`${Lang.messages.failedToLoad}: ${e instanceof Error ? e.message : Lang.messages.unknownError}. ${Lang.messages.checkConsole}`);
+	}
 }
 
-export const Products = {
+const Products = {
 	process: (productsData: ProductsResponseDataType) => {
 		Log.info('Products loaded', { count: productsData.products?.length || 0, total: productsData.pagination?.total || 0 });
 		const hasProducts = productsData.products && Array.isArray(productsData.products) && productsData.products.length > 0;
@@ -2515,43 +2531,55 @@ export const Products = {
 	}
 };
 
-export const Filters = {
+const Filters = {
 
 	process: (filtersData: FiltersResponseDataType) => {
-		FilterState.availableFilters = filtersData.filters || [];
+		debugger;
 		try {
-			FilterState.filterMetadata = Metadata.buildFilterMetadata(FilterState.availableFilters);
-		} catch (error) {
+			FilterState.availableFilters = filtersData.filters || [];
+			try {
+				FilterState.filterMetadata = Metadata.buildFilterMetadata(FilterState.availableFilters);
+			} catch (error) { }
+			// Cache range filter handles (so we can write handle-style URL params like other filters)
+			const priceFilter = FilterState.availableFilters.find(f => $.isPriceRangeOptionType(f.optionType));
+			FilterState.priceRangeHandle = priceFilter?.handle || FilterState.priceRangeHandle || null;
+			Log.info('Filters set from URL', { filters: FilterState.filters });
+			// If URL used handle-based price param (e.g. pr_xxx=10-100), normalize into FilterState.filters.priceRange
+			// so the slider renders correctly. Keep URL updates handle-based via FilterState.priceRangeHandle.
+			const priceRangeFilterValue = FilterState.priceRangeHandle ? FilterState.filters[FilterState.priceRangeHandle] : null;
+			if (FilterState.priceRangeHandle && Array.isArray(priceRangeFilterValue) && priceRangeFilterValue.length > 0) {
+				try {
+					const raw = String(priceRangeFilterValue[0] || '');
+					const parts = raw.split('-');
+					if (parts.length === 2) {
+						const min = parts[0].trim() ? parseInt(parts[0], 10) : undefined;
+						const max = parts[1].trim() ? parseInt(parts[1], 10) : undefined;
+						const hasMin = typeof min === 'number' && !isNaN(min) && min >= 0;
+						const hasMax = typeof max === 'number' && !isNaN(max) && max >= 0;
+						if (hasMin || hasMax) {
+							FilterState.filters.priceRange = {
+								min: hasMin ? min : undefined,
+								max: hasMax ? max : undefined
+							};
+							delete FilterState.filters[FilterState.priceRangeHandle];
+						}
+					}
+				} catch (error) {
 
-		}
-		// Cache range filter handles (so we can write handle-style URL params like other filters)
-		const priceFilter = FilterState.availableFilters.find(f => $.isPriceRangeOptionType(f.optionType));
-		FilterState.priceRangeHandle = priceFilter?.handle || FilterState.priceRangeHandle || null;
-		Log.info('Filters set from URL', { filters: FilterState.filters });
-		// If URL used handle-based price param (e.g. pr_xxx=10-100), normalize into FilterState.filters.priceRange
-		// so the slider renders correctly. Keep URL updates handle-based via FilterState.priceRangeHandle.
-		const priceRangeFilterValue = FilterState.priceRangeHandle ? FilterState.filters[FilterState.priceRangeHandle] : null;
-		if (FilterState.priceRangeHandle && Array.isArray(priceRangeFilterValue) && priceRangeFilterValue.length > 0) {
-			const raw = String(priceRangeFilterValue[0] || '');
-			const parts = raw.split('-');
-			if (parts.length === 2) {
-				const min = parts[0].trim() ? parseInt(parts[0], 10) : undefined;
-				const max = parts[1].trim() ? parseInt(parts[1], 10) : undefined;
-				const hasMin = typeof min === 'number' && !isNaN(min) && min >= 0;
-				const hasMax = typeof max === 'number' && !isNaN(max) && max >= 0;
-				if (hasMin || hasMax) {
-					FilterState.filters.priceRange = {
-						min: hasMin ? min : undefined,
-						max: hasMax ? max : undefined
-					};
-					delete FilterState.filters[FilterState.priceRangeHandle];
 				}
 			}
+
+			DOM.renderFilters(FilterState.availableFilters);
+			Log.info('Filters rendered', { count: FilterState.availableFilters.length });
+
+		} catch (error) {
+			Log.error("PROCESS FILTER ERROR", { error: error instanceof Error ? error.message : String(error) });
 		}
-		DOM.renderFilters(FilterState.availableFilters);
-		Log.info('Filters rendered', { count: FilterState.availableFilters.length });
-		Products.updateUI();
-		DOM.hideLoading('filters');
+		finally {
+			Products.updateUI();
+			DOM.hideLoading('filters');
+		}
+
 	},
 
 	// Toggle standard filter (vendor, productType, tags, collections) or handle-based filter
@@ -2611,7 +2639,7 @@ export const Filters = {
 		// Round to integers
 		min = Math.round(min);
 		max = Math.round(max);
-		
+
 		if (typeof min !== 'number' || typeof max !== 'number' || min < 0 || max < min) {
 			Log.warn('Invalid price range', { min, max });
 			return;
@@ -2663,8 +2691,12 @@ export const Filters = {
 	apply: $.debounce(async (): Promise<void> => {
 		// Scroll to top when products are being fetched
 		DOM.scrollToProducts();
-		API.products(FilterState.filters, FilterState.pagination, FilterState.sort).then(Products.process);
-		API.filters(FilterState.filters).then(Filters.process);
+		API.products(FilterState.filters, FilterState.pagination, FilterState.sort).then(Products.process).catch(handleLoadError).finally(() => {
+			DOM.hideProductsSkeleton();
+		});
+		API.filters(FilterState.filters).then(Filters.process).catch(handleLoadError).finally(() => {
+			DOM.hideFiltersSkeleton();
+		});
 	}, Config.DEBOUNCE)
 };
 
@@ -2806,8 +2838,6 @@ export const QuickAdd = {
 // MAIN API (Minimal)
 // ============================================================================
 
-export interface AFSInterface extends AFSInterfaceType {}
-
 export const AFS: AFSInterface = {
 	init(config: AFSConfigType = {}): void {
 		try {
@@ -2916,9 +2946,14 @@ export const AFS: AFSInterface = {
 
 			Log.info('Loading products & filters...', { shop: FilterState.shop, filters: FilterState.filters });
 
-			API.products(FilterState.filters, FilterState.pagination, FilterState.sort).then(Products.process);
-			API.filters(FilterState.filters).then(Filters.process);
+			
+			API.filters(FilterState.filters).then(Filters.process).catch(handleLoadError).finally(() => {
+				DOM.hideFiltersSkeleton();
+			});
 
+			API.products(FilterState.filters, FilterState.pagination, FilterState.sort).then(Products.process).catch(handleLoadError).finally(() => {
+				DOM.hideFiltersSkeleton();
+			});
 		} catch (e) {
 			handleLoadError(e);
 		}
@@ -2932,788 +2967,788 @@ export const AFS: AFSInterface = {
 // ============================================================================
 
 class AFSSlider {
-  private container: HTMLElement;
-  private options: Required<Omit<SliderOptionsType, 'maxHeight'>> & { maxHeight: number | null };
-  private _currentIndex: number = 0;
+	private container: HTMLElement;
+	private options: Required<Omit<SliderOptionsType, 'maxHeight'>> & { maxHeight: number | null };
+	private _currentIndex: number = 0;
 
-  // Public getter for currentIndex to match SliderInstance interface
-  get currentIndex(): number {
-	return this._currentIndex;
-  }
-  private images: HTMLImageElement[] = [];
-  private thumbnails: HTMLElement[] = [];
-  private isInitialized: boolean = false;
-  private magnifierEnabled: boolean = false;
-  private currentZoom: number = 2; // Active zoom level (2x, 3x, 4x, 5x) - initialized from options, can be changed via slider
-  private isTouchDevice: boolean = false;
-  private mainContainer: HTMLElement | null = null;
-  private thumbnailContainer: HTMLElement | null = null;
-  private keyboardHandler: ((e: KeyboardEvent) => void) | null = null;
+	// Public getter for currentIndex to match SliderInstance interface
+	get currentIndex(): number {
+		return this._currentIndex;
+	}
+	private images: HTMLImageElement[] = [];
+	private thumbnails: HTMLElement[] = [];
+	private isInitialized: boolean = false;
+	private magnifierEnabled: boolean = false;
+	private currentZoom: number = 2; // Active zoom level (2x, 3x, 4x, 5x) - initialized from options, can be changed via slider
+	private isTouchDevice: boolean = false;
+	private mainContainer: HTMLElement | null = null;
+	private thumbnailContainer: HTMLElement | null = null;
+	private keyboardHandler: ((e: KeyboardEvent) => void) | null = null;
 
-  constructor(container: string | HTMLElement, options: SliderOptionsType = {}) {
-	const containerElement = typeof container === 'string' ? document.querySelector<HTMLElement>(container) : container;
+	constructor(container: string | HTMLElement, options: SliderOptionsType = {}) {
+		const containerElement = typeof container === 'string' ? document.querySelector<HTMLElement>(container) : container;
 
-	if (!containerElement) {
-	  Log.error('AFSSlider: Container not found');
-	  throw new Error('AFSSlider: Container not found');
+		if (!containerElement) {
+			Log.error('AFSSlider: Container not found');
+			throw new Error('AFSSlider: Container not found');
+		}
+
+		this.container = containerElement;
+
+		this.options = {
+			thumbnailsPosition: options.thumbnailsPosition || 'left',
+			enableKeyboard: options.enableKeyboard !== false,
+			enableAutoHeight: options.enableAutoHeight !== false,
+			maxHeight: options.maxHeight || null,
+			animationDuration: options.animationDuration || 300,
+			enableMagnifier: options.enableMagnifier !== false,
+			magnifierZoom: options.magnifierZoom || 3,
+			...options
+		} as Required<Omit<SliderOptionsType, 'maxHeight'>> & { maxHeight: number | null };
+
+		this.magnifierEnabled = this.options.enableMagnifier;
+		this.currentZoom = this.options.magnifierZoom || 3; // Initialize zoom from options (default: 3x)
+		this.isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
+		this.init();
 	}
 
-	this.container = containerElement;
+	private init(): void {
+		// Find main image container
+		this.mainContainer = this.container.querySelector<HTMLElement>('.afs-slider__main');
+		if (!this.mainContainer) {
+			Log.error('AFSSlider: Main container (.afs-slider__main) not found');
+			return;
+		}
 
-	this.options = {
-	  thumbnailsPosition: options.thumbnailsPosition || 'left',
-	  enableKeyboard: options.enableKeyboard !== false,
-	  enableAutoHeight: options.enableAutoHeight !== false,
-	  maxHeight: options.maxHeight || null,
-	  animationDuration: options.animationDuration || 300,
-	  enableMagnifier: options.enableMagnifier !== false,
-	  magnifierZoom: options.magnifierZoom || 3,
-	  ...options
-	} as Required<Omit<SliderOptionsType, 'maxHeight'>> & { maxHeight: number | null };
+		// Find thumbnail container
+		this.thumbnailContainer = this.container.querySelector<HTMLElement>('.afs-slider__thumbnails');
+		if (!this.thumbnailContainer) {
+			Log.error('AFSSlider: Thumbnail container (.afs-slider__thumbnails) not found');
+			return;
+		}
 
-	this.magnifierEnabled = this.options.enableMagnifier;
-	this.currentZoom = this.options.magnifierZoom || 3; // Initialize zoom from options (default: 3x)
-	this.isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+		// Get all images
+		const imageElements = this.mainContainer.querySelectorAll<HTMLImageElement>('.afs-slider__image');
+		this.images = Array.from(imageElements);
+		if (this.images.length === 0) {
+			Log.error('AFSSlider: No images found');
+			return;
+		}
 
-	this.init();
-  }
+		// Get all thumbnails - ensure we find them even if they're not yet fully rendered
+		const thumbnailElements = this.thumbnailContainer.querySelectorAll<HTMLElement>('.afs-slider__thumbnail');
+		this.thumbnails = Array.from(thumbnailElements);
 
-  private init(): void {
-	// Find main image container
-	this.mainContainer = this.container.querySelector<HTMLElement>('.afs-slider__main');
-	if (!this.mainContainer) {
-	  Log.error('AFSSlider: Main container (.afs-slider__main) not found');
-	  return;
-	}
+		// If no thumbnails found, log warning but continue (thumbnails might be optional)
+		if (this.thumbnails.length === 0) {
+			Log.warn('AFSSlider: No thumbnails found, continuing without thumbnails');
+		}
 
-	// Find thumbnail container
-	this.thumbnailContainer = this.container.querySelector<HTMLElement>('.afs-slider__thumbnails');
-	if (!this.thumbnailContainer) {
-	  Log.error('AFSSlider: Thumbnail container (.afs-slider__thumbnails) not found');
-	  return;
-	}
+		// Set thumbnail position
+		this.container.setAttribute('data-thumbnails-position', this.options.thumbnailsPosition);
 
-	// Get all images
-	const imageElements = this.mainContainer.querySelectorAll<HTMLImageElement>('.afs-slider__image');
-	this.images = Array.from(imageElements);
-	if (this.images.length === 0) {
-	  Log.error('AFSSlider: No images found');
-	  return;
-	}
+		// Build slider structure
+		try {
+			this.buildSlider();
+		} catch (e) {
+			Log.error('AFSSlider: Error building slider structure', { error: e instanceof Error ? e.message : String(e) });
+			return;
+		}
 
-	// Get all thumbnails - ensure we find them even if they're not yet fully rendered
-	const thumbnailElements = this.thumbnailContainer.querySelectorAll<HTMLElement>('.afs-slider__thumbnail');
-	this.thumbnails = Array.from(thumbnailElements);
-	
-	// If no thumbnails found, log warning but continue (thumbnails might be optional)
-	if (this.thumbnails.length === 0) {
-	  Log.warn('AFSSlider: No thumbnails found, continuing without thumbnails');
-	}
+		// Setup event listeners
+		try {
+			this.setupEvents();
+		} catch (e) {
+			Log.error('AFSSlider: Error setting up events', { error: e instanceof Error ? e.message : String(e) });
+			// Continue anyway - basic functionality should still work
+		}
 
-	// Set thumbnail position
-	this.container.setAttribute('data-thumbnails-position', this.options.thumbnailsPosition);
-
-	// Build slider structure
-	try {
-	  this.buildSlider();
-	} catch (e) {
-	  Log.error('AFSSlider: Error building slider structure', {error: e instanceof Error ? e.message : String(e)});
-	  return;
-	}
-
-	// Setup event listeners
-	try {
-	  this.setupEvents();
-	} catch (e) {
-	  Log.error('AFSSlider: Error setting up events', {error: e instanceof Error ? e.message : String(e)});
-	  // Continue anyway - basic functionality should still work
-	}
-
-	// Setup pan-zoom magnifier if enabled and not touch device
-	// Must be called AFTER buildSlider() to ensure viewport exists
-	if (this.magnifierEnabled && !this.isTouchDevice) {
-	  try {
-		// Use setTimeout to ensure viewport is fully created
-		setTimeout(() => {
-		  this.setupPanZoom();
-		}, 0);
-	  } catch (e) {
-		Log.error('AFSSlider: Error setting up pan-zoom', {error: e instanceof Error ? e.message : String(e)});
-		// Continue anyway - magnifier is optional
-	  }
-	}
-
-	// Setup pinch-to-zoom for touch devices
-	if (this.isTouchDevice) {
-	  try {
-		this.setupPinchZoom();
-	  } catch (e) {
-		Log.error('AFSSlider: Error setting up pinch-zoom', {error: e instanceof Error ? e.message : String(e)});
-		// Continue anyway - zoom is optional
-	  }
-	}
-
-	// Show first image
-	try {
-	  this.goToSlide(0);
-	} catch (e) {
-	  Log.error('AFSSlider: Error showing first slide', {error: e instanceof Error ? e.message : String(e)});
-	  // Continue anyway
-	}
-
-	this.isInitialized = true;
-  }
-
-  private buildSlider(): void {
-	if (!this.mainContainer) return;
-
-	// Wrap main images in a viewport
-	if (!this.mainContainer.querySelector('.afs-slider__viewport')) {
-	  const viewport = document.createElement('div');
-	  viewport.className = 'afs-slider__viewport';
-
-	  // Move images into viewport
-	  this.images.forEach(img => {
-		viewport.appendChild(img);
-	  });
-
-	  this.mainContainer.appendChild(viewport);
-
-	  // Add zoom controls if magnifier is enabled
-	  if (this.magnifierEnabled && !this.isTouchDevice) {
-		this.createZoomControls(viewport);
-	  }
-	}
-
-	// Add navigation buttons if not present
-	if (!this.mainContainer.querySelector('.afs-slider__prev')) {
-	  const prevBtn = document.createElement('button');
-	  prevBtn.type = 'button';
-	  prevBtn.className = 'afs-slider__prev';
-	  prevBtn.setAttribute('aria-label', 'Previous image');
-	  prevBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>';
-	  this.mainContainer.appendChild(prevBtn);
-	}
-
-	if (!this.mainContainer.querySelector('.afs-slider__next')) {
-	  const nextBtn = document.createElement('button');
-	  nextBtn.type = 'button';
-	  nextBtn.className = 'afs-slider__next';
-	  nextBtn.setAttribute('aria-label', 'Next image');
-	  nextBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>';
-	  this.mainContainer.appendChild(nextBtn);
-	}
-
-	// Setup thumbnail click handlers - re-query thumbnails in case they weren't found initially
-	if (this.thumbnails.length === 0 && this.thumbnailContainer) {
-	  const thumbnailElements = this.thumbnailContainer.querySelectorAll<HTMLElement>('.afs-slider__thumbnail');
-	  this.thumbnails = Array.from(thumbnailElements);
-	}
-	
-	this.thumbnails.forEach((thumb, index) => {
-	  // Remove any existing click handlers to avoid duplicates
-	  const newThumb = thumb.cloneNode(true) as HTMLElement;
-	  thumb.parentNode?.replaceChild(newThumb, thumb);
-	  this.thumbnails[index] = newThumb;
-	  
-	  newThumb.addEventListener('click', () => {
-		this.goToSlide(index);
-	  });
-	});
-
-	// Setup navigation buttons
-	const prevBtn = this.mainContainer.querySelector<HTMLButtonElement>('.afs-slider__prev');
-	const nextBtn = this.mainContainer.querySelector<HTMLButtonElement>('.afs-slider__next');
-
-	if (prevBtn) {
-	  prevBtn.addEventListener('click', () => this.prevSlide());
-	}
-
-	if (nextBtn) {
-	  nextBtn.addEventListener('click', () => this.nextSlide());
-	}
-  }
-
-  private setupEvents(): void {
-	// Keyboard navigation
-	if (this.options.enableKeyboard) {
-	  this.keyboardHandler = (e: KeyboardEvent) => {
-		if (!this.isInitialized) return;
-
-		// Only handle if slider is visible (check if container is in viewport)
-		const rect = this.container.getBoundingClientRect();
-		if (rect.width === 0 || rect.height === 0) return;
-
-		switch (e.key) {
-		  case 'ArrowLeft':
-			e.preventDefault();
-			this.prevSlide();
-			break;
-		  case 'ArrowRight':
-			e.preventDefault();
-			this.nextSlide();
-			break;
-		  case 'Escape':
-			// Reset zoom on escape using CSS class
-			const activeImage = this.images[this.currentIndex];
-			if (activeImage) {
-			  activeImage.classList.remove('afs-slider__image--zoomed');
-			  activeImage.classList.add('afs-slider__image--zoom-reset');
-			  setTimeout(() => {
-				activeImage.classList.remove('afs-slider__image--zoom-reset');
-			  }, 200);
+		// Setup pan-zoom magnifier if enabled and not touch device
+		// Must be called AFTER buildSlider() to ensure viewport exists
+		if (this.magnifierEnabled && !this.isTouchDevice) {
+			try {
+				// Use setTimeout to ensure viewport is fully created
+				setTimeout(() => {
+					this.setupPanZoom();
+				}, 0);
+			} catch (e) {
+				Log.error('AFSSlider: Error setting up pan-zoom', { error: e instanceof Error ? e.message : String(e) });
+				// Continue anyway - magnifier is optional
 			}
-			break;
 		}
-	  };
 
-	  document.addEventListener('keydown', this.keyboardHandler);
-	}
-
-	// Touch/swipe support for mobile
-	this.setupTouchEvents();
-
-	// Auto-adjust height
-	if (this.options.enableAutoHeight) {
-	  this.adjustHeight();
-	  window.addEventListener('resize', () => this.adjustHeight());
-	}
-  }
-
-  private setupTouchEvents(): void {
-	if (!this.mainContainer) return;
-
-	let startX = 0;
-	let startY = 0;
-	let isDragging = false;
-
-	const viewport = this.mainContainer.querySelector<HTMLElement>('.afs-slider__viewport');
-	if (!viewport) return;
-
-	viewport.addEventListener('touchstart', (e: TouchEvent) => {
-	  startX = e.touches[0].clientX;
-	  startY = e.touches[0].clientY;
-	  isDragging = true;
-	}, { passive: true });
-
-	viewport.addEventListener('touchmove', (e: TouchEvent) => {
-	  if (!isDragging) return;
-	  e.preventDefault();
-	}, { passive: false });
-
-	viewport.addEventListener('touchend', (e: TouchEvent) => {
-	  if (!isDragging) return;
-	  isDragging = false;
-
-	  const endX = e.changedTouches[0].clientX;
-	  const endY = e.changedTouches[0].clientY;
-	  const diffX = startX - endX;
-	  const diffY = startY - endY;
-
-	  // Only handle horizontal swipes (ignore if vertical swipe is larger)
-	  if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 50) {
-		if (diffX > 0) {
-		  this.nextSlide();
-		} else {
-		  this.prevSlide();
+		// Setup pinch-to-zoom for touch devices
+		if (this.isTouchDevice) {
+			try {
+				this.setupPinchZoom();
+			} catch (e) {
+				Log.error('AFSSlider: Error setting up pinch-zoom', { error: e instanceof Error ? e.message : String(e) });
+				// Continue anyway - zoom is optional
+			}
 		}
-	  }
-	}, { passive: true });
-  }
 
-  /**
-   * Create zoom control slider (2x, 3x, 4x, 5x)
-   */
-  private createZoomControls(viewport: HTMLElement): void {
-	const zoomControls = document.createElement('div');
-	zoomControls.className = 'afs-slider__zoom-controls';
-	
-	const slider = document.createElement('input');
-	slider.type = 'range';
-	slider.className = 'afs-slider__zoom-slider';
-	slider.setAttribute('min', '2');
-	slider.setAttribute('max', '5');
-	slider.setAttribute('step', '1');
-	slider.setAttribute('value', String(this.currentZoom));
-	slider.setAttribute('aria-label', 'Zoom level');
-	slider.setAttribute('aria-valuemin', '2');
-	slider.setAttribute('aria-valuemax', '5');
-	
-	// Update zoom level when slider changes
-	slider.addEventListener('input', (e) => {
-	  e.stopPropagation();
-	  const level = Number((e.target as HTMLInputElement).value);
-	  this.setZoomLevel(level);
-	});
-	
-	// Prevent slider from interfering with image pan
-	slider.addEventListener('mousedown', (e) => {
-	  e.stopPropagation();
-	});
-	
-	zoomControls.appendChild(slider);
-	viewport.appendChild(zoomControls);
-  }
+		// Show first image
+		try {
+			this.goToSlide(0);
+		} catch (e) {
+			Log.error('AFSSlider: Error showing first slide', { error: e instanceof Error ? e.message : String(e) });
+			// Continue anyway
+		}
 
-  /**
-   * Set zoom level and update UI
-   */
-  private setZoomLevel(level: number): void {
-	this.currentZoom = level;
-	
-	// Update slider value
-	const viewport = this.mainContainer?.querySelector<HTMLElement>('.afs-slider__viewport');
-	if (viewport) {
-	  const slider = viewport.querySelector<HTMLInputElement>('.afs-slider__zoom-slider');
-	  if (slider) {
-		slider.value = String(level);
-		slider.setAttribute('aria-valuenow', String(level));
-	  }
-	}
-	
-	// Reset zoom on current image to apply new zoom level
-	const activeImage = this.images[this._currentIndex];
-	if (activeImage && activeImage.classList.contains('afs-slider__image--zoomed')) {
-	  // Temporarily reset, then re-apply zoom with new level
-	  activeImage.style.transform = 'scale(1) translate(0, 0)';
-	  setTimeout(() => {
-		// Zoom will be re-applied on next mouse move
-	  }, 50);
-	}
-  }
-
-  private setupPanZoom(): void {
-	if (!this.mainContainer) return;
-
-	const viewport = this.mainContainer.querySelector<HTMLElement>('.afs-slider__viewport');
-	if (!viewport) {
-	  Log.warn('AFSSlider: Viewport not found for pan-zoom, skipping zoom setup');
-	  return;
+		this.isInitialized = true;
 	}
 
-	// Add zoom class to viewport for cursor styling
-	viewport.classList.add('afs-slider__viewport--zoomable');
+	private buildSlider(): void {
+		if (!this.mainContainer) return;
 
-	// Mouse move: pan image
-	viewport.addEventListener('mousemove', (e: MouseEvent) => {
-	  const activeImage = this.images[this._currentIndex];
-	  if (!activeImage) return;
+		// Wrap main images in a viewport
+		if (!this.mainContainer.querySelector('.afs-slider__viewport')) {
+			const viewport = document.createElement('div');
+			viewport.className = 'afs-slider__viewport';
 
-	  const rect = viewport.getBoundingClientRect();
+			// Move images into viewport
+			this.images.forEach(img => {
+				viewport.appendChild(img);
+			});
 
-	  const x = e.clientX - rect.left;
-	  const y = e.clientY - rect.top;
+			this.mainContainer.appendChild(viewport);
 
-	  const xPercent = x / rect.width;
-	  const yPercent = y / rect.height;
+			// Add zoom controls if magnifier is enabled
+			if (this.magnifierEnabled && !this.isTouchDevice) {
+				this.createZoomControls(viewport);
+			}
+		}
 
-	  // Use currentZoom (can be changed via slider)
-	  const SCALE = this.currentZoom;
+		// Add navigation buttons if not present
+		if (!this.mainContainer.querySelector('.afs-slider__prev')) {
+			const prevBtn = document.createElement('button');
+			prevBtn.type = 'button';
+			prevBtn.className = 'afs-slider__prev';
+			prevBtn.setAttribute('aria-label', 'Previous image');
+			prevBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>';
+			this.mainContainer.appendChild(prevBtn);
+		}
 
-	  const translateX = -xPercent * (activeImage.offsetWidth * SCALE - rect.width);
-	  const translateY = -yPercent * (activeImage.offsetHeight * SCALE - rect.height);
+		if (!this.mainContainer.querySelector('.afs-slider__next')) {
+			const nextBtn = document.createElement('button');
+			nextBtn.type = 'button';
+			nextBtn.className = 'afs-slider__next';
+			nextBtn.setAttribute('aria-label', 'Next image');
+			nextBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>';
+			this.mainContainer.appendChild(nextBtn);
+		}
 
-	  // Use inline transform for zoom (necessary for dynamic pan-zoom)
-	  // But use CSS class for transition control
-	  activeImage.style.transform = `
+		// Setup thumbnail click handlers - re-query thumbnails in case they weren't found initially
+		if (this.thumbnails.length === 0 && this.thumbnailContainer) {
+			const thumbnailElements = this.thumbnailContainer.querySelectorAll<HTMLElement>('.afs-slider__thumbnail');
+			this.thumbnails = Array.from(thumbnailElements);
+		}
+
+		this.thumbnails.forEach((thumb, index) => {
+			// Remove any existing click handlers to avoid duplicates
+			const newThumb = thumb.cloneNode(true) as HTMLElement;
+			thumb.parentNode?.replaceChild(newThumb, thumb);
+			this.thumbnails[index] = newThumb;
+
+			newThumb.addEventListener('click', () => {
+				this.goToSlide(index);
+			});
+		});
+
+		// Setup navigation buttons
+		const prevBtn = this.mainContainer.querySelector<HTMLButtonElement>('.afs-slider__prev');
+		const nextBtn = this.mainContainer.querySelector<HTMLButtonElement>('.afs-slider__next');
+
+		if (prevBtn) {
+			prevBtn.addEventListener('click', () => this.prevSlide());
+		}
+
+		if (nextBtn) {
+			nextBtn.addEventListener('click', () => this.nextSlide());
+		}
+	}
+
+	private setupEvents(): void {
+		// Keyboard navigation
+		if (this.options.enableKeyboard) {
+			this.keyboardHandler = (e: KeyboardEvent) => {
+				if (!this.isInitialized) return;
+
+				// Only handle if slider is visible (check if container is in viewport)
+				const rect = this.container.getBoundingClientRect();
+				if (rect.width === 0 || rect.height === 0) return;
+
+				switch (e.key) {
+					case 'ArrowLeft':
+						e.preventDefault();
+						this.prevSlide();
+						break;
+					case 'ArrowRight':
+						e.preventDefault();
+						this.nextSlide();
+						break;
+					case 'Escape':
+						// Reset zoom on escape using CSS class
+						const activeImage = this.images[this.currentIndex];
+						if (activeImage) {
+							activeImage.classList.remove('afs-slider__image--zoomed');
+							activeImage.classList.add('afs-slider__image--zoom-reset');
+							setTimeout(() => {
+								activeImage.classList.remove('afs-slider__image--zoom-reset');
+							}, 200);
+						}
+						break;
+				}
+			};
+
+			document.addEventListener('keydown', this.keyboardHandler);
+		}
+
+		// Touch/swipe support for mobile
+		this.setupTouchEvents();
+
+		// Auto-adjust height
+		if (this.options.enableAutoHeight) {
+			this.adjustHeight();
+			window.addEventListener('resize', () => this.adjustHeight());
+		}
+	}
+
+	private setupTouchEvents(): void {
+		if (!this.mainContainer) return;
+
+		let startX = 0;
+		let startY = 0;
+		let isDragging = false;
+
+		const viewport = this.mainContainer.querySelector<HTMLElement>('.afs-slider__viewport');
+		if (!viewport) return;
+
+		viewport.addEventListener('touchstart', (e: TouchEvent) => {
+			startX = e.touches[0].clientX;
+			startY = e.touches[0].clientY;
+			isDragging = true;
+		}, { passive: true });
+
+		viewport.addEventListener('touchmove', (e: TouchEvent) => {
+			if (!isDragging) return;
+			e.preventDefault();
+		}, { passive: false });
+
+		viewport.addEventListener('touchend', (e: TouchEvent) => {
+			if (!isDragging) return;
+			isDragging = false;
+
+			const endX = e.changedTouches[0].clientX;
+			const endY = e.changedTouches[0].clientY;
+			const diffX = startX - endX;
+			const diffY = startY - endY;
+
+			// Only handle horizontal swipes (ignore if vertical swipe is larger)
+			if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 50) {
+				if (diffX > 0) {
+					this.nextSlide();
+				} else {
+					this.prevSlide();
+				}
+			}
+		}, { passive: true });
+	}
+
+	/**
+	 * Create zoom control slider (2x, 3x, 4x, 5x)
+	 */
+	private createZoomControls(viewport: HTMLElement): void {
+		const zoomControls = document.createElement('div');
+		zoomControls.className = 'afs-slider__zoom-controls';
+
+		const slider = document.createElement('input');
+		slider.type = 'range';
+		slider.className = 'afs-slider__zoom-slider';
+		slider.setAttribute('min', '2');
+		slider.setAttribute('max', '5');
+		slider.setAttribute('step', '1');
+		slider.setAttribute('value', String(this.currentZoom));
+		slider.setAttribute('aria-label', 'Zoom level');
+		slider.setAttribute('aria-valuemin', '2');
+		slider.setAttribute('aria-valuemax', '5');
+
+		// Update zoom level when slider changes
+		slider.addEventListener('input', (e) => {
+			e.stopPropagation();
+			const level = Number((e.target as HTMLInputElement).value);
+			this.setZoomLevel(level);
+		});
+
+		// Prevent slider from interfering with image pan
+		slider.addEventListener('mousedown', (e) => {
+			e.stopPropagation();
+		});
+
+		zoomControls.appendChild(slider);
+		viewport.appendChild(zoomControls);
+	}
+
+	/**
+	 * Set zoom level and update UI
+	 */
+	private setZoomLevel(level: number): void {
+		this.currentZoom = level;
+
+		// Update slider value
+		const viewport = this.mainContainer?.querySelector<HTMLElement>('.afs-slider__viewport');
+		if (viewport) {
+			const slider = viewport.querySelector<HTMLInputElement>('.afs-slider__zoom-slider');
+			if (slider) {
+				slider.value = String(level);
+				slider.setAttribute('aria-valuenow', String(level));
+			}
+		}
+
+		// Reset zoom on current image to apply new zoom level
+		const activeImage = this.images[this._currentIndex];
+		if (activeImage && activeImage.classList.contains('afs-slider__image--zoomed')) {
+			// Temporarily reset, then re-apply zoom with new level
+			activeImage.style.transform = 'scale(1) translate(0, 0)';
+			setTimeout(() => {
+				// Zoom will be re-applied on next mouse move
+			}, 50);
+		}
+	}
+
+	private setupPanZoom(): void {
+		if (!this.mainContainer) return;
+
+		const viewport = this.mainContainer.querySelector<HTMLElement>('.afs-slider__viewport');
+		if (!viewport) {
+			Log.warn('AFSSlider: Viewport not found for pan-zoom, skipping zoom setup');
+			return;
+		}
+
+		// Add zoom class to viewport for cursor styling
+		viewport.classList.add('afs-slider__viewport--zoomable');
+
+		// Mouse move: pan image
+		viewport.addEventListener('mousemove', (e: MouseEvent) => {
+			const activeImage = this.images[this._currentIndex];
+			if (!activeImage) return;
+
+			const rect = viewport.getBoundingClientRect();
+
+			const x = e.clientX - rect.left;
+			const y = e.clientY - rect.top;
+
+			const xPercent = x / rect.width;
+			const yPercent = y / rect.height;
+
+			// Use currentZoom (can be changed via slider)
+			const SCALE = this.currentZoom;
+
+			const translateX = -xPercent * (activeImage.offsetWidth * SCALE - rect.width);
+			const translateY = -yPercent * (activeImage.offsetHeight * SCALE - rect.height);
+
+			// Use inline transform for zoom (necessary for dynamic pan-zoom)
+			// But use CSS class for transition control
+			activeImage.style.transform = `
 		scale(${SCALE})
 		translate(${translateX / SCALE}px, ${translateY / SCALE}px)
 	  `;
-	  activeImage.classList.add('afs-slider__image--zoomed');
-	});
+			activeImage.classList.add('afs-slider__image--zoomed');
+		});
 
-	// Mouse enter: enable smooth transition
-	viewport.addEventListener('mouseenter', () => {
-	  const activeImage = this.images[this._currentIndex];
-	  if (activeImage) {
-		activeImage.classList.add('afs-slider__image--zoomed');
-	  }
-	});
-
-	// Mouse leave: reset zoom
-	viewport.addEventListener('mouseleave', () => {
-	  const activeImage = this.images[this._currentIndex];
-	  if (activeImage) {
-		// Reset transform to scale(1) and remove translate
-		activeImage.style.transform = 'scale(1) translate(0, 0)';
-		activeImage.classList.remove('afs-slider__image--zoomed');
-		activeImage.classList.add('afs-slider__image--zoom-reset');
-		// Remove reset class after transition
-		setTimeout(() => {
-		  activeImage.classList.remove('afs-slider__image--zoom-reset');
-		}, 200);
-	  }
-	});
-  }
-
-  /**
-   * Setup pinch-to-zoom for touch devices
-   */
-  private setupPinchZoom(): void {
-	if (!this.mainContainer || !this.isTouchDevice) return;
-
-	const viewport = this.mainContainer.querySelector<HTMLElement>('.afs-slider__viewport');
-	if (!viewport) return;
-
-	let initialDistance = 0;
-	let currentScale = 1;
-	let lastTouchTime = 0;
-	let doubleTapTimeout: ReturnType<typeof setTimeout> | null = null;
-
-	viewport.addEventListener('touchstart', (e: TouchEvent) => {
-	  if (e.touches.length === 2) {
-		// Pinch gesture
-		e.preventDefault();
-		const touch1 = e.touches[0];
-		const touch2 = e.touches[1];
-		initialDistance = Math.hypot(
-		  touch2.clientX - touch1.clientX,
-		  touch2.clientY - touch1.clientY
-		);
-		const activeImage = this.images[this._currentIndex];
-		if (activeImage) {
-		  // Get current scale from transform
-		  const transform = activeImage.style.transform || '';
-		  const scaleMatch = transform.match(/scale\(([\d.]+)\)/);
-		  currentScale = scaleMatch ? parseFloat(scaleMatch[1]) : 1;
-		}
-	  } else if (e.touches.length === 1) {
-		// Single touch - check for double tap
-		const now = Date.now();
-		if (now - lastTouchTime < 300) {
-		  // Double tap detected
-		  e.preventDefault();
-		  if (doubleTapTimeout) clearTimeout(doubleTapTimeout);
-
-		  const activeImage = this.images[this._currentIndex];
-		  if (activeImage) {
-			const transform = activeImage.style.transform || '';
-			const scaleMatch = transform.match(/scale\(([\d.]+)\)/);
-			let currentScale = scaleMatch ? parseFloat(scaleMatch[1]) : 1;
-
-			if (currentScale > 1) {
-			  // Reset zoom
-			  activeImage.style.transform = 'scale(1) translate(0, 0)';
-			  currentScale = 1;
-			} else {
-			  // Zoom in
-			  const rect = viewport.getBoundingClientRect();
-			  const touch = e.touches[0];
-			  const x = touch.clientX - rect.left;
-			  const y = touch.clientY - rect.top;
-			  const zoomScale = 2.5;
-
-			  activeImage.style.transform = `scale(${zoomScale}) translate(${(rect.width / 2 - x) / zoomScale}px, ${(rect.height / 2 - y) / zoomScale}px)`;
-			  currentScale = zoomScale;
+		// Mouse enter: enable smooth transition
+		viewport.addEventListener('mouseenter', () => {
+			const activeImage = this.images[this._currentIndex];
+			if (activeImage) {
+				activeImage.classList.add('afs-slider__image--zoomed');
 			}
-		  }
-		} else {
-		  lastTouchTime = now;
-		}
-	  }
-	}, { passive: false });
+		});
 
-	viewport.addEventListener('touchmove', (e: TouchEvent) => {
-	  if (e.touches.length === 2) {
-		// Pinch gesture
-		e.preventDefault();
-		const touch1 = e.touches[0];
-		const touch2 = e.touches[1];
-		const distance = Math.hypot(
-		  touch2.clientX - touch1.clientX,
-		  touch2.clientY - touch1.clientY
-		);
-
-		const scale = Math.max(1, Math.min(4, currentScale * (distance / initialDistance)));
-		const activeImage = this.images[this._currentIndex];
-
-		if (activeImage) {
-		  const rect = viewport.getBoundingClientRect();
-		  const centerX = (touch1.clientX + touch2.clientX) / 2 - rect.left;
-		  const centerY = (touch1.clientY + touch2.clientY) / 2 - rect.top;
-
-		  const translateX = (rect.width / 2 - centerX) / scale;
-		  const translateY = (rect.height / 2 - centerY) / scale;
-
-		  activeImage.style.transform = `scale(${scale}) translate(${translateX}px, ${translateY}px)`;
-		}
-	  }
-	}, { passive: false });
-
-	viewport.addEventListener('touchend', () => {
-	  initialDistance = 0;
-	});
-  }
-
-  goToSlide(index: number): void {
-	if (index < 0 || index >= this.images.length) return;
-
-	this._currentIndex = index;
-
-	// Update images visibility - use CSS classes only (inline styles override CSS)
-	this.images.forEach((img, i) => {
-	  if (i === index) {
-		img.classList.add('afs-slider__image--active');
-		// Removed inline style.display - let CSS handle it via --active class
-	  } else {
-		img.classList.remove('afs-slider__image--active');
-		// Removed inline style.display - let CSS handle it via --active class
-	  }
-	});
-
-	// Reset zoom when slide changes using CSS class
-	const activeImage = this.images[this._currentIndex];
-	if (activeImage) {
-	  activeImage.classList.remove('afs-slider__image--zoomed');
-	  activeImage.classList.add('afs-slider__image--zoom-reset');
-	  setTimeout(() => {
-		activeImage.classList.remove('afs-slider__image--zoom-reset');
-	  }, 200);
-	}
-
-	// Update thumbnails
-	this.thumbnails.forEach((thumb, i) => {
-	  thumb.classList.toggle('afs-slider__thumbnail--active', i === index);
-	});
-
-	// Adjust height if enabled
-	if (this.options.enableAutoHeight) {
-	  this.adjustHeight();
-	}
-
-	// Trigger custom event
-	this.container.dispatchEvent(new CustomEvent<SliderSlideChangeEventDetailType>('afs-slider:slide-change', {
-	  detail: { index, total: this.images.length }
-	}));
-  }
-
-  prevSlide(): void {
-	const newIndex = this._currentIndex > 0
-	  ? this._currentIndex - 1
-	  : this.images.length - 1;
-	this.goToSlide(newIndex);
-  }
-
-  nextSlide(): void {
-	const newIndex = this._currentIndex < this.images.length - 1
-	  ? this._currentIndex + 1
-	  : 0;
-	this.goToSlide(newIndex);
-  }
-
-  private adjustHeight(): void {
-	const activeImage = this.images[this._currentIndex];
-	if (!activeImage) return;
-
-	// Wait for image to load
-	if (activeImage.complete) {
-	  this.setHeight(activeImage);
-	} else {
-	  activeImage.addEventListener('load', () => {
-		this.setHeight(activeImage);
-	  }, { once: true });
-	}
-  }
-
-  private setHeight(image: HTMLImageElement): void {
-	if (!this.mainContainer) return;
-
-	const viewport = this.mainContainer.querySelector<HTMLElement>('.afs-slider__viewport');
-	if (!viewport) return;
-
-	// If maxHeight is set, use fixed height
-	if (this.options.maxHeight) {
-	  viewport.style.height = `${this.options.maxHeight}px`;
-	  viewport.style.minHeight = `${this.options.maxHeight}px`;
-	  viewport.style.maxHeight = `${this.options.maxHeight}px`;
-	  return;
-	}
-
-	const imgHeight = image.naturalHeight || image.offsetHeight;
-	const imgWidth = image.naturalWidth || image.offsetWidth;
-	const containerWidth = this.mainContainer.offsetWidth;
-	// Calculate aspect ratio
-	const aspectRatio = imgHeight / imgWidth;
-	const calculatedHeight = containerWidth * aspectRatio;
-
-	viewport.style.height = `${calculatedHeight}px`;
-	viewport.style.minHeight = `${calculatedHeight}px`;
-  }
-
-  /**
-   * Update slider to show variant's image
-   * @param variant - Variant object with image property
-   * @param productImages - Array of product image URLs
-   * @param allVariants - Optional: Array of all product variants for variant_ids optimization
-   * @returns Returns true if image was found and updated, false otherwise
-   */
-  updateVariantImage(variant: ProductVariantType, productImages: string[], allVariants?: ProductVariantType[]): boolean {
-	if (!variant || !productImages || !Array.isArray(productImages) || productImages.length === 0) {
-	  return false;
-	}
-
-	const currentVariantId = variant.id;
-
-	// OPTIMIZATION: Quick check using variant_ids array if allVariants is provided
-	if (allVariants && Array.isArray(allVariants)) {
-	  // Check if current variant has featured_image with variant_ids
-	  if (variant.featured_image && typeof variant.featured_image === 'object' && variant.featured_image.variant_ids) {
-		const variantImagePosition = variant.featured_image.position;
-		if (variantImagePosition !== null && variantImagePosition !== undefined) {
-		  const positionIndex = variantImagePosition - 1; // Convert from 1-based to 0-based
-		  if (positionIndex >= 0 && positionIndex < this.images.length && positionIndex < productImages.length) {
-			// Check if current slide is different from this variant's image
-			if (this._currentIndex !== positionIndex) {
-			  this.goToSlide(positionIndex);
-			  return true;
+		// Mouse leave: reset zoom
+		viewport.addEventListener('mouseleave', () => {
+			const activeImage = this.images[this._currentIndex];
+			if (activeImage) {
+				// Reset transform to scale(1) and remove translate
+				activeImage.style.transform = 'scale(1) translate(0, 0)';
+				activeImage.classList.remove('afs-slider__image--zoomed');
+				activeImage.classList.add('afs-slider__image--zoom-reset');
+				// Remove reset class after transition
+				setTimeout(() => {
+					activeImage.classList.remove('afs-slider__image--zoom-reset');
+				}, 200);
 			}
-			// Already on correct image
-			return true;
-		  }
-		}
-	  }
+		});
+	}
 
-	  // Variant doesn't have featured_image, but check if any other variant's image is assigned to this variant
-	  for (const v of allVariants) {
-		if (v.featured_image && typeof v.featured_image === 'object' && v.featured_image.variant_ids) {
-		  // Check if current variant ID is in this image's variant_ids array
-		  if (v.featured_image.variant_ids.includes(Number(currentVariantId))) {
-			const variantImagePosition = v.featured_image.position;
-			if (variantImagePosition !== null && variantImagePosition !== undefined) {
-			  const positionIndex = variantImagePosition - 1; // Convert from 1-based to 0-based
-			  if (positionIndex >= 0 && positionIndex < this.images.length && positionIndex < productImages.length) {
-				// Check if current slide is different from this variant's image
-				if (this._currentIndex !== positionIndex) {
-				  this.goToSlide(positionIndex);
-				  return true;
+	/**
+	 * Setup pinch-to-zoom for touch devices
+	 */
+	private setupPinchZoom(): void {
+		if (!this.mainContainer || !this.isTouchDevice) return;
+
+		const viewport = this.mainContainer.querySelector<HTMLElement>('.afs-slider__viewport');
+		if (!viewport) return;
+
+		let initialDistance = 0;
+		let currentScale = 1;
+		let lastTouchTime = 0;
+		let doubleTapTimeout: ReturnType<typeof setTimeout> | null = null;
+
+		viewport.addEventListener('touchstart', (e: TouchEvent) => {
+			if (e.touches.length === 2) {
+				// Pinch gesture
+				e.preventDefault();
+				const touch1 = e.touches[0];
+				const touch2 = e.touches[1];
+				initialDistance = Math.hypot(
+					touch2.clientX - touch1.clientX,
+					touch2.clientY - touch1.clientY
+				);
+				const activeImage = this.images[this._currentIndex];
+				if (activeImage) {
+					// Get current scale from transform
+					const transform = activeImage.style.transform || '';
+					const scaleMatch = transform.match(/scale\(([\d.]+)\)/);
+					currentScale = scaleMatch ? parseFloat(scaleMatch[1]) : 1;
 				}
-				// Already on correct image
-				return true;
-			  }
+			} else if (e.touches.length === 1) {
+				// Single touch - check for double tap
+				const now = Date.now();
+				if (now - lastTouchTime < 300) {
+					// Double tap detected
+					e.preventDefault();
+					if (doubleTapTimeout) clearTimeout(doubleTapTimeout);
+
+					const activeImage = this.images[this._currentIndex];
+					if (activeImage) {
+						const transform = activeImage.style.transform || '';
+						const scaleMatch = transform.match(/scale\(([\d.]+)\)/);
+						let currentScale = scaleMatch ? parseFloat(scaleMatch[1]) : 1;
+
+						if (currentScale > 1) {
+							// Reset zoom
+							activeImage.style.transform = 'scale(1) translate(0, 0)';
+							currentScale = 1;
+						} else {
+							// Zoom in
+							const rect = viewport.getBoundingClientRect();
+							const touch = e.touches[0];
+							const x = touch.clientX - rect.left;
+							const y = touch.clientY - rect.top;
+							const zoomScale = 2.5;
+
+							activeImage.style.transform = `scale(${zoomScale}) translate(${(rect.width / 2 - x) / zoomScale}px, ${(rect.height / 2 - y) / zoomScale}px)`;
+							currentScale = zoomScale;
+						}
+					}
+				} else {
+					lastTouchTime = now;
+				}
 			}
-		  }
+		}, { passive: false });
+
+		viewport.addEventListener('touchmove', (e: TouchEvent) => {
+			if (e.touches.length === 2) {
+				// Pinch gesture
+				e.preventDefault();
+				const touch1 = e.touches[0];
+				const touch2 = e.touches[1];
+				const distance = Math.hypot(
+					touch2.clientX - touch1.clientX,
+					touch2.clientY - touch1.clientY
+				);
+
+				const scale = Math.max(1, Math.min(4, currentScale * (distance / initialDistance)));
+				const activeImage = this.images[this._currentIndex];
+
+				if (activeImage) {
+					const rect = viewport.getBoundingClientRect();
+					const centerX = (touch1.clientX + touch2.clientX) / 2 - rect.left;
+					const centerY = (touch1.clientY + touch2.clientY) / 2 - rect.top;
+
+					const translateX = (rect.width / 2 - centerX) / scale;
+					const translateY = (rect.height / 2 - centerY) / scale;
+
+					activeImage.style.transform = `scale(${scale}) translate(${translateX}px, ${translateY}px)`;
+				}
+			}
+		}, { passive: false });
+
+		viewport.addEventListener('touchend', () => {
+			initialDistance = 0;
+		});
+	}
+
+	goToSlide(index: number): void {
+		if (index < 0 || index >= this.images.length) return;
+
+		this._currentIndex = index;
+
+		// Update images visibility - use CSS classes only (inline styles override CSS)
+		this.images.forEach((img, i) => {
+			if (i === index) {
+				img.classList.add('afs-slider__image--active');
+				// Removed inline style.display - let CSS handle it via --active class
+			} else {
+				img.classList.remove('afs-slider__image--active');
+				// Removed inline style.display - let CSS handle it via --active class
+			}
+		});
+
+		// Reset zoom when slide changes using CSS class
+		const activeImage = this.images[this._currentIndex];
+		if (activeImage) {
+			activeImage.classList.remove('afs-slider__image--zoomed');
+			activeImage.classList.add('afs-slider__image--zoom-reset');
+			setTimeout(() => {
+				activeImage.classList.remove('afs-slider__image--zoom-reset');
+			}, 200);
 		}
-	  }
-	}
 
-	// Fallback: Extract variant image URL from various possible structures
-	let variantImageUrl: string | null = null;
-	let variantImagePosition: number | null = null;
+		// Update thumbnails
+		this.thumbnails.forEach((thumb, i) => {
+			thumb.classList.toggle('afs-slider__thumbnail--active', i === index);
+		});
 
-	// Handle featured_image as object (Shopify format: { src: "...", position: 5, ... })
-	if (variant.featured_image) {
-	  if (typeof variant.featured_image === 'object') {
-		variantImageUrl = variant.featured_image.src || variant.featured_image.url || null;
-		variantImagePosition = variant.featured_image.position ?? null;
-	  } else if (typeof variant.featured_image === 'string') {
-		variantImageUrl = variant.featured_image;
-	  }
-	}
-
-	// Fallback to other image properties
-	if (!variantImageUrl) {
-	  if (typeof variant.image === 'string') {
-		variantImageUrl = variant.image;
-	  } else if (variant.image && typeof variant.image === 'object') {
-		variantImageUrl = variant.image.url || variant.image.src || null;
-	  } else if (variant.imageUrl) {
-		variantImageUrl = variant.imageUrl;
-	  } else if (variant.featuredImage && typeof variant.featuredImage === 'object') {
-		variantImageUrl = variant.featuredImage.url || variant.featuredImage.src || null;
-	  }
-	}
-
-	if (!variantImageUrl) {
-	  return false;
-	}
-
-	// Normalize image URL for comparison (remove protocol, query params, etc.)
-	const normalizeUrl = (url: string | { url?: string; src?: string } | null | undefined): string => {
-	  if (!url) return '';
-	  // Handle both string URLs and object URLs
-	  const urlString = typeof url === 'string' ? url : (url?.url || url?.src || '');
-	  // Remove protocol, normalize to https, remove query params
-	  return urlString
-		.replace(/^https?:\/\//, '')
-		.replace(/^\/\//, '')
-		.split('?')[0]
-		.toLowerCase()
-		.trim();
-	};
-
-	const normalizedVariantImage = normalizeUrl(variantImageUrl);
-
-	// First, try to use position if available (1-based, convert to 0-based index)
-	if (variantImagePosition !== null && variantImagePosition !== undefined) {
-	  const positionIndex = variantImagePosition - 1; // Convert from 1-based to 0-based
-	  if (positionIndex >= 0 && positionIndex < this.images.length && positionIndex < productImages.length) {
-		// Check if current slide is different
-		if (this._currentIndex !== positionIndex) {
-		  this.goToSlide(positionIndex);
-		  return true;
+		// Adjust height if enabled
+		if (this.options.enableAutoHeight) {
+			this.adjustHeight();
 		}
-		return true;
-	  }
+
+		// Trigger custom event
+		this.container.dispatchEvent(new CustomEvent<SliderSlideChangeEventDetailType>('afs-slider:slide-change', {
+			detail: { index, total: this.images.length }
+		}));
 	}
 
-	// Find matching image in product images array by URL
-	let variantImageIndex = productImages.findIndex(img => {
-	  const normalizedImg = normalizeUrl(img);
-	  // Compare normalized URLs
-	  return normalizedImg === normalizedVariantImage ||
-		normalizedImg.includes(normalizedVariantImage) ||
-		normalizedVariantImage.includes(normalizedImg);
-	});
-
-	// If exact match not found, try to find by filename
-	if (variantImageIndex === -1) {
-	  const variantImageFilename = normalizedVariantImage.split('/').pop();
-	  variantImageIndex = productImages.findIndex(img => {
-		const imgFilename = normalizeUrl(img).split('/').pop();
-		return imgFilename === variantImageFilename;
-	  });
+	prevSlide(): void {
+		const newIndex = this._currentIndex > 0
+			? this._currentIndex - 1
+			: this.images.length - 1;
+		this.goToSlide(newIndex);
 	}
 
-	if (variantImageIndex !== -1 && variantImageIndex < this.images.length) {
-	  // Check if current slide is different
-	  if (this._currentIndex !== variantImageIndex) {
-		this.goToSlide(variantImageIndex);
-		return true;
-	  }
-	  return true;
+	nextSlide(): void {
+		const newIndex = this._currentIndex < this.images.length - 1
+			? this._currentIndex + 1
+			: 0;
+		this.goToSlide(newIndex);
 	}
 
-	return false;
-  }
+	private adjustHeight(): void {
+		const activeImage = this.images[this._currentIndex];
+		if (!activeImage) return;
 
-  destroy(): void {
-	// Remove keyboard listener
-	if (this.keyboardHandler) {
-	  document.removeEventListener('keydown', this.keyboardHandler);
-	  this.keyboardHandler = null;
+		// Wait for image to load
+		if (activeImage.complete) {
+			this.setHeight(activeImage);
+		} else {
+			activeImage.addEventListener('load', () => {
+				this.setHeight(activeImage);
+			}, { once: true });
+		}
 	}
 
-	// Reset zoom state using CSS classes
-	this.images.forEach(img => {
-	  img.classList.remove('afs-slider__image--zoomed');
-	  img.classList.add('afs-slider__image--zoom-reset');
-	  setTimeout(() => {
-		img.classList.remove('afs-slider__image--zoom-reset');
-	  }, 200);
-	});
+	private setHeight(image: HTMLImageElement): void {
+		if (!this.mainContainer) return;
 
-	this.isInitialized = false;
-  }
+		const viewport = this.mainContainer.querySelector<HTMLElement>('.afs-slider__viewport');
+		if (!viewport) return;
+
+		// If maxHeight is set, use fixed height
+		if (this.options.maxHeight) {
+			viewport.style.height = `${this.options.maxHeight}px`;
+			viewport.style.minHeight = `${this.options.maxHeight}px`;
+			viewport.style.maxHeight = `${this.options.maxHeight}px`;
+			return;
+		}
+
+		const imgHeight = image.naturalHeight || image.offsetHeight;
+		const imgWidth = image.naturalWidth || image.offsetWidth;
+		const containerWidth = this.mainContainer.offsetWidth;
+		// Calculate aspect ratio
+		const aspectRatio = imgHeight / imgWidth;
+		const calculatedHeight = containerWidth * aspectRatio;
+
+		viewport.style.height = `${calculatedHeight}px`;
+		viewport.style.minHeight = `${calculatedHeight}px`;
+	}
+
+	/**
+	 * Update slider to show variant's image
+	 * @param variant - Variant object with image property
+	 * @param productImages - Array of product image URLs
+	 * @param allVariants - Optional: Array of all product variants for variant_ids optimization
+	 * @returns Returns true if image was found and updated, false otherwise
+	 */
+	updateVariantImage(variant: ProductVariantType, productImages: string[], allVariants?: ProductVariantType[]): boolean {
+		if (!variant || !productImages || !Array.isArray(productImages) || productImages.length === 0) {
+			return false;
+		}
+
+		const currentVariantId = variant.id;
+
+		// OPTIMIZATION: Quick check using variant_ids array if allVariants is provided
+		if (allVariants && Array.isArray(allVariants)) {
+			// Check if current variant has featured_image with variant_ids
+			if (variant.featured_image && typeof variant.featured_image === 'object' && variant.featured_image.variant_ids) {
+				const variantImagePosition = variant.featured_image.position;
+				if (variantImagePosition !== null && variantImagePosition !== undefined) {
+					const positionIndex = variantImagePosition - 1; // Convert from 1-based to 0-based
+					if (positionIndex >= 0 && positionIndex < this.images.length && positionIndex < productImages.length) {
+						// Check if current slide is different from this variant's image
+						if (this._currentIndex !== positionIndex) {
+							this.goToSlide(positionIndex);
+							return true;
+						}
+						// Already on correct image
+						return true;
+					}
+				}
+			}
+
+			// Variant doesn't have featured_image, but check if any other variant's image is assigned to this variant
+			for (const v of allVariants) {
+				if (v.featured_image && typeof v.featured_image === 'object' && v.featured_image.variant_ids) {
+					// Check if current variant ID is in this image's variant_ids array
+					if (v.featured_image.variant_ids.includes(Number(currentVariantId))) {
+						const variantImagePosition = v.featured_image.position;
+						if (variantImagePosition !== null && variantImagePosition !== undefined) {
+							const positionIndex = variantImagePosition - 1; // Convert from 1-based to 0-based
+							if (positionIndex >= 0 && positionIndex < this.images.length && positionIndex < productImages.length) {
+								// Check if current slide is different from this variant's image
+								if (this._currentIndex !== positionIndex) {
+									this.goToSlide(positionIndex);
+									return true;
+								}
+								// Already on correct image
+								return true;
+							}
+						}
+					}
+				}
+			}
+		}
+
+		// Fallback: Extract variant image URL from various possible structures
+		let variantImageUrl: string | null = null;
+		let variantImagePosition: number | null = null;
+
+		// Handle featured_image as object (Shopify format: { src: "...", position: 5, ... })
+		if (variant.featured_image) {
+			if (typeof variant.featured_image === 'object') {
+				variantImageUrl = variant.featured_image.src || variant.featured_image.url || null;
+				variantImagePosition = variant.featured_image.position ?? null;
+			} else if (typeof variant.featured_image === 'string') {
+				variantImageUrl = variant.featured_image;
+			}
+		}
+
+		// Fallback to other image properties
+		if (!variantImageUrl) {
+			if (typeof variant.image === 'string') {
+				variantImageUrl = variant.image;
+			} else if (variant.image && typeof variant.image === 'object') {
+				variantImageUrl = variant.image.url || variant.image.src || null;
+			} else if (variant.imageUrl) {
+				variantImageUrl = variant.imageUrl;
+			} else if (variant.featuredImage && typeof variant.featuredImage === 'object') {
+				variantImageUrl = variant.featuredImage.url || variant.featuredImage.src || null;
+			}
+		}
+
+		if (!variantImageUrl) {
+			return false;
+		}
+
+		// Normalize image URL for comparison (remove protocol, query params, etc.)
+		const normalizeUrl = (url: string | { url?: string; src?: string } | null | undefined): string => {
+			if (!url) return '';
+			// Handle both string URLs and object URLs
+			const urlString = typeof url === 'string' ? url : (url?.url || url?.src || '');
+			// Remove protocol, normalize to https, remove query params
+			return urlString
+				.replace(/^https?:\/\//, '')
+				.replace(/^\/\//, '')
+				.split('?')[0]
+				.toLowerCase()
+				.trim();
+		};
+
+		const normalizedVariantImage = normalizeUrl(variantImageUrl);
+
+		// First, try to use position if available (1-based, convert to 0-based index)
+		if (variantImagePosition !== null && variantImagePosition !== undefined) {
+			const positionIndex = variantImagePosition - 1; // Convert from 1-based to 0-based
+			if (positionIndex >= 0 && positionIndex < this.images.length && positionIndex < productImages.length) {
+				// Check if current slide is different
+				if (this._currentIndex !== positionIndex) {
+					this.goToSlide(positionIndex);
+					return true;
+				}
+				return true;
+			}
+		}
+
+		// Find matching image in product images array by URL
+		let variantImageIndex = productImages.findIndex(img => {
+			const normalizedImg = normalizeUrl(img);
+			// Compare normalized URLs
+			return normalizedImg === normalizedVariantImage ||
+				normalizedImg.includes(normalizedVariantImage) ||
+				normalizedVariantImage.includes(normalizedImg);
+		});
+
+		// If exact match not found, try to find by filename
+		if (variantImageIndex === -1) {
+			const variantImageFilename = normalizedVariantImage.split('/').pop();
+			variantImageIndex = productImages.findIndex(img => {
+				const imgFilename = normalizeUrl(img).split('/').pop();
+				return imgFilename === variantImageFilename;
+			});
+		}
+
+		if (variantImageIndex !== -1 && variantImageIndex < this.images.length) {
+			// Check if current slide is different
+			if (this._currentIndex !== variantImageIndex) {
+				this.goToSlide(variantImageIndex);
+				return true;
+			}
+			return true;
+		}
+
+		return false;
+	}
+
+	destroy(): void {
+		// Remove keyboard listener
+		if (this.keyboardHandler) {
+			document.removeEventListener('keydown', this.keyboardHandler);
+			this.keyboardHandler = null;
+		}
+
+		// Reset zoom state using CSS classes
+		this.images.forEach(img => {
+			img.classList.remove('afs-slider__image--zoomed');
+			img.classList.add('afs-slider__image--zoom-reset');
+			setTimeout(() => {
+				img.classList.remove('afs-slider__image--zoom-reset');
+			}, 200);
+		});
+
+		this.isInitialized = false;
+	}
 }
 
 // Create Product Modal using Ajax API
 export async function createProductModal(handle: string, modalId: string): Promise<ProductModalElement> {
 
-  const dialog = $.el('dialog', 'afs-product-modal', { 'id': modalId }) as ProductModalElement;
+	const dialog = $.el('dialog', 'afs-product-modal', { 'id': modalId }) as ProductModalElement;
 
-  // Show loading state
-  const loadingText = Lang?.labels?.loadingProduct || 'Loading product...';
-  dialog.innerHTML = `
+	// Show loading state
+	const loadingText = Lang?.labels?.loadingProduct || 'Loading product...';
+	dialog.innerHTML = `
 	  <div class="afs-product-modal__container">
 		<div class="afs-product-modal__close-container">
 		  <button class="afs-product-modal__close" type="button">${Icons.close}</button>
@@ -3726,91 +3761,91 @@ export async function createProductModal(handle: string, modalId: string): Promi
 	  </div>
 	`;
 
-  // Get locale-aware URL using Shopify routes
-  const routesRoot = (AFSW.Shopify && AFSW.Shopify.routes && AFSW.Shopify.routes.root) || '/';
-  const productUrl = `${routesRoot}products/${handle}.js`;
+	// Get locale-aware URL using Shopify routes
+	const routesRoot = (AFSW.Shopify && AFSW.Shopify.routes && AFSW.Shopify.routes.root) || '/';
+	const productUrl = `${routesRoot}products/${handle}.js`;
 
-  try {
-	// Fetch product data using Ajax API
-	const response = await fetch(productUrl);
-	if (!response.ok) {
-	  const errorText = await response.text().catch(() => '');
-	  const errorMsg = `Failed to load product: HTTP ${response.status} ${response.statusText}${errorText ? ' - ' + errorText.substring(0, 100) : ''}`;
-	  Log.error('Product fetch failed', { status: response.status, statusText: response.statusText, url: productUrl, errorText });
-	  throw new Error(errorMsg);
-	}
-	const productData = await response.json() as ProductType;
-
-	// Ajax API returns product directly (not wrapped in {product: ...})
-	// Verify it has the expected structure
-	if (!productData.variants || !Array.isArray(productData.variants)) {
-	  throw new Error('Invalid product data structure');
-	}
-
-	// Find first available variant or first variant
-	const selectedVariant = productData.variants.find(v => isVariantAvailable(v)) || productData.variants[0];
-	let currentVariantId: number | string | null = selectedVariant ? selectedVariant.id : null;
-
-	// Build variant selector HTML
-	const buildVariantSelector = (): string => {
-	  if (!productData.variants || productData.variants.length === 0) return '';
-
-	  // Don't render variant selector if product has only one variant with "Default Title"
-	  // This is Shopify's default single variant (not a real variant)
-	  if (productData.variants.length === 1) {
-		const firstVariant = productData.variants[0];
-		const variantTitle = (firstVariant as { title?: string }).title;
-		if (variantTitle && $.equals(variantTitle, SpecialValueType.DEFAULT_TITLE)) {
-		  return '';
+	try {
+		// Fetch product data using Ajax API
+		const response = await fetch(productUrl);
+		if (!response.ok) {
+			const errorText = await response.text().catch(() => '');
+			const errorMsg = `Failed to load product: HTTP ${response.status} ${response.statusText}${errorText ? ' - ' + errorText.substring(0, 100) : ''}`;
+			Log.error('Product fetch failed', { status: response.status, statusText: response.statusText, url: productUrl, errorText });
+			throw new Error(errorMsg);
 		}
-	  }
+		const productData = await response.json() as ProductType;
 
-	  if (!productData.options || productData.options.length === 0) return '';
+		// Ajax API returns product directly (not wrapped in {product: ...})
+		// Verify it has the expected structure
+		if (!productData.variants || !Array.isArray(productData.variants)) {
+			throw new Error('Invalid product data structure');
+		}
 
-	  let html = '<div class="afs-product-modal__variant-selector">';
-	  productData.options.forEach((option, optionIndex) => {
-		html += `<div class="afs-product-modal__option-group">`;
-		html += `<label class="afs-product-modal__option-label">${option.name}</label>`;
-		html += `<div class="afs-product-modal__option-values">`;
+		// Find first available variant or first variant
+		const selectedVariant = productData.variants.find(v => isVariantAvailable(v)) || productData.variants[0];
+		let currentVariantId: number | string | null = selectedVariant ? selectedVariant.id : null;
 
-		// Get unique values for this option
-		const uniqueValues = [...new Set(productData.variants!.map(v => {
-		  if (optionIndex === 0) return v.option1;
-		  if (optionIndex === 1) return v.option2;
-		  return v.option3;
-		}).filter(Boolean))];
+		// Build variant selector HTML
+		const buildVariantSelector = (): string => {
+			if (!productData.variants || productData.variants.length === 0) return '';
 
-		// Build selected options array based on selectedVariant for availability checking
-		const selectedOptions: (string | null)[] = Array.from({ length: productData.options?.length || 0 }, (_, idx) => {
-		  if (idx === optionIndex) return null; // Don't include current option being checked
-		  if (!selectedVariant) return null;
-		  if (idx === 0) return selectedVariant.option1 || null;
-		  if (idx === 1) return selectedVariant.option2 || null;
-		  return selectedVariant.option3 || null;
-		});
+			// Don't render variant selector if product has only one variant with "Default Title"
+			// This is Shopify's default single variant (not a real variant)
+			if (productData.variants.length === 1) {
+				const firstVariant = productData.variants[0];
+				const variantTitle = (firstVariant as { title?: string }).title;
+				if (variantTitle && $.equals(variantTitle, SpecialValueType.DEFAULT_TITLE)) {
+					return '';
+				}
+			}
 
-		uniqueValues.forEach(value => {
-		  if (!value) return; // Skip undefined/null values
-		  
-		  // Use isOptionValueAvailable to check if this option value is available
-		  // given the currently selected options from other option groups
-		  const isAvailable = isOptionValueAvailable(productData, optionIndex, value, selectedOptions);
-		  
-		  // Check if this option value matches the selected variant's option value for this option index
-		  const isSelected = selectedVariant && (
-			(optionIndex === 0 && selectedVariant.option1 === value) ||
-			(optionIndex === 1 && selectedVariant.option2 === value) ||
-			(optionIndex === 2 && selectedVariant.option3 === value)
-		  );
-		  
-		  // Find variant for data-variant-id attribute (any variant with this option value)
-		  const variant = productData.variants!.find(v => {
-			if (optionIndex === 0) return v.option1 === value;
-			if (optionIndex === 1) return v.option2 === value;
-			return v.option3 === value;
-		  });
+			if (!productData.options || productData.options.length === 0) return '';
 
-		  html += `<button 
+			let html = '<div class="afs-product-modal__variant-selector">';
+			productData.options.forEach((option, optionIndex) => {
+				html += `<div class="afs-product-modal__option-group">`;
+				html += `<label class="afs-product-modal__option-label">${option.name}</label>`;
+				html += `<div class="afs-product-modal__option-values">`;
+
+				// Get unique values for this option
+				const uniqueValues = [...new Set(productData.variants!.map(v => {
+					if (optionIndex === 0) return v.option1;
+					if (optionIndex === 1) return v.option2;
+					return v.option3;
+				}).filter(Boolean))];
+
+				// Build selected options array based on selectedVariant for availability checking
+				const selectedOptions: (string | null)[] = Array.from({ length: productData.options?.length || 0 }, (_, idx) => {
+					if (idx === optionIndex) return null; // Don't include current option being checked
+					if (!selectedVariant) return null;
+					if (idx === 0) return selectedVariant.option1 || null;
+					if (idx === 1) return selectedVariant.option2 || null;
+					return selectedVariant.option3 || null;
+				});
+
+				uniqueValues.forEach(value => {
+					if (!value) return; // Skip undefined/null values
+
+					// Use isOptionValueAvailable to check if this option value is available
+					// given the currently selected options from other option groups
+					const isAvailable = isOptionValueAvailable(productData, optionIndex, value, selectedOptions);
+
+					// Check if this option value matches the selected variant's option value for this option index
+					const isSelected = selectedVariant && (
+						(optionIndex === 0 && selectedVariant.option1 === value) ||
+						(optionIndex === 1 && selectedVariant.option2 === value) ||
+						(optionIndex === 2 && selectedVariant.option3 === value)
+					);
+
+					// Find variant for data-variant-id attribute (any variant with this option value)
+					const variant = productData.variants!.find(v => {
+						if (optionIndex === 0) return v.option1 === value;
+						if (optionIndex === 1) return v.option2 === value;
+						return v.option3 === value;
+					});
+
+					html += `<button 
 			  class="afs-product-modal__option-value ${isSelected ? 'afs-product-modal__option-value--selected' : ''} ${!isAvailable ? 'afs-product-modal__option-value--unavailable' : ''}"
 			  data-option-index="${optionIndex}"
 			  data-option-value="${value}"
@@ -3818,52 +3853,52 @@ export async function createProductModal(handle: string, modalId: string): Promi
 			  ${!isAvailable ? 'disabled' : ''}
 			  type="button"
 			>${value}</button>`;
-		});
+				});
 
-		html += `</div></div>`;
-	  });
-	  html += '</div>';
-	  return html;
-	};
-
-	// Build images HTML using slider structure with full optimization
-	const buildImagesHTML = (): { thumbnails: string; mainImages: string } => {
-	  if (!productData.images || productData.images.length === 0) {
-		// Return empty structure if no images
-		return {
-		  thumbnails: '',
-		  mainImages: '<div class="afs-slider__main"><div style="padding: 2rem; text-align: center;">No images available</div></div>'
+				html += `</div></div>`;
+			});
+			html += '</div>';
+			return html;
 		};
-	  }
 
-	  // Build thumbnails with optimized/cropped images and srcset
-	  let thumbnailsHTML = '<div class="afs-slider__thumbnails">';
-	  productData.images.forEach((image, index) => {
-		const isActive = index === 0 ? 'afs-slider__thumbnail--active' : '';
+		// Build images HTML using slider structure with full optimization
+		const buildImagesHTML = (): { thumbnails: string; mainImages: string } => {
+			if (!productData.images || productData.images.length === 0) {
+				// Return empty structure if no images
+				return {
+					thumbnails: '',
+					mainImages: '<div class="afs-slider__main"><div style="padding: 2rem; text-align: center;">No images available</div></div>'
+				};
+			}
 
-		// Optimize thumbnail: small square cropped image
-		const thumbnailUrl = $.optimizeImageUrl(image, {
-		  width: 100,
-		  height: 100,
-		  crop: 'center',
-		  format: 'webp',
-		  quality: 75
-		});
+			// Build thumbnails with optimized/cropped images and srcset
+			let thumbnailsHTML = '<div class="afs-slider__thumbnails">';
+			productData.images.forEach((image, index) => {
+				const isActive = index === 0 ? 'afs-slider__thumbnail--active' : '';
 
-		// Build srcset for thumbnails (responsive sizes with crop)
-		const thumbnailSizes = [80, 100, 120];
-		const thumbnailSrcset = thumbnailSizes.map(size => {
-		  const optimized = $.optimizeImageUrl(image, {
-			width: size,
-			height: size,
-			crop: 'center',
-			format: 'webp',
-			quality: 75
-		  });
-		  return `${optimized} ${size}w`;
-		}).join(', ');
+				// Optimize thumbnail: small square cropped image
+				const thumbnailUrl = $.optimizeImageUrl(image, {
+					width: 100,
+					height: 100,
+					crop: 'center',
+					format: 'webp',
+					quality: 75
+				});
 
-		thumbnailsHTML += `
+				// Build srcset for thumbnails (responsive sizes with crop)
+				const thumbnailSizes = [80, 100, 120];
+				const thumbnailSrcset = thumbnailSizes.map(size => {
+					const optimized = $.optimizeImageUrl(image, {
+						width: size,
+						height: size,
+						crop: 'center',
+						format: 'webp',
+						quality: 75
+					});
+					return `${optimized} ${size}w`;
+				}).join(', ');
+
+				thumbnailsHTML += `
 			<div class="afs-slider__thumbnail ${isActive}" data-slide-index="${index}">
 			  <img 
 				src="${thumbnailUrl}" 
@@ -3876,35 +3911,35 @@ export async function createProductModal(handle: string, modalId: string): Promi
 			  />
 			</div>
 		  `;
-	  });
-	  thumbnailsHTML += '</div>';
+			});
+			thumbnailsHTML += '</div>';
 
-	  // Build main images with optimized full images (no cropping) and srcset
-	  let mainImagesHTML = '<div class="afs-slider__main">';
-	  productData.images.forEach((image, index) => {
-		// Optimize main image: larger size, no cropping, maintain aspect ratio
-		const mainImageUrl = $.optimizeImageUrl(image, {
-		  width: 800,
-		  height: 800, // Max height, will maintain aspect ratio
-		  format: 'webp',
-		  quality: 85
-		  // No crop parameter = maintains aspect ratio
-		});
+			// Build main images with optimized full images (no cropping) and srcset
+			let mainImagesHTML = '<div class="afs-slider__main">';
+			productData.images.forEach((image, index) => {
+				// Optimize main image: larger size, no cropping, maintain aspect ratio
+				const mainImageUrl = $.optimizeImageUrl(image, {
+					width: 800,
+					height: 800, // Max height, will maintain aspect ratio
+					format: 'webp',
+					quality: 85
+					// No crop parameter = maintains aspect ratio
+				});
 
-		// Build srcset for main images (responsive sizes for different screen sizes, no crop)
-		const mainImageSizes = [400, 600, 800, 1000, 1200];
-		const mainImageSrcset = mainImageSizes.map(size => {
-		  const optimized = $.optimizeImageUrl(image, {
-			width: size,
-			height: size,
-			format: 'webp',
-			quality: size <= 600 ? 80 : 85
-			// No crop = maintains aspect ratio
-		  });
-		  return `${optimized} ${size}w`;
-		}).join(', ');
+				// Build srcset for main images (responsive sizes for different screen sizes, no crop)
+				const mainImageSizes = [400, 600, 800, 1000, 1200];
+				const mainImageSrcset = mainImageSizes.map(size => {
+					const optimized = $.optimizeImageUrl(image, {
+						width: size,
+						height: size,
+						format: 'webp',
+						quality: size <= 600 ? 80 : 85
+						// No crop = maintains aspect ratio
+					});
+					return `${optimized} ${size}w`;
+				}).join(', ');
 
-		mainImagesHTML += `
+				mainImagesHTML += `
 			<img 
 			  class="afs-slider__image" 
 			  src="${mainImageUrl}" 
@@ -3914,31 +3949,31 @@ export async function createProductModal(handle: string, modalId: string): Promi
 			  loading="${index === 0 ? 'eager' : 'lazy'}"
 			/>
 		  `;
-	  });
-	  mainImagesHTML += '</div>';
+			});
+			mainImagesHTML += '</div>';
 
-	  return {
-		thumbnails: thumbnailsHTML,
-		mainImages: mainImagesHTML
-	  };
-	};
+			return {
+				thumbnails: thumbnailsHTML,
+				mainImages: mainImagesHTML
+			};
+		};
 
-	const imagesHTML = buildImagesHTML();
-	const variantSelectorHTML = buildVariantSelector();
+		const imagesHTML = buildImagesHTML();
+		const variantSelectorHTML = buildVariantSelector();
 
-	// Format price
-	const formatPrice = (price: number | string): string => {
-	  return $.formatMoney(price, FilterState.moneyFormat || '{{amount}}', FilterState.currency || '');
-	};
+		// Format price
+		const formatPrice = (price: number | string): string => {
+			return $.formatMoney(price, FilterState.moneyFormat || '{{amount}}', FilterState.currency || '');
+		};
 
-	const currentVariant = productData.variants.find(v => v.id === currentVariantId) || selectedVariant;
-	const priceHTML = formatPrice(currentVariant.price);
-	const comparePriceHTML = currentVariant.compare_at_price && currentVariant.compare_at_price > currentVariant.price
-	  ? `<span class="afs-product-modal__compare-price">${formatPrice(currentVariant.compare_at_price)}</span>`
-	  : '';
+		const currentVariant = productData.variants.find(v => v.id === currentVariantId) || selectedVariant;
+		const priceHTML = formatPrice(currentVariant.price);
+		const comparePriceHTML = currentVariant.compare_at_price && currentVariant.compare_at_price > currentVariant.price
+			? `<span class="afs-product-modal__compare-price">${formatPrice(currentVariant.compare_at_price)}</span>`
+			: '';
 
-	// Build full modal HTML
-	dialog.innerHTML = `
+		// Build full modal HTML
+		dialog.innerHTML = `
 		<div class="afs-product-modal__container">
 		  <div class="afs-product-modal__close-container">
 			<button class="afs-product-modal__close" type="button">${Icons.close}</button>
@@ -4001,67 +4036,67 @@ export async function createProductModal(handle: string, modalId: string): Promi
 		</div>
 	  `;
 
-	// Store product data on dialog element
-	dialog._productData = productData;
-	dialog._currentVariantId = currentVariantId || undefined;
+		// Store product data on dialog element
+		dialog._productData = productData;
+		dialog._currentVariantId = currentVariantId || undefined;
 
-	// Initialize slider after DOM is ready - use proper DOM ready check
-	(async () => {
-	  try {
-		// Wait for slider container to be in DOM
-		const sliderContainer = await waitForElement(`#${modalId}-slider`, dialog, 3000);
+		// Initialize slider after DOM is ready - use proper DOM ready check
+		(async () => {
+			try {
+				// Wait for slider container to be in DOM
+				const sliderContainer = await waitForElement(`#${modalId}-slider`, dialog, 3000);
 
-		// Wait for images to be in DOM
-		const images = await waitForElements(
-		  Array.from({ length: 10 }, (_, i) => `.afs-slider__image:nth-child(${i + 1})`),
-		  sliderContainer,
-		  2000
-		).catch(() => {
-		  // Fallback: get whatever images exist
-		  return Array.from(sliderContainer.querySelectorAll<HTMLImageElement>('.afs-slider__image'));
+				// Wait for images to be in DOM
+				const images = await waitForElements(
+					Array.from({ length: 10 }, (_, i) => `.afs-slider__image:nth-child(${i + 1})`),
+					sliderContainer,
+					2000
+				).catch(() => {
+					// Fallback: get whatever images exist
+					return Array.from(sliderContainer.querySelectorAll<HTMLImageElement>('.afs-slider__image'));
+				});
+
+				// Also wait for thumbnails to be in DOM (non-blocking)
+				await waitForElement('.afs-slider__thumbnails', sliderContainer, 1000).catch(() => {
+					Log.warn('Thumbnails container not found, slider will continue without thumbnails', { modalId });
+				});
+
+				if (images.length > 0) {
+					dialog._slider = new AFSSlider(sliderContainer, {
+						thumbnailsPosition: 'left', // Can be 'top', 'left', 'right', 'bottom'
+						enableKeyboard: true,
+						enableAutoHeight: false, // Disable auto height to prevent shrinking
+						maxHeight: 600, // Fixed max height in pixels
+						enableMagnifier: true, // Enable image magnifier on hover
+						magnifierZoom: 2, // 2x zoom level for magnifier
+					});
+				} else {
+					Log.warn('No images found for slider', { modalId });
+				}
+			} catch (error) {
+
+				Log.error('Failed to initialize slider', {
+					error: error instanceof Error ? error.message : String(error),
+					modalId
+				});
+			}
+		})();
+
+		// Setup event handlers
+		setupModalHandlers(dialog, modalId, productData, formatPrice);
+
+	} catch (error) {
+		const errorMessage = error instanceof Error ? error.message : String(error);
+		const errorDetails = error instanceof Error ? { message: errorMessage, stack: error.stack } : { message: errorMessage };
+		Log.error('Failed to load product for modal', {
+			error: errorDetails,
+			handle,
+			productUrl,
+			responseStatus: error instanceof Error && 'status' in error ? (error as any).status : undefined
 		});
 
-		// Also wait for thumbnails to be in DOM (non-blocking)
-		await waitForElement('.afs-slider__thumbnails', sliderContainer, 1000).catch(() => {
-		  Log.warn('Thumbnails container not found, slider will continue without thumbnails', { modalId });
-		});
-
-		if (images.length > 0) {
-		  dialog._slider = new AFSSlider(sliderContainer, {
-			thumbnailsPosition: 'left', // Can be 'top', 'left', 'right', 'bottom'
-			enableKeyboard: true,
-			enableAutoHeight: false, // Disable auto height to prevent shrinking
-			maxHeight: 600, // Fixed max height in pixels
-			enableMagnifier: true, // Enable image magnifier on hover
-			magnifierZoom: 2, // 2x zoom level for magnifier
-		  });
-		} else {
-		  Log.warn('No images found for slider', { modalId });
-		}
-	  } catch (error) {
-
-		Log.error('Failed to initialize slider', {
-		  error: error instanceof Error ? error.message : String(error),
-		  modalId
-		});
-	  }
-	})();
-
-	// Setup event handlers
-	setupModalHandlers(dialog, modalId, productData, formatPrice);
-
-  } catch (error) {
-	const errorMessage = error instanceof Error ? error.message : String(error);
-	const errorDetails = error instanceof Error ? { message: errorMessage, stack: error.stack } : { message: errorMessage };
-	Log.error('Failed to load product for modal', { 
-	  error: errorDetails, 
-	  handle,
-	  productUrl,
-	  responseStatus: error instanceof Error && 'status' in error ? (error as any).status : undefined
-	});
-	
-	const userMessage = Lang?.messages?.failedToLoadProductModal || 'Failed to load product. Please try again.';
-	dialog.innerHTML = `
+		const userMessage = Lang?.messages?.failedToLoadProductModal || 'Failed to load product. Please try again.';
+		dialog.innerHTML = `
 		<div class="afs-product-modal__container">
 		  <div class="afs-product-modal__close-container">
 			<button class="afs-product-modal__close" type="button">${Icons.close}</button>
@@ -4074,466 +4109,466 @@ export async function createProductModal(handle: string, modalId: string): Promi
 		  </div>
 		</div>
 	  `;
-	setupCloseHandler(dialog);
-  }
+		setupCloseHandler(dialog);
+	}
 
-  return dialog;
+	return dialog;
 }
 
 function setupModalHandlers(
-  dialog: ProductModalElement,
-  modalId: string,
-  product: ProductType,
-  formatPrice: (price: number | string) => string
+	dialog: ProductModalElement,
+	modalId: string,
+	product: ProductType,
+	formatPrice: (price: number | string) => string
 ): void {
-  const closeBtn = dialog.querySelector<HTMLButtonElement>('.afs-product-modal__close');
+	const closeBtn = dialog.querySelector<HTMLButtonElement>('.afs-product-modal__close');
 
-  const closeModal = (): void => {
-	// Destroy slider if it exists
-	if (dialog._slider && typeof dialog._slider.destroy === 'function') {
-	  dialog._slider.destroy();
-	  dialog._slider = undefined;
-	}
-
-	document.body.style.overflow = '';
-	document.body.style.removeProperty('overflow');
-	if (dialog.close) {
-	  dialog.close();
-	} else {
-	  dialog.style.display = 'none';
-	}
-  };
-
-  // Close button
-  if (closeBtn) {
-	closeBtn.addEventListener('click', (e) => {
-	  e.preventDefault();
-	  e.stopPropagation();
-	  closeModal();
-	});
-  }
-
-  // ESC key and backdrop click
-  dialog.addEventListener('cancel', (e) => {
-	e.preventDefault();
-	closeModal();
-  });
-
-  dialog.addEventListener('click', (e) => {
-	if (e.target === dialog) {
-	  closeModal();
-	}
-  });
-
-  // Quantity controls
-  const decreaseBtn = dialog.querySelector<HTMLButtonElement>('.afs-product-modal__decrease');
-  const increaseBtn = dialog.querySelector<HTMLButtonElement>('.afs-product-modal__increase');
-  const countDisplay = dialog.querySelector<HTMLElement>(`#${modalId}-count`);
-
-  if (decreaseBtn && countDisplay) {
-	decreaseBtn.addEventListener('click', () => {
-	  const currentCount = parseInt(countDisplay.textContent || '1', 10) || 1;
-	  if (currentCount > 1) {
-		countDisplay.textContent = String(currentCount - 1);
-	  }
-	});
-  }
-
-  if (increaseBtn && countDisplay) {
-	increaseBtn.addEventListener('click', () => {
-	  const currentCount = parseInt(countDisplay.textContent || '1', 10) || 1;
-	  countDisplay.textContent = String(currentCount + 1);
-	});
-  }
-
-  // Variant selector
-  const variantButtons = dialog.querySelectorAll<HTMLButtonElement>('.afs-product-modal__option-value');
-  variantButtons.forEach(btn => {
-	btn.addEventListener('click', () => {
-	  if (btn.disabled) return;
-
-	  const optionIndex = Number(btn.dataset.optionIndex);
-	  const optionValue = btn.dataset.optionValue!;
-	  const selected = getSelectedOptions(dialog, product.options!.length);
-
-	  // Update selected value
-	  selected[optionIndex] = optionValue;
-
-	  // Update UI selection
-	  dialog.querySelectorAll<HTMLButtonElement>(
-		`.afs-product-modal__option-value[data-option-index="${optionIndex}"]`
-	  ).forEach(b => b.classList.remove('afs-product-modal__option-value--selected'));
-
-	  btn.classList.add('afs-product-modal__option-value--selected');
-
-	  // Recalculate availability for ALL buttons
-	  dialog.querySelectorAll<HTMLButtonElement>('.afs-product-modal__option-value')
-		.forEach(b => {
-		  const idx = Number(b.dataset.optionIndex);
-		  const val = b.dataset.optionValue!;
-		  const available = isOptionValueAvailable(product, idx, val, selected);
-
-		  b.disabled = !available;
-		  b.classList.toggle(
-			'afs-product-modal__option-value--unavailable',
-			!available
-		  );
-		});
-
-	  // Resolve final variant
-	  const matches = findMatchingVariants(product.variants!, selected);
-	  const availableVariant = matches.find(v => isVariantAvailable(v));
-	  // If no available variant found, use first matching variant (will show as sold out)
-	  const selectedVariant = availableVariant || matches[0];
-
-	  if (selectedVariant) {
-		// Wait for slider to be ready if it's still initializing
-		if (!dialog._slider) {
-		  // Wait up to 2 seconds for slider to initialize
-		  const waitForSlider = (attempts = 0): void => {
-			if (dialog._slider) {
-			  updateVariantInModal(dialog, modalId, selectedVariant, formatPrice);
-			} else if (attempts < 20) {
-			  setTimeout(() => waitForSlider(attempts + 1), 100);
-			} else {
-			  Log.warn('Slider not ready for variant update', { modalId });
-			  // Update price and buttons even if slider isn't ready
-			  updateVariantInModal(dialog, modalId, selectedVariant, formatPrice);
-			}
-		  };
-		  waitForSlider();
-		} else {
-		  updateVariantInModal(dialog, modalId, selectedVariant, formatPrice);
+	const closeModal = (): void => {
+		// Destroy slider if it exists
+		if (dialog._slider && typeof dialog._slider.destroy === 'function') {
+			dialog._slider.destroy();
+			dialog._slider = undefined;
 		}
-	  } else {
-		Log.warn('No matching variant found for selected options', { 
-		  selected: selected.filter(Boolean) as string[], 
-		  matchesCount: matches.length 
+
+		document.body.style.overflow = '';
+		document.body.style.removeProperty('overflow');
+		if (dialog.close) {
+			dialog.close();
+		} else {
+			dialog.style.display = 'none';
+		}
+	};
+
+	// Close button
+	if (closeBtn) {
+		closeBtn.addEventListener('click', (e) => {
+			e.preventDefault();
+			e.stopPropagation();
+			closeModal();
 		});
-	  }
-	});
-  });
+	}
 
-
-  // Add to cart button
-  const addButton = dialog.querySelector<HTMLButtonElement>(`#${modalId}-add-button`);
-  if (addButton && countDisplay) {
-	addButton.addEventListener('click', async () => {
-	  if (addButton.disabled) return;
-	  const quantity = parseInt(countDisplay.textContent || '1', 10) || 1;
-	  const variantId = addButton.dataset.variantId;
-
-	  try {
-		await QuickAdd.addVariant(parseInt(variantId || '0', 10), quantity);
+	// ESC key and backdrop click
+	dialog.addEventListener('cancel', (e) => {
+		e.preventDefault();
 		closeModal();
-	  } catch (error) {
-		Log.error('Failed to add to cart from modal', { error: error instanceof Error ? error.message : String(error) });
-		DOM.showError(Lang?.messages?.failedToAddToCart || 'Failed to add product to cart. Please try again.');
-	  }
 	});
-  }
 
-  // Buy now button
-  const buyButton = dialog.querySelector<HTMLButtonElement>(`#${modalId}-buy-button`);
-  if (buyButton && countDisplay) {
-	buyButton.addEventListener('click', async () => {
-	  if (buyButton.disabled) return;
-	  const quantity = parseInt(countDisplay.textContent || '1', 10) || 1;
-	  const variantId = buyButton.dataset.variantId;
-
-	  try {
-		const routesRoot = (AFSW.Shopify && AFSW.Shopify.routes && AFSW.Shopify.routes.root) || '/';
-		// Redirect to checkout
-		window.location.href = `${routesRoot}cart/${variantId}:${quantity}?checkout`;
-	  } catch (error) {
-		Log.error('Failed to buy now', { error: error instanceof Error ? error.message : String(error) });
-		DOM.showError(Lang?.messages?.failedToProceedToCheckout || 'Failed to proceed to checkout. Please try again.');
-	  }
+	dialog.addEventListener('click', (e) => {
+		if (e.target === dialog) {
+			closeModal();
+		}
 	});
-  }
+
+	// Quantity controls
+	const decreaseBtn = dialog.querySelector<HTMLButtonElement>('.afs-product-modal__decrease');
+	const increaseBtn = dialog.querySelector<HTMLButtonElement>('.afs-product-modal__increase');
+	const countDisplay = dialog.querySelector<HTMLElement>(`#${modalId}-count`);
+
+	if (decreaseBtn && countDisplay) {
+		decreaseBtn.addEventListener('click', () => {
+			const currentCount = parseInt(countDisplay.textContent || '1', 10) || 1;
+			if (currentCount > 1) {
+				countDisplay.textContent = String(currentCount - 1);
+			}
+		});
+	}
+
+	if (increaseBtn && countDisplay) {
+		increaseBtn.addEventListener('click', () => {
+			const currentCount = parseInt(countDisplay.textContent || '1', 10) || 1;
+			countDisplay.textContent = String(currentCount + 1);
+		});
+	}
+
+	// Variant selector
+	const variantButtons = dialog.querySelectorAll<HTMLButtonElement>('.afs-product-modal__option-value');
+	variantButtons.forEach(btn => {
+		btn.addEventListener('click', () => {
+			if (btn.disabled) return;
+
+			const optionIndex = Number(btn.dataset.optionIndex);
+			const optionValue = btn.dataset.optionValue!;
+			const selected = getSelectedOptions(dialog, product.options!.length);
+
+			// Update selected value
+			selected[optionIndex] = optionValue;
+
+			// Update UI selection
+			dialog.querySelectorAll<HTMLButtonElement>(
+				`.afs-product-modal__option-value[data-option-index="${optionIndex}"]`
+			).forEach(b => b.classList.remove('afs-product-modal__option-value--selected'));
+
+			btn.classList.add('afs-product-modal__option-value--selected');
+
+			// Recalculate availability for ALL buttons
+			dialog.querySelectorAll<HTMLButtonElement>('.afs-product-modal__option-value')
+				.forEach(b => {
+					const idx = Number(b.dataset.optionIndex);
+					const val = b.dataset.optionValue!;
+					const available = isOptionValueAvailable(product, idx, val, selected);
+
+					b.disabled = !available;
+					b.classList.toggle(
+						'afs-product-modal__option-value--unavailable',
+						!available
+					);
+				});
+
+			// Resolve final variant
+			const matches = findMatchingVariants(product.variants!, selected);
+			const availableVariant = matches.find(v => isVariantAvailable(v));
+			// If no available variant found, use first matching variant (will show as sold out)
+			const selectedVariant = availableVariant || matches[0];
+
+			if (selectedVariant) {
+				// Wait for slider to be ready if it's still initializing
+				if (!dialog._slider) {
+					// Wait up to 2 seconds for slider to initialize
+					const waitForSlider = (attempts = 0): void => {
+						if (dialog._slider) {
+							updateVariantInModal(dialog, modalId, selectedVariant, formatPrice);
+						} else if (attempts < 20) {
+							setTimeout(() => waitForSlider(attempts + 1), 100);
+						} else {
+							Log.warn('Slider not ready for variant update', { modalId });
+							// Update price and buttons even if slider isn't ready
+							updateVariantInModal(dialog, modalId, selectedVariant, formatPrice);
+						}
+					};
+					waitForSlider();
+				} else {
+					updateVariantInModal(dialog, modalId, selectedVariant, formatPrice);
+				}
+			} else {
+				Log.warn('No matching variant found for selected options', {
+					selected: selected.filter(Boolean) as string[],
+					matchesCount: matches.length
+				});
+			}
+		});
+	});
+
+
+	// Add to cart button
+	const addButton = dialog.querySelector<HTMLButtonElement>(`#${modalId}-add-button`);
+	if (addButton && countDisplay) {
+		addButton.addEventListener('click', async () => {
+			if (addButton.disabled) return;
+			const quantity = parseInt(countDisplay.textContent || '1', 10) || 1;
+			const variantId = addButton.dataset.variantId;
+
+			try {
+				await QuickAdd.addVariant(parseInt(variantId || '0', 10), quantity);
+				closeModal();
+			} catch (error) {
+				Log.error('Failed to add to cart from modal', { error: error instanceof Error ? error.message : String(error) });
+				DOM.showError(Lang?.messages?.failedToAddToCart || 'Failed to add product to cart. Please try again.');
+			}
+		});
+	}
+
+	// Buy now button
+	const buyButton = dialog.querySelector<HTMLButtonElement>(`#${modalId}-buy-button`);
+	if (buyButton && countDisplay) {
+		buyButton.addEventListener('click', async () => {
+			if (buyButton.disabled) return;
+			const quantity = parseInt(countDisplay.textContent || '1', 10) || 1;
+			const variantId = buyButton.dataset.variantId;
+
+			try {
+				const routesRoot = (AFSW.Shopify && AFSW.Shopify.routes && AFSW.Shopify.routes.root) || '/';
+				// Redirect to checkout
+				window.location.href = `${routesRoot}cart/${variantId}:${quantity}?checkout`;
+			} catch (error) {
+				Log.error('Failed to buy now', { error: error instanceof Error ? error.message : String(error) });
+				DOM.showError(Lang?.messages?.failedToProceedToCheckout || 'Failed to proceed to checkout. Please try again.');
+			}
+		});
+	}
 }
 
 // Update variant in modal (price, images, availability)
 function updateVariantInModal(
-  dialog: ProductModalElement,
-  modalId: string,
-  variant: ProductVariantType,
-  formatPrice: (price: number | string) => string
+	dialog: ProductModalElement,
+	modalId: string,
+	variant: ProductVariantType,
+	formatPrice: (price: number | string) => string
 ): void {
-  dialog._currentVariantId = variant.id;
+	dialog._currentVariantId = variant.id;
 
-  // Update price
-  const priceContainer = dialog.querySelector<HTMLElement>('.afs-product-modal__price-container');
-  if (priceContainer) {
-    const priceHTML = formatPrice(variant.price);
-    const comparePriceHTML = variant.compare_at_price && variant.compare_at_price > variant.price
-      ? `<span class="afs-product-modal__compare-price">${formatPrice(variant.compare_at_price)}</span>`
-      : '';
-    priceContainer.innerHTML = `
+	// Update price
+	const priceContainer = dialog.querySelector<HTMLElement>('.afs-product-modal__price-container');
+	if (priceContainer) {
+		const priceHTML = formatPrice(variant.price);
+		const comparePriceHTML = variant.compare_at_price && variant.compare_at_price > variant.price
+			? `<span class="afs-product-modal__compare-price">${formatPrice(variant.compare_at_price)}</span>`
+			: '';
+		priceContainer.innerHTML = `
         <span class="afs-product-modal__price">${priceHTML}</span>
         ${comparePriceHTML}
       `;
-  }
+	}
 
-  // Update add to cart button
-  const addButton = dialog.querySelector<HTMLButtonElement>(`#${modalId}-add-button`);
-  if (addButton) {
-    const variantAvailable = isVariantAvailable(variant);
-    addButton.dataset.variantId = String(variant.id);
-    addButton.disabled = !variantAvailable;
-    addButton.innerHTML = !variantAvailable 
-      ? (Lang?.buttons?.soldOut || 'Sold out') 
-      : (Lang?.buttons?.addToCart || 'Add to cart');
-  }
+	// Update add to cart button
+	const addButton = dialog.querySelector<HTMLButtonElement>(`#${modalId}-add-button`);
+	if (addButton) {
+		const variantAvailable = isVariantAvailable(variant);
+		addButton.dataset.variantId = String(variant.id);
+		addButton.disabled = !variantAvailable;
+		addButton.innerHTML = !variantAvailable
+			? (Lang?.buttons?.soldOut || 'Sold out')
+			: (Lang?.buttons?.addToCart || 'Add to cart');
+	}
 
-  // Update buy now button
-  const buyButton = dialog.querySelector<HTMLButtonElement>(`#${modalId}-buy-button`);
-  if (buyButton) {
-    const variantAvailable = isVariantAvailable(variant);
-    buyButton.dataset.variantId = String(variant.id);
-    buyButton.disabled = !variantAvailable;
-  }
+	// Update buy now button
+	const buyButton = dialog.querySelector<HTMLButtonElement>(`#${modalId}-buy-button`);
+	if (buyButton) {
+		const variantAvailable = isVariantAvailable(variant);
+		buyButton.dataset.variantId = String(variant.id);
+		buyButton.disabled = !variantAvailable;
+	}
 
-  // Update images if variant has specific image
-  // Use slider's updateVariantImage method if available, otherwise fall back to manual matching
-  const product = dialog._productData;
-  if (product && product.images && product.variants) {
-    // If slider is not ready yet, skip image update (price and buttons already updated above)
-    if (!dialog._slider) {
-      Log.debug('Slider not ready, skipping image update', { variantId: variant.id });
-      return;
-    }
-    // Find which image is assigned to this variant by checking variant_ids
-    const currentVariantId = variant.id;
-    let targetImageIndex: number | null = null;
+	// Update images if variant has specific image
+	// Use slider's updateVariantImage method if available, otherwise fall back to manual matching
+	const product = dialog._productData;
+	if (product && product.images && product.variants) {
+		// If slider is not ready yet, skip image update (price and buttons already updated above)
+		if (!dialog._slider) {
+			Log.debug('Slider not ready, skipping image update', { variantId: variant.id });
+			return;
+		}
+		// Find which image is assigned to this variant by checking variant_ids
+		const currentVariantId = variant.id;
+		let targetImageIndex: number | null = null;
 
-    // Check if current variant has featured_image with variant_ids
-    if (variant.featured_image && typeof variant.featured_image === 'object' && variant.featured_image.variant_ids) {
-      // This variant is assigned to an image - check if it's different from current
-      const variantImagePosition = variant.featured_image.position;
-      if (variantImagePosition !== null && variantImagePosition !== undefined) {
-        const positionIndex = variantImagePosition - 1; // Convert from 1-based to 0-based
-        if (positionIndex >= 0 && positionIndex < product.images.length) {
-          // Check if current slide is different from this variant's image
-          const currentSlideIndex = dialog._slider.currentIndex || 0;
-          if (currentSlideIndex !== positionIndex) {
-            targetImageIndex = positionIndex;
-          }
-        }
-      }
-    } else {
-      // Variant doesn't have featured_image, but check if any other variant's image is assigned to this variant
-      // Iterate through all variants to find which image has this variant in its variant_ids
-      for (const v of product.variants) {
-        if (v.featured_image && typeof v.featured_image === 'object' && v.featured_image.variant_ids) {
-          // Check if current variant ID is in this image's variant_ids array
-          if (v.featured_image.variant_ids.includes(Number(currentVariantId))) {
-            const variantImagePosition = v.featured_image.position;
-            if (variantImagePosition !== null && variantImagePosition !== undefined) {
-              const positionIndex = variantImagePosition - 1; // Convert from 1-based to 0-based
-              if (positionIndex >= 0 && positionIndex < product.images.length) {
-                const currentSlideIndex = dialog._slider.currentIndex || 0;
-                if (currentSlideIndex !== positionIndex) {
-                  targetImageIndex = positionIndex;
-                  break; // Found the image, exit loop
-                }
-              }
-            }
-          }
-        }
-      }
-    }
+		// Check if current variant has featured_image with variant_ids
+		if (variant.featured_image && typeof variant.featured_image === 'object' && variant.featured_image.variant_ids) {
+			// This variant is assigned to an image - check if it's different from current
+			const variantImagePosition = variant.featured_image.position;
+			if (variantImagePosition !== null && variantImagePosition !== undefined) {
+				const positionIndex = variantImagePosition - 1; // Convert from 1-based to 0-based
+				if (positionIndex >= 0 && positionIndex < product.images.length) {
+					// Check if current slide is different from this variant's image
+					const currentSlideIndex = dialog._slider.currentIndex || 0;
+					if (currentSlideIndex !== positionIndex) {
+						targetImageIndex = positionIndex;
+					}
+				}
+			}
+		} else {
+			// Variant doesn't have featured_image, but check if any other variant's image is assigned to this variant
+			// Iterate through all variants to find which image has this variant in its variant_ids
+			for (const v of product.variants) {
+				if (v.featured_image && typeof v.featured_image === 'object' && v.featured_image.variant_ids) {
+					// Check if current variant ID is in this image's variant_ids array
+					if (v.featured_image.variant_ids.includes(Number(currentVariantId))) {
+						const variantImagePosition = v.featured_image.position;
+						if (variantImagePosition !== null && variantImagePosition !== undefined) {
+							const positionIndex = variantImagePosition - 1; // Convert from 1-based to 0-based
+							if (positionIndex >= 0 && positionIndex < product.images.length) {
+								const currentSlideIndex = dialog._slider.currentIndex || 0;
+								if (currentSlideIndex !== positionIndex) {
+									targetImageIndex = positionIndex;
+									break; // Found the image, exit loop
+								}
+							}
+						}
+					}
+				}
+			}
+		}
 
-    // If we found a target image index using variant_ids, use it
-    if (targetImageIndex !== null && dialog._slider.goToSlide) {
-      dialog._slider.goToSlide(targetImageIndex);
-      return; // Successfully updated using variant_ids optimization
-    }
+		// If we found a target image index using variant_ids, use it
+		if (targetImageIndex !== null && dialog._slider.goToSlide) {
+			dialog._slider.goToSlide(targetImageIndex);
+			return; // Successfully updated using variant_ids optimization
+		}
 
-    // Try using the slider's built-in method (fallback, pass variants for optimization)
-    if (dialog._slider.updateVariantImage && product.images) {
-      const updated = dialog._slider.updateVariantImage(variant, product.images, product.variants);
-      if (updated) return; // Successfully updated, exit early
-    }
+		// Try using the slider's built-in method (fallback, pass variants for optimization)
+		if (dialog._slider.updateVariantImage && product.images) {
+			const updated = dialog._slider.updateVariantImage(variant, product.images, product.variants);
+			if (updated) return; // Successfully updated, exit early
+		}
 
-    // Fallback: manual image matching (for backwards compatibility)
-    // Extract variant image URL from various possible structures
-    let variantImageUrl: string | null = null;
-    let variantImagePosition: number | null = null;
+		// Fallback: manual image matching (for backwards compatibility)
+		// Extract variant image URL from various possible structures
+		let variantImageUrl: string | null = null;
+		let variantImagePosition: number | null = null;
 
-    // Handle featured_image as object (Shopify format: { src: "...", position: 5, ... })
-    if (variant.featured_image) {
-      if (typeof variant.featured_image === 'object') {
-        variantImageUrl = variant.featured_image.src || variant.featured_image.url || null;
-        variantImagePosition = variant.featured_image.position || null;
-      } else if (typeof variant.featured_image === 'string') {
-        variantImageUrl = variant.featured_image;
-      }
-    }
+		// Handle featured_image as object (Shopify format: { src: "...", position: 5, ... })
+		if (variant.featured_image) {
+			if (typeof variant.featured_image === 'object') {
+				variantImageUrl = variant.featured_image.src || variant.featured_image.url || null;
+				variantImagePosition = variant.featured_image.position || null;
+			} else if (typeof variant.featured_image === 'string') {
+				variantImageUrl = variant.featured_image;
+			}
+		}
 
-    // Fallback to other image properties
-    if (!variantImageUrl) {
-      variantImageUrl = (typeof variant.image === 'string' ? variant.image : null) ||
-        variant.imageUrl ||
-        (variant.image && typeof variant.image === 'object' ? variant.image.url || variant.image.src || null : null) ||
-        (variant.featuredImage && typeof variant.featuredImage === 'object' ? variant.featuredImage.url || variant.featuredImage.src || null : null);
-    }
+		// Fallback to other image properties
+		if (!variantImageUrl) {
+			variantImageUrl = (typeof variant.image === 'string' ? variant.image : null) ||
+				variant.imageUrl ||
+				(variant.image && typeof variant.image === 'object' ? variant.image.url || variant.image.src || null : null) ||
+				(variant.featuredImage && typeof variant.featuredImage === 'object' ? variant.featuredImage.url || variant.featuredImage.src || null : null);
+		}
 
-    if (variantImageUrl && product.images && dialog._slider.goToSlide) {
-      // Normalize image URL for comparison (remove protocol, query params, etc.)
-      const normalizeUrl = (url: string | { url?: string; src?: string } | null | undefined): string => {
-        if (!url) return '';
-        // Handle both string URLs and object URLs
-        const urlString = typeof url === 'string' ? url : (url && typeof url === 'object' ? (url.url || url.src || '') : '');
-        // Remove protocol, normalize to https, remove query params
-        return urlString
-          .replace(/^https?:\/\//, '')
-          .replace(/^\/\//, '')
-          .split('?')[0]
-          .toLowerCase()
-          .trim();
-      };
+		if (variantImageUrl && product.images && dialog._slider.goToSlide) {
+			// Normalize image URL for comparison (remove protocol, query params, etc.)
+			const normalizeUrl = (url: string | { url?: string; src?: string } | null | undefined): string => {
+				if (!url) return '';
+				// Handle both string URLs and object URLs
+				const urlString = typeof url === 'string' ? url : (url && typeof url === 'object' ? (url.url || url.src || '') : '');
+				// Remove protocol, normalize to https, remove query params
+				return urlString
+					.replace(/^https?:\/\//, '')
+					.replace(/^\/\//, '')
+					.split('?')[0]
+					.toLowerCase()
+					.trim();
+			};
 
-      // First, try to use position if available (1-based, convert to 0-based index)
-      if (variantImagePosition !== null && variantImagePosition !== undefined) {
-        const positionIndex = variantImagePosition - 1; // Convert from 1-based to 0-based
-        if (positionIndex >= 0 && positionIndex < product.images.length) {
-          dialog._slider.goToSlide(positionIndex);
-          return;
-        }
-      }
+			// First, try to use position if available (1-based, convert to 0-based index)
+			if (variantImagePosition !== null && variantImagePosition !== undefined) {
+				const positionIndex = variantImagePosition - 1; // Convert from 1-based to 0-based
+				if (positionIndex >= 0 && positionIndex < product.images.length) {
+					dialog._slider.goToSlide(positionIndex);
+					return;
+				}
+			}
 
-      const normalizedVariantImage = normalizeUrl(variantImageUrl);
+			const normalizedVariantImage = normalizeUrl(variantImageUrl);
 
-      // Find matching image in product images array
-      const variantImageIndex = product.images.findIndex(img => {
-        const normalizedImg = normalizeUrl(img);
-        // Compare normalized URLs
-        return normalizedImg === normalizedVariantImage ||
-          normalizedImg.includes(normalizedVariantImage) ||
-          normalizedVariantImage.includes(normalizedImg);
-      });
+			// Find matching image in product images array
+			const variantImageIndex = product.images.findIndex(img => {
+				const normalizedImg = normalizeUrl(img);
+				// Compare normalized URLs
+				return normalizedImg === normalizedVariantImage ||
+					normalizedImg.includes(normalizedVariantImage) ||
+					normalizedVariantImage.includes(normalizedImg);
+			});
 
-      if (variantImageIndex !== -1) {
-        // Use slider's goToSlide method to change to variant's image
-        dialog._slider.goToSlide(variantImageIndex);
-      } else {
-        // If exact match not found, try to find by filename
-        const variantImageFilename = normalizedVariantImage.split('/').pop();
-        if (variantImageFilename) {
-          const filenameMatchIndex = product.images.findIndex(img => {
-            const imgFilename = normalizeUrl(img).split('/').pop();
-            return imgFilename === variantImageFilename;
-          });
+			if (variantImageIndex !== -1) {
+				// Use slider's goToSlide method to change to variant's image
+				dialog._slider.goToSlide(variantImageIndex);
+			} else {
+				// If exact match not found, try to find by filename
+				const variantImageFilename = normalizedVariantImage.split('/').pop();
+				if (variantImageFilename) {
+					const filenameMatchIndex = product.images.findIndex(img => {
+						const imgFilename = normalizeUrl(img).split('/').pop();
+						return imgFilename === variantImageFilename;
+					});
 
-          if (filenameMatchIndex !== -1 && dialog._slider.goToSlide) {
-            dialog._slider.goToSlide(filenameMatchIndex);
-          }
-        }
-      }
-    }
-  }
+					if (filenameMatchIndex !== -1 && dialog._slider.goToSlide) {
+						dialog._slider.goToSlide(filenameMatchIndex);
+					}
+				}
+			}
+		}
+	}
 }
 
 // Setup close handler only
 function setupCloseHandler(dialog: ProductModalElement): void {
-  const closeBtn = dialog.querySelector<HTMLButtonElement>('.afs-product-modal__close');
-  const closeModal = (): void => {
-    // Destroy slider if it exists
-    if (dialog._slider && typeof dialog._slider.destroy === 'function') {
-      dialog._slider.destroy();
-      dialog._slider = undefined;
-    }
+	const closeBtn = dialog.querySelector<HTMLButtonElement>('.afs-product-modal__close');
+	const closeModal = (): void => {
+		// Destroy slider if it exists
+		if (dialog._slider && typeof dialog._slider.destroy === 'function') {
+			dialog._slider.destroy();
+			dialog._slider = undefined;
+		}
 
-    document.body.style.overflow = '';
-    document.body.style.removeProperty('overflow');
-    if (dialog.close) {
-      dialog.close();
-    } else {
-      dialog.style.display = 'none';
-    }
-  };
+		document.body.style.overflow = '';
+		document.body.style.removeProperty('overflow');
+		if (dialog.close) {
+			dialog.close();
+		} else {
+			dialog.style.display = 'none';
+		}
+	};
 
-  if (closeBtn) {
-    closeBtn.addEventListener('click', closeModal);
-  }
-  dialog.addEventListener('cancel', closeModal);
-  dialog.addEventListener('click', (e) => {
-    if (e.target === dialog) closeModal();
-  });
+	if (closeBtn) {
+		closeBtn.addEventListener('click', closeModal);
+	}
+	dialog.addEventListener('cancel', closeModal);
+	dialog.addEventListener('click', (e) => {
+		if (e.target === dialog) closeModal();
+	});
 }
 
 export function createQuickViewButton(product: ProductType): HTMLElement | null {
-  if (!product.handle) return null;
+	if (!product.handle) return null;
 
-  // Safety check: ensure Lang.buttons exists before accessing quickView
-  const ariaLabel = (Lang?.buttons?.quickView) || 'Quick view';
+	// Safety check: ensure Lang.buttons exists before accessing quickView
+	const ariaLabel = (Lang?.buttons?.quickView) || 'Quick view';
 
-  const quickViewBtn = $.el('button', 'afs-product-card__quick-view', {
-	'data-product-handle': product.handle,
-	'data-product-id': String(product.id || product.productId || product.gid || ''),
-	'aria-label': ariaLabel,
-	'type': 'button'
-  });
-  const quickViewIcon = $.el('span', 'afs-product-card__quick-view-icon');
-  quickViewIcon.innerHTML = Icons.eye;
-  quickViewBtn.appendChild(quickViewIcon);
-  return quickViewBtn;
+	const quickViewBtn = $.el('button', 'afs-product-card__quick-view', {
+		'data-product-handle': product.handle,
+		'data-product-id': String(product.id || product.productId || product.gid || ''),
+		'aria-label': ariaLabel,
+		'type': 'button'
+	});
+	const quickViewIcon = $.el('span', 'afs-product-card__quick-view-icon');
+	quickViewIcon.innerHTML = Icons.eye;
+	quickViewBtn.appendChild(quickViewIcon);
+	return quickViewBtn;
 }
 
 export function handleQuickViewClick(handle: string): void {
-  if (!handle) return;
+	if (!handle) return;
 
-  // Open product modal using Ajax API
-  const modalId = `product-modal-${handle}`;
-  let modal = document.getElementById(modalId) as ProductModalElement | null;
+	// Open product modal using Ajax API
+	const modalId = `product-modal-${handle}`;
+	let modal = document.getElementById(modalId) as ProductModalElement | null;
 
-  const openModal = async (): Promise<void> => {
-    if (!modal) {
-      // Create modal (async - fetches product data)
-      modal = await createProductModal(handle, modalId);
-      document.body.appendChild(modal);
-    }
+	const openModal = async (): Promise<void> => {
+		if (!modal) {
+			// Create modal (async - fetches product data)
+			modal = await createProductModal(handle, modalId);
+			document.body.appendChild(modal);
+		}
 
-    // Show modal
-    if (modal.showModal) {
-      document.body.style.overflow = 'hidden';
-      modal.showModal();
-    } else {
-      document.body.style.overflow = 'hidden';
-      modal.style.display = 'block';
-    }
+		// Show modal
+		if (modal.showModal) {
+			document.body.style.overflow = 'hidden';
+			modal.showModal();
+		} else {
+			document.body.style.overflow = 'hidden';
+			modal.style.display = 'block';
+		}
 
-    // Ensure overflow is restored when modal closes
-    const restoreScroll = (): void => {
-      document.body.style.overflow = '';
-      document.body.style.removeProperty('overflow');
-    };
+		// Ensure overflow is restored when modal closes
+		const restoreScroll = (): void => {
+			document.body.style.overflow = '';
+			document.body.style.removeProperty('overflow');
+		};
 
-    modal.addEventListener('close', restoreScroll, { once: true });
+		modal.addEventListener('close', restoreScroll, { once: true });
 
-    const observer = new MutationObserver(() => {
-      if (modal && !modal.open && !modal.hasAttribute('open')) {
-        restoreScroll();
-        observer.disconnect();
-      }
-    });
-    if (modal) {
-      observer.observe(modal, { attributes: true, attributeFilter: ['open'] });
-    }
-  };
+		const observer = new MutationObserver(() => {
+			if (modal && !modal.open && !modal.hasAttribute('open')) {
+				restoreScroll();
+				observer.disconnect();
+			}
+		});
+		if (modal) {
+			observer.observe(modal, { attributes: true, attributeFilter: ['open'] });
+		}
+	};
 
-  openModal().catch(error => {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    Log.error('Failed to open product modal', { error: errorMessage, handle, stack: error instanceof Error ? error.stack : undefined });
-    const userMessage = Lang?.messages?.failedToLoadProductModal || 'Failed to load product. Please try again.';
-    if (DOM && typeof DOM.showError === 'function') {
-      DOM.showError(userMessage);
-    } else {
-      // Fallback if DOM.showError is not available
-      alert(userMessage);
-    }
-  });
+	openModal().catch(error => {
+		const errorMessage = error instanceof Error ? error.message : String(error);
+		Log.error('Failed to open product modal', { error: errorMessage, handle, stack: error instanceof Error ? error.stack : undefined });
+		const userMessage = Lang?.messages?.failedToLoadProductModal || 'Failed to load product. Please try again.';
+		if (DOM && typeof DOM.showError === 'function') {
+			DOM.showError(userMessage);
+		} else {
+			// Fallback if DOM.showError is not available
+			alert(userMessage);
+		}
+	});
 }
 
 // Export to window
@@ -4542,7 +4577,6 @@ export const AFSW = window as ShopifyWindow;
 // Export
 if (typeof window !== 'undefined') {
 	AFSW.AFS = AFS;
-	AFSW.AFS_API = API;
 	AFSW.AFS_State = FilterState; // Export FilterState for search module to access
 } else if (typeof global !== 'undefined') {
 	(global as typeof globalThis & { AFS?: AFSInterfaceType }).AFS = AFS;
