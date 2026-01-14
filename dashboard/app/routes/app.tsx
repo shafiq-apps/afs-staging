@@ -362,15 +362,10 @@ export default function App() {
 export function ErrorBoundary() {
   const error = useRouteError();
   
-  // Log for debugging
-  console.log("App ErrorBoundary caught error:", error);
-  
   // Check if it's a Remix route error response (from json() throw)
   if (isRouteErrorResponse(error)) {
     // Check if the data contains GraphQL error markers
-    if (error.data && typeof error.data === "object" && 
-        ("isGraphQLError" in error.data || "code" in error.data || "endpoint" in error.data)) {
-      console.log("Rendering GraphQLErrorBoundary for route error response");
+    if (error.data && typeof error.data === "object" && ("isGraphQLError" in error.data || "code" in error.data || "endpoint" in error.data)) {
       return <GraphQLErrorBoundary />;
     }
   }
@@ -388,12 +383,8 @@ export function ErrorBoundary() {
     );
   
   if (isGraphQLErr) {
-    console.log("Rendering GraphQLErrorBoundary for direct error");
     return <GraphQLErrorBoundary />;
   }
-  
-  // Fallback to Shopify's error boundary for other errors
-  console.log("Rendering default boundary.error");
   return boundary.error(error);
 }
 

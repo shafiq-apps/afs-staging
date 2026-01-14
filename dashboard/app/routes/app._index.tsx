@@ -520,8 +520,6 @@ export default function Index() {
 export function ErrorBoundary() {
   const error = useRouteError();
   
-  console.log("Home page ErrorBoundary caught:", error);
-  
   // Check if it's a Remix route error response (from json() throw)
   if (isRouteErrorResponse(error)) {
     if (error.data && typeof error.data === "object" && 

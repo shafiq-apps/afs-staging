@@ -20,7 +20,6 @@ export function GraphQLErrorBoundary() {
 
   // Handle Remix route errors (Response throws)
   if (isRouteErrorResponse(error)) {
-    console.log("Handling as RouteErrorResponse, status:", error.status);
     
     // Try to parse the data (might be string or object)
     let errorData: any = error.data;
@@ -28,7 +27,6 @@ export function GraphQLErrorBoundary() {
       try {
         errorData = JSON.parse(errorData);
       } catch (e) {
-        console.log("Could not parse error data as JSON");
       }
     }
 

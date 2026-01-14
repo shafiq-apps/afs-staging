@@ -37,17 +37,9 @@ export function DowntimeScreen({ error, errorDetails, onRetry }: DowntimeScreenP
           { page: 'ErrorBoundary', component: 'DowntimeScreen' }
         );
         
-        console.log('[Crash Report] Generating crash report...');
-        console.log('[Crash Report] Report data:', report);
-        
         const success = await sendCrashReport(report);
         setCrashReportSaved(success);
         
-        if (success) {
-          console.log('[Crash Report] ✅ Crash report saved successfully');
-        } else {
-          console.error('[Crash Report] ⚠️ Failed to save crash report');
-        }
       } catch (err) {
         console.error('[Crash Report] Error saving crash report:', err);
       } finally {

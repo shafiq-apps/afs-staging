@@ -1,6 +1,9 @@
 import type { ActionFunctionArgs } from "react-router";
 import { promises as fs } from "fs";
 import path from "path";
+import { createModuleLogger } from "app/utils/logger";
+
+const logger = createModuleLogger("crash-repoirt");
 
 /**
  * Check if a similar crash report already exists (server-side deduplication)
@@ -29,7 +32,6 @@ async function isDuplicateReport(
         
         // Check if signature exists in file
         if (content.includes(`Signature: ${signature}`)) {
-          console.log('[Crash Report API] Found duplicate:', file);
           return { isDuplicate: true, existingFile: file };
         }
       } catch (err) {
@@ -40,24 +42,22 @@ async function isDuplicateReport(
     
     return { isDuplicate: false };
   } catch (error) {
-    console.warn('[Crash Report API] Could not check for duplicates:', error);
+    logger.warn('[Crash Report API] Could not check for duplicates:', error);
     return { isDuplicate: false };
   }
 }
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  console.log('[Crash Report API] Received request, method:', request.method);
   
   if (request.method !== "POST") {
-    console.warn('[Crash Report API] Invalid method:', request.method);
+    logger.warn('[Crash Report API] Invalid method:', request.method);
     return new Response("Method not allowed", { status: 405 });
   }
 
   try {
-    console.log('[Crash Report API] Parsing request body...');
     const report = await request.json();
     
-    console.log('[Crash Report API] Report received:', {
+    logger.log('[Crash Report API] Report received:', {
       errorCode: report.errorCode,
       errorMessage: report.errorMessage,
       shop: report.shop,
@@ -68,20 +68,20 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     // Create crash reports directory if it doesn't exist
     // Save OUTSIDE public directory for security (contains sensitive user data)
     const crashReportsDir = path.join(process.cwd(), 'crash-reports');
-    console.log('[Crash Report API] Crash reports directory:', crashReportsDir);
-    console.log('[Crash Report API] Current working directory:', process.cwd());
-    console.log('[Crash Report API] __dirname:', __dirname);
+    logger.log('[Crash Report API] Crash reports directory:', crashReportsDir);
+    logger.log('[Crash Report API] Current working directory:', process.cwd());
+    logger.log('[Crash Report API] __dirname:', __dirname);
     
     try {
       await fs.access(crashReportsDir);
-      console.log('[Crash Report API] ✅ Directory exists:', crashReportsDir);
+      logger.log('[Crash Report API] Directory exists:', crashReportsDir);
     } catch (err) {
-      console.log('[Crash Report API] Directory does not exist, creating...', crashReportsDir);
+      logger.log('[Crash Report API] Directory does not exist, creating...', crashReportsDir);
       try {
         await fs.mkdir(crashReportsDir, { recursive: true });
-        console.log('[Crash Report API] ✅ Directory created successfully:', crashReportsDir);
+        logger.log('[Crash Report API] Directory created successfully:', crashReportsDir);
       } catch (mkdirErr: any) {
-        console.error('[Crash Report API] ❌ Failed to create directory:', mkdirErr.message);
+        logger.error('[Crash Report API] Failed to create directory:', mkdirErr.message);
         throw mkdirErr;
       }
     }
@@ -90,7 +90,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     if (report.signature) {
       const duplicateCheck = await isDuplicateReport(crashReportsDir, report.signature);
       if (duplicateCheck.isDuplicate) {
-        console.log('[Crash Report API] ⏭️ Skipping duplicate crash report, existing file:', duplicateCheck.existingFile);
+        logger.log('[Crash Report API] Skipping duplicate crash report, existing file:', duplicateCheck.existingFile);
         return new Response(
           JSON.stringify({ 
             success: true,
@@ -117,33 +117,33 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const statusCode = report.statusCode || 'XXX';
     const filename = `crash_${timestamp}_${errorCode}_${statusCode}.crashlog`;
     
-    console.log('[Crash Report API] Generated filename:', filename);
+    logger.log('[Crash Report API] Generated filename:', filename);
     
     // Format the crash report
-    console.log('[Crash Report API] Formatting crash report...');
+    logger.log('[Crash Report API] Formatting crash report...');
     const reportText = formatCrashReportForFile(report);
-    console.log('[Crash Report API] Report text length:', reportText.length, 'bytes');
+    logger.log('[Crash Report API] Report text length:', reportText.length, 'bytes');
     
     // Save to file
     const filePath = path.join(crashReportsDir, filename);
-    console.log('[Crash Report API] Full file path:', filePath);
-    console.log('[Crash Report API] Attempting to write file...');
+    logger.log('[Crash Report API] Full file path:', filePath);
+    logger.log('[Crash Report API] Attempting to write file...');
     
     try {
       await fs.writeFile(filePath, reportText, 'utf-8');
-      console.log('[Crash Report API] ✅ File written successfully');
+      logger.log('[Crash Report API] File written successfully');
       
       // Verify file was created
       const stats = await fs.stat(filePath);
-      console.log('[Crash Report API] ✅ File verified, size:', stats.size, 'bytes');
+      logger.log('[Crash Report API] File verified, size:', stats.size, 'bytes');
     } catch (writeErr: any) {
-      console.error('[Crash Report API] ❌ Failed to write file:', writeErr.message);
-      console.error('[Crash Report API] Error code:', writeErr.code);
-      console.error('[Crash Report API] Error stack:', writeErr.stack);
+      logger.error('[Crash Report API] Failed to write file:', writeErr.message);
+      logger.error('[Crash Report API] Error code:', writeErr.code);
+      logger.error('[Crash Report API] Error stack:', writeErr.stack);
       throw writeErr;
     }
     
-    console.log('[Crash Report API] ✅ Crash report saved successfully:', filename);
+    logger.log('[Crash Report API] Crash report saved successfully:', filename);
     
     return new Response(
       JSON.stringify({ 
@@ -159,8 +159,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }
     );
   } catch (error: any) {
-    console.error('[Crash Report API] ❌ Failed to save crash report:', error);
-    console.error('[Crash Report API] Error stack:', error.stack);
+    logger.error('[Crash Report API] Failed to save crash report:', error);
+    logger.error('[Crash Report API] Error stack:', error.stack);
     
     return new Response(
       JSON.stringify({ 

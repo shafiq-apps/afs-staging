@@ -572,12 +572,10 @@ export async function sendCrashReport(report: CrashReport): Promise<boolean> {
   // Check for duplicates (client-side)
   const signature = generateErrorSignature(report);
   if (isRecentlyReported(signature)) {
-    console.log('[Crash Report] ⏭️ Skipping duplicate crash report (already reported in last 5 minutes)');
     return true; // Return true because report already exists
   }
   
   try {
-    console.log('[Crash Report] Sending crash report to /api/crash-report...');
     
     const response = await fetch('/api/crash-report', {
       method: 'POST',
@@ -586,27 +584,16 @@ export async function sendCrashReport(report: CrashReport): Promise<boolean> {
       },
       body: JSON.stringify({ ...report, signature }),
     });
-    
-    console.log('[Crash Report] Response status:', response.status, response.statusText);
+  
     
     if (response.ok) {
-      const result = await response.json();
-      console.log('[Crash Report] Server response:', result);
-      
-      if (result.duplicate) {
-        console.log('[Crash Report] ⏭️ Server detected duplicate, using existing file:', result.existingFile);
-      } else {
-        console.log('[Crash Report] ✅ New crash report saved:', result.filename);
-      }
-      
+     await response.json();
       return true;
     } else {
       const errorText = await response.text();
-      console.error('[Crash Report] Server error:', errorText);
       return false;
     }
   } catch (error) {
-    console.error('[Crash Report] Failed to send crash report:', error);
     return false;
   }
 }
