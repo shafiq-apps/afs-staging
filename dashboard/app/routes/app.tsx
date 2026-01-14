@@ -240,7 +240,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export default function App() {
-  const { apiKey, shopData, subscription, activeSubscriptions } = useLoaderData<typeof loader>();
+  const { apiKey, shop, shopData, subscription, activeSubscriptions } = useLoaderData<typeof loader>();
   const location = useLocation();
   const navigate = useNavigate();
   const { t } = useTranslation();
@@ -294,7 +294,7 @@ export default function App() {
   ]);
 
   /* ---------------- RENDER ---------------- */
-  // Make API key, shop, and shop details available globally for error boundary and crash reports
+  // Make API key and shop details available globally for error boundary and crash reports
   if (typeof window !== "undefined") {
     (window as any).__SHOPIFY_API_KEY = apiKey;
     (window as any).__SHOP = shop;
@@ -306,12 +306,12 @@ export default function App() {
       customerEmail: (effectiveShopData as any).customerEmail,
       myshopifyDomain: effectiveShopData.myshopifyDomain,
       plan: (effectiveShopData as any).plan,
-      owner: subscription?.shop || shop,
+      owner: shop,
     } : null;
   }
 
   return (
-    <AppProvider config={{ apiKey, forceRedirect: true }}>
+    <AppProvider apiKey={apiKey} embedded={true}>
       <ShopProvider
         shopData={effectiveShopData}
         isLoading={!effectiveShopData}

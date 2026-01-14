@@ -26,7 +26,7 @@ export function InlineErrorState({
         <s-stack direction="inline" gap="small" alignItems="center">
           <s-text>{errorMessage}</s-text>
           {onRetry && (
-            <s-button variant="secondary" size="small" onClick={onRetry}>
+            <s-button variant="secondary" onClick={onRetry}>
               Retry
             </s-button>
           )}
@@ -72,7 +72,6 @@ export function InlineErrorState({
             <s-stack direction="block" gap="small">
               <s-button
                 variant="secondary"
-                size="small"
                 onClick={() => setShowDebug(!showDebug)}
               >
                 {showDebug ? "Hide" : "Show"} Technical Details

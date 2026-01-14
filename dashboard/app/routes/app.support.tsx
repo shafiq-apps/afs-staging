@@ -198,7 +198,7 @@ export default function Support() {
                     <s-text type="strong" tone="auto">
                       {supportInfo.phone}
                     </s-text>
-                    <s-text tone="subdued">
+                    <s-text tone="neutral">
                       Call us for immediate assistance with urgent issues
                     </s-text>
                   </s-stack>
@@ -223,7 +223,7 @@ export default function Support() {
                     <s-text type="strong" tone="auto">
                       {supportInfo.email}
                     </s-text>
-                    <s-text tone="subdued">
+                    <s-text tone="neutral">
                       Send us an email and we'll respond within 24 hours
                     </s-text>
                   </s-stack>
@@ -262,7 +262,7 @@ export default function Support() {
       <s-section>
         <s-stack direction="block" gap="base">
           <s-heading>Documentation & Resources</s-heading>
-          <s-text tone="subdued">
+          <s-text tone="neutral">
             Browse our comprehensive documentation to find answers to common questions
           </s-text>
           <s-grid gap="base" gridTemplateColumns="repeat(auto-fit, minmax(300px, 1fr))">
@@ -272,13 +272,13 @@ export default function Support() {
                   padding="base"
                   borderWidth="base"
                   borderRadius="base"
-                  background="subdued"
+                  background="base"
                 >
                   <s-stack direction="block" gap="small">
-                    <s-link href={link.url} external>
+                    <s-link href={link.url}>
                       <s-text type="strong">{link.title}</s-text>
                     </s-link>
-                    <s-text tone="subdued">{link.description}</s-text>
+                    <s-text tone="neutral">{link.description}</s-text>
                   </s-stack>
                 </s-box>
               </s-grid-item>
@@ -291,7 +291,7 @@ export default function Support() {
       <s-section>
         <s-stack direction="block" gap="base">
           <s-heading>Submit a Support Request</s-heading>
-          <s-text tone="subdued">
+          <s-text tone="neutral">
             Fill out the form below and our support team will get back to you as soon as possible
           </s-text>
           
@@ -447,7 +447,7 @@ export default function Support() {
                     }}
                     placeholder="Please describe your issue in detail. Include any error messages, steps to reproduce, and relevant screenshots."
                   />
-                  <s-text tone="subdued" style={{ fontSize: "12px" }}>
+                  <s-text tone="neutral">
                     {formData.message.length} / {SUPPORT_CONFIG.form.messageMaxLength} characters
                     {formData.message.length < SUPPORT_CONFIG.form.messageMinLength && 
                       ` (minimum ${SUPPORT_CONFIG.form.messageMinLength} characters)`}
@@ -467,7 +467,7 @@ export default function Support() {
                     {isSubmitting ? "Submitting..." : "Submit Support Request"}
                   </s-button>
                   {isSubmitting && (
-                    <s-text tone="subdued">Please wait...</s-text>
+                    <s-text tone="neutral">Please wait...</s-text>
                   )}
                 </s-stack>
               </s-stack>
@@ -482,7 +482,7 @@ export default function Support() {
           padding="base"
           borderWidth="base"
           borderRadius="base"
-          background="subdued"
+          background="base"
         >
           <s-stack direction="block" gap="base">
             <s-heading>Additional Help</s-heading>
@@ -509,7 +509,7 @@ export default function Support() {
               </s-unordered-list>
             </s-stack>
             <s-divider />
-            <s-text tone="subdued">
+            <s-text tone="neutral">
               {appName} v{appVersion} • Shop: {shop}
             </s-text>
           </s-stack>

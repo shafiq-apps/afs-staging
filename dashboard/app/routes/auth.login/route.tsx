@@ -27,7 +27,7 @@ export default function Auth() {
   const { errors } = actionData || loaderData;
 
   return (
-    <AppProvider config={{ forceRedirect: false }}>
+    <AppProvider embedded={false}>
       <s-page>
         <Form method="post">
         <s-section heading="Log in">

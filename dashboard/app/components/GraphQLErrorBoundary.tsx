@@ -12,7 +12,7 @@ export function GraphQLErrorBoundary() {
   // Render function that wraps content in AppProvider
   const renderWithProvider = (content: React.ReactNode) => {
     return (
-      <AppProvider config={{ apiKey, forceRedirect: true }}>
+      <AppProvider apiKey={apiKey} embedded={true}>
         {content}
       </AppProvider>
     );
@@ -69,7 +69,7 @@ export function GraphQLErrorBoundary() {
 
   // Handle direct GraphQL error objects
   if (error && typeof error === "object" && ("code" in error || "isGraphQLError" in error)) {
-    console.log("Handling as direct GraphQL error");
+   
     const gqlError = error as any;
     
     return renderWithProvider(
@@ -92,7 +92,6 @@ export function GraphQLErrorBoundary() {
 
   // Handle regular Error instances
   if (error instanceof Error) {
-    console.log("Handling as Error instance");
     return renderWithProvider(
       <DowntimeScreen
         error={error}
@@ -107,7 +106,6 @@ export function GraphQLErrorBoundary() {
   }
 
   // Fallback for unknown errors
-  console.log("Handling as unknown error");
   return renderWithProvider(
     <DowntimeScreen
       error="An unknown error occurred"
