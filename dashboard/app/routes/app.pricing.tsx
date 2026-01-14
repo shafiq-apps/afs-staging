@@ -8,6 +8,7 @@ import { isTrue } from "app/utils/equal";
 import { CREATE_APP_SUBSCRIPTION_MUTATION } from "app/graphql/subscriptions.mutation";
 import { FETCH_BILLING_PLANS_AND_SUBSCRIPTION } from "app/graphql/subscriptions.query";
 import { AppSubscriptionStatus, Money, ShopifyActiveSubscriptions, Subscription } from "app/types/Subscriptions";
+import { useTranslation } from "app/utils/translations";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
@@ -95,6 +96,7 @@ export default function PricingPage() {
   const location = useLocation();
   const fetcher = useFetcher();
   const [selectedplan, setSelectedPlan] = useState<String | null>(null);
+  const { t } = useTranslation();
 
   useEffect(() => {
     if (fetcher.data?.confirmationUrl) {
@@ -133,7 +135,7 @@ export default function PricingPage() {
   return (
     <s-page
       key={`pricing-${location.pathname}`}
-      heading="Choose your plan"
+      heading={t("pricing.pageTitle")}
       data-page-id="pricing"
     >
       <s-section heading={`Your store has ${productsCount.count.toLocaleString()} products`}>
@@ -146,7 +148,7 @@ export default function PricingPage() {
 
           {error && (
             <s-banner tone="critical">
-              <s-text>Error: {error}</s-text>
+              <s-text>{t("common.error")}: {error}</s-text>
             </s-banner>
           )}
 

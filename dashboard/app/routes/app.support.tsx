@@ -10,6 +10,7 @@ import { useState } from "react";
 import { SUPPORT_CONFIG } from "../config/support.config";
 import { sendSupportEmail } from "../utils/email.service";
 import { GraphQLError } from "../graphql.server";
+import { useTranslation } from "app/utils/translations";
 
 interface SupportData {
   shop?: string;
@@ -128,6 +129,7 @@ export default function Support() {
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
+  const { t } = useTranslation();
 
   const [formData, setFormData] = useState({
     name: "",
@@ -158,7 +160,7 @@ export default function Support() {
   }
 
   return (
-    <s-page heading="Contact Support" data-page-id="support">
+    <s-page heading={t("support.pageTitle")} data-page-id="support">
       {/* Success/Error Messages */}
       {actionData?.success && (
         <s-section>
@@ -179,7 +181,7 @@ export default function Support() {
       {/* Contact Information */}
       <s-section>
         <s-stack direction="block" gap="base">
-          <s-heading>Get in Touch</s-heading>
+          <s-heading>{t("support.contactUs.title")}</s-heading>
           <s-grid gap="base" gridTemplateColumns="repeat(auto-fit, minmax(280px, 1fr))">
             {/* Phone */}
             <s-grid-item>
@@ -192,14 +194,14 @@ export default function Support() {
                 <s-stack direction="block" gap="base">
                   <s-stack direction="inline" gap="small" alignItems="center">
                     <div style={{ fontSize: "24px" }}>📞</div>
-                    <s-heading>Phone Support</s-heading>
+                    <s-heading>{t("support.contactUs.phone.title")}</s-heading>
                   </s-stack>
                   <s-stack direction="block" gap="small">
                     <s-text type="strong" tone="auto">
                       {supportInfo.phone}
                     </s-text>
                     <s-text tone="neutral">
-                      Call us for immediate assistance with urgent issues
+                      {t("support.contactUs.phone.description")}
                     </s-text>
                   </s-stack>
                 </s-stack>
@@ -217,14 +219,14 @@ export default function Support() {
                 <s-stack direction="block" gap="base">
                   <s-stack direction="inline" gap="small" alignItems="center">
                     <div style={{ fontSize: "24px" }}>✉️</div>
-                    <s-heading>Email Support</s-heading>
+                    <s-heading>{t("support.contactUs.email.title")}</s-heading>
                   </s-stack>
                   <s-stack direction="block" gap="small">
                     <s-text type="strong" tone="auto">
                       {supportInfo.email}
                     </s-text>
                     <s-text tone="neutral">
-                      Send us an email and we'll respond within 24 hours
+                      {t("support.contactUs.email.description")}
                     </s-text>
                   </s-stack>
                 </s-stack>
@@ -242,7 +244,7 @@ export default function Support() {
                 <s-stack direction="block" gap="base">
                   <s-stack direction="inline" gap="small" alignItems="center">
                     <div style={{ fontSize: "24px" }}>🕒</div>
-                    <s-heading>Support Hours</s-heading>
+                    <s-heading>{t("support.contactUs.hours.title")}</s-heading>
                   </s-stack>
                   <s-stack direction="block" gap="small">
                     {supportInfo.hours.map((hour, index) => (
@@ -261,9 +263,9 @@ export default function Support() {
       {/* Documentation Links */}
       <s-section>
         <s-stack direction="block" gap="base">
-          <s-heading>Documentation & Resources</s-heading>
+          <s-heading>{t("support.documentation.title")}</s-heading>
           <s-text tone="neutral">
-            Browse our comprehensive documentation to find answers to common questions
+            {t("support.documentation.description")}
           </s-text>
           <s-grid gap="base" gridTemplateColumns="repeat(auto-fit, minmax(300px, 1fr))">
             {supportInfo.documentationLinks.map((link, index) => (
@@ -290,9 +292,9 @@ export default function Support() {
       {/* Support Form */}
       <s-section>
         <s-stack direction="block" gap="base">
-          <s-heading>Submit a Support Request</s-heading>
+          <s-heading>{t("support.form.title")}</s-heading>
           <s-text tone="neutral">
-            Fill out the form below and our support team will get back to you as soon as possible
+            {t("support.form.description")}
           </s-text>
           
           <s-box
@@ -309,7 +311,7 @@ export default function Support() {
                     <s-stack direction="block" gap="small">
                       <label htmlFor="name">
                         <s-text type="strong">
-                          Name <span style={{ color: "red" }}>*</span>
+                          {t("support.form.name.label")} <span style={{ color: "red" }}>*</span>
                         </s-text>
                       </label>
                       <input
@@ -327,7 +329,7 @@ export default function Support() {
                           border: "1px solid #c9cccf",
                           fontSize: "14px",
                         }}
-                        placeholder="Your full name"
+                        placeholder={t("support.form.name.placeholder")}
                       />
                     </s-stack>
                   </s-grid-item>
@@ -336,7 +338,7 @@ export default function Support() {
                     <s-stack direction="block" gap="small">
                       <label htmlFor="email">
                         <s-text type="strong">
-                          Email <span style={{ color: "red" }}>*</span>
+                          {t("support.form.email.label")} <span style={{ color: "red" }}>*</span>
                         </s-text>
                       </label>
                       <input
@@ -354,7 +356,7 @@ export default function Support() {
                           border: "1px solid #c9cccf",
                           fontSize: "14px",
                         }}
-                        placeholder="your.email@example.com"
+                        placeholder={t("support.form.email.placeholder")}
                       />
                     </s-stack>
                   </s-grid-item>
@@ -366,7 +368,7 @@ export default function Support() {
                     <s-stack direction="block" gap="small">
                       <label htmlFor="subject">
                         <s-text type="strong">
-                          Subject <span style={{ color: "red" }}>*</span>
+                          {t("support.form.subject.label")} <span style={{ color: "red" }}>*</span>
                         </s-text>
                       </label>
                       <input
@@ -384,7 +386,7 @@ export default function Support() {
                           border: "1px solid #c9cccf",
                           fontSize: "14px",
                         }}
-                        placeholder="Brief description of your issue"
+                        placeholder={t("support.form.subject.placeholder")}
                       />
                     </s-stack>
                   </s-grid-item>
@@ -392,7 +394,7 @@ export default function Support() {
                   <s-grid-item>
                     <s-stack direction="block" gap="small">
                       <label htmlFor="priority">
-                        <s-text type="strong">Priority</s-text>
+                        <s-text type="strong">{t("support.form.priority.label")}</s-text>
                       </label>
                       <select
                         id="priority"
@@ -423,7 +425,7 @@ export default function Support() {
                 <s-stack direction="block" gap="small">
                   <label htmlFor="message">
                     <s-text type="strong">
-                      Message <span style={{ color: "red" }}>*</span>
+                      {t("support.form.message.label")} <span style={{ color: "red" }}>*</span>
                     </s-text>
                   </label>
                   <textarea
@@ -445,12 +447,15 @@ export default function Support() {
                       fontFamily: "inherit",
                       resize: "vertical",
                     }}
-                    placeholder="Please describe your issue in detail. Include any error messages, steps to reproduce, and relevant screenshots."
+                    placeholder={t("support.form.message.placeholder")}
                   />
                   <s-text tone="neutral">
-                    {formData.message.length} / {SUPPORT_CONFIG.form.messageMaxLength} characters
+                    {t("support.form.message.characterCount", { 
+                      current: formData.message.length.toString(), 
+                      max: SUPPORT_CONFIG.form.messageMaxLength.toString() 
+                    })}
                     {formData.message.length < SUPPORT_CONFIG.form.messageMinLength && 
-                      ` (minimum ${SUPPORT_CONFIG.form.messageMinLength} characters)`}
+                      ` (${t("support.form.message.minWarning", { min: SUPPORT_CONFIG.form.messageMinLength.toString() })})`}
                   </s-text>
                 </s-stack>
 
@@ -464,10 +469,10 @@ export default function Support() {
                     variant="primary"
                     disabled={isSubmitting}
                   >
-                    {isSubmitting ? "Submitting..." : "Submit Support Request"}
+                    {isSubmitting ? t("support.form.submitting") : t("support.form.submit")}
                   </s-button>
                   {isSubmitting && (
-                    <s-text tone="neutral">Please wait...</s-text>
+                    <s-text tone="neutral">{t("support.form.pleaseWait")}</s-text>
                   )}
                 </s-stack>
               </s-stack>
@@ -510,7 +515,7 @@ export default function Support() {
             </s-stack>
             <s-divider />
             <s-text tone="neutral">
-              {appName} v{appVersion} • Shop: {shop}
+              {t("support.appInfo.version", { appName, appVersion })} • {t("support.appInfo.shop", { shop: shop || "" })}
             </s-text>
           </s-stack>
         </s-box>

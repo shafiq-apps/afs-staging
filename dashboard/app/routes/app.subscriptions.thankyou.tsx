@@ -4,6 +4,7 @@ import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { graphqlRequest } from "app/graphql.server";
 import { UPDATE_SUBSCRIPTION_STATUS_MUTATION } from "app/graphql/subscriptions.mutation";
+import { useTranslation } from "app/utils/translations";
 
 interface LoaderData {
   success: boolean;
@@ -19,11 +20,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const planId = url.searchParams.get("pid");
 
   if (!session?.shop) {
-    return { success: false, error: "Shop not found" } satisfies LoaderData;
+    return { success: false, error: "subscription.thankYou.error.shopNotFound" } satisfies LoaderData;
   }
 
   if (!chargeId) {
-    return { success: false, error: "Missing charge_id" } satisfies LoaderData;
+    return { success: false, error: "subscription.thankYou.error.missingChargeId" } satisfies LoaderData;
   }
 
   try {
@@ -37,16 +38,17 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   } catch (error: any) {
     return {
       success: false,
-      error: error.message || "Failed to update subscription",
+      error: error.message || "subscription.thankYou.error.updateFailed",
     } satisfies LoaderData;
   }
 };
 
 export default function SubscriptionThankYou() {
   const { success, error } = useLoaderData<typeof loader>();
+  const { t } = useTranslation();
 
   return (
-    <s-page heading="Thank you" data-page-id="subscription-thankyou">
+    <s-page heading={t("subscription.thankYou.pageTitle")} data-page-id="subscription-thankyou">
       <s-section>
         <s-box
           padding="base"
@@ -56,16 +58,16 @@ export default function SubscriptionThankYou() {
         >
           {success ? (
             <s-stack direction="block" gap="base">
-              <s-heading>Subscription successful!</s-heading>
+              <s-heading>{t("subscription.thankYou.success.title")}</s-heading>
               <s-text>
-                Your plan has been upgraded.
+                {t("subscription.thankYou.success.message")}
               </s-text>
             </s-stack>
           ) : (
             <s-stack direction="block" gap="base">
-              <s-heading>Error</s-heading>
+              <s-heading>{t("subscription.thankYou.error.title")}</s-heading>
               <s-text tone="critical">
-                {error || "Something went wrong while confirming your subscription."}
+                {error || t("subscription.thankYou.error.defaultMessage")}
               </s-text>
             </s-stack>
           )}

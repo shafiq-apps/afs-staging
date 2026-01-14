@@ -5,6 +5,7 @@ import { Form, useActionData, useLoaderData } from "react-router";
 
 import { login } from "../../shopify.server";
 import { loginErrorMessage } from "./error.server";
+import { t } from "app/utils/translations";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const errors = loginErrorMessage(await login(request));
@@ -30,18 +31,18 @@ export default function Auth() {
     <AppProvider embedded={false}>
       <s-page>
         <Form method="post">
-        <s-section heading="Log in">
+        <s-section heading={t("auth.login.pageTitle")}>
           <s-text-field
             name="shop"
-            label="Shop domain"
-            details="example.myshopify.com"
+            label={t("auth.login.shopDomain")}
+            details={t("auth.login.shopExample")}
             value={shop}
             onChange={(e) => setShop(e.currentTarget.value)}
             autocomplete="on"
             error={errors.shop}
             labelAccessibilityVisibility="exclusive"
           ></s-text-field>
-          <s-button type="submit">Log in</s-button>
+          <s-button type="submit">{t("auth.login.submit")}</s-button>
         </s-section>
         </Form>
       </s-page>

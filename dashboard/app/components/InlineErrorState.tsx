@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { t } from "app/utils/translations";
 
 interface InlineErrorStateProps {
   error: Error | string;
@@ -18,7 +19,7 @@ export function InlineErrorState({
   compact = false 
 }: InlineErrorStateProps) {
   const [showDebug, setShowDebug] = useState(false);
-  const errorMessage = typeof error === "string" ? error : error?.message || "An error occurred";
+  const errorMessage = typeof error === "string" ? error : error?.message || t("errors.generic");
 
   if (compact) {
     return (
@@ -27,7 +28,7 @@ export function InlineErrorState({
           <s-text>{errorMessage}</s-text>
           {onRetry && (
             <s-button variant="secondary" onClick={onRetry}>
-              Retry
+              {t("errors.retry")}
             </s-button>
           )}
         </s-stack>
@@ -47,7 +48,7 @@ export function InlineErrorState({
           {/* Error Header */}
           <s-stack direction="inline" gap="small" alignItems="center">
             <span style={{ fontSize: "24px" }}>⚠️</span>
-            <s-heading>Unable to Load Data</s-heading>
+            <s-heading>{t("errors.unableToLoad")}</s-heading>
           </s-stack>
 
           {/* Error Message */}
@@ -59,10 +60,10 @@ export function InlineErrorState({
           {onRetry && (
             <s-stack direction="inline" gap="small">
               <s-button variant="primary" onClick={onRetry} icon="refresh">
-                Try Again
+                {t("errors.tryAgain")}
               </s-button>
               <s-button variant="secondary" href="/app/support">
-                Contact Support
+                {t("errors.contactSupport")}
               </s-button>
             </s-stack>
           )}
@@ -74,7 +75,7 @@ export function InlineErrorState({
                 variant="secondary"
                 onClick={() => setShowDebug(!showDebug)}
               >
-                {showDebug ? "Hide" : "Show"} Technical Details
+                {showDebug ? t("errors.hideDetails") : t("errors.showDetails")}
               </s-button>
 
               {showDebug && (
@@ -90,15 +91,15 @@ export function InlineErrorState({
                     whiteSpace: "pre-wrap",
                     wordBreak: "break-word",
                   }}>
-                    <div><strong>Error:</strong> {errorDetails.message}</div>
+                    <div><strong>{t("errors.technicalDetails.error")}:</strong> {errorDetails.message}</div>
                     {errorDetails.endpoint && (
                       <div style={{ marginTop: "8px" }}>
-                        <strong>Endpoint:</strong> {errorDetails.endpoint}
+                        <strong>{t("errors.technicalDetails.endpoint")}:</strong> {errorDetails.endpoint}
                       </div>
                     )}
                     {errorDetails.timestamp && (
                       <div style={{ marginTop: "8px" }}>
-                        <strong>Time:</strong> {new Date(errorDetails.timestamp).toLocaleString()}
+                        <strong>{t("errors.technicalDetails.time")}:</strong> {new Date(errorDetails.timestamp).toLocaleString()}
                       </div>
                     )}
                   </div>
