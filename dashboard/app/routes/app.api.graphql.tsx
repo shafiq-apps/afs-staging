@@ -28,11 +28,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const shop = variables?.shop;
     const endpoint = buildGraphQLEndpoint({ shop });
 
-    logger.info("GraphQL request", { 
-      endpoint, 
-      hasVariables: !!variables,
-      operationType: query.trim().startsWith("mutation") ? "mutation" : "query"
-    });
+    // Only log in development or if verbose logging is enabled
+    if (process.env.NODE_ENV === "development") {
+      const operationType = query.trim().startsWith("mutation") ? "mutation" : "query";
+      logger.info(`GraphQL ${operationType}`, { 
+        endpoint, 
+        hasVariables: !!variables
+      });
+    }
 
     // Use authenticated fetch if authentication is configured and endpoint requires it
     const useAuth = shouldAuthenticate(endpoint);
@@ -80,11 +83,15 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       };
     });
 
-    logger.info("GraphQL response", {
-      hasData: !!result.data,
-      hasErrors: !!result.errors && result.errors.length > 0,
-      dataKeys: result.data ? Object.keys(result.data) : [],
-    });
+    // Only log response in development or if there are errors
+    if (process.env.NODE_ENV === "development" || (result.errors && result.errors.length > 0)) {
+      logger.info("GraphQL response", {
+        hasData: !!result.data,
+        hasErrors: !!result.errors && result.errors.length > 0,
+        dataKeys: result.data ? Object.keys(result.data) : [],
+        errors: result.errors ? result.errors.map((e: any) => e.message) : undefined
+      });
+    }
 
     // Return GraphQL standard response format: { data, errors }
     return new Response(

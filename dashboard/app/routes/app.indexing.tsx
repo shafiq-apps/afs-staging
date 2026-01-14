@@ -10,6 +10,9 @@ import { useAppBridge } from "@shopify/app-bridge-react";
 import { useTranslation } from "../utils/translations";
 import { useShop } from "../contexts/ShopContext";
 import { graphqlRequest } from "app/graphql.server";
+import { createModuleLogger } from "../utils/logger";
+
+const logger = createModuleLogger("indexing-page");
 
 interface IndexingFailedItem {
   id: string;
@@ -162,7 +165,7 @@ export default function IndexingPage() {
         credentials: "same-origin",
         signal: abortController.signal,
         body: JSON.stringify({
-          mutation: query,
+          query: query,
           variables: {
             shop
           },
@@ -302,23 +305,29 @@ export default function IndexingPage() {
   };
 
   const stopPolling = () => {
+    logger.info("stopPolling called - cleaning up all polling resources");
+    
     // Clear interval
     if (pollingIntervalRef.current) {
+      logger.info("Clearing polling interval");
       clearInterval(pollingIntervalRef.current);
       pollingIntervalRef.current = null;
     }
     // Clear timeout
     if (pollingTimeoutRef.current) {
+      logger.info("Clearing polling timeout");
       clearTimeout(pollingTimeoutRef.current);
       pollingTimeoutRef.current = null;
     }
     // Abort any ongoing fetch requests
     if (abortControllerRef.current) {
+      logger.info("Aborting ongoing fetch request");
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
     }
     setIsPolling(false);
     pollingAttemptsRef.current = 0;
+    logger.info("Polling stopped successfully");
   };
 
   // Update local state when loader data changes (e.g., after navigation)
@@ -328,10 +337,22 @@ export default function IndexingPage() {
     initialStatusRef.current = initialIndexingStatus;
   }, [initialIndexingStatus, initialError]);
 
+  // Watch for status changes and stop polling if completed
+  useEffect(() => {
+    if (indexingStatus?.status === "success" || indexingStatus?.status === "failed") {
+      if (isPolling) {
+        logger.info("Stopping polling - sync completed", { status: indexingStatus.status });
+        stopPolling();
+        setIsReindexing(false);
+      }
+    }
+  }, [indexingStatus?.status, isPolling]);
+
   // Auto-start polling if indexing is already in progress when page loads
   useEffect(() => {
     const status = initialStatusRef.current;
     if (status?.status === "in_progress" && status?.shop && !isPolling) {
+      logger.info("Starting polling - sync in progress", { shop: status.shop });
       startPolling(status.shop);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -340,6 +361,7 @@ export default function IndexingPage() {
   // Cleanup polling on unmount
   useEffect(() => {
     return () => {
+      logger.info("Component unmounting - cleaning up polling");
       stopPolling();
     };
   }, []);
