@@ -2,11 +2,12 @@ import type {
   HeadersFunction,
   LoaderFunctionArgs,
 } from "react-router";
-import { useLoaderData, useNavigate, useLocation } from "react-router";
+import { useLoaderData, useNavigate, useLocation, useRouteError, isRouteErrorResponse } from "react-router";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { useShop } from "../contexts/ShopContext";
 import { graphqlRequest } from "app/graphql.server";
+import { GraphQLErrorBoundary } from "../components/GraphQLErrorBoundary";
 
 interface Filter {
   id: string;
@@ -42,74 +43,61 @@ interface HomePageData {
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
-  try {
-    const shop = session?.shop || "";
+  const shop = session?.shop || "";
 
-    const gquery = `
-      query GetFilters($shop: String!) {
-        filters(shop: $shop) {
-          filters {
-          id
-          title
-          status
-          targetScope
-          createdAt
-          updatedAt
-          }
-          total
+  const gquery = `
+    query GetFilters($shop: String!) {
+      filters(shop: $shop) {
+        filters {
+        id
+        title
+        status
+        targetScope
+        createdAt
+        updatedAt
         }
-        indexingStatus(shop: $shop) {
-          shop
-          status
-          startedAt
-          completedAt
-          totalIndexed
-          totalFailed
-          progress
-          lastUpdatedAt
-        }
+        total
       }
-    `;
+      indexingStatus(shop: $shop) {
+        shop
+        status
+        startedAt
+        completedAt
+        totalIndexed
+        totalFailed
+        progress
+        lastUpdatedAt
+      }
+    }
+  `;
 
-    const response = await graphqlRequest(gquery, {shop});
-    const filters = response?.filters?.filters || [];
-    const totalFilters = filters?.total || filters.length;
-    const publishedFilters = filters.filter((f: Filter) => f.status === "published").length;
-    const draftFilters = filters?.filter((f: Filter) => f.status === "draft").length;
+  // This is critical data for the home page
+  // If the server is down, we want to show the downtime screen
+  // The GraphQLError will be caught by the ErrorBoundary
+  const response = await graphqlRequest(gquery, {shop});
+  
+  const filters = response?.filters?.filters || [];
+  const totalFilters = filters?.total || filters.length;
+  const publishedFilters = filters.filter((f: Filter) => f.status === "published").length;
+  const draftFilters = filters?.filter((f: Filter) => f.status === "draft").length;
 
-    const indexingStatus: IndexingStatus = response?.indexingStatus || {
-      shop,
-      status: "not_started",
-      totalIndexed: 0,
-      totalFailed: 0,
-      progress: 0,
-    };
+  const indexingStatus: IndexingStatus = response?.indexingStatus || {
+    shop,
+    status: "not_started",
+    totalIndexed: 0,
+    totalFailed: 0,
+    progress: 0,
+  };
 
-    return {
-      filters: filters.slice(0, 5), // Show only recent 5
-      totalFilters,
-      publishedFilters,
-      draftFilters,
-      indexingStatus,
-      shopInfo: { shop },
-      error: undefined,
-    } as HomePageData;
-  } catch (error: any) {
-    return {
-      filters: [],
-      totalFilters: 0,
-      publishedFilters: 0,
-      draftFilters: 0,
-      indexingStatus: {
-        shop: "",
-        status: "not_started",
-        totalIndexed: 0,
-        totalFailed: 0,
-        progress: 0,
-      },
-      error: error.message || "Failed to fetch data",
-    } as HomePageData;
-  }
+  return {
+    filters: filters.slice(0, 5), // Show only recent 5
+    totalFilters,
+    publishedFilters,
+    draftFilters,
+    indexingStatus,
+    shopInfo: { shop },
+    error: undefined,
+  } as HomePageData;
 };
 
 export default function Index() {
@@ -527,6 +515,39 @@ export default function Index() {
       </s-section>
     </s-page>
   );
+}
+
+export function ErrorBoundary() {
+  const error = useRouteError();
+  
+  console.log("Home page ErrorBoundary caught:", error);
+  
+  // Check if it's a Remix route error response (from json() throw)
+  if (isRouteErrorResponse(error)) {
+    if (error.data && typeof error.data === "object" && 
+        ("isGraphQLError" in error.data || "code" in error.data || "endpoint" in error.data)) {
+      return <GraphQLErrorBoundary />;
+    }
+  }
+  
+  // Check if it's a direct GraphQL error
+  const isGraphQLErr = error && 
+    typeof error === "object" && 
+    (
+      "isGraphQLError" in error ||
+      "code" in error || 
+      "isNetworkError" in error || 
+      "isServerError" in error ||
+      "endpoint" in error ||
+      (error as any).name === "GraphQLError"
+    );
+  
+  if (isGraphQLErr) {
+    return <GraphQLErrorBoundary />;
+  }
+  
+  // Fallback to Shopify's error boundary for other errors
+  return boundary.error(error);
 }
 
 export const headers: HeadersFunction = (headersArgs) => {
