@@ -11,7 +11,7 @@ export const SUPPORT_CONFIG = {
    */
   contact: {
     phone: "+1 (555) 123-4567",
-    email: "support@advancedfilters.com",
+    email: "support@digitalcoo.com",
     hours: [
       "Monday - Friday: 9:00 AM - 6:00 PM EST",
       "Saturday: 10:00 AM - 4:00 PM EST",

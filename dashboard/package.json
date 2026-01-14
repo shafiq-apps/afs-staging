@@ -27,6 +27,7 @@
     "@react-router/fs-routes": "^7.9.3",
     "@react-router/node": "^7.9.3",
     "@react-router/serve": "^7.9.3",
+    "@sendgrid/mail": "^8.1.6",
     "@shopify/app-bridge-react": "^4.2.4",
     "@shopify/shopify-app-react-router": "^1.0.0",
     "dotenv": "^17.2.3",

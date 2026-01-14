@@ -1,5 +1,6 @@
 import { SUPPORT_CONFIG } from "../config/support.config";
 import { graphqlRequest } from "../graphql.server";
+import sgMail from "@sendgrid/mail";
 
 interface EmailData {
   to: string;
@@ -173,56 +174,102 @@ export async function sendSupportEmail(ticket: SupportTicket): Promise<string> {
   const createdTicket = result?.createSupportTicket;
   const ticketId = createdTicket?.id || `TICKET-${Date.now()}`;
 
-  // TODO: Implement email sending
-  // When you have an email service configured, uncomment one of these:
-  
-  // Option 1: SendGrid
-  /*
-  const sgMail = require("@sendgrid/mail");
-  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-  
-  await sgMail.send({
-    to: SUPPORT_CONFIG.contact.email,
-    from: process.env.SENDGRID_FROM_EMAIL,
-    subject: `[${ticket.priority.toUpperCase()}] ${ticket.subject}`,
-    html: formatSupportEmailHTML(ticket),
-  });
-  
-  await sgMail.send({
-    to: ticket.email,
-    from: SUPPORT_CONFIG.contact.email,
-    subject: `Support Request Received - ${ticket.subject}`,
-    html: formatConfirmationEmailHTML({ name: ticket.name, ticketId, subject: ticket.subject }),
-  });
-  */
-  
-  // Option 2: Resend
-  /*
-  const { Resend } = require("resend");
-  const resend = new Resend(process.env.RESEND_API_KEY);
-  
-  await resend.emails.send({
-    from: process.env.RESEND_FROM_EMAIL,
-    to: SUPPORT_CONFIG.contact.email,
-    subject: `[${ticket.priority.toUpperCase()}] ${ticket.subject}`,
-    html: formatSupportEmailHTML(ticket),
-  });
-  
-  await resend.emails.send({
-    from: SUPPORT_CONFIG.contact.email,
-    to: ticket.email,
-    subject: `Support Request Received - ${ticket.subject}`,
-    html: formatConfirmationEmailHTML({ name: ticket.name, ticketId, subject: ticket.subject }),
-  });
-  */
+  // Send emails using SendGrid
+  const apiKey = process.env.SENDGRID_API_KEY;
+  const fromEmail = process.env.APP_EMAIL_FROM;
+  const fromName = process.env.APP_EMAIL_NAME;
 
-  console.log("Support ticket created:", ticketId);
+  if (!apiKey || !fromEmail) {
+    console.error("SendGrid not configured: Missing SENDGRID_API_KEY or APP_EMAIL_FROM");
+    return ticketId;
+  }
+
+  sgMail.setApiKey(apiKey);
+
+  try {
+    // Validate email addresses
+    if (!SUPPORT_CONFIG.contact.email || !ticket.email) {
+      throw new Error("Invalid email addresses");
+    }
+
+    // Send notification to support team
+    await sgMail.send({
+      to: SUPPORT_CONFIG.contact.email,
+      from: {
+        email: fromEmail,
+        name: fromName || SUPPORT_CONFIG.app.name,
+      },
+      subject: `[${ticket.priority.toUpperCase()}] ${ticket.subject}`,
+      html: formatSupportEmailHTML(ticket),
+      text: `Support Request from ${ticket.name} (${ticket.email})\n\nShop: ${ticket.shop}\nPriority: ${ticket.priority}\nSubject: ${ticket.subject}\n\nMessage:\n${ticket.message}`,
+    });
+
+    console.log("Support team notification sent successfully");
+
+    // Send confirmation to customer
+    await sgMail.send({
+      to: ticket.email,
+      from: {
+        email: fromEmail,
+        name: fromName || SUPPORT_CONFIG.app.name,
+      },
+      replyTo: SUPPORT_CONFIG.contact.email,
+      subject: `Support Request Received - ${ticket.subject}`,
+      html: formatConfirmationEmailHTML({ name: ticket.name, ticketId, subject: ticket.subject }),
+      text: `Hi ${ticket.name},\n\nThank you for contacting our support team. We have received your request and will get back to you as soon as possible.\n\nYour Ticket Details:\nTicket ID: ${ticketId}\nSubject: ${ticket.subject}\n\nWe typically respond to support requests within 24 hours during business hours.\n\nBest regards,\n${SUPPORT_CONFIG.app.name} Support Team`,
+    });
+
+    console.log("Customer confirmation sent successfully:", ticketId);
+  } catch (error: any) {
+    const errorDetails = error?.response?.body || error?.message || error;
+    console.error("Failed to send support emails:", errorDetails);
+    
+    // Log detailed SendGrid error if available
+    if (error?.response?.body?.errors) {
+      console.error("SendGrid validation errors:", JSON.stringify(error.response.body.errors));
+    }
+    
+    throw new Error(`Failed to send support emails: ${typeof errorDetails === 'string' ? errorDetails : JSON.stringify(errorDetails)}`);
+  }
+
   return ticketId;
 }
 
 export async function sendEmail(data: EmailData): Promise<void> {
-  // Generic email sending function
-  // Configure based on your email service provider
-  console.log("Email would be sent:", data);
+  const apiKey = process.env.SENDGRID_API_KEY;
+  const fromEmail = process.env.APP_EMAIL_FROM;
+  const fromName = process.env.APP_EMAIL_NAME;
+
+  if (!apiKey || !fromEmail) {
+    console.error("SendGrid not configured: Missing SENDGRID_API_KEY or APP_EMAIL_FROM");
+    throw new Error("Email service not configured");
+  }
+
+  sgMail.setApiKey(apiKey);
+
+  try {
+    await sgMail.send({
+      to: data.to,
+      from: {
+        email: data.from || fromEmail,
+        name: fromName || SUPPORT_CONFIG.app.name,
+      },
+      subject: data.subject,
+      text: data.text,
+      html: data.html || data.text,
+    });
+
+    console.log("Email sent successfully to:", data.to);
+  } catch (error: any) {
+    const errorDetails = error?.response?.body || error?.message || error;
+    console.error("Failed to send email:", errorDetails);
+    
+    // Log detailed SendGrid error if available
+    if (error?.response?.body?.errors) {
+      console.error("SendGrid validation errors:", JSON.stringify(error.response.body.errors));
+    }
+    
+    throw new Error(`Failed to send email: ${typeof errorDetails === 'string' ? errorDetails : JSON.stringify(errorDetails)}`);
+  }
 }
 
