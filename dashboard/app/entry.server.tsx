@@ -20,11 +20,23 @@ export default async function handleRequest(
     ? "onAllReady"
     : "onShellReady";
 
+  // Strip /v2 base path from URL for route matching
+  // React Router routes are defined for /, not /v2/
+  const url = new URL(request.url);
+  let pathname = url.pathname;
+  if (pathname.startsWith('/v2/')) {
+    pathname = pathname.slice(3); // Remove '/v2'
+    if (!pathname.startsWith('/')) {
+      pathname = '/' + pathname;
+    }
+  }
+  const modifiedUrl = new URL(pathname + url.search + url.hash, url.origin);
+
   return new Promise((resolve, reject) => {
     const { pipe, abort } = renderToPipeableStream(
       <ServerRouter
         context={reactRouterContext}
-        url={request.url}
+        url={modifiedUrl.toString()}
       />,
       {
         [callbackName]: () => {
