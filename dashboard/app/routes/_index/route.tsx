@@ -2,7 +2,7 @@ import type { LoaderFunctionArgs } from "react-router";
 import { redirect, Form, useLoaderData } from "react-router";
 import { useState, useEffect, useRef } from "react";
 
-import { login } from "../../shopify.server";
+import { login, authenticate } from "../../shopify.server";
 import styles from "./styles.module.css";
 
 type Tag = {
@@ -16,17 +16,31 @@ type Tag = {
 };
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  try {
-    const url = new URL(request.url);
-    if (url.searchParams.get("shop")) {
-      throw redirect(`/app?${url.searchParams.toString()}`);
-    }
-    return { showForm: Boolean(login) };
-  } catch (error) {
-    console.error("Index loader error:", error);
-    // Return default values if there's an error
-    return { showForm: false };
+  const url = new URL(request.url);
+  
+  // If shop parameter is present, redirect to /app
+  if (url.searchParams.get("shop")) {
+    throw redirect(`/app?${url.searchParams.toString()}`);
   }
+  
+  // Check if user is already authenticated
+  try {
+    const { session } = await authenticate.admin(request);
+    if (session?.shop) {
+      // User is logged in, redirect to /app
+      throw redirect("/app");
+    }
+  } catch (authError) {
+    // If it's a redirect response (authentication required), let it through
+    // Otherwise, if authentication fails silently, continue to show login form
+    if (authError instanceof Response) {
+      // This is an authentication redirect, let it happen
+      throw authError;
+    }
+    // If it's not a redirect, user is not authenticated - show login form
+  }
+  
+  return { showForm: Boolean(login) };
 };
 
 export default function App() {

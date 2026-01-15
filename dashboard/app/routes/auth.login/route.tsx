@@ -28,7 +28,7 @@ export default function Auth() {
   const { errors } = actionData || loaderData;
 
   return (
-    <AppProvider embedded={false}>
+    <AppProvider>
       <s-page>
         <Form method="post">
         <s-section heading={t("auth.login.pageTitle")}>
