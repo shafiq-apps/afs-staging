@@ -8,7 +8,6 @@ import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { useTranslation } from "../utils/translations";
-import { createPath } from "../utils/paths";
 import { TargetScope } from "../utils/filter.enums";
 import { graphqlRequest } from "app/graphql.server";
 
@@ -116,7 +115,7 @@ export default function FiltersPage() {
   useEffect(() => {
     // Only revalidate if we actually navigated to this page (location.key changed)
     // This prevents infinite loops from revalidator being in dependencies
-    if (location.pathname === createPath('app/filters') && location.key && location.key !== prevLocationKey.current) {
+    if (location.pathname === '/app/filters' && location.key && location.key !== prevLocationKey.current) {
       prevLocationKey.current = location.key;
       // Small delay to ensure navigation is complete
       const timeoutId = setTimeout(() => {
@@ -177,11 +176,11 @@ export default function FiltersPage() {
   }, [filterToDelete, deleteModalOpen]);
 
   const handleCreateClick = () => {
-    navigate(createPath("app/filter/create"));
+    navigate("/app/filter/create");
   };
 
   const handleEditClick = (filterId: string) => {
-    navigate(createPath(`app/filter/${filterId}`));
+    navigate(`/app/filter/${filterId}`);
   };
 
   const handleDeleteClick = (filter: Filter) => {
@@ -206,7 +205,7 @@ export default function FiltersPage() {
         }
       `;
 
-      const response = await fetch(createPath("app/api/graphql"), {
+      const response = await fetch("/app/api/graphql", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

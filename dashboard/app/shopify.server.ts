@@ -16,7 +16,7 @@ const shopify = shopifyApp({
   apiVersion: ApiVersion.January26,
   scopes: process.env.SCOPES?.split(","),
   appUrl: process.env.SHOPIFY_APP_URL || "",
-  authPathPrefix: "/v2/auth",
+  authPathPrefix: "/auth",
   sessionStorage: esSessionStorage,
   distribution: AppDistribution.AppStore,
   ...(process.env.SHOP_CUSTOM_DOMAIN

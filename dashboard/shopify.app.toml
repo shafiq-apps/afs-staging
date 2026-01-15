@@ -2,7 +2,7 @@
 
 client_id = "d9c0d9902668c638962fd7bbab29fa24"
 name = "FilterStagingApp"
-application_url = "https://fstaging.digitalcoo.com/v2"
+application_url = "https://fstaging.digitalcoo.com"
 embedded = true
 handle = "filterstagingapp"
 
@@ -59,4 +59,4 @@ optional_scopes = [ ]
 use_legacy_install_flow = false
 
 [auth]
-redirect_urls = [ "https://fstaging.digitalcoo.com/v2/auth/callback" ]
+redirect_urls = [ "https://fstaging.digitalcoo.com/auth/callback" ]

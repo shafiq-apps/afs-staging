@@ -8,7 +8,6 @@ import { ShopProvider, type ShopLocaleData } from "../contexts/ShopContext";
 import { useTranslation } from "app/utils/translations";
 import { graphqlRequest, GraphQLError } from "app/graphql.server";
 import { throwGraphQLError } from "../utils/throw-graphql-error";
-import { createPath } from "../utils/paths";
 import { AppSubscriptionStatus, ShopifyActiveSubscriptions, Subscription } from "app/types/Subscriptions";
 import { FETCH_CURRENT_SUBSCRIPTION } from "app/graphql/subscriptions.query";
 import { UPDATE_SUBSCRIPTION_STATUS_MUTATION } from "app/graphql/subscriptions.mutation";
@@ -251,7 +250,7 @@ export default function App() {
 
   const isSubscriptionActiveInDB = subscription?.status === AppSubscriptionStatus.ACTIVE;
 
-  const isOnPricingPage = location.pathname === createPath("app/pricing");
+  const isOnPricingPage = location.pathname === "/app/pricing";
 
   /* ---------------- CLIENT-SIDE SHOP DATA CACHE ---------------- */
   useEffect(() => {
@@ -286,7 +285,7 @@ export default function App() {
   useEffect(() => {
     // If Shopify has no active subscription, force pricing page
     if (!hasActiveShopifySubscription && !isOnPricingPage) {
-      navigate(createPath("app/pricing?module=subscription&action=choose&force=true"), { replace: true });
+      navigate("/app/pricing?module=subscription&action=choose&force=true", { replace: true });
     }
   }, [
     hasActiveShopifySubscription,
@@ -320,14 +319,14 @@ export default function App() {
         <s-app-nav>
           {hasActiveShopifySubscription && (
             <>
-              <s-link href={createPath("app")}>{t("navigation.home")}</s-link>
-              <s-link href={createPath("app/filters")}>{t("navigation.filters")}</s-link>
-              <s-link href={createPath("app/search")}>{t("navigation.search")}</s-link>
-              <s-link href={createPath("app/indexing")}>{t("navigation.indexing")}</s-link>
+              <s-link href="/app">{t("navigation.home")}</s-link>
+              <s-link href="/app/filters">{t("navigation.filters")}</s-link>
+              <s-link href="/app/search">{t("navigation.search")}</s-link>
+              <s-link href="/app/indexing">{t("navigation.indexing")}</s-link>
             </>
           )}
-          <s-link href={createPath("app/pricing")}>{t("navigation.pricing")}</s-link>
-          <s-link href={createPath("app/support")}>{t("navigation.support")}</s-link>
+          <s-link href="/app/pricing">{t("navigation.pricing")}</s-link>
+          <s-link href="/app/support">{t("navigation.support")}</s-link>
         </s-app-nav>
         {
           !hasActiveShopifySubscription && (
@@ -337,7 +336,7 @@ export default function App() {
                 <s-button
                   slot="secondary-actions"
                   variant="secondary"
-                  href={createPath("app/pricing")}
+                  href="/app/pricing"
                 >
                   View pricing
                 </s-button>

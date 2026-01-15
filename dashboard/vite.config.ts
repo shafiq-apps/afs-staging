@@ -36,7 +36,6 @@ if (host === "localhost") {
 }
 
 export default defineConfig({
-  base: "/v2/",
   server: {
     allowedHosts: [host],
     cors: {
@@ -50,9 +49,7 @@ export default defineConfig({
     },
   },
   plugins: [
-    reactRouter({
-      basename: "/v2",
-    }),
+    reactRouter(),
     tsconfigPaths(),
   ],
   build: {

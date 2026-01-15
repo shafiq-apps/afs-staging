@@ -8,7 +8,6 @@ import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { useTranslation } from "../utils/translations";
-import { createPath } from "../utils/paths";
 import { useShop } from "../contexts/ShopContext";
 import { graphqlRequest } from "app/graphql.server";
 import { createModuleLogger } from "../utils/logger";
@@ -158,7 +157,7 @@ export default function IndexingPage() {
         }
       `;
 
-      const response = await fetch(createPath("app/api/graphql"), {
+      const response = await fetch("/app/api/graphql", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -390,7 +389,7 @@ export default function IndexingPage() {
 
       const shop = indexingStatus?.shop || "";
 
-      const response = await fetch(createPath("app/api/graphql"), {
+      const response = await fetch("/app/api/graphql", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -427,7 +426,7 @@ export default function IndexingPage() {
           } else {
             // If no shop, try to get it from the current status or reload
             setTimeout(() => {
-              navigate(createPath("app/indexing"), { replace: true });
+              navigate("/app/indexing", { replace: true });
             }, 1000);
           }
         } else {
@@ -441,7 +440,7 @@ export default function IndexingPage() {
           startPolling(shop, 5000); // 5 seconds delay
         } else {
           setTimeout(() => {
-            navigate(createPath("app/indexing"), { replace: true });
+            navigate("/app/indexing", { replace: true });
           }, 1000);
         }
       }

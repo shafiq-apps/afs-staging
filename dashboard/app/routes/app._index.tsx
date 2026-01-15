@@ -9,7 +9,6 @@ import { useShop } from "../contexts/ShopContext";
 import { graphqlRequest } from "app/graphql.server";
 import { GraphQLErrorBoundary } from "../components/GraphQLErrorBoundary";
 import { useTranslation } from "app/utils/translations";
-import { createPath } from "../utils/paths";
 
 interface Filter {
   id: string;
@@ -241,7 +240,7 @@ export default function Index() {
                   </s-stack>
                   <s-button
                     variant="primary"
-                    onClick={() => navigate(createPath("app/filter/create"))}
+                    onClick={() => navigate("/app/filter/create")}
                     icon="plus"
                     accessibilityLabel={t("home.quickActions.createFilter.accessibilityLabel")}
                   >
@@ -266,7 +265,7 @@ export default function Index() {
                   </s-stack>
                   <s-button
                     variant="secondary"
-                    onClick={() => navigate(createPath("app/filters"))}
+                    onClick={() => navigate("/app/filters")}
                   >
                     {t("home.quickActions.manageFilters.button")}
                   </s-button>
@@ -289,7 +288,7 @@ export default function Index() {
                   </s-stack>
                   <s-button
                     variant="secondary"
-                    onClick={() => navigate(createPath("app/indexing"))}
+                    onClick={() => navigate("/app/indexing")}
                   >
                     {t("home.quickActions.productSync.button")}
                   </s-button>
@@ -317,7 +316,7 @@ export default function Index() {
                     <s-text tone="auto">{t("home.recentFilters.noFilters")}</s-text>
                     <s-button
                       variant="primary"
-                      onClick={() => navigate(createPath("app/filter/create"))}
+                      onClick={() => navigate("/app/filter/create")}
                       icon="plus"
                       accessibilityLabel={t("home.recentFilters.createFirst")}
                     >
@@ -364,7 +363,7 @@ export default function Index() {
                     {totalFilters > filters.length && (
                       <s-button
                         variant="secondary"
-                        onClick={() => navigate(createPath("app/filters"))}
+                        onClick={() => navigate("/app/filters")}
                       >
                         {t("home.recentFilters.viewAll", { count: totalFilters.toString() })}
                       </s-button>
@@ -413,7 +412,7 @@ export default function Index() {
                   </s-stack>
                   <s-button
                     variant="secondary"
-                    onClick={() => navigate(createPath("app/indexing"))}
+                    onClick={() => navigate("/app/indexing")}
                     icon="arrow-right"
                     accessibilityLabel={t("home.syncStatus.accessibilityLabel")}
                   >
@@ -449,12 +448,12 @@ export default function Index() {
                 <s-unordered-list>
                   <s-list-item>
                     <s-text tone="auto">
-                      <s-link href={createPath("app/indexing")}>{t("home.gettingStarted.quickStart.step1")}</s-link>
+                      <s-link href="/app/indexing">{t("home.gettingStarted.quickStart.step1")}</s-link>
                     </s-text>
                   </s-list-item>
                   <s-list-item>
                     <s-text tone="auto">
-                      <s-link href={createPath("app/filter/create")}>{t("home.gettingStarted.quickStart.step2")}</s-link>
+                      <s-link href="/app/filter/create">{t("home.gettingStarted.quickStart.step2")}</s-link>
                     </s-text>
                   </s-list-item>
                   <s-list-item>

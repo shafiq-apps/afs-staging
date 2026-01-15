@@ -19,7 +19,7 @@ export default async function handleRequest(
   const callbackName = isbot(userAgent ?? '')
     ? "onAllReady"
     : "onShellReady";
-  
+
   return new Promise((resolve, reject) => {
     const { pipe, abort } = renderToPipeableStream(
       <ServerRouter
