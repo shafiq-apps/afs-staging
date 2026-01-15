@@ -14,46 +14,6 @@ export default async function handleRequest(
   responseHeaders: Headers,
   reactRouterContext: EntryContext
 ) {
-  const url = new URL(request.url);
-  
-  // Skip check for frontendbuild paths
-  if (!url.pathname.startsWith('/frontendbuild')) {
-    // TODO: Implement your shop detection logic here
-    // const shopName = await getShopName(request);
-    // const isOldInstallation = await checkIfOldInstallation(shopName);
-    
-    // Example placeholder - replace with your actual check:
-    if (true) {
-      const redirectUrl = new URL('/frontendbuild/index.html', url).href;
-      
-      // Break out of Shopify iframe and redirect to old build
-      const html = `
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <script>
-              if (window.top !== window.self) {
-                window.top.location.href = "${redirectUrl}";
-              } else {
-                window.location.href = "${redirectUrl}";
-              }
-            </script>
-          </head>
-          <body>
-            <p>Redirecting...</p>
-          </body>
-        </html>
-      `;
-      
-      return new Response(html, {
-        status: 200,
-        headers: {
-          'Content-Type': 'text/html',
-        },
-      });
-    }
-  }
-  
   addDocumentResponseHeaders(request, responseHeaders);
   const userAgent = request.headers.get("user-agent");
   const callbackName = isbot(userAgent ?? '')
