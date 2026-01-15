@@ -131,3 +131,4 @@ You can customize support settings in `dashboard/app/config/support.config.ts`:
 
 If database save fails, emails are still sent successfully - the ticket is stored with a generated ID.
 
+

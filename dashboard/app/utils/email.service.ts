@@ -53,7 +53,7 @@ export function formatSupportEmailHTML(ticket: SupportTicket): string {
       <body>
         <div class="container">
           <div class="header">
-            <h2 style="margin: 0;">🎫 New Support Request</h2>
+            <h2 style="margin: 0;">New Support Request</h2>
           </div>
           <div class="content">
             <div class="field">

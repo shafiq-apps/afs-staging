@@ -161,23 +161,6 @@ export default function Support() {
 
   return (
     <s-page heading={t("support.pageTitle")} data-page-id="support">
-      {/* Success/Error Messages */}
-      {actionData?.success && (
-        <s-section>
-          <s-banner tone="success">
-            <s-text>{actionData.message}</s-text>
-          </s-banner>
-        </s-section>
-      )}
-
-      {actionData?.error && (
-        <s-section>
-          <s-banner tone="critical">
-            <s-text>{actionData.error}</s-text>
-          </s-banner>
-        </s-section>
-      )}
-
       {/* Contact Information */}
       <s-section>
         <s-stack direction="block" gap="base">
@@ -193,7 +176,7 @@ export default function Support() {
               >
                 <s-stack direction="block" gap="base">
                   <s-stack direction="inline" gap="small" alignItems="center">
-                    <div style={{ fontSize: "24px" }}>📞</div>
+                    <s-icon type="phone" size="base"/>
                     <s-heading>{t("support.contactUs.phone.title")}</s-heading>
                   </s-stack>
                   <s-stack direction="block" gap="small">
@@ -218,7 +201,7 @@ export default function Support() {
               >
                 <s-stack direction="block" gap="base">
                   <s-stack direction="inline" gap="small" alignItems="center">
-                    <div style={{ fontSize: "24px" }}>✉️</div>
+                    <s-icon type="email" size="base"/>
                     <s-heading>{t("support.contactUs.email.title")}</s-heading>
                   </s-stack>
                   <s-stack direction="block" gap="small">
@@ -243,7 +226,7 @@ export default function Support() {
               >
                 <s-stack direction="block" gap="base">
                   <s-stack direction="inline" gap="small" alignItems="center">
-                    <div style={{ fontSize: "24px" }}>🕒</div>
+                    <s-icon type="clock" size="base"/>
                     <s-heading>{t("support.contactUs.hours.title")}</s-heading>
                   </s-stack>
                   <s-stack direction="block" gap="small">
@@ -296,6 +279,19 @@ export default function Support() {
           <s-text tone="neutral">
             {t("support.form.description")}
           </s-text>
+
+          {/* Success/Error Messages */}
+          {actionData?.success && (
+            <s-banner tone="success">
+              <s-text>{actionData.message}</s-text>
+            </s-banner>
+          )}
+
+          {actionData?.error && (
+            <s-banner tone="critical">
+              <s-text>{actionData.error}</s-text>
+            </s-banner>
+          )}
           
           <s-box
             padding="base"
