@@ -50,7 +50,9 @@ export default defineConfig({
     },
   },
   plugins: [
-    reactRouter(),
+    reactRouter({
+      basename: "/v2",
+    }),
     tsconfigPaths(),
   ],
   build: {

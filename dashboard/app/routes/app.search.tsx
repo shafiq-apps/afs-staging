@@ -9,6 +9,7 @@ import { boundary } from "@shopify/shopify-app-react-router/server";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { graphqlRequest } from "app/graphql.server";
 import { useTranslation } from "app/utils/translations";
+import { createPath } from "../utils/paths";
 
 // Types - Keep in sync with app/shared/search/types.ts
 // Note: Dashboard is a separate app, so we define types locally
@@ -201,7 +202,7 @@ export default function SearchPage() {
         }
       `;
 
-      const response = await fetch("/app/api/graphql", {
+      const response = await fetch(createPath("app/api/graphql"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

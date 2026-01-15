@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 
 import { login } from "../../shopify.server";
 import styles from "./styles.module.css";
+import { createPath } from "../../utils/paths";
 
 type Tag = {
   tag: string;
@@ -18,7 +19,7 @@ type Tag = {
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);
   if (url.searchParams.get("shop")) {
-    throw redirect(`/app?${url.searchParams.toString()}`);
+    throw redirect(`${createPath("app")}?${url.searchParams.toString()}`);
   }
   return { showForm: Boolean(login) };
 };
@@ -95,7 +96,7 @@ export default function App() {
   }, [tags]);
 
   const footerLinks = [
-    { label: "Support", href: "/support" },
+    { label: "Support", href: createPath("app/support") },
     { label: "Docs", href: "/docs" },
     { label: "Privacy Policy", href: "/privacy" },
   ];
@@ -134,7 +135,7 @@ export default function App() {
         <p className={styles.text}>Connect your Shopify store to continue.</p>
 
         {showForm && (
-          <Form className={styles.form} method="post" action="/auth/login">
+          <Form className={styles.form} method="post" action={createPath("auth/login")}>
             <label className={styles.label}>
               <span>Shop domain</span>
               <input

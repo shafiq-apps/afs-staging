@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { t } from "app/utils/translations";
+import { createPath } from "../utils/paths";
 
 interface InlineErrorStateProps {
   error: Error | string;
@@ -62,7 +63,7 @@ export function InlineErrorState({
               <s-button variant="primary" onClick={onRetry} icon="refresh">
                 {t("errors.tryAgain")}
               </s-button>
-              <s-button variant="secondary" href="/app/support">
+              <s-button variant="secondary" href={createPath("app/support")}>
                 {t("errors.contactSupport")}
               </s-button>
             </s-stack>

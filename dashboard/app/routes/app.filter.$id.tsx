@@ -5,6 +5,7 @@ import { boundary } from "@shopify/shopify-app-react-router/server";
 import { authenticate } from "../shopify.server";
 import FilterForm from "../components/FilterForm";
 import { useTranslation } from "app/utils/translations";
+import { createPath } from "../utils/paths";
 import { FilterFormHandle, PageMode, PaginationType, SortOrder } from "app/utils/filter.enums";
 import { normalizeShopifyId } from "app/utils/normalize-shopify-id";
 import { graphqlRequest } from "app/graphql.server";
@@ -246,7 +247,7 @@ export default function EditFilterPage() {
       data-page-id={pageId}
       heading={`${t("filterForm.edit.pageTitle")}: ${filter.title}`}
     >
-      <s-link slot="breadcrumb-actions" href="/app/filters">
+      <s-link slot="breadcrumb-actions" href={createPath("app/filters")}>
         Filters
       </s-link>
 
