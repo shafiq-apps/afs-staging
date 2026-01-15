@@ -16,11 +16,17 @@ type Tag = {
 };
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const url = new URL(request.url);
-  if (url.searchParams.get("shop")) {
-    throw redirect(`/app?${url.searchParams.toString()}`);
+  try {
+    const url = new URL(request.url);
+    if (url.searchParams.get("shop")) {
+      throw redirect(`/app?${url.searchParams.toString()}`);
+    }
+    return { showForm: Boolean(login) };
+  } catch (error) {
+    console.error("Index loader error:", error);
+    // Return default values if there's an error
+    return { showForm: false };
   }
-  return { showForm: Boolean(login) };
 };
 
 export default function App() {
