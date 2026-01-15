@@ -118,7 +118,7 @@ export function formatConfirmationEmailHTML(data: {
       <body>
         <div class="container">
           <div class="header">
-            <h2 style="margin: 0;">✅ Support Request Received</h2>
+            <h2 style="margin: 0;">Support Request Received</h2>
           </div>
           <div class="content">
             <p>Hi ${data.name},</p>

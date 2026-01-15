@@ -24,7 +24,7 @@ export const SUPPORT_CONFIG = {
    */
   app: {
     name: "Advanced Filters & Search",
-    version: "1.0.0",
+    version: "2.0",
   },
 
   /**
