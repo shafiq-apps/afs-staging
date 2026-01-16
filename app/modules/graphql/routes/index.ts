@@ -19,7 +19,7 @@ const logger = createModuleLogger('graphql-route');
  * Middleware for GraphQL endpoint
  */
 export const middleware = [
-  authenticate(),
+  // authenticate(),
   validateShopDomain(),
   validate({
     body: {

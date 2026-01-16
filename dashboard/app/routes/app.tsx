@@ -59,8 +59,9 @@ function setCachedShopData(data: ShopLocaleData): void {
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
+  const LEGACY_APP_URL = process.env.LEGACY_APP_URL || "https://fdstaging.digitalcoo.com";
 
-  if(session && session.shop && session.onlineAccessInfo?.associated_user.id){
+  if (session && session.shop && session.onlineAccessInfo?.associated_user.id) {
     await shopSessionStorage.storeSession(session);
   }
 
@@ -68,6 +69,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const shop = session?.shop ?? "";
   let shopData: ShopLocaleData | null = null;
   let isNewInstallation = false;
+  let isLegacyShop = false;
 
   /* ---------------- SHOP LOCALE DATA (Non-Critical) ---------------- */
   try {
@@ -127,21 +129,26 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   if (shop) {
     try {
       const gquery = `
-        query GetShop($shop: String!) {
-          shop(domain: $shop) {
-            installedAt
+          query GetShopData($shop: String!) {
+            shop(domain: $shop) {
+              installedAt
+            }
+            isLegacyShop(shop: $shop)
           }
-        }
-      `;
-      const response = await graphqlRequest(gquery, { shop }).catch(e => { 
+        `;
+      const response = await graphqlRequest(gquery, { shop }).catch(e => {
         // If it's a server/network error, we should know but not fail
         if (e instanceof GraphQLError && (e.isServerError || e.isNetworkError)) {
           console.warn('Server unavailable for installation check:', e.message);
         }
-        return null;
+        return {
+          shop: null,
+          isLegacyShop: false
+        };
       });
       const installedAt = response?.shop?.installedAt;
       isNewInstallation = !installedAt || new Date(installedAt).getTime() > Date.now() - 60000;
+      isLegacyShop = response?.isLegacyShop || false;
     } catch {
       isNewInstallation = false;
     }
@@ -171,18 +178,18 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   // We want to catch it and check if it's a server/network error
   // If so, we should show the downtime screen, not redirect to pricing
   let subscriptionResult: { subscription: Subscription | null } = { subscription: null };
-  
+
   try {
     subscriptionResult = await graphqlRequest<{ subscription: Subscription; }>(FETCH_CURRENT_SUBSCRIPTION, { shop });
   } catch (error: any) {
     // Check if it's a critical error that should show downtime screen
     // Include: server errors (500+), network errors, and auth errors (401, 403)
     if (error instanceof GraphQLError) {
-      const isCriticalError = error.isServerError || 
-                              error.isNetworkError || 
-                              error.statusCode === 401 || 
-                              error.statusCode === 403;
-      
+      const isCriticalError = error.isServerError ||
+        error.isNetworkError ||
+        error.statusCode === 401 ||
+        error.statusCode === 403;
+
       if (isCriticalError) {
         // Show downtime screen for critical errors
         throwGraphQLError(error);
@@ -212,11 +219,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       } catch (error: any) {
         // Check if it's a critical error
         if (error instanceof GraphQLError) {
-          const isCriticalError = error.isServerError || 
-                                  error.isNetworkError || 
-                                  error.statusCode === 401 || 
-                                  error.statusCode === 403;
-          
+          const isCriticalError = error.isServerError ||
+            error.isNetworkError ||
+            error.statusCode === 401 ||
+            error.statusCode === 403;
+
           if (isCriticalError) {
             // Show downtime screen for critical errors
             throwGraphQLError(error);
@@ -236,14 +243,17 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     isNewInstallation,
     subscription: subscriptionResult?.subscription ?? null,
     activeSubscriptions,
+    isLegacyShop,
+    LEGACY_APP_URL
   };
 };
 
 export default function App() {
-  const { apiKey, shop, shopData, subscription, activeSubscriptions } = useLoaderData<typeof loader>();
+  const { apiKey, shop, shopData, subscription, activeSubscriptions, isLegacyShop, LEGACY_APP_URL } = useLoaderData<typeof loader>();
   const location = useLocation();
   const navigate = useNavigate();
   const { t } = useTranslation();
+
 
   /* ---------------- SUBSCRIPTION HELPERS ---------------- */
   const hasActiveShopifySubscription = activeSubscriptions.some(sub => sub.status === AppSubscriptionStatus.ACTIVE);
@@ -310,6 +320,35 @@ export default function App() {
     } : null;
   }
 
+  const handleLoadLegacyApp = () => {
+    window.open(`${LEGACY_APP_URL}/shopapp?shop=${shop}`, "_new");
+  };
+
+  if (isLegacyShop) {
+    return (
+      <AppProvider apiKey={apiKey} embedded={true}>
+        <ShopProvider
+          shopData={effectiveShopData}
+          isLoading={!effectiveShopData}
+        >
+          <div style={{ height: '30vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+            <s-stack direction="inline" alignItems="center" justifyContent="center">
+              <s-button
+                onClick={handleLoadLegacyApp}
+                accessibilityLabel="Load app"
+                type="button"
+                variant="primary"
+                icon="external"
+              >
+                Load App
+              </s-button>
+            </s-stack>
+          </div>
+        </ShopProvider>
+      </AppProvider>
+    )
+  }
+
   return (
     <AppProvider apiKey={apiKey} embedded={true}>
       <ShopProvider
@@ -361,7 +400,7 @@ export default function App() {
 // Error boundary that handles GraphQL and network errors gracefully
 export function ErrorBoundary() {
   const error = useRouteError();
-  
+
   // Check if it's a Remix route error response (from json() throw)
   if (isRouteErrorResponse(error)) {
     // Check if the data contains GraphQL error markers
@@ -369,19 +408,19 @@ export function ErrorBoundary() {
       return <GraphQLErrorBoundary />;
     }
   }
-  
+
   // Check if it's a direct GraphQL error object
-  const isGraphQLErr = error && 
-    typeof error === "object" && 
+  const isGraphQLErr = error &&
+    typeof error === "object" &&
     (
       "isGraphQLError" in error ||
-      "code" in error || 
-      "isNetworkError" in error || 
+      "code" in error ||
+      "isNetworkError" in error ||
       "isServerError" in error ||
       "endpoint" in error ||
       (error as any).name === "GraphQLError"
     );
-  
+
   if (isGraphQLErr) {
     return <GraphQLErrorBoundary />;
   }

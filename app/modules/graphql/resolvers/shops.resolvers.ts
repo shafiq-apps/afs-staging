@@ -188,6 +188,36 @@ export const shopsResolvers = {
         throw error;
       }
     },
+    
+    /**
+     * Get indexing status for a shop
+     */
+    async isLegacyShop(parent: any, args: { shop: string }, context: GraphQLContext): Promise<boolean> {
+      try {
+        const { shop } = args;
+        if (!shop) {
+          throw new Error('Domain is required');
+        }
+
+        logger.info('Checking if shop exists', { shop });
+
+        const repo = getShopsRepository(context);
+        
+        // Check if shop exists by trying to get it
+        const isLegacy = await repo.getLegacyShop(shop);
+        const exists = !!isLegacy;
+        
+        logger.info('Shop exists check result', { shop, exists });
+        return exists;
+      } catch (error: any) {
+        logger.error('Error in shopExists resolver', {
+          error: error?.message || error,
+          stack: error?.stack,
+          args,
+        });
+        return false;
+      }
+    },
   },
 
   Mutation: {
