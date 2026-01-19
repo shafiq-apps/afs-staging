@@ -4,6 +4,9 @@
     "description": "",
     "main": "dist/index.js",
     "type": "module",
+    "engines": {
+        "node": ">=20.19 <22 || >=22.12"
+    },
     "scripts": {
         "dev": "tsx watch -r tsconfig-paths/register index.ts",
         "postman": "tsx -r tsconfig-paths/register system/cli/postman.ts",
