@@ -4,7 +4,7 @@ export const ONE_MINUTE_MS = 60000;
 
 export const RATE_LIMIT = {
   DEFAULT: {
-    MAX: 60,
+    MAX: 120,
     BUCKET_DURATION_MS: ONE_MINUTE_MS,
   },
   STOREFRONT_PRODUCTS: {
