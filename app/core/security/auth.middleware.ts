@@ -76,12 +76,6 @@ export interface AuthMiddlewareOptions {
    * Custom error message for authentication failures
    */
   errorMessage?: string;
-
-  /**
-   * Allow bypass in development/sandbox environment (default: true)
-   * When true, allows requests without auth in non-production environments
-   */
-  allowDevBypass?: boolean;
 }
 
 /**
@@ -96,17 +90,7 @@ export function authenticate(options: AuthMiddlewareOptions = {}) {
     maxTimestampDiffMs = 5 * 60 * 1000, // 5 minutes
     skip,
     errorMessage = 'Authentication required',
-    allowDevBypass = true, // Allow bypass in development by default
   } = options;
-
-  // SECURITY: Explicit production check
-  const isProduction = process.env.NODE_ENV === 'production';
-  const isDevelopment = !isProduction;
-
-  // SECURITY: Warn if production environment is not explicitly set
-  if (!isProduction && !process.env.NODE_ENV) {
-    logger.warn('NODE_ENV not set. Assuming development mode. Authentication bypass may be enabled.');
-  }
 
   return async (req: HttpRequest, res: HttpResponse, next: HttpNextFunction): Promise<void> => {
     try {
@@ -122,29 +106,7 @@ export function authenticate(options: AuthMiddlewareOptions = {}) {
       const authHeader = Array.isArray(authHeaderValue) ? authHeaderValue[0] : authHeaderValue;
       
       if (!authHeader) {
-        // SECURITY: Only allow bypass in non-production environments
-        // Explicitly check that we're NOT in production
-        if (!isProduction && allowDevBypass) {
-          logger.debug('Authentication bypassed in development/sandbox', {
-            path: req.path,
-            method: req.method,
-            env: process.env.NODE_ENV || 'undefined',
-            warning: 'Authentication bypass is enabled',
-          });
-          // Attach a default dev API key for reference
-          (req as any).authenticatedApiKey = 'dev-bypass';
-          return next();
-        }
-
-        // SECURITY: In production, never allow bypass
-        if (isProduction) {
-          logger.warn('Authentication required in production - bypass not allowed', {
-            path: req.path,
-            method: req.method,
-            ip: req.ip || req.socket?.remoteAddress,
-          });
-        }
-
+        // Authentication is always required - no bypass allowed
         if (required) {
           logger.warn('Missing authorization header', {
             path: req.path,
@@ -260,8 +222,10 @@ export function authenticate(options: AuthMiddlewareOptions = {}) {
           // Debug info (only in development)
           debug: process.env.NODE_ENV === 'development' ? {
             expectedBodyHash: bodyHash,
-            providedSignature: providedSignature.substring(0, 20) + '...',
-            expectedSignature: expectedSignature.substring(0, 20) + '...',
+            // providedSignature: providedSignature.substring(0, 20) + '...',
+            // expectedSignature: expectedSignature.substring(0, 20) + '...',
+            providedSignature: providedSignature,
+            expectedSignature: expectedSignature,
             queryString,
             timestamp,
             nonce: nonce.substring(0, 10) + '...',

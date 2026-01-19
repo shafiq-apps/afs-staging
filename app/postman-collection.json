@@ -1,48 +1,11 @@
 {
   "info": {
     "name": "Advanced Filters & Search App API",
-    "description": "Auto-generated Postman collection from route files",
+    "description": "Auto-generated Postman collection from route files with HMAC-SHA256 authentication support",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_exporter_id": "postman-generator"
   },
   "item": [
-    {
-      "name": "App",
-      "item": [
-        {
-          "name": "POST /app/events",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/app/events?shop={{shop_domain}}",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "app",
-                "events"
-              ],
-              "query": [
-                {
-                  "key": "shop",
-                  "value": "{{shop_domain}}",
-                  "description": "Shop domain (optional)"
-                }
-              ]
-            },
-            "description": "Route from modules\\app\\routes\\events.ts (app module)"
-          },
-          "response": []
-        }
-      ]
-    },
     {
       "name": "Graphql",
       "item": [
@@ -54,6 +17,11 @@
               {
                 "key": "Content-Type",
                 "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "{{auth_header}}",
                 "type": "text"
               }
             ],
@@ -73,76 +41,7 @@
                 }
               ]
             },
-            "description": "Route from modules\\graphql\\routes\\index.ts (graphql module)"
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "Indexing",
-      "item": [
-        {
-          "name": "POST /indexing/best-seller-cleanup",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/indexing/best-seller-cleanup?shop={{shop_domain}}",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "indexing",
-                "best-seller-cleanup"
-              ],
-              "query": [
-                {
-                  "key": "shop",
-                  "value": "{{shop_domain}}",
-                  "description": "Shop domain (optional)"
-                }
-              ]
-            },
-            "description": "Route from modules\\indexing\\routes\\best-seller-cleanup.ts (indexing module)"
-          },
-          "response": []
-        },
-        {
-          "name": "POST /indexing/reindex",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/indexing/reindex?shop={{shop_domain}}",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "indexing",
-                "reindex"
-              ],
-              "query": [
-                {
-                  "key": "shop",
-                  "value": "{{shop_domain}}",
-                  "description": "Shop domain (required)"
-                }
-              ]
-            },
-            "description": "Route from modules\\indexing\\routes\\reindex.ts (indexing module)"
+            "description": "Route from modules\\graphql\\routes\\index.ts (graphql module) [Requires Authentication]\n\nNote: Reindexing is now only available via GraphQL mutation. Use the `reindexProducts` mutation instead of the deprecated REST endpoint."
           },
           "response": []
         }
@@ -199,7 +98,7 @@
                 }
               ]
             },
-            "description": "Route from modules\\products\\routes\\filters.ts (products module)"
+            "description": "Route from modules\\storefront\\routes\\filters.ts (storefront module) [Public]"
           },
           "response": []
         },
@@ -271,7 +170,39 @@
                 }
               ]
             },
-            "description": "Route from modules\\products\\routes\\products.ts (products module)"
+            "description": "Route from modules\\storefront\\routes\\products.ts (storefront module) [Public]"
+          },
+          "response": []
+        },
+        {
+          "name": "GET /storefront/search",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/storefront/search?shop={{shop_domain}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "storefront",
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "shop",
+                  "value": "{{shop_domain}}",
+                  "description": "Shop domain (optional)"
+                }
+              ]
+            },
+            "description": "Route from modules\\storefront\\routes\\search.ts (storefront module) [Public]"
           },
           "response": []
         }
@@ -308,7 +239,7 @@
                 }
               ]
             },
-            "description": "Route from modules\\system\\routes\\health.ts (system module)"
+            "description": "Route from modules\\system\\routes\\health.ts (system module) [Public]"
           },
           "response": []
         },
@@ -340,7 +271,7 @@
                 }
               ]
             },
-            "description": "Route from modules\\system\\routes\\monitor.ts (system module)"
+            "description": "Route from modules\\system\\routes\\monitor.ts (system module) [Public]"
           },
           "response": []
         },
@@ -372,7 +303,7 @@
                 }
               ]
             },
-            "description": "Route from modules\\system\\routes\\status.ts (system module)"
+            "description": "Route from modules\\system\\routes\\status.ts (system module) [Public]"
           },
           "response": []
         }
@@ -389,6 +320,306 @@
       "key": "shop_domain",
       "value": "digitalcoo-filter-demo-10.myshopify.com",
       "type": "string"
+    },
+    {
+      "key": "API_KEY",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "API_SECRET",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// HMAC-SHA256 Authentication Pre-request Script",
+          "// Automatically generates authentication headers for protected routes",
+          "// Uses native crypto API (not CryptoJS)",
+          "",
+          "// Wrap in async IIFE to use async/await",
+          "(async function() {",
+          "// Get request details first",
+          "const method = pm.request.method;",
+          "",
+          "// Handle Postman URL object - it can be an object or string",
+          "let path = '/';",
+          "let queryParams = [];",
+          "let queryString = '';",
+          "",
+          "try {",
+          "    // pm.request.url is a PostmanUrl object in Postman",
+          "    // Extract path and query from the URL object directly",
+          "    const url = pm.request.url;",
+          "    ",
+          "    if (url && typeof url === 'object') {",
+          "        // Postman URL object structure: { protocol, host, path, query, etc. }",
+          "        // Extract path - must match Express req.path (path without query string)",
+          "        const pathParts = url.path || [];",
+          "        const extractedPath = Array.isArray(pathParts) ? pathParts.filter(p => p).join('/') : (pathParts || '');",
+          "        // Ensure path starts with / and normalize (matches Express req.path)",
+          "        path = extractedPath.startsWith('/') ? extractedPath : '/' + extractedPath;",
+          "        ",
+          "        // Extract query parameters - will be built later with sorting",
+          "        // Store query params for later processing",
+          "        queryParams = url.query || [];",
+          "    } else if (typeof url === 'string') {",
+          "        // If it's a string, try to parse it",
+          "        try {",
+          "            // Resolve Postman variables first",
+          "            let resolvedUrl = url;",
+          "            if (url.includes('{{')) {",
+          "                const baseUrl = pm.environment.get(\"base_url\") || pm.collectionVariables.get(\"base_url\") || \"http://localhost:3554\";",
+          "                resolvedUrl = url.replace(/\\{\\{base_url\\}\\}/g, baseUrl);",
+          "                resolvedUrl = resolvedUrl.replace(/\\{\\{([^}]+)\\}\\}/g, function(match, varName) {",
+          "                    return pm.environment.get(varName) || pm.collectionVariables.get(varName) || match;",
+          "                });",
+          "            }",
+          "            ",
+          "            const urlObj = new URL(resolvedUrl);",
+          "            path = urlObj.pathname;",
+          "            // Extract query params from URL string for later sorting",
+          "            if (urlObj.search) {",
+          "                const params = new URLSearchParams(urlObj.search.substring(1));",
+          "                queryParams = Array.from(params.entries()).map(function(entry) {",
+          "                    return { key: entry[0], value: entry[1] };",
+          "                });",
+          "            }",
+          "        } catch (parseError) {",
+          "            console.warn('Failed to parse URL string, using fallback:', parseError);",
+          "            // Extract path manually from string",
+          "            const pathMatch = url.match(/\\/([^?]*)/);",
+          "            if (pathMatch) {",
+          "                path = pathMatch[0];",
+          "            }",
+          "            const queryMatch = url.match(/\\?([^#]*)/);",
+          "            if (queryMatch) {",
+          "                // Extract query params from string for later sorting",
+          "                const params = new URLSearchParams(queryMatch[1]);",
+          "                queryParams = Array.from(params.entries()).map(function(entry) {",
+          "                    return { key: entry[0], value: entry[1] };",
+          "                });",
+          "            }",
+          "        }",
+          "    }",
+          "} catch (error) {",
+          "    console.error('Error extracting URL components:', error);",
+          "    // Skip authentication if URL parsing fails",
+          "    return;",
+          "}",
+          "",
+          "// Check if route requires authentication (has Authorization header placeholder)",
+          "const hasAuthHeader = pm.request.headers.has('Authorization');",
+          "if (!hasAuthHeader) {",
+          "    // Route doesn't require authentication, skip",
+          "    console.log('⏭ Skipping authentication for public route:', method, path);",
+          "    return;",
+          "}",
+          "",
+          "const apiKey = pm.environment.get(\"API_KEY\") || pm.collectionVariables.get(\"API_KEY\");",
+          "const apiSecret = pm.environment.get(\"API_SECRET\") || pm.collectionVariables.get(\"API_SECRET\");",
+          "",
+          "// Only generate auth header if credentials are available",
+          "if (!apiKey || !apiSecret) {",
+          "    console.warn('⚠️  API_KEY and API_SECRET must be set for authenticated routes');",
+          "    return;",
+          "}",
+          "",
+          "// Helper function to convert string to Uint8Array",
+          "function stringToBytes(str) {",
+          "    const bytes = [];",
+          "    for (let i = 0; i < str.length; i++) {",
+          "        const charCode = str.charCodeAt(i);",
+          "        if (charCode < 0x80) {",
+          "            bytes.push(charCode);",
+          "        } else if (charCode < 0x800) {",
+          "            bytes.push(0xc0 | (charCode >> 6));",
+          "            bytes.push(0x80 | (charCode & 0x3f));",
+          "        } else {",
+          "            bytes.push(0xe0 | (charCode >> 12));",
+          "            bytes.push(0x80 | ((charCode >> 6) & 0x3f));",
+          "            bytes.push(0x80 | (charCode & 0x3f));",
+          "        }",
+          "    }",
+          "    return new Uint8Array(bytes);",
+          "}",
+          "",
+          "// Helper function to convert ArrayBuffer to base64",
+          "function arrayBufferToBase64(buffer) {",
+          "    const bytes = new Uint8Array(buffer);",
+          "    let binary = '';",
+          "    for (let i = 0; i < bytes.byteLength; i++) {",
+          "        binary += String.fromCharCode(bytes[i]);",
+          "    }",
+          "    return btoa(binary);",
+          "}",
+          "",
+          "// Get request body",
+          "// IMPORTANT: Server hashes the parsed JSON object (not raw string)",
+          "// Express body parser parses JSON, so we need to hash the parsed object with sorted keys",
+          "let bodyHash = '';",
+          "const body = pm.request.body;",
+          "if (body && body.raw) {",
+          "    const bodyStr = body.raw;",
+          "    if (bodyStr && bodyStr.length > 0) {",
+          "        try {",
+          "            // Parse JSON first (matches what Express body parser does)",
+          "            const parsed = JSON.parse(bodyStr);",
+          "            ",
+          "            // Stringify with sorted keys (matches server's hashRequestBody logic)",
+          "            // Server uses: JSON.stringify(body, Object.keys(body).sort())",
+          "            // Note: JSON.stringify with replacer array sorts keys automatically",
+          "            const sortedKeys = Object.keys(parsed).sort();",
+          "            // Use replacer array to ensure keys are in sorted order",
+          "            const sortedBody = JSON.stringify(parsed, sortedKeys);",
+          "            ",
+          "            // Hash the sorted JSON string (matches server's hashRequestBody)",
+          "            if (crypto && crypto.subtle) {",
+          "                const data = stringToBytes(sortedBody);",
+          "                const hashBuffer = await crypto.subtle.digest('SHA-256', data);",
+          "                bodyHash = arrayBufferToBase64(hashBuffer);",
+          "            } else {",
+          "                console.warn('crypto.subtle not available, skipping body hash');",
+          "                bodyHash = '';",
+          "            }",
+          "        } catch (parseError) {",
+          "            // If not JSON, hash as-is (but this shouldn't happen for GraphQL)",
+          "            try {",
+          "                if (crypto && crypto.subtle) {",
+          "                    const data = stringToBytes(bodyStr);",
+          "                    const hashBuffer = await crypto.subtle.digest('SHA-256', data);",
+          "                    bodyHash = arrayBufferToBase64(hashBuffer);",
+          "                } else {",
+          "                    console.warn('crypto.subtle not available, skipping body hash');",
+          "                    bodyHash = '';",
+          "                }",
+          "            } catch (e) {",
+          "                console.error('Error hashing body:', e);",
+          "                bodyHash = '';",
+          "            }",
+          "        }",
+          "    }",
+          "}",
+          "",
+          "// Generate nonce (random base64 string)",
+          "function generateNonce() {",
+          "    const bytes = [];",
+          "    for (let i = 0; i < 16; i++) {",
+          "        bytes.push(Math.floor(Math.random() * 256));",
+          "    }",
+          "    return btoa(String.fromCharCode(...bytes));",
+          "}",
+          "",
+          "// Build query string (sorted and URL-encoded)",
+          "// IMPORTANT: Must match server's buildQueryString logic exactly",
+          "// Server sorts keys and URL-encodes both key and value",
+          "function buildQueryStringFromPostman(params) {",
+          "    if (!params || params.length === 0) return '';",
+          "    ",
+          "    // Extract key-value pairs from Postman query params",
+          "    const pairs = [];",
+          "    for (let i = 0; i < params.length; i++) {",
+          "        const param = params[i];",
+          "        if (param && (param.key || param.name)) {",
+          "            const key = param.key || param.name || '';",
+          "            const value = param.value || '';",
+          "            // Store key-value pair (will sort and encode later)",
+          "            pairs.push({",
+          "                key: key,",
+          "                value: String(value)",
+          "            });",
+          "        }",
+          "    }",
+          "    ",
+          "    // Sort by key (matches server's Object.keys(query).sort())",
+          "    pairs.sort(function(a, b) {",
+          "        return a.key.localeCompare(b.key);",
+          "    });",
+          "    ",
+          "    // Build query string with URL encoding (matches server logic)",
+          "    return pairs.map(function(pair) {",
+          "        return encodeURIComponent(pair.key) + '=' + encodeURIComponent(pair.value);",
+          "    }).join('&');",
+          "}",
+          "",
+          "// Build query string from Postman URL object",
+          "// Server uses buildQueryString(req.query) which sorts keys and URL-encodes",
+          "const sortedQueryString = queryParams && queryParams.length > 0 ? buildQueryStringFromPostman(queryParams) : '';",
+          "",
+          "// Generate timestamp and nonce",
+          "const timestamp = Date.now();",
+          "const nonce = generateNonce();",
+          "",
+          "// Build signature payload",
+          "const payload = [",
+          "    method.toUpperCase(),",
+          "    path,",
+          "    sortedQueryString || '',",
+          "    bodyHash || '',",
+          "    timestamp.toString(),",
+          "    nonce,",
+          "].join('\\n');",
+          "",
+          "// Generate HMAC-SHA256 signature using native crypto API",
+          "let signature = '';",
+          "try {",
+          "    if (!crypto || !crypto.subtle) {",
+          "        throw new Error('crypto.subtle not available');",
+          "    }",
+          "    ",
+          "    const keyData = stringToBytes(apiSecret);",
+          "    const messageData = stringToBytes(payload);",
+          "    ",
+          "    // Import key for HMAC",
+          "    const key = await crypto.subtle.importKey(",
+          "        'raw',",
+          "        keyData,",
+          "        { name: 'HMAC', hash: 'SHA-256' },",
+          "        false,",
+          "        ['sign']",
+          "    );",
+          "    ",
+          "    // Sign the message",
+          "    const signatureBuffer = await crypto.subtle.sign('HMAC', key, messageData);",
+          "    signature = arrayBufferToBase64(signatureBuffer);",
+          "} catch (error) {",
+          "    console.error('Failed to generate HMAC signature:', error);",
+          "    // Skip authentication if signature generation fails",
+          "    return;",
+          "}",
+          "",
+          "// Build authorization header",
+          "const authHeader = 'HMAC-SHA256 apiKey=' + apiKey + ',timestamp=' + timestamp + ',nonce=' + nonce + ',signature=' + signature;",
+          "",
+          "// Debug logging (only in development)",
+          "if (pm.environment.get('DEBUG_AUTH') === 'true' || pm.collectionVariables.get('DEBUG_AUTH') === 'true') {",
+          "    console.log('=== Authentication Debug Info ===');",
+          "    console.log('Method:', method);",
+          "    console.log('Path:', path);",
+          "    console.log('Query String:', sortedQueryString);",
+          "    console.log('Body Hash:', bodyHash);",
+          "    console.log('Timestamp:', timestamp);",
+          "    console.log('Nonce:', nonce);",
+          "    console.log('Payload (for signature):', payload.replace(/\\n/g, ' | '));",
+          "    console.log('Signature:', signature);",
+          "    console.log('================================');",
+          "}",
+          "",
+          "// Update the authorization header",
+          "pm.request.headers.upsert({",
+          "    key: 'Authorization',",
+          "    value: authHeader",
+          "});",
+          "",
+          "console.log('✓ Authentication header generated for', method, path);",
+          "})(); // End async IIFE"
+        ]
+      }
     }
   ]
 }

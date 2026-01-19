@@ -48,22 +48,6 @@ export function loadApiKeysFromEnv(): void {
     logger.info('Loaded primary API key from environment');
   }
 
-  // Add default development/sandbox credentials for easy local development
-  // Only in non-production environments
-  const isDevelopment = process.env.NODE_ENV !== 'production';
-  if (isDevelopment) {
-    const devKey = '35353535353535353535353535353535';
-    const devSecret = '35353535353535353535353535353535';
-    
-    addApiKey({
-      key: devKey,
-      secret: devSecret,
-      name: 'Development/Sandbox Default Key',
-      enabled: true,
-    });
-    logger.info('Loaded default development API key (3535...)');
-  }
-
   // Load additional API keys
   let keyIndex = 1;
   while (true) {
