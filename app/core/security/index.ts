@@ -8,6 +8,7 @@ export * from './security-headers.middleware';
 export * from './request-size.middleware';
 export * from './csrf.middleware';
 export * from './csrf.helper';
+export * from './cors';
 export * from './default-security.middleware';
 export * from './auth.middleware';
 export * from './auth.helper';

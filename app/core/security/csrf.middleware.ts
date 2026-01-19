@@ -24,17 +24,64 @@ interface CSRFOptions {
   skip?: (req: HttpRequest) => boolean;
 }
 
+// SECURITY: CSRF_SECRET should be set in production environment
+// If not set, a random secret is generated on each server restart, invalidating all existing tokens
 const DEFAULT_SECRET = process.env.CSRF_SECRET || crypto.randomBytes(32).toString('hex');
 
-function generateToken(secret: string = DEFAULT_SECRET): string {
-  return crypto.randomBytes(32).toString('hex');
+if (!process.env.CSRF_SECRET && process.env.NODE_ENV === 'production') {
+  logger.warn('CSRF_SECRET not set in production environment. Tokens will be invalidated on server restart.');
 }
 
-function verifyToken(cookieToken: string | undefined, headerToken: string | undefined): boolean {
+/**
+ * Generate a cryptographically signed CSRF token
+ * Uses HMAC-SHA256 to sign the token with the secret
+ */
+function generateToken(secret: string = DEFAULT_SECRET): string {
+  const random = crypto.randomBytes(32);
+  const hmac = crypto.createHmac('sha256', secret);
+  hmac.update(random);
+  const signature = hmac.digest('hex');
+  // Return: randomBytes:signature format for verification
+  return `${random.toString('hex')}:${signature}`;
+}
+
+/**
+ * Verify CSRF token signature and match
+ * Uses constant-time comparison to prevent timing attacks
+ */
+function verifyToken(
+  cookieToken: string | undefined,
+  headerToken: string | undefined,
+  secret: string = DEFAULT_SECRET
+): boolean {
   if (!cookieToken || !headerToken) {
     return false;
   }
-  return cookieToken === headerToken && cookieToken.length > 0;
+
+  // Tokens must match
+  if (cookieToken !== headerToken) {
+    return false;
+  }
+
+  // Verify token signature
+  const parts = cookieToken.split(':');
+  if (parts.length !== 2) {
+    return false;
+  }
+
+  const [randomHex, providedSignature] = parts;
+  const random = Buffer.from(randomHex, 'hex');
+
+  // Recompute signature
+  const hmac = crypto.createHmac('sha256', secret);
+  hmac.update(random);
+  const expectedSignature = hmac.digest('hex');
+
+  // Constant-time comparison
+  return crypto.timingSafeEqual(
+    Buffer.from(providedSignature),
+    Buffer.from(expectedSignature)
+  );
 }
 
 export function csrf(options: CSRFOptions = {}) {
@@ -42,9 +89,9 @@ export function csrf(options: CSRFOptions = {}) {
     cookieName = 'XSRF-TOKEN',
     headerName = 'X-XSRF-TOKEN',
     cookieOptions = {
-      httpOnly: false,
+      httpOnly: true, // SECURITY FIX: Prevent XSS from reading CSRF token
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: 'strict', // SECURITY FIX: Stricter than 'lax' for better protection
       maxAge: 24 * 60 * 60 * 1000,
       path: '/',
     },
@@ -94,7 +141,7 @@ export function csrf(options: CSRFOptions = {}) {
                           req.headers[headerName] ||
                           req.headers['x-csrf-token']) as string | undefined;
 
-      if (!verifyToken(cookieToken, headerToken)) {
+      if (!verifyToken(cookieToken, headerToken, secret)) {
         logger.warn('CSRF token validation failed', {
           path: req.path,
           method: req.method,
