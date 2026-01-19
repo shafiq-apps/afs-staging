@@ -119,3 +119,7 @@ es_app_filters_sample.json
 dashboard/public/frontendbuild/
 
 .nginx
+
+public\slider.html
+public\index.html
+public\assets
