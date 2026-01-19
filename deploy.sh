@@ -65,6 +65,3 @@ echo -e "${GREEN} Deployment completed successfully!${NC}"
 echo ""
 
 pm2 status
-
-
-
