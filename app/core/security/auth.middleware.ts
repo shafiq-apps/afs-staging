@@ -43,6 +43,7 @@
 import crypto from 'crypto';
 import { HttpRequest, HttpResponse, HttpNextFunction } from '@core/http/http.types';
 import { createModuleLogger } from '@shared/utils/logger.util';
+import { maskApiKey } from '@shared/utils/sensitive-data.util';
 import {
   generateSignature,
   hashRequestBody,
@@ -194,7 +195,7 @@ export function authenticate(options: AuthMiddlewareOptions = {}) {
         logger.warn('Invalid API key', {
           path: req.path,
           method: req.method,
-          apiKey,
+          apiKey: maskApiKey(apiKey),
           ip: req.ip || req.socket?.remoteAddress,
         });
 
@@ -235,7 +236,7 @@ export function authenticate(options: AuthMiddlewareOptions = {}) {
         logger.warn('Signature validation failed', {
           path: req.path,
           method: req.method,
-          apiKey,
+          apiKey: maskApiKey(apiKey),
           ip: req.ip || req.socket?.remoteAddress,
           signatureMatch: false,
           // Debug info (only in development)
@@ -270,7 +271,7 @@ export function authenticate(options: AuthMiddlewareOptions = {}) {
       logger.debug('Authentication successful', {
         path: req.path,
         method: req.method,
-        apiKey,
+        apiKey: maskApiKey(apiKey),
       });
 
       next();

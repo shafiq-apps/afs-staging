@@ -5,6 +5,7 @@
  */
 
 import { createModuleLogger } from '@shared/utils/logger.util';
+import { maskApiKey } from '@shared/utils/sensitive-data.util';
 
 const logger = createModuleLogger('api-keys');
 
@@ -114,7 +115,7 @@ export function addApiKey(config: ApiKeyConfig): void {
 
   if (config.secret.length < 32) {
     logger.warn('API secret is shorter than recommended minimum (32 characters)', {
-      key: config.key,
+      key: maskApiKey(config.key),
       secretLength: config.secret.length,
     });
   }
@@ -126,7 +127,7 @@ export function addApiKey(config: ApiKeyConfig): void {
   });
 
   logger.debug('Added API key', {
-    key: config.key,
+    key: maskApiKey(config.key),
     name: config.name,
     enabled: config.enabled,
   });
@@ -146,7 +147,7 @@ export function getApiKey(apiKey: string): ApiKeyConfig | null {
   }
 
   if (!config.enabled) {
-    logger.warn('API key is disabled', { key: apiKey });
+    logger.warn('API key is disabled', { key: maskApiKey(apiKey) });
     return null;
   }
 
@@ -198,7 +199,7 @@ export function listApiKeys(): Omit<ApiKeyConfig, 'secret'>[] {
 export function removeApiKey(apiKey: string): boolean {
   const removed = apiKeysStore.delete(apiKey);
   if (removed) {
-    logger.info('Removed API key', { key: apiKey });
+    logger.info('Removed API key', { key: maskApiKey(apiKey) });
   }
   return removed;
 }
@@ -216,7 +217,7 @@ export function disableApiKey(apiKey: string): boolean {
   }
 
   config.enabled = false;
-  logger.info('Disabled API key', { key: apiKey });
+  logger.info('Disabled API key', { key: maskApiKey(apiKey) });
   return true;
 }
 
@@ -233,7 +234,7 @@ export function enableApiKey(apiKey: string): boolean {
   }
 
   config.enabled = true;
-  logger.info('Enabled API key', { key: apiKey });
+  logger.info('Enabled API key', { key: maskApiKey(apiKey) });
   return true;
 }
 
