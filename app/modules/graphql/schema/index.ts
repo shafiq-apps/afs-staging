@@ -16,8 +16,7 @@ import { searchSchema } from './search.schema';
 import { cacheSchema } from './cache.schema';
 import { webhooksSchema } from './webhooks.schema';
 import { subscriptionSchema } from './subscriptions.schema';
-// Example:
-// import { settingsSchema } from './settings.schema';
+import { supportSchema } from './support.schema';
 
 /**
  * Array of schema strings to combine
@@ -36,8 +35,7 @@ export const schemas: string[] = [
   cacheSchema, // Cache admin/debug endpoints
   webhooksSchema, // Webhook processing mutations
   subscriptionSchema, // Subscription types and mutations
-  
-  // Example: settingsSchema,
+  supportSchema, // Support tickets with Query and Mutation
 ];
 
 /**

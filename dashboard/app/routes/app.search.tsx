@@ -8,6 +8,7 @@ import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { graphqlRequest } from "app/graphql.server";
+import { useTranslation } from "app/utils/translations";
 
 // Types - Keep in sync with app/shared/search/types.ts
 // Note: Dashboard is a separate app, so we define types locally
@@ -44,14 +45,14 @@ const ALL_AVAILABLE_FIELDS: Array<{ field: string; defaultWeight: number }> = [
   { field: "variants.barcode", defaultWeight: 4 }
 ];
 
-// Weight options for select dropdown (0-5 range for better results)
-const WEIGHT_OPTIONS = [
-  { value: 0, label: "Disabled" },
-  { value: 1, label: "Very Low" },
-  { value: 2, label: "Low" },
-  { value: 3, label: "Medium" },
-  { value: 4, label: "High" },
-  { value: 5, label: "Maximum" },
+// Weight options keys for translation
+const WEIGHT_KEYS = [
+  { value: 0, key: "search.weights.disabled" },
+  { value: 1, key: "search.weights.veryLow" },
+  { value: 2, key: "search.weights.low" },
+  { value: 3, key: "search.weights.medium" },
+  { value: 4, key: "search.weights.high" },
+  { value: 5, key: "search.weights.maximum" },
 ];
 
 // Default fields that should be initialized
@@ -151,6 +152,7 @@ export default function SearchPage() {
   const { searchConfig: initialConfig, error: initialError, shop } = useLoaderData<typeof loader>();
   const shopify = useAppBridge();
   const location = useLocation();
+  const { t } = useTranslation();
 
   const [searchConfig, setSearchConfig] = useState<SearchConfig>(initialConfig);
   const [isSaving, setIsSaving] = useState(false);
@@ -176,7 +178,7 @@ export default function SearchPage() {
 
   const handleSave = async () => {
     if (!shop) {
-      shopify.toast.show("Shop information is missing", { isError: true });
+      shopify.toast.show(t("search.messages.saveFailed"), { isError: true });
       return;
     }
 
@@ -224,7 +226,7 @@ export default function SearchPage() {
 
       // Check for GraphQL errors
       if (result.errors && result.errors.length > 0) {
-        const errorMessage = result.errors[0]?.message || "Failed to update search configuration";
+        const errorMessage = result.errors[0]?.message || t("search.messages.saveFailed");
         setError(errorMessage);
         shopify.toast.show(errorMessage, { isError: true });
         return;
@@ -241,9 +243,9 @@ export default function SearchPage() {
 
       // Update state with saved config
       setSearchConfig(result.data.updateSearchConfig);
-      shopify.toast.show("Search configuration saved successfully");
+      shopify.toast.show(t("search.messages.saved"));
     } catch (error: any) {
-      const errorMessage = error.message || "Failed to save search configuration";
+      const errorMessage = error.message || t("search.messages.saveFailed");
       setError(errorMessage);
       shopify.toast.show(errorMessage, { isError: true });
     } finally {
@@ -254,7 +256,7 @@ export default function SearchPage() {
   const handleAddField = (fieldToAdd: { field: string; defaultWeight: number }) => {
     // Check if field already exists
     if (searchConfig.fields.some(f => f.field === fieldToAdd.field)) {
-      shopify.toast.show("This field is already added", { isError: true });
+      shopify.toast.show(t("search.messages.fieldExists"), { isError: true });
       return;
     }
 
@@ -270,7 +272,7 @@ export default function SearchPage() {
 
   const handleRemoveField = (fieldIndex: number) => {
     if (searchConfig.fields.length <= 1) {
-      shopify.toast.show("At least one search field is required", { isError: true });
+      shopify.toast.show(t("search.messages.minOneField"), { isError: true });
       return;
     }
     const updatedFields = searchConfig.fields.filter((_, index) => index !== fieldIndex);
@@ -287,11 +289,11 @@ export default function SearchPage() {
   );
 
   return (
-    <s-page key={`search-${location.pathname}`} heading="Search Configuration" data-page-id="search">
+    <s-page key={`search-${location.pathname}`} heading={t("search.pageTitle")} data-page-id="search">
       {error && (
         <s-section>
           <s-banner tone="critical">
-            <s-text>Error: {error}</s-text>
+            <s-text>{t("common.error")}: {error}</s-text>
           </s-banner>
         </s-section>
       )}
@@ -302,19 +304,18 @@ export default function SearchPage() {
           onClick={handleSave}
           loading={isSaving}
           disabled={searchConfig.fields.length === 0}
-          accessibilityLabel="Save search configuration"
+          accessibilityLabel={t("search.saveButton")}
         >
-          Save Configuration
+          {t("search.saveButton")}
         </s-button>
       </s-stack>
 
       <s-section>
         <s-stack direction="block" gap="base">
           <s-stack direction="block" gap="small">
-            <s-heading>Searchable Fields</s-heading>
+            <s-heading>{t("search.searchableFields.title")}</s-heading>
             <s-text tone="auto">
-              Configure which fields are searchable and their relative importance (weight).
-              Higher weights mean the field has more influence on search results.
+              {t("search.searchableFields.description")}
             </s-text>
           </s-stack>
 
@@ -328,7 +329,7 @@ export default function SearchPage() {
             >
               <s-stack direction="block" gap="small">
                 <s-text tone="auto">
-                  Click on a field below to add it to your search configuration
+                  {t("search.searchableFields.addFieldPrompt")}
                 </s-text>
                 <s-stack gap="base" direction="inline">
                   {availableFieldsToAdd.map((field, i) => (
@@ -342,7 +343,7 @@ export default function SearchPage() {
                         <s-text type="strong">{field.field}</s-text>
                         <s-button
                           icon="plus-circle"
-                          accessibilityLabel="add field"
+                          accessibilityLabel={t("search.searchableFields.addButton")}
                           tone="neutral"
                           variant="tertiary"
                           onClick={() => handleAddField(field)}
@@ -364,9 +365,9 @@ export default function SearchPage() {
             <s-stack direction="block" gap="base">
               <s-table variant="auto">
                 <s-table-header-row>
-                  <s-table-header>Field Name</s-table-header>
-                  <s-table-header>Weight</s-table-header>
-                  <s-table-header>Actions</s-table-header>
+                  <s-table-header>{t("search.table.fieldName")}</s-table-header>
+                  <s-table-header>{t("search.table.weight")}</s-table-header>
+                  <s-table-header>{t("search.table.actions")}</s-table-header>
                 </s-table-header-row>
                 <s-table-body>
                   {searchConfig.fields.map((field, index) => (
@@ -378,12 +379,12 @@ export default function SearchPage() {
                         <s-select
                           value={field.weight.toString()}
                           onChange={(e: any) => handleWeightChange(index, parseFloat(e.target.value))}
-                          label="Weight"
+                          label={t("search.table.labelAccessibility")}
                           labelAccessibilityVisibility="exclusive"
                         >
-                          {WEIGHT_OPTIONS.map((option) => (
+                          {WEIGHT_KEYS.map((option) => (
                             <s-option key={option.value} value={String(option.value)}>
-                              {option.label}
+                              {t(option.key)}
                             </s-option>
                           ))}
                         </s-select>
@@ -394,10 +395,10 @@ export default function SearchPage() {
                           tone="critical"
                           onClick={() => handleRemoveField(index)}
                           icon="delete"
-                          accessibilityLabel="Remove field"
+                          accessibilityLabel={t("search.table.removeButton")}
                           disabled={searchConfig.fields.length <= 1}
                         >
-                          Remove
+                          {t("common.remove")}
                         </s-button>
                       </s-table-cell>
                     </s-table-row>
@@ -407,7 +408,7 @@ export default function SearchPage() {
 
               <s-stack direction="block" gap="small">
                 <s-text tone="auto">
-                  {searchConfig.fields.length} active search field(s)
+                  {t("search.searchableFields.activeFields", { count: searchConfig.fields.length.toString() })}
                 </s-text>
               </s-stack>
             </s-stack>
@@ -417,55 +418,44 @@ export default function SearchPage() {
 
       <s-section padding="base">
           <s-stack direction="block" gap="small">
-            <s-text type="strong">How Search Weights Work</s-text>
+            <s-text type="strong">{t("search.howItWorks.title")}</s-text>
             <s-text tone="auto">
-              Search weights control how important each field is when matching search queries. 
-              Fields with higher weights have more influence on search result rankings and will boost products 
-              that match in those fields. The system automatically scales these weights (0-5) to a higher range (0-25) 
-              for optimal Elasticsearch performance.
+              {t("search.howItWorks.description")}
             </s-text>
             <s-unordered-list>
               <s-list-item>
                 <s-text tone="auto">
-                  <s-text type="strong">Weight 5 (Maximum):</s-text> Critical priority fields that should have the strongest influence 
-                  on search results. Best for Product Title, which is the most important field for matching user queries.
+                  <s-text type="strong">Weight 5 (Maximum):</s-text> {t("search.howItWorks.weight5")}
                 </s-text>
               </s-list-item>
               <s-list-item>
                 <s-text tone="auto">
-                  <s-text type="strong">Weight 4 (High):</s-text> Very important fields like SKU, Variant Display Name, or Barcode 
-                  that are frequently used in searches and should rank highly.
+                  <s-text type="strong">Weight 4 (High):</s-text> {t("search.howItWorks.weight4")}
                 </s-text>
               </s-list-item>
               <s-list-item>
                 <s-text tone="auto">
-                  <s-text type="strong">Weight 3 (Medium):</s-text> Important supporting fields such as Tags that provide additional 
-                  context and help match related products.
+                  <s-text type="strong">Weight 3 (Medium):</s-text> {t("search.howItWorks.weight3")}
                 </s-text>
               </s-list-item>
               <s-list-item>
                 <s-text tone="auto">
-                  <s-text type="strong">Weight 2 (Low):</s-text> Secondary fields like Variant Title that provide supplementary 
-                  matching but shouldn't override primary fields.
+                  <s-text type="strong">Weight 2 (Low):</s-text> {t("search.howItWorks.weight2")}
                 </s-text>
               </s-list-item>
               <s-list-item>
                 <s-text tone="auto">
-                  <s-text type="strong">Weight 1 (Very Low):</s-text> Supporting fields such as Vendor or Product Type that add 
-                  minimal influence but can help differentiate similar products.
+                  <s-text type="strong">Weight 1 (Very Low):</s-text> {t("search.howItWorks.weight1")}
                 </s-text>
               </s-list-item>
               <s-list-item>
                 <s-text tone="auto">
-                  <s-text type="strong">Weight 0 (Disabled):</s-text> Fields that are not used in search queries. 
-                  You can remove disabled fields and add them back later if needed.
+                  <s-text type="strong">Weight 0 (Disabled):</s-text> {t("search.howItWorks.weight0")}
                 </s-text>
               </s-list-item>
             </s-unordered-list>
             <s-text tone="auto">
-              <s-text type="strong">Best Practice:</s-text> Start with Product Title at maximum weight (5), then adjust other fields 
-              based on how important they are for your store. Only active fields (weight 1-5) are used in search queries. 
-              The system optimizes performance by using only the top 2 weighted fields for fastest search results.
+              <s-text type="strong">Best Practice:</s-text> {t("search.howItWorks.bestPractice")}
             </s-text>
           </s-stack>
       </s-section>

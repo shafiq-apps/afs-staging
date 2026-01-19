@@ -1,0 +1,6 @@
+# Ignore all crash report files (contains sensitive user data)
+*.crashlog
+
+# Keep this directory structure in git
+!.gitignore
+

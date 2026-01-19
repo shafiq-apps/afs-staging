@@ -27,3 +27,7 @@ gitpush.sh
 
 .cursor/*
 .gemini/*
+
+/dashboard/public/frontendbuild
+dashboard/public/frontendbuild
+dashboard/public/frontendbuild/*

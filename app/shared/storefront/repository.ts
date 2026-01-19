@@ -2011,10 +2011,11 @@ export class StorefrontSearchRepository {
     });
     
     // Suggestions query (if needed) - only if explicitly requested
+    // Sorted by bestSellerRank to prioritize bestsellers
     if (options?.includeSuggestions) {
       msearchBody.push({ index });
       msearchBody.push({
-        size: Math.min((options.suggestionLimit || 5) * 2, 15),
+        size: Math.min((options.suggestionLimit || 5) * 3, 20),
         query: {
           bool: {
             must: [
@@ -2031,15 +2032,18 @@ export class StorefrontSearchRepository {
             ],
           },
         },
-        sort: [{ _score: 'desc' }],
-        _source: ['title'],
+        sort: [
+          { _score: 'desc' },
+          { [ES_FIELDS.BEST_SELLER_RANK]: { order: 'asc', missing: '_last' } }
+        ],
+        _source: ['id', 'title'],
         timeout: '150ms',
         track_total_hits: false,
-        terminate_after: (options.suggestionLimit || 5) * 3,
+        terminate_after: (options.suggestionLimit || 5) * 4,
       });
     }
     
-    // Execute msearch
+    // Execute msearch - single round trip
     let msearchResponse: { responses: any[] };
     try {
       msearchResponse = await this.esClient.msearch({ body: msearchBody });
@@ -2063,8 +2067,11 @@ export class StorefrontSearchRepository {
       : (mainResponse.hits.total as any)?.value || mainResponse.hits.hits.length;
     const totalPages = Math.ceil(total / limit);
     
+    // Extract product IDs from main results for deduplication
+    const productIds = new Set<string>();
     const products = mainResponse.hits.hits.map((hit: any) => {
       const product = hit._source as shopifyProduct;
+      productIds.add(product.id);
       return {
         id: product.id,
         handle: product.handle,
@@ -2086,7 +2093,7 @@ export class StorefrontSearchRepository {
       totalPages,
     };
     
-    // Process suggestions (if requested)
+    // Process suggestions (if requested) - exclude products already shown in results
     let suggestions: string[] | undefined;
     if (options?.includeSuggestions && msearchResponse.responses.length > 1) {
       const suggestResponse = msearchResponse.responses[1];
@@ -2095,7 +2102,14 @@ export class StorefrontSearchRepository {
         const queryLower = query.toLowerCase();
         
         for (const hit of suggestResponse.hits.hits) {
+          const suggestedProductId = hit._source?.id;
           const title = hit._source?.title;
+          
+          // Skip if this product is already in main results
+          if (suggestedProductId && productIds.has(suggestedProductId)) {
+            continue;
+          }
+          
           if (title && typeof title === 'string') {
             const titleLower = title.toLowerCase();
             if (titleLower.startsWith(queryLower) || titleLower.includes(' ' + queryLower)) {

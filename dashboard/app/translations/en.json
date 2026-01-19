@@ -1,10 +1,262 @@
 {
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "remove": "Remove",
+    "add": "Add",
+    "loading": "Loading...",
+    "saving": "Saving...",
+    "success": "Success",
+    "failed": "Failed",
+    "error": "Error",
+    "never": "Never",
+    "unknown": "Unknown"
+  },
   "navigation": {
     "home": "Home",
     "filters": "Filters",
     "search": "Search",
     "indexing": "Sync",
-    "pricing": "Pricing"
+    "pricing": "Pricing",
+    "support": "Support"
+  },
+  "home": {
+    "pageTitle": "Advanced Filters & Search",
+    "overview": {
+      "title": "Overview",
+      "totalFilters": "Total Filters",
+      "published": "Published",
+      "draft": "Draft",
+      "productsIndexed": "Products Indexed"
+    },
+    "quickActions": {
+      "title": "Quick Actions",
+      "createFilter": {
+        "title": "Create Filter",
+        "description": "Build custom filters to help customers find products quickly.",
+        "button": "Create New Filter",
+        "accessibilityLabel": "Create New Filter"
+      },
+      "manageFilters": {
+        "title": "Manage Filters",
+        "description": "View, edit, and organize all your storefront filters.",
+        "button": "View All Filters"
+      },
+      "productSync": {
+        "title": "Product Sync",
+        "description": "Sync your products to keep filter options up-to-date.",
+        "button": "Sync Products"
+      }
+    },
+    "recentFilters": {
+      "title": "Recent Filters",
+      "noFilters": "No filters yet",
+      "createFirst": "Create Your First Filter",
+      "viewAll": "View All {count} Filters"
+    },
+    "syncStatus": {
+      "title": "Product Sync Status",
+      "status": "Status",
+      "productsIndexed": "Products Indexed",
+      "failed": "Failed",
+      "progress": "Progress",
+      "lastSync": "Last Sync",
+      "button": "Manage Product Sync",
+      "accessibilityLabel": "Manage Product Sync"
+    },
+    "gettingStarted": {
+      "title": "Getting Started",
+      "whatIs": {
+        "title": "What is Advanced Filters & Search?",
+        "description": "This app helps you create powerful, customizable filters for your storefront. Enable customers to find products quickly by filtering by price, color, size, brand, tags, and more. Customize filter display types, organize filter options, and control exactly how filters appear on your storefront."
+      },
+      "quickStart": {
+        "title": "Quick Start Guide",
+        "step1": "Sync your products to index product data for filtering",
+        "step2": "Create your first filter with custom options and settings",
+        "step3": "Configure filter options like price ranges, colors, sizes, and more",
+        "step4": "Publish your filter to make it available on your storefront"
+      },
+      "features": {
+        "title": "Features",
+        "customFilters": {
+          "title": "Custom Filter Options",
+          "description": "Create filters for price, variants, tags, collections, and more"
+        },
+        "flexibleDisplay": {
+          "title": "Flexible Display Types",
+          "description": "Choose from checkboxes, radio buttons, swatches, ranges, and more"
+        },
+        "collectionTargeting": {
+          "title": "Collection Targeting",
+          "description": "Show filters on all collections or specific collections only"
+        },
+        "dragAndDrop": {
+          "title": "Drag & Drop Organization",
+          "description": "Easily reorder filter options to control display priority"
+        }
+      }
+    }
+  },
+  "search": {
+    "pageTitle": "Search Configuration",
+    "saveButton": "Save Configuration",
+    "searchableFields": {
+      "title": "Searchable Fields",
+      "description": "Configure which fields are searchable and their relative importance (weight). Higher weights mean the field has more influence on search results.",
+      "addFieldPrompt": "Click on a field below to add it to your search configuration",
+      "addButton": "add field",
+      "activeFields": "{count} active search field(s)"
+    },
+    "table": {
+      "fieldName": "Field Name",
+      "weight": "Weight",
+      "actions": "Actions",
+      "removeButton": "Remove",
+      "labelAccessibility": "Weight"
+    },
+    "weights": {
+      "disabled": "Disabled",
+      "veryLow": "Very Low",
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "maximum": "Maximum"
+    },
+    "howItWorks": {
+      "title": "How Search Weights Work",
+      "description": "Search weights control how important each field is when matching search queries. Fields with higher weights have more influence on search result rankings and will boost products that match in those fields. The system automatically scales these weights (0-5) to a higher range (0-25) for optimal Elasticsearch performance.",
+      "weight5": "Critical priority fields that should have the strongest influence on search results. Best for Product Title, which is the most important field for matching user queries.",
+      "weight4": "Very important fields like SKU, Variant Display Name, or Barcode that are frequently used in searches and should rank highly.",
+      "weight3": "Important supporting fields such as Tags that provide additional context and help match related products.",
+      "weight2": "Secondary fields like Variant Title that provide supplementary matching but shouldn't override primary fields.",
+      "weight1": "Supporting fields such as Vendor or Product Type that add minimal influence but can help differentiate similar products.",
+      "weight0": "Fields that are not used in search queries. You can remove disabled fields and add them back later if needed.",
+      "bestPractice": "Start with Product Title at maximum weight (5), then adjust other fields based on how important they are for your store. Only active fields (weight 1-5) are used in search queries. The system optimizes performance by using only the top 2 weighted fields for fastest search results."
+    },
+    "messages": {
+      "saved": "Search configuration saved successfully",
+      "fieldExists": "This field is already added",
+      "minOneField": "At least one search field is required",
+      "saveFailed": "Failed to save search configuration"
+    }
+  },
+  "support": {
+    "pageTitle": "Support",
+    "contactUs": {
+      "title": "Contact Us",
+      "description": "Get in touch with our support team for assistance",
+      "phone": {
+        "title": "Phone Support",
+        "description": "Call us for immediate assistance with urgent issues",
+        "label": "Phone"
+      },
+      "email": {
+        "title": "Email Support",
+        "description": "Send us an email and we'll respond within 24 hours",
+        "label": "Email"
+      },
+      "hours": {
+        "title": "Support Hours",
+        "label": "Hours"
+      }
+    },
+    "documentation": {
+      "title": "Documentation & Resources",
+      "description": "Browse our comprehensive documentation to find answers to common questions"
+    },
+    "form": {
+      "title": "Submit a Support Request",
+      "description": "Fill out the form below and our support team will get back to you as soon as possible",
+      "name": {
+        "label": "Name",
+        "placeholder": "Your name",
+        "required": "Name is required"
+      },
+      "email": {
+        "label": "Email",
+        "placeholder": "your.email@example.com",
+        "required": "Email is required",
+        "invalid": "Please provide a valid email address"
+      },
+      "subject": {
+        "label": "Subject",
+        "placeholder": "Brief summary of your issue",
+        "required": "Subject is required"
+      },
+      "priority": {
+        "label": "Priority",
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High",
+        "urgent": "Urgent"
+      },
+      "message": {
+        "label": "Message",
+        "placeholder": "Please describe your issue in detail. Include any error messages, steps to reproduce, and relevant screenshots.",
+        "required": "Message is required",
+        "minLength": "Message must be at least {min} characters long",
+        "maxLength": "Message must not exceed {max} characters",
+        "characterCount": "{current} / {max} characters",
+        "minWarning": "Minimum {min} characters required"
+      },
+      "submit": "Send Support Request",
+      "submitting": "Sending...",
+      "pleaseWait": "Please wait..."
+    },
+    "messages": {
+      "success": "Your support request has been sent successfully. We'll get back to you soon!",
+      "error": "Failed to send support request. Please try again or email us directly.",
+      "serverDown": "Our support system is currently unavailable. Please try again later or email us directly at {email}",
+      "validationError": "Please fill in all required fields"
+    },
+    "appInfo": {
+      "version": "{appName} v{appVersion}",
+      "shop": "Shop: {shop}"
+    }
+  },
+  "pricing": {
+    "pageTitle": "Pricing Plans"
+  },
+  "subscription": {
+    "thankYou": {
+      "pageTitle": "Thank you",
+      "success": {
+        "title": "Subscription successful!",
+        "message": "Your plan has been upgraded."
+      },
+      "error": {
+        "title": "Error",
+        "defaultMessage": "Something went wrong while confirming your subscription.",
+        "shopNotFound": "Shop not found",
+        "missingChargeId": "Missing charge_id",
+        "updateFailed": "Failed to update subscription"
+      }
+    }
+  },
+  "auth": {
+    "login": {
+      "pageTitle": "Log in",
+      "shopDomain": "Shop domain",
+      "shopExample": "example.myshopify.com",
+      "submit": "Log in"
+    }
+  },
+  "errors": {
+    "generic": "An error occurred",
+    "unableToLoad": "Unable to Load Data",
+    "tryAgain": "Try Again",
+    "contactSupport": "Contact Support",
+    "showDetails": "Show Technical Details",
+    "hideDetails": "Hide Technical Details",
+    "technicalDetails": {
+      "error": "Error",
+      "endpoint": "Endpoint",
+      "time": "Time"
+    },
+    "retry": "Retry"
   },
   "filters": {
     "pageTitle": "Filters",

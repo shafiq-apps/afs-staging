@@ -148,6 +148,8 @@ export const shopsSchema = `
     # Get indexing status for a shop
     # Returns current indexing status including progress, errors, and timestamps
     indexingStatus(shop: String!): IndexingStatus!
+
+    isLegacyShop(shop: String!): Boolean
   }
 
   # Mutation operations

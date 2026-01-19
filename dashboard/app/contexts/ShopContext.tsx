@@ -17,6 +17,10 @@ export interface ShopLocaleData {
   }>;
   shopName?: string;
   myshopifyDomain?: string;
+  email?: string;
+  contactEmail?: string;
+  customerEmail?: string;
+  plan?: string;
 }
 
 interface ShopContextType {

@@ -612,24 +612,12 @@ const DOM = {
 
 		if (!this.filtersContainer.parentNode && main) main.appendChild(this.filtersContainer);
 
-		// Ensure filters are closed by default on mobile
-		if (window.innerWidth <= 767) {
-			this.filtersContainer.classList.remove('afs-filters-container--open');
-		}
+	// Ensure filters are closed by default on mobile
+	if (window.innerWidth <= 767) {
+		this.filtersContainer.classList.remove('afs-filters-container--open');
+	}
 
-		// Mobile filter close button (inside filters container)
-		this.mobileFilterClose = $.el('button', 'afs-mobile-filter-close', {
-			type: 'button',
-			'data-afs-action': 'close-filters',
-			'aria-label': Lang.buttons.closeFilters
-		}) as HTMLButtonElement;
-		this.mobileFilterClose.innerHTML = Lang.buttons.close;
-		this.mobileFilterClose.style.display = 'none'; // Hidden on desktop
-
-		// Insert close button at the beginning of filters container
-		if (this.mobileFilterClose && !this.mobileFilterClose.parentNode) {
-			this.filtersContainer.insertBefore(this.mobileFilterClose, this.filtersContainer.firstChild);
-		}
+	// Mobile filter close button will be created only when filters are rendered
 
 		// Create backdrop overlay for mobile drawer (click outside to close)
 		// Check if backdrop already exists
@@ -1221,6 +1209,11 @@ const DOM = {
 	hideFilters(): void {
 		if (this.filtersContainer) {
 			this.filtersContainer.style.display = 'none';
+			// Remove mobile filter close button when hiding filters
+			if (this.mobileFilterClose && this.mobileFilterClose.parentNode) {
+				this.mobileFilterClose.remove();
+				this.mobileFilterClose = null;
+			}
 			Log.debug('Filters container hidden');
 		}
 	},
@@ -1338,10 +1331,26 @@ const DOM = {
 			filtersWithCollapsed: validFilters.filter(f => f.collapsed).length
 		});
 
-		if (validFilters.length === 0) {
-			Log.warn('No valid filters to render');
-			return;
+	if (validFilters.length === 0) {
+		Log.warn('No valid filters to render');
+		// Remove mobile filter close button when no filters
+		if (this.mobileFilterClose && this.mobileFilterClose.parentNode) {
+			this.mobileFilterClose.remove();
+			this.mobileFilterClose = null;
 		}
+		return;
+	}
+
+	// Create mobile filter close button only when there are filters
+	if (!this.mobileFilterClose) {
+		this.mobileFilterClose = $.el('button', 'afs-mobile-filter-close', {
+			type: 'button',
+			'data-afs-action': 'close-filters',
+			'aria-label': Lang.buttons.closeFilters
+		}) as HTMLButtonElement;
+		this.mobileFilterClose.innerHTML = Lang.buttons.close;
+		this.mobileFilterClose.style.display = 'none'; // Hidden on desktop
+	}
 
 		const fragment = document.createDocumentFragment();
 
@@ -1482,15 +1491,26 @@ const DOM = {
 			fragment.appendChild(group);
 		});
 
-		if (fragment.children.length > 0) {
-			this.filtersContainer.appendChild(fragment);
-			// Show filters container when filters are rendered
-			this.showFilters();
-			Log.debug('Filters rendered', { count: fragment.children.length });
-		} else {
-			Log.warn('No filter groups created');
-			// Hide filters container if no filters to show
-			this.hideFilters();
+	if (fragment.children.length > 0) {
+		this.filtersContainer.appendChild(fragment);
+		
+		// Insert mobile filter close button at the beginning of filters container
+		if (this.mobileFilterClose && !this.mobileFilterClose.parentNode) {
+			this.filtersContainer.insertBefore(this.mobileFilterClose, this.filtersContainer.firstChild);
+		}
+		
+		// Show filters container when filters are rendered
+		this.showFilters();
+		Log.debug('Filters rendered', { count: fragment.children.length });
+	} else {
+		Log.warn('No filter groups created');
+		// Remove mobile filter close button when no filter groups
+		if (this.mobileFilterClose && this.mobileFilterClose.parentNode) {
+			this.mobileFilterClose.remove();
+			this.mobileFilterClose = null;
+		}
+		// Hide filters container if no filters to show
+		this.hideFilters();
 		}
 	},
 

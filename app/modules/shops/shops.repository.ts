@@ -63,6 +63,38 @@ export class ShopsRepository {
   }
 
   /**
+   * Get shop by domain
+   * @param shop Shop domain (e.g., example.myshopify.com)
+   */
+  async getLegacyShop(shop: string): Promise<Shop | null> {
+    try {
+      logger.info("shop", shop, "index", this.index);
+      const response = await this.esClient.get({
+        index: 'legacy-shops',
+        id: shop,
+      });
+
+      if (response.found && response._source) {
+        const source = response._source as any;
+        const shopData = {
+          shop: source.shop || shop,
+          ...source,
+        } as Shop;
+
+        return shopData;
+      }
+
+      return null;
+    } catch (error: any) {
+      if (error.statusCode === 404) {
+        return null;
+      }
+      logger.error('Error getting shop from ES', error?.message || error);
+      throw error;
+    }
+  }
+
+  /**
    * Save a new shop (used during OAuth installation)
    * @param input Shop data
    */

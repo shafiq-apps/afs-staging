@@ -21,6 +21,7 @@
     "license": "ISC",
     "dependencies": {
         "@elastic/elasticsearch": "^9.2.0",
+        "@sendgrid/mail": "^8.1.6",
         "axios": "^1.13.2",
         "compression": "^1.8.1",
         "cors": "^2.8.5",

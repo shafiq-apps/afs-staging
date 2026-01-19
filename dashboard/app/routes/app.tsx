@@ -1,15 +1,17 @@
 import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
-import { Outlet, useLoaderData, useRouteError, useLocation, useNavigate } from "react-router";
+import { Outlet, useLoaderData, useRouteError, useLocation, useNavigate, isRouteErrorResponse } from "react-router";
 import { useEffect } from "react";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { AppProvider } from "@shopify/shopify-app-react-router/react";
 import { authenticate, sessionStorage as shopSessionStorage } from "../shopify.server";
 import { ShopProvider, type ShopLocaleData } from "../contexts/ShopContext";
 import { useTranslation } from "app/utils/translations";
-import { graphqlRequest } from "app/graphql.server";
+import { graphqlRequest, GraphQLError } from "app/graphql.server";
+import { throwGraphQLError } from "../utils/throw-graphql-error";
 import { AppSubscriptionStatus, ShopifyActiveSubscriptions, Subscription } from "app/types/Subscriptions";
 import { FETCH_CURRENT_SUBSCRIPTION } from "app/graphql/subscriptions.query";
 import { UPDATE_SUBSCRIPTION_STATUS_MUTATION } from "app/graphql/subscriptions.mutation";
+import { GraphQLErrorBoundary } from "../components/GraphQLErrorBoundary";
 
 const SHOP_DATA_CACHE_KEY = "shop_locale_data";
 const CACHE_DURATION = 1000 * 60 * 60; // 1 hour
@@ -57,22 +59,21 @@ function setCachedShopData(data: ShopLocaleData): void {
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
+  const LEGACY_APP_URL = process.env.LEGACY_APP_URL || "https://fdstaging.digitalcoo.com";
 
-  if(session && session.shop && session.onlineAccessInfo?.associated_user.id){
+  if (session && session.shop && session.onlineAccessInfo?.associated_user.id) {
     await shopSessionStorage.storeSession(session);
   }
 
   const apiKey = process.env.SHOPIFY_API_KEY ?? "";
-
   const shop = session?.shop ?? "";
-
   let shopData: ShopLocaleData | null = null;
   let isNewInstallation = false;
+  let isLegacyShop = false;
 
+  /* ---------------- SHOP LOCALE DATA (Non-Critical) ---------------- */
   try {
-    /* ---------------- SHOP LOCALE DATA ---------------- */
-    try {
-      const response = await admin.graphql(`
+    const response = await admin.graphql(`
       query GetShopLocaleData {
         shop {
           ianaTimezone
@@ -84,6 +85,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           }
           name
           myshopifyDomain
+          email
+          contactEmail
+          customerEmail
+          plan {
+            displayName
+          }
         }
         shopLocales(published: true) {
           locale
@@ -94,119 +101,159 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       }
     `);
 
-      const result = await response.json();
+    const result = await response.json();
 
-      if (result?.data) {
-        const primaryLocale = result.data.shopLocales?.find((l: any) => l.primary)?.locale ?? "en";
+    if (result?.data) {
+      const primaryLocale = result.data.shopLocales?.find((l: any) => l.primary)?.locale ?? "en";
 
-        shopData = {
-          ianaTimezone: result.data.shop?.ianaTimezone ?? "UTC",
-          timezoneAbbreviation: result.data.shop?.timezoneAbbreviation ?? "UTC",
-          currencyCode: result.data.shop?.currencyCode ?? "USD",
-          currencyFormats: result.data.shop?.currencyFormats ?? {},
-          primaryLocale,
-          locales: result.data.shopLocales ?? [],
-          shopName: result.data.shop?.name,
-          myshopifyDomain: result.data.shop?.myshopifyDomain,
-        };
-      }
-    } catch {
-      // Fail silently — defaults will be used
+      shopData = {
+        ianaTimezone: result.data.shop?.ianaTimezone ?? "UTC",
+        timezoneAbbreviation: result.data.shop?.timezoneAbbreviation ?? "UTC",
+        currencyCode: result.data.shop?.currencyCode ?? "USD",
+        currencyFormats: result.data.shop?.currencyFormats ?? {},
+        primaryLocale,
+        locales: result.data.shopLocales ?? [],
+        shopName: result.data.shop?.name,
+        myshopifyDomain: result.data.shop?.myshopifyDomain,
+        email: result.data.shop?.email,
+        contactEmail: result.data.shop?.contactEmail,
+        customerEmail: result.data.shop?.customerEmail,
+        plan: result.data.shop?.plan?.displayName,
+      };
     }
+  } catch {
+    // Fail silently — defaults will be used (non-critical)
+  }
 
-    /* ---------------- INSTALLATION CHECK ---------------- */
-    if (shop) {
-      try {
-        const gquery = `
-          query GetShop($shop: String!) {
+  /* ---------------- INSTALLATION CHECK (Non-Critical) ---------------- */
+  if (shop) {
+    try {
+      const gquery = `
+          query GetShopData($shop: String!) {
             shop(domain: $shop) {
               installedAt
             }
+            isLegacyShop(shop: $shop)
           }
         `;
-        const response = await graphqlRequest(gquery, { shop }).catch(e => { });
-        const installedAt = response?.shop?.installedAt;
-        isNewInstallation = !installedAt || new Date(installedAt).getTime() > Date.now() - 60000;
-      } catch {
-        isNewInstallation = false;
-      }
+      const response = await graphqlRequest(gquery, { shop }).catch(e => {
+        // If it's a server/network error, we should know but not fail
+        if (e instanceof GraphQLError && (e.isServerError || e.isNetworkError)) {
+          console.warn('Server unavailable for installation check:', e.message);
+        }
+        return {
+          shop: null,
+          isLegacyShop: false
+        };
+      });
+      const installedAt = response?.shop?.installedAt;
+      isNewInstallation = !installedAt || new Date(installedAt).getTime() > Date.now() - 60000;
+      isLegacyShop = response?.isLegacyShop || false;
+    } catch {
+      isNewInstallation = false;
     }
+  }
 
-    /* ---------------- SHOPIFY SUBSCRIPTIONS ---------------- */
-    const shopifyResponse = await admin.graphql(`
-      query GetRecurringApplicationCharges {
-        currentAppInstallation {
-          activeSubscriptions {
-            id
-            name
-            status
-          }
+  /* ---------------- SHOPIFY SUBSCRIPTIONS (Critical) ---------------- */
+  // This uses Shopify's API directly, not our Node.js server
+  // If this fails, it's a Shopify issue, not our server being down
+  const shopifyResponse = await admin.graphql(`
+    query GetRecurringApplicationCharges {
+      currentAppInstallation {
+        activeSubscriptions {
+          id
+          name
+          status
         }
       }
-    `);
+    }
+  `);
 
-    const shopifyJson = await shopifyResponse.json();
+  const shopifyJson = await shopifyResponse.json();
+  const activeSubscriptions: ShopifyActiveSubscriptions[] = shopifyJson?.data?.currentAppInstallation?.activeSubscriptions ?? [];
+  const hasActiveSubscription = activeSubscriptions.some(sub => sub.status === AppSubscriptionStatus.ACTIVE);
 
-    const activeSubscriptions: ShopifyActiveSubscriptions[] = shopifyJson?.data?.currentAppInstallation?.activeSubscriptions ?? [];
+  /* ---------------- DB SUBSCRIPTION (Critical if server is needed) ---------------- */
+  // If our Node.js backend is down, this will throw a GraphQLError
+  // We want to catch it and check if it's a server/network error
+  // If so, we should show the downtime screen, not redirect to pricing
+  let subscriptionResult: { subscription: Subscription | null } = { subscription: null };
 
-    const hasActiveSubscription = activeSubscriptions.some(sub => sub.status === AppSubscriptionStatus.ACTIVE);
+  try {
+    subscriptionResult = await graphqlRequest<{ subscription: Subscription; }>(FETCH_CURRENT_SUBSCRIPTION, { shop });
+  } catch (error: any) {
+    // Check if it's a critical error that should show downtime screen
+    // Include: server errors (500+), network errors, and auth errors (401, 403)
+    if (error instanceof GraphQLError) {
+      const isCriticalError = error.isServerError ||
+        error.isNetworkError ||
+        error.statusCode === 401 ||
+        error.statusCode === 403;
 
-    /* ---------------- DB SUBSCRIPTION ---------------- */
-    let subscriptionResult = await graphqlRequest<{ subscription: Subscription; }>(FETCH_CURRENT_SUBSCRIPTION, { shop }).catch(e => {
-      return {
-        subscription: null,
+      if (isCriticalError) {
+        // Show downtime screen for critical errors
+        throwGraphQLError(error);
       }
-    });
+    }
+    // Other errors (like query errors) - we can continue with null subscription
+    console.warn('Subscription fetch failed (non-critical):', error.message);
+  }
 
-    const isSubscriptionActiveInDB = subscriptionResult?.subscription?.status === AppSubscriptionStatus.ACTIVE;
+  const isSubscriptionActiveInDB = subscriptionResult?.subscription?.status === AppSubscriptionStatus.ACTIVE;
 
-    /* ---------------- SYNC DB WITH SHOPIFY ---------------- */
-    if (hasActiveSubscription && !isSubscriptionActiveInDB) {
-      const activeChargeId = activeSubscriptions.find(
-        sub => sub.status === AppSubscriptionStatus.ACTIVE
-      )?.id;
+  /* ---------------- SYNC DB WITH SHOPIFY ---------------- */
+  if (hasActiveSubscription && !isSubscriptionActiveInDB) {
+    const activeChargeId = activeSubscriptions.find(
+      sub => sub.status === AppSubscriptionStatus.ACTIVE
+    )?.id;
 
-      if (activeChargeId) {
+    if (activeChargeId) {
+      try {
         await graphqlRequest(UPDATE_SUBSCRIPTION_STATUS_MUTATION, {
           id: activeChargeId,
           shop,
         });
 
-        // Correct refetch (overwrite previous result)
-        subscriptionResult = await graphqlRequest<{ subscription: Subscription; }>(FETCH_CURRENT_SUBSCRIPTION, { shop }).catch(e => {
-          return {
-            subscription: null
+        // Refetch subscription
+        subscriptionResult = await graphqlRequest<{ subscription: Subscription; }>(FETCH_CURRENT_SUBSCRIPTION, { shop });
+      } catch (error: any) {
+        // Check if it's a critical error
+        if (error instanceof GraphQLError) {
+          const isCriticalError = error.isServerError ||
+            error.isNetworkError ||
+            error.statusCode === 401 ||
+            error.statusCode === 403;
+
+          if (isCriticalError) {
+            // Show downtime screen for critical errors
+            throwGraphQLError(error);
           }
-        });
+        }
+        // Other errors - log and continue
+        console.warn('Subscription sync failed:', error.message);
       }
     }
-    /* ---------------- RETURN ---------------- */
-    return {
-      apiKey,
-      shop,
-      shopData,
-      isNewInstallation,
-      subscription: subscriptionResult?.subscription ?? null,
-      activeSubscriptions,
-    };
-
-  } catch (error) {
-    return {
-      apiKey,
-      shop,
-      shopData,
-      isNewInstallation,
-      subscription: null,
-      activeSubscriptions: [],
-    };
   }
+
+  /* ---------------- RETURN ---------------- */
+  return {
+    apiKey,
+    shop,
+    shopData,
+    isNewInstallation,
+    subscription: subscriptionResult?.subscription ?? null,
+    activeSubscriptions,
+    isLegacyShop,
+    LEGACY_APP_URL
+  };
 };
 
 export default function App() {
-  const { apiKey, shopData, subscription, activeSubscriptions } = useLoaderData<typeof loader>();
+  const { apiKey, shop, shopData, subscription, activeSubscriptions, isLegacyShop, LEGACY_APP_URL } = useLoaderData<typeof loader>();
   const location = useLocation();
   const navigate = useNavigate();
   const { t } = useTranslation();
+
 
   /* ---------------- SUBSCRIPTION HELPERS ---------------- */
   const hasActiveShopifySubscription = activeSubscriptions.some(sub => sub.status === AppSubscriptionStatus.ACTIVE);
@@ -257,8 +304,53 @@ export default function App() {
   ]);
 
   /* ---------------- RENDER ---------------- */
+  // Make API key and shop details available globally for error boundary and crash reports
+  if (typeof window !== "undefined") {
+    (window as any).__SHOPIFY_API_KEY = apiKey;
+    (window as any).__SHOP = shop;
+    (window as any).__SHOP_DETAILS = effectiveShopData ? {
+      domain: shop,
+      name: effectiveShopData.shopName,
+      email: (effectiveShopData as any).email,
+      contactEmail: (effectiveShopData as any).contactEmail,
+      customerEmail: (effectiveShopData as any).customerEmail,
+      myshopifyDomain: effectiveShopData.myshopifyDomain,
+      plan: (effectiveShopData as any).plan,
+      owner: shop,
+    } : null;
+  }
+
+  const handleLoadLegacyApp = () => {
+    window.open(`${LEGACY_APP_URL}/shopapp?shop=${shop}`, "_new");
+  };
+
+  if (isLegacyShop) {
+    return (
+      <AppProvider apiKey={apiKey} embedded={true}>
+        <ShopProvider
+          shopData={effectiveShopData}
+          isLoading={!effectiveShopData}
+        >
+          <div style={{ height: '30vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+            <s-stack direction="inline" alignItems="center" justifyContent="center">
+              <s-button
+                onClick={handleLoadLegacyApp}
+                accessibilityLabel="Load app"
+                type="button"
+                variant="primary"
+                icon="external"
+              >
+                Load App
+              </s-button>
+            </s-stack>
+          </div>
+        </ShopProvider>
+      </AppProvider>
+    )
+  }
+
   return (
-    <AppProvider embedded apiKey={apiKey}>
+    <AppProvider apiKey={apiKey} embedded={true}>
       <ShopProvider
         shopData={effectiveShopData}
         isLoading={!effectiveShopData}
@@ -273,6 +365,7 @@ export default function App() {
             </>
           )}
           <s-link href="/app/pricing">{t("navigation.pricing")}</s-link>
+          <s-link href="/app/support">{t("navigation.support")}</s-link>
         </s-app-nav>
         {
           !hasActiveShopifySubscription && (
@@ -304,9 +397,34 @@ export default function App() {
 }
 
 
-// Shopify needs React Router to catch some thrown responses, so that their headers are included in the response.
+// Error boundary that handles GraphQL and network errors gracefully
 export function ErrorBoundary() {
-  return boundary.error(useRouteError());
+  const error = useRouteError();
+
+  // Check if it's a Remix route error response (from json() throw)
+  if (isRouteErrorResponse(error)) {
+    // Check if the data contains GraphQL error markers
+    if (error.data && typeof error.data === "object" && ("isGraphQLError" in error.data || "code" in error.data || "endpoint" in error.data)) {
+      return <GraphQLErrorBoundary />;
+    }
+  }
+
+  // Check if it's a direct GraphQL error object
+  const isGraphQLErr = error &&
+    typeof error === "object" &&
+    (
+      "isGraphQLError" in error ||
+      "code" in error ||
+      "isNetworkError" in error ||
+      "isServerError" in error ||
+      "endpoint" in error ||
+      (error as any).name === "GraphQLError"
+    );
+
+  if (isGraphQLErr) {
+    return <GraphQLErrorBoundary />;
+  }
+  return boundary.error(error);
 }
 
 export const headers: HeadersFunction = (headersArgs) => {
