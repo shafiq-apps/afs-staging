@@ -1,0 +1,247 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-inter);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+}
+
+/* Ensure input text is visible */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+textarea,
+select {
+  color: #111827 !important;
+  font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif !important;
+  font-size: 16px !important;
+}
+
+input::placeholder {
+  color: #9ca3af !important;
+  opacity: 1 !important;
+}
+
+input:disabled {
+  color: #6b7280 !important;
+}
+
+/* Pointer cursor for interactive elements */
+button:not(:disabled),
+a,
+[role="button"] {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+/* Custom animations for neon gradients and moving symbols */
+@keyframes gradient-xy {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes gradient-xy-reverse {
+  0%, 100% {
+    background-position: 100% 50%;
+  }
+  50% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes gradient-slow {
+  0%, 100% {
+    background-position: 0% 0%;
+  }
+  50% {
+    background-position: 100% 100%;
+  }
+}
+
+@keyframes gradient-diagonal {
+  0%, 100% {
+    background-position: 0% 0%;
+  }
+  50% {
+    background-position: 100% 100%;
+  }
+}
+
+.animate-gradient-xy {
+  background-size: 200% 200%;
+  animation: gradient-xy 15s ease infinite;
+}
+
+.animate-gradient-xy-reverse {
+  background-size: 200% 200%;
+  animation: gradient-xy-reverse 20s ease infinite;
+}
+
+.animate-gradient-slow {
+  background-size: 200% 200%;
+  animation: gradient-slow 25s ease infinite;
+}
+
+.animate-gradient-diagonal {
+  background-size: 200% 200%;
+  animation: gradient-diagonal 18s ease infinite;
+}
+
+/* Moving animations - icons travel across screen */
+@keyframes move-1 {
+  0% {
+    transform: translate(0, 0);
+  }
+  25% {
+    transform: translate(80vw, 20vh);
+  }
+  50% {
+    transform: translate(60vw, 70vh);
+  }
+  75% {
+    transform: translate(20vw, 50vh);
+  }
+  100% {
+    transform: translate(0, 0);
+  }
+}
+
+@keyframes move-2 {
+  0% {
+    transform: translate(100vw, 0);
+  }
+  25% {
+    transform: translate(40vw, 60vh);
+  }
+  50% {
+    transform: translate(10vw, 80vh);
+  }
+  75% {
+    transform: translate(70vw, 30vh);
+  }
+  100% {
+    transform: translate(100vw, 0);
+  }
+}
+
+@keyframes move-3 {
+  0% {
+    transform: translate(50vw, 100vh);
+  }
+  25% {
+    transform: translate(90vw, 40vh);
+  }
+  50% {
+    transform: translate(30vw, 10vh);
+  }
+  75% {
+    transform: translate(0vw, 60vh);
+  }
+  100% {
+    transform: translate(50vw, 100vh);
+  }
+}
+
+@keyframes move-4 {
+  0% {
+    transform: translate(20vw, 30vh);
+  }
+  25% {
+    transform: translate(70vw, 80vh);
+  }
+  50% {
+    transform: translate(100vw, 50vh);
+  }
+  75% {
+    transform: translate(0vw, 20vh);
+  }
+  100% {
+    transform: translate(20vw, 30vh);
+  }
+}
+
+@keyframes move-5 {
+  0% {
+    transform: translate(80vw, 60vh);
+  }
+  25% {
+    transform: translate(10vw, 90vh);
+  }
+  50% {
+    transform: translate(50vw, 20vh);
+  }
+  75% {
+    transform: translate(90vw, 10vh);
+  }
+  100% {
+    transform: translate(80vw, 60vh);
+  }
+}
+
+@keyframes move-6 {
+  0% {
+    transform: translate(30vw, 10vh);
+  }
+  25% {
+    transform: translate(100vw, 70vh);
+  }
+  50% {
+    transform: translate(0vw, 40vh);
+  }
+  75% {
+    transform: translate(60vw, 100vh);
+  }
+  100% {
+    transform: translate(30vw, 10vh);
+  }
+}
+
+.animate-move-1 {
+  animation: move-1 45s ease-in-out infinite;
+}
+
+.animate-move-2 {
+  animation: move-2 50s ease-in-out infinite;
+}
+
+.animate-move-3 {
+  animation: move-3 55s ease-in-out infinite;
+}
+
+.animate-move-4 {
+  animation: move-4 42s ease-in-out infinite;
+}
+
+.animate-move-5 {
+  animation: move-5 48s ease-in-out infinite;
+}
+
+.animate-move-6 {
+  animation: move-6 52s ease-in-out infinite;
+}
