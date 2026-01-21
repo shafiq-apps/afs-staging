@@ -13,3 +13,5 @@ export const COLLECTION_UNUSED_DELETE_DAYS = 30;
 
 export const SUBSCRIPTIONS_INDEX_NAME = 'app_subscriptions';
 export const SUBSCRIPTION_PLANS_INDEX_NAME = 'app_subscription_plans';
+
+export const APP_SUPPORT_TICKET_INDEX = 'app_support_tickets';

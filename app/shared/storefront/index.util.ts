@@ -29,15 +29,15 @@ export async function ensureProductIndex(esClient: Client, shop: string): Promis
       
       await esClient.indices.create({
         index: indexName,
-        mappings: PRODUCT_MAPPING as any, // Type assertion for ES mapping
+        mappings: PRODUCT_MAPPING as any,
         settings: {
           number_of_shards: 1,
-          number_of_replicas: 0, // Can be increased for production
+          number_of_replicas: 0,
           index: {
             refresh_interval: '1s',
             mapping: {
               total_fields: {
-                limit: 5000, // Increased from default 1000
+                limit: 5000
               },
             },
             max_result_window: 50000,

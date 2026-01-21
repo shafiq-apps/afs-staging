@@ -83,6 +83,26 @@ export async function bootstrap() {
   // Get ES client (now guaranteed to be initialized)
   const esClient = getESClient();
 
+  // Initialize static Elasticsearch indices
+  logger.info('Initializing static Elasticsearch indices...');
+  try {
+    const { initializeStaticIndices } = await import('@core/elasticsearch');
+    const initResults = await initializeStaticIndices(esClient);
+    const errorCount = initResults.filter((r) => r.error).length;
+    if (errorCount > 0) {
+      logger.warn('Some static indices failed to initialize', {
+        errors: initResults.filter((r) => r.error),
+      });
+      // Don't fail bootstrap if some indices fail - they might be created later
+    } else {
+      logger.info('All static indices initialized successfully');
+    }
+  } catch (error: any) {
+    logger.error('Failed to initialize static indices', error?.message || error);
+    // Don't fail bootstrap - indices might be created on-demand
+    // But log the error for visibility
+  }
+
   // Initialize modules
   const productsModule = createProductsModule(esClient);
   const shopsModule = createShopsModule(esClient);

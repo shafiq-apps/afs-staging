@@ -77,8 +77,8 @@ export class IndexerCheckpointService {
           },
           settings: {
             number_of_shards: 1,
-            number_of_replicas: 0, // No replicas needed for checkpoints
-            refresh_interval: '5s', // Less frequent refresh for performance
+            number_of_replicas: 0,
+            refresh_interval: '5s'
           },
         });
         LOGGER.debug('Checkpoint index created');
