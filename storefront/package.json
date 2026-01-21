@@ -1,8 +1,8 @@
 {
-  "name": "storefront",
-  "version": "2.0.1",
+  "name": "digitalcoo-storefront-code",
+  "version": "2.0.0",
   "type": "module",
-  "description": "",
+  "description": "DigitalCoo filters and search app's code",
   "main": "index.ts",
   "scripts": {
     "build": "npx tsx build.ts",
