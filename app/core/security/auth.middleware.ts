@@ -43,6 +43,7 @@
 import crypto from 'crypto';
 import { HttpRequest, HttpResponse, HttpNextFunction } from '@core/http/http.types';
 import { createModuleLogger } from '@shared/utils/logger.util';
+import { maskApiKey } from '@shared/utils/sensitive-data.util';
 import {
   generateSignature,
   hashRequestBody,
@@ -75,12 +76,6 @@ export interface AuthMiddlewareOptions {
    * Custom error message for authentication failures
    */
   errorMessage?: string;
-
-  /**
-   * Allow bypass in development/sandbox environment (default: true)
-   * When true, allows requests without auth in non-production environments
-   */
-  allowDevBypass?: boolean;
 }
 
 /**
@@ -95,10 +90,7 @@ export function authenticate(options: AuthMiddlewareOptions = {}) {
     maxTimestampDiffMs = 5 * 60 * 1000, // 5 minutes
     skip,
     errorMessage = 'Authentication required',
-    allowDevBypass = true, // Allow bypass in development by default
   } = options;
-
-  const isDevelopment = process.env.NODE_ENV !== 'production';
 
   return async (req: HttpRequest, res: HttpResponse, next: HttpNextFunction): Promise<void> => {
     try {
@@ -114,18 +106,7 @@ export function authenticate(options: AuthMiddlewareOptions = {}) {
       const authHeader = Array.isArray(authHeaderValue) ? authHeaderValue[0] : authHeaderValue;
       
       if (!authHeader) {
-        // Allow bypass in development/sandbox environment (even if required)
-        if (isDevelopment && allowDevBypass) {
-          logger.debug('Authentication bypassed in development/sandbox', {
-            path: req.path,
-            method: req.method,
-            env: process.env.NODE_ENV,
-          });
-          // Attach a default dev API key for reference
-          (req as any).authenticatedApiKey = 'dev-bypass';
-          return next();
-        }
-
+        // Authentication is always required - no bypass allowed
         if (required) {
           logger.warn('Missing authorization header', {
             path: req.path,
@@ -194,7 +175,7 @@ export function authenticate(options: AuthMiddlewareOptions = {}) {
         logger.warn('Invalid API key', {
           path: req.path,
           method: req.method,
-          apiKey,
+          apiKey: maskApiKey(apiKey),
           ip: req.ip || req.socket?.remoteAddress,
         });
 
@@ -235,14 +216,16 @@ export function authenticate(options: AuthMiddlewareOptions = {}) {
         logger.warn('Signature validation failed', {
           path: req.path,
           method: req.method,
-          apiKey,
+          apiKey: maskApiKey(apiKey),
           ip: req.ip || req.socket?.remoteAddress,
           signatureMatch: false,
           // Debug info (only in development)
           debug: process.env.NODE_ENV === 'development' ? {
             expectedBodyHash: bodyHash,
-            providedSignature: providedSignature.substring(0, 20) + '...',
-            expectedSignature: expectedSignature.substring(0, 20) + '...',
+            // providedSignature: providedSignature.substring(0, 20) + '...',
+            // expectedSignature: expectedSignature.substring(0, 20) + '...',
+            providedSignature: providedSignature,
+            expectedSignature: expectedSignature,
             queryString,
             timestamp,
             nonce: nonce.substring(0, 10) + '...',
@@ -270,7 +253,7 @@ export function authenticate(options: AuthMiddlewareOptions = {}) {
       logger.debug('Authentication successful', {
         path: req.path,
         method: req.method,
-        apiKey,
+        apiKey: maskApiKey(apiKey),
       });
 
       next();

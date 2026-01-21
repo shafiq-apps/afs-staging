@@ -774,8 +774,7 @@ Rate limit exceeded responses:
 **Authentication:**
 - Storefront endpoints: **No authentication** - designed for public use
 - Protected endpoints: Use HMAC-SHA256 authentication (see `AUTHENTICATION.md` for details)
-- Development/Sandbox: Authentication can be bypassed in non-production environments
-- Default dev credentials: `API_KEY=35353535353535353535353535353535` (development only)
+- **All environments require valid API keys** - no development bypass available
 
 **Shop Domain Validation:**
 - All storefront endpoints require valid `shop` parameter
@@ -816,7 +815,7 @@ API version information is available in the `/system/status` endpoint response.
 ### Authentication
 - Storefront endpoints remain **public** (no authentication required)
 - Protected endpoints support HMAC-SHA256 authentication
-- Development bypass available for faster local development
+- **Valid API keys required in all environments** - no development bypass
 
 ---
 

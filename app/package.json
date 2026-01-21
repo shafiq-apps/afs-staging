@@ -1,9 +1,14 @@
 {
-    "name": "advance-filters-search",
-    "version": "0.0.1",
-    "description": "",
+    "name": "digitalcoo-server-code",
+    "version": "2.0.0",
+    "description": "DigitalCoo filters and search app's code",
+    "author": "DigitalCoo",
     "main": "dist/index.js",
     "type": "module",
+    "private": true,
+    "engines": {
+        "node": ">=20.19 <22 || >=22.12"
+    },
     "scripts": {
         "dev": "tsx watch -r tsconfig-paths/register index.ts",
         "postman": "tsx -r tsconfig-paths/register system/cli/postman.ts",
@@ -17,8 +22,6 @@
         "gitpush": "bash system/cli/gitpush.sh",
         "setup:env": "node system/cli/setup-env.js"
     },
-    "author": "Digitalcoo",
-    "license": "ISC",
     "dependencies": {
         "@elastic/elasticsearch": "^9.2.0",
         "@sendgrid/mail": "^8.1.6",
@@ -45,5 +48,6 @@
         "tsc-alias": "^1.8.16",
         "tsx": "^4.20.6",
         "typescript": "^5.9.3"
-    }
+    },
+    "license": "ISC"
 }
