@@ -3,7 +3,7 @@ import { Config } from './config';
 import { Lang } from './locals';
 import { $ } from './utils/$.utils';
 import { waitForElement, waitForElements } from './utils/dom-ready';
-import { FilterKeyType, FilterStateType, FilterOptionType, FilterMetadataType, FiltersStateType, PaginationStateType, SortStateType, ProductsResponseDataType, FiltersResponseDataType, PriceRangeType, AFSConfigType, FilterValueType, ShopifyWindow, SpecialValueType, SortFieldType, SortOrderType, AppliedFilterType, ParsedUrlParamsType, LoggableData, FilterGroupStateType, ProductType, APIResponse, AFSInterfaceType, FilterItemsElement, SliderOptionsType, SliderSlideChangeEventDetailType, ProductVariantType, ProductModalElement, AFSInterface } from "./type";
+import { FilterKeyType, FilterStateType, FilterOptionType, FilterMetadataType, FiltersStateType, PaginationStateType, SortStateType, ProductsResponseDataType, FiltersResponseDataType, PriceRangeType, AFSConfigType, FilterValueType, SpecialValueType, SortFieldType, SortOrderType, AppliedFilterType, ParsedUrlParamsType, FilterGroupStateType, ProductType, APIResponse, AFSInterfaceType, FilterItemsElement, SliderOptionsType, SliderSlideChangeEventDetailType, ProductVariantType, ProductModalElement, AFSInterface } from "./type";
 import { findMatchingVariants, getSelectedOptions, isOptionValueAvailable, isVariantAvailable } from './utils/variant-util';
 import { Log } from './utils/shared';
 
@@ -109,23 +109,23 @@ const UrlManager = {
 			// Support Shopify search page 'q' parameter (map to 'search')
 			else if ($.equals(key, 'q')) params.search = value;
 			// Server-supported price range params
-		else if ($.equals(key, FilterKeyType.PRICE_MIN)) {
-			const v = formatPrice(parseFloat(value));
-			if (!isNaN(v) && v >= 0) parsedPriceMin = v;
-		}
-		else if ($.equals(key, FilterKeyType.PRICE_MAX)) {
-			const v = formatPrice(parseFloat(value));
-			if (!isNaN(v) && v >= 0) parsedPriceMax = v;
-		}
-		// Legacy price range params: "min-max"
-		else if ($.isPriceRangeKey(key)) {
-			const parts = value.split('-');
-			if (parts.length === 2) {
-				const min = formatPrice(parseFloat(parts[0]));
-				const max = formatPrice(parseFloat(parts[1]));
-				if (!isNaN(min) && min >= 0) parsedPriceMin = min;
-				if (!isNaN(max) && max >= 0) parsedPriceMax = max;
+			else if ($.equals(key, FilterKeyType.PRICE_MIN)) {
+				const v = formatPrice(parseFloat(value));
+				if (!isNaN(v) && v >= 0) parsedPriceMin = v;
 			}
+			else if ($.equals(key, FilterKeyType.PRICE_MAX)) {
+				const v = formatPrice(parseFloat(value));
+				if (!isNaN(v) && v >= 0) parsedPriceMax = v;
+			}
+			// Legacy price range params: "min-max"
+			else if ($.isPriceRangeKey(key)) {
+				const parts = value.split('-');
+				if (parts.length === 2) {
+					const min = formatPrice(parseFloat(parts[0]));
+					const max = formatPrice(parseFloat(parts[1]));
+					if (!isNaN(min) && min >= 0) parsedPriceMin = min;
+					if (!isNaN(max) && max >= 0) parsedPriceMax = max;
+				}
 			}
 			else if ($.equals(key, FilterKeyType.PAGE)) params.page = parseInt(value, 10) || 1;
 			else if ($.equals(key, FilterKeyType.LIMIT)) params.limit = parseInt(value, 10) || Config.PAGE_SIZE;
@@ -179,11 +179,11 @@ const UrlManager = {
 					url.searchParams.set(key, value.join(','));
 					Log.debug('URL param set', { key, value: value.join(',') });
 				}
-			// Price range: write as server-supported params
-			else if ($.isPriceRangeKey(key) && value && typeof value === 'object' && !Array.isArray(value)) {
-				const priceRange = value as PriceRangeType;
-				const min = typeof priceRange.min === 'number' && !isNaN(priceRange.min) ? formatPrice(priceRange.min) : undefined;
-				const max = typeof priceRange.max === 'number' && !isNaN(priceRange.max) ? formatPrice(priceRange.max) : undefined;
+				// Price range: write as server-supported params
+				else if ($.isPriceRangeKey(key) && value && typeof value === 'object' && !Array.isArray(value)) {
+					const priceRange = value as PriceRangeType;
+					const min = typeof priceRange.min === 'number' && !isNaN(priceRange.min) ? formatPrice(priceRange.min) : undefined;
+					const max = typeof priceRange.max === 'number' && !isNaN(priceRange.max) ? formatPrice(priceRange.max) : undefined;
 					if (FilterState.priceRangeHandle) {
 						// Handle-style: {handle}=min-max
 						const handleValue = `${min !== undefined ? min : ''}-${max !== undefined ? max : ''}`;
@@ -236,8 +236,8 @@ const UrlManager = {
 
 const API = {
 	baseURL: 'https://fstaging.digitalcoo.com/storefront', // Default, should be set via config
-	__v: 'v2.0',
-	__id: '01-13-2026',
+	__v: '2.0.0',
+	__id: '01-23-2026',
 	cache: new Map<string, ProductsResponseDataType>(),
 	timestamps: new Map<string, number>(),
 	pending: new Map<string, Promise<ProductsResponseDataType>>(),
@@ -336,11 +336,11 @@ const API = {
 			const v = filters[k];
 			if ($.empty(v)) return;
 
-		// Direct params (search, price range)
-		if ($.isPriceRangeKey(k) && v && typeof v === 'object' && !Array.isArray(v)) {
-			const priceRange = v as PriceRangeType;
-			const min = typeof priceRange.min === 'number' && !isNaN(priceRange.min) ? formatPrice(priceRange.min) : undefined;
-			const max = typeof priceRange.max === 'number' && !isNaN(priceRange.max) ? formatPrice(priceRange.max) : undefined;
+			// Direct params (search, price range)
+			if ($.isPriceRangeKey(k) && v && typeof v === 'object' && !Array.isArray(v)) {
+				const priceRange = v as PriceRangeType;
+				const min = typeof priceRange.min === 'number' && !isNaN(priceRange.min) ? formatPrice(priceRange.min) : undefined;
+				const max = typeof priceRange.max === 'number' && !isNaN(priceRange.max) ? formatPrice(priceRange.max) : undefined;
 				if (FilterState.priceRangeHandle) {
 					params.set(FilterState.priceRangeHandle, `${min !== undefined ? min : ''}-${max !== undefined ? max : ''}`);
 				} else {
@@ -613,12 +613,12 @@ const DOM = {
 
 		if (!this.filtersContainer.parentNode && main) main.appendChild(this.filtersContainer);
 
-	// Ensure filters are closed by default on mobile
-	if (window.innerWidth <= 767) {
-		this.filtersContainer.classList.remove('afs-filters-container--open');
-	}
+		// Ensure filters are closed by default on mobile
+		if (window.innerWidth <= 767) {
+			this.filtersContainer.classList.remove('afs-filters-container--open');
+		}
 
-	// Mobile filter close button will be created only when filters are rendered
+		// Mobile filter close button will be created only when filters are rendered
 
 		// Create backdrop overlay for mobile drawer (click outside to close)
 		// Check if backdrop already exists
@@ -974,7 +974,7 @@ const DOM = {
 							const otherIcon = otherGroup.querySelector<HTMLElement>('.afs-filter-group__icon');
 							if (otherToggle) otherToggle.setAttribute('aria-expanded', 'false');
 							if (otherIcon) otherIcon.innerHTML = Icons.rightArrow || '';
-							
+
 							// Update state
 							const otherStateKey = otherGroup.getAttribute('data-afs-filter-key');
 							if (otherStateKey) {
@@ -1036,11 +1036,11 @@ const DOM = {
 		document.addEventListener('click', (e) => {
 			const isTopBarLayout = this.container?.getAttribute('data-afs-layout') === 'top';
 			if (!isTopBarLayout) return;
-			
+
 			const target = e.target as HTMLElement;
 			// Don't close if clicking inside a filter group (including content)
 			if (target.closest('.afs-filter-group')) return;
-			
+
 			// Close all open filter groups
 			const openGroups = this.filtersContainer?.querySelectorAll<HTMLElement>('.afs-filter-group[data-afs-collapsed="false"]');
 			openGroups?.forEach(group => {
@@ -1049,7 +1049,7 @@ const DOM = {
 				const icon = group.querySelector<HTMLElement>('.afs-filter-group__icon');
 				if (toggle) toggle.setAttribute('aria-expanded', 'false');
 				if (icon) icon.innerHTML = Icons.rightArrow || '';
-				
+
 				// Update state
 				const stateKey = group.getAttribute('data-afs-filter-key');
 				if (stateKey) {
@@ -1398,26 +1398,26 @@ const DOM = {
 			filtersWithCollapsed: validFilters.filter(f => f.collapsed).length
 		});
 
-	if (validFilters.length === 0) {
-		Log.warn('No valid filters to render');
-		// Remove mobile filter close button when no filters
-		if (this.mobileFilterClose && this.mobileFilterClose.parentNode) {
-			this.mobileFilterClose.remove();
-			this.mobileFilterClose = null;
+		if (validFilters.length === 0) {
+			Log.warn('No valid filters to render');
+			// Remove mobile filter close button when no filters
+			if (this.mobileFilterClose && this.mobileFilterClose.parentNode) {
+				this.mobileFilterClose.remove();
+				this.mobileFilterClose = null;
+			}
+			return;
 		}
-		return;
-	}
 
-	// Create mobile filter close button only when there are filters
-	if (!this.mobileFilterClose) {
-		this.mobileFilterClose = $.el('button', 'afs-mobile-filter-close', {
-			type: 'button',
-			'data-afs-action': 'close-filters',
-			'aria-label': Lang.buttons.closeFilters || 'Close filters'
-		}) as HTMLButtonElement;
-		// Don't set innerHTML - CSS ::before pseudo-element adds the X
-		this.mobileFilterClose.style.display = 'none'; // Hidden on desktop
-	}
+		// Create mobile filter close button only when there are filters
+		if (!this.mobileFilterClose) {
+			this.mobileFilterClose = $.el('button', 'afs-mobile-filter-close', {
+				type: 'button',
+				'data-afs-action': 'close-filters',
+				'aria-label': Lang.buttons.closeFilters || 'Close filters'
+			}) as HTMLButtonElement;
+			// Don't set innerHTML - CSS ::before pseudo-element adds the X
+			this.mobileFilterClose.style.display = 'none'; // Hidden on desktop
+		}
 
 		const fragment = document.createDocumentFragment();
 
@@ -1562,34 +1562,34 @@ const DOM = {
 			fragment.appendChild(group);
 		});
 
-	if (fragment.children.length > 0) {
-		this.filtersContainer.appendChild(fragment);
-		
-		// Insert mobile filter close button at the beginning of filters container
-		// Only insert if it doesn't already have a parent (prevent duplicates)
-		if (this.mobileFilterClose) {
-			// Remove from current parent if it exists elsewhere
-			if (this.mobileFilterClose.parentNode && this.mobileFilterClose.parentNode !== this.filtersContainer) {
-				this.mobileFilterClose.parentNode.removeChild(this.mobileFilterClose);
+		if (fragment.children.length > 0) {
+			this.filtersContainer.appendChild(fragment);
+
+			// Insert mobile filter close button at the beginning of filters container
+			// Only insert if it doesn't already have a parent (prevent duplicates)
+			if (this.mobileFilterClose) {
+				// Remove from current parent if it exists elsewhere
+				if (this.mobileFilterClose.parentNode && this.mobileFilterClose.parentNode !== this.filtersContainer) {
+					this.mobileFilterClose.parentNode.removeChild(this.mobileFilterClose);
+				}
+				// Only insert if not already in filters container
+				if (!this.mobileFilterClose.parentNode) {
+					this.filtersContainer.insertBefore(this.mobileFilterClose, this.filtersContainer.firstChild);
+				}
 			}
-			// Only insert if not already in filters container
-			if (!this.mobileFilterClose.parentNode) {
-				this.filtersContainer.insertBefore(this.mobileFilterClose, this.filtersContainer.firstChild);
+
+			// Show filters container when filters are rendered
+			this.showFilters();
+			Log.debug('Filters rendered', { count: fragment.children.length });
+		} else {
+			Log.warn('No filter groups created');
+			// Remove mobile filter close button when no filter groups
+			if (this.mobileFilterClose && this.mobileFilterClose.parentNode) {
+				this.mobileFilterClose.remove();
+				this.mobileFilterClose = null;
 			}
-		}
-		
-		// Show filters container when filters are rendered
-		this.showFilters();
-		Log.debug('Filters rendered', { count: fragment.children.length });
-	} else {
-		Log.warn('No filter groups created');
-		// Remove mobile filter close button when no filter groups
-		if (this.mobileFilterClose && this.mobileFilterClose.parentNode) {
-			this.mobileFilterClose.remove();
-			this.mobileFilterClose = null;
-		}
-		// Hide filters container if no filters to show
-		this.hideFilters();
+			// Hide filters container if no filters to show
+			this.hideFilters();
 		}
 	},
 
@@ -1664,11 +1664,11 @@ const DOM = {
 			return null;
 		}
 
-	const minRange = formatPrice(filter.range.min);
-	const maxRange = formatPrice(filter.range.max);
-	const currentRange = FilterState.filters.priceRange || { min: minRange, max: maxRange };
-	const currentMin = formatPrice(Math.max(minRange, Math.min(maxRange, typeof currentRange.min === 'number' ? currentRange.min : minRange)));
-	const currentMax = formatPrice(Math.max(minRange, Math.min(maxRange, typeof currentRange.max === 'number' ? currentRange.max : maxRange)));
+		const minRange = formatPrice(filter.range.min);
+		const maxRange = formatPrice(filter.range.max);
+		const currentRange = FilterState.filters.priceRange || { min: minRange, max: maxRange };
+		const currentMin = formatPrice(Math.max(minRange, Math.min(maxRange, typeof currentRange.min === 'number' ? currentRange.min : minRange)));
+		const currentMax = formatPrice(Math.max(minRange, Math.min(maxRange, typeof currentRange.max === 'number' ? currentRange.max : maxRange)));
 
 		const group = $.el('div', 'afs-filter-group', {
 			'data-afs-filter-type': 'priceRange',
@@ -1691,11 +1691,11 @@ const DOM = {
 		toggle.appendChild($.txt($.el('label', 'afs-filter-group__label', { 'for': 'afs-filter-group__label' }), filter.label || 'Price'));
 		header.appendChild(toggle);
 
-	// Add clear button for price range (only show if price range is active and not at default)
-	const isPriceRangeActive = FilterState.filters.priceRange && (
-		(typeof FilterState.filters.priceRange.min === 'number' && FilterState.filters.priceRange.min !== minRange) ||
-		(typeof FilterState.filters.priceRange.max === 'number' && FilterState.filters.priceRange.max !== maxRange)
-	);
+		// Add clear button for price range (only show if price range is active and not at default)
+		const isPriceRangeActive = FilterState.filters.priceRange && (
+			(typeof FilterState.filters.priceRange.min === 'number' && FilterState.filters.priceRange.min !== minRange) ||
+			(typeof FilterState.filters.priceRange.max === 'number' && FilterState.filters.priceRange.max !== maxRange)
+		);
 		if (isPriceRangeActive) {
 			const clearBtn = $.el('button', 'afs-filter-group__clear', {
 				type: 'button',
@@ -1745,33 +1745,33 @@ const DOM = {
 
 		// Value display
 		const valueDisplay = $.el('div', 'afs-price-range-values');
-	const minDisplay = $.el('span', 'afs-price-range-value afs-price-range-value--min');
-	const maxDisplay = $.el('span', 'afs-price-range-value afs-price-range-value--max');
-	const formatPriceDisplay = (val: number | string): string => `$${parseFloat(String(val)).toFixed(2)}`;
-	minDisplay.textContent = formatPriceDisplay(currentMin);
-	maxDisplay.textContent = formatPriceDisplay(currentMax);
+		// Convert dollars to cents (multiply by 100) since formatMoney expects cents
+		const minDisplay = $.txt($.el('span', 'afs-price-range-value afs-price-range-value--min'), $.formatMoney(currentMin * 100, FilterState.moneyFormat || '{{amount}}', FilterState.currency || ''));
+		const maxDisplay = $.txt($.el('span', 'afs-price-range-value afs-price-range-value--max'), $.formatMoney(currentMax * 100, FilterState.moneyFormat || '{{amount}}', FilterState.currency || ''));
+
 		valueDisplay.appendChild(minDisplay);
 		valueDisplay.appendChild($.txt($.el('span', 'afs-price-range-separator'), ' - '));
 		valueDisplay.appendChild(maxDisplay);
 		sliderContainer.appendChild(valueDisplay);
 
-	// Update active track position
-	const updateActiveTrack = (): void => {
-		const min = formatPrice(parseFloat(minHandle.value));
-		const max = formatPrice(parseFloat(maxHandle.value));
-		const range = maxRange - minRange;
-		const leftPercent = ((min - minRange) / range) * 100;
-		const rightPercent = ((maxRange - max) / range) * 100;
-		activeTrack.style.left = `${leftPercent}%`;
-		activeTrack.style.right = `${rightPercent}%`;
-		minDisplay.textContent = String(min);
-		maxDisplay.textContent = String(max);
+		// Update active track position
+		const updateActiveTrack = (): void => {
+			const min = formatPrice(parseFloat(minHandle.value));
+			const max = formatPrice(parseFloat(maxHandle.value));
+			const range = maxRange - minRange;
+			const leftPercent = ((min - minRange) / range) * 100;
+			const rightPercent = ((maxRange - max) / range) * 100;
+			activeTrack.style.left = `${leftPercent}%`;
+			activeTrack.style.right = `${rightPercent}%`;
+			// Format prices with money format - convert dollars to cents (multiply by 100) since formatMoney expects cents
+			minDisplay.textContent = $.formatMoney(min * 100, FilterState.moneyFormat || '{{amount}}', FilterState.currency || '');
+			maxDisplay.textContent = $.formatMoney(max * 100, FilterState.moneyFormat || '{{amount}}', FilterState.currency || '');
 		};
 
-	// Ensure min <= max
-	const constrainValues = (): void => {
-		const min = formatPrice(parseFloat(minHandle.value));
-		const max = formatPrice(parseFloat(maxHandle.value));
+		// Ensure min <= max
+		const constrainValues = (): void => {
+			const min = formatPrice(parseFloat(minHandle.value));
+			const max = formatPrice(parseFloat(maxHandle.value));
 			if (min > max) {
 				minHandle.value = String(max);
 				maxHandle.value = String(min);
@@ -1779,20 +1779,20 @@ const DOM = {
 			updateActiveTrack();
 		};
 
-	// Event handlers
-	minHandle.addEventListener('input', () => {
-		constrainValues();
-		const minVal = formatPrice(parseFloat(minHandle.value));
-		const maxVal = formatPrice(parseFloat(maxHandle.value));
-		Filters.updatePriceRange(minVal, maxVal);
-	});
+		// Event handlers
+		minHandle.addEventListener('input', () => {
+			constrainValues();
+			const minVal = formatPrice(parseFloat(minHandle.value));
+			const maxVal = formatPrice(parseFloat(maxHandle.value));
+			Filters.updatePriceRange(minVal, maxVal);
+		});
 
-	maxHandle.addEventListener('input', () => {
-		constrainValues();
-		const minVal = formatPrice(parseFloat(minHandle.value));
-		const maxVal = formatPrice(parseFloat(maxHandle.value));
-		Filters.updatePriceRange(minVal, maxVal);
-	});
+		maxHandle.addEventListener('input', () => {
+			constrainValues();
+			const minVal = formatPrice(parseFloat(minHandle.value));
+			const maxVal = formatPrice(parseFloat(maxHandle.value));
+			Filters.updatePriceRange(minVal, maxVal);
+		});
 
 		// Initialize active track
 		updateActiveTrack();
@@ -2173,7 +2173,7 @@ const DOM = {
 				'aria-label': 'View results'
 			});
 			this.mobileResultsButton.appendChild(buttonInner);
-			
+
 			// Append to container
 			if (this.container.parentNode) {
 				this.container.parentNode.appendChild(this.mobileResultsButton);
@@ -2303,19 +2303,19 @@ const DOM = {
 				activeFilters.push({ handle: key, label: `${Lang.labels.search}${value}`, value });
 			} else if ($.isPriceRangeKey(key) && value && typeof value === 'object' && !Array.isArray(value)) {
 				const priceRange = value as PriceRangeType;
-			const hasMin = typeof priceRange.min === 'number' && !isNaN(priceRange.min);
-			const hasMax = typeof priceRange.max === 'number' && !isNaN(priceRange.max);
-			if (hasMin && hasMax) {
-				const formattedMin = formatPrice(priceRange.min!);
-				const formattedMax = formatPrice(priceRange.max!);
-				activeFilters.push({ handle: key, label: `${Lang.labels.price}$${formattedMin} - $${formattedMax}`, value: SpecialValueType.CLEAR });
-			} else if (hasMin) {
-				const formattedMin = formatPrice(priceRange.min!);
-				activeFilters.push({ handle: key, label: `${Lang.labels.price}$${formattedMin}+`, value: SpecialValueType.CLEAR });
-			} else if (hasMax) {
-				const formattedMax = formatPrice(priceRange.max!);
-				activeFilters.push({ handle: key, label: `${Lang.labels.price}Up to $${formattedMax}`, value: SpecialValueType.CLEAR });
-			}
+				const hasMin = typeof priceRange.min === 'number' && !isNaN(priceRange.min);
+				const hasMax = typeof priceRange.max === 'number' && !isNaN(priceRange.max);
+				if (hasMin && hasMax) {
+					const formattedMin = formatPrice(priceRange.min!);
+					const formattedMax = formatPrice(priceRange.max!);
+					activeFilters.push({ handle: key, label: `${Lang.labels.price}$${formattedMin} - $${formattedMax}`, value: SpecialValueType.CLEAR });
+				} else if (hasMin) {
+					const formattedMin = formatPrice(priceRange.min!);
+					activeFilters.push({ handle: key, label: `${Lang.labels.price}$${formattedMin}+`, value: SpecialValueType.CLEAR });
+				} else if (hasMax) {
+					const formattedMax = formatPrice(priceRange.max!);
+					activeFilters.push({ handle: key, label: `${Lang.labels.price}Up to $${formattedMax}`, value: SpecialValueType.CLEAR });
+				}
 			} else if (Array.isArray(value) && value.length > 0) {
 				value.forEach(v => {
 					const metadata = FilterState.filterMetadata.get(key);
@@ -2634,10 +2634,10 @@ const FallbackMode = {
 
 			if (Array.isArray(value) && value.length > 0) {
 				url.searchParams.set(key, value.join(','));
-		} else if ($.isPriceRangeKey(key) && value && typeof value === 'object' && !Array.isArray(value)) {
-			const priceRange = value as PriceRangeType;
-			const min = typeof priceRange.min === 'number' && !isNaN(priceRange.min) ? formatPrice(priceRange.min) : undefined;
-			const max = typeof priceRange.max === 'number' && !isNaN(priceRange.max) ? formatPrice(priceRange.max) : undefined;
+			} else if ($.isPriceRangeKey(key) && value && typeof value === 'object' && !Array.isArray(value)) {
+				const priceRange = value as PriceRangeType;
+				const min = typeof priceRange.min === 'number' && !isNaN(priceRange.min) ? formatPrice(priceRange.min) : undefined;
+				const max = typeof priceRange.max === 'number' && !isNaN(priceRange.max) ? formatPrice(priceRange.max) : undefined;
 				if (FilterState.priceRangeHandle) {
 					url.searchParams.set(FilterState.priceRangeHandle, `${min !== undefined ? min : ''}-${max !== undefined ? max : ''}`);
 				} else {
@@ -2740,7 +2740,6 @@ const Products = {
 };
 
 const Filters = {
-
 	process: (filtersData: FiltersResponseDataType) => {
 		try {
 			FilterState.availableFilters = filtersData.filters || [];
@@ -2824,12 +2823,12 @@ const Filters = {
 		if (window.innerWidth <= 768 && DOM.filtersContainer?.classList.contains('afs-filters-container--open')) {
 			DOM.filtersContainer.classList.remove('afs-filters-container--open');
 			document.body.classList.remove('afs-filters-open');
-			
+
 			// Hide backdrop overlay
 			if (DOM.mobileFilterBackdrop) {
 				DOM.mobileFilterBackdrop.style.display = 'none';
 			}
-			
+
 			document.body.style.overflow = '';
 			document.body.style.position = '';
 			document.body.style.width = '';
@@ -2840,13 +2839,13 @@ const Filters = {
 			document.body.style.removeProperty('width');
 			document.body.style.removeProperty('height');
 			document.body.style.removeProperty('top');
-			
+
 			// Restore scroll position
 			const scrollY = document.body.style.top;
 			if (scrollY) {
 				window.scrollTo(0, parseInt(scrollY || '0', 10) * -1);
 			}
-			
+
 			// Show mobile results button again if on mobile
 			if (window.innerWidth <= 767 && DOM.mobileResultsButton && FilterState.pagination.total > 0) {
 				DOM.mobileResultsButton.classList.add('afs-mobile-results-button--visible');
@@ -2856,22 +2855,22 @@ const Filters = {
 		this.apply();
 	},
 
-updatePriceRange(min: number, max: number): void {
-	// Format to 2 decimal places for consistency
-	min = formatPrice(min);
-	max = formatPrice(max);
+	updatePriceRange(min: number, max: number): void {
+		// Format to 2 decimal places for consistency
+		min = formatPrice(min);
+		max = formatPrice(max);
 
-	if (typeof min !== 'number' || typeof max !== 'number' || min < 0 || max < min) {
-		Log.warn('Invalid price range', { min, max });
-		return;
-	}
+		if (typeof min !== 'number' || typeof max !== 'number' || min < 0 || max < min) {
+			Log.warn('Invalid price range', { min, max });
+			return;
+		}
 
-	// Check if range matches the full range (no filter applied)
-	const priceFilter = FilterState.availableFilters.find(f => $.isPriceRangeOptionType(f.optionType) || $.equals(f.optionKey, FilterKeyType.PRICE_RANGE));
-	if (priceFilter && priceFilter.range) {
-		const formattedMinRange = formatPrice(priceFilter.range.min);
-		const formattedMaxRange = formatPrice(priceFilter.range.max);
-		if (min === formattedMinRange && max === formattedMaxRange) {
+		// Check if range matches the full range (no filter applied)
+		const priceFilter = FilterState.availableFilters.find(f => $.isPriceRangeOptionType(f.optionType) || $.equals(f.optionKey, FilterKeyType.PRICE_RANGE));
+		if (priceFilter && priceFilter.range) {
+			const formattedMinRange = formatPrice(priceFilter.range.min);
+			const formattedMaxRange = formatPrice(priceFilter.range.max);
+			if (min === formattedMinRange && max === formattedMaxRange) {
 				FilterState.filters.priceRange = null;
 			} else {
 				FilterState.filters.priceRange = { min, max };
@@ -3030,10 +3029,10 @@ const QuickAdd = {
 		let toast = document.querySelector<HTMLElement>('.afs-cart-toast');
 		if (!toast) {
 			toast = $.el('div', 'afs-cart-toast');
-			
+
 			// Create toast content with icon and message
 			const toastContent = $.el('div', 'afs-cart-toast__content');
-			
+
 			// Success icon (checkmark circle)
 			const icon = $.el('div', 'afs-cart-toast__icon');
 			icon.innerHTML = `
@@ -3041,11 +3040,11 @@ const QuickAdd = {
 					<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" fill="currentColor"/>
 				</svg>
 			`;
-			
+
 			// Message text
 			const message = $.el('div', 'afs-cart-toast__message');
 			message.textContent = Lang.messages.addedToCart || 'Product added to cart!';
-			
+
 			// Close button
 			const closeBtn = $.el('button', 'afs-cart-toast__close');
 			closeBtn.setAttribute('type', 'button');
@@ -3055,13 +3054,13 @@ const QuickAdd = {
 					<path d="M15 5L5 15M5 5l10 10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
 				</svg>
 			`;
-			
+
 			toastContent.appendChild(icon);
 			toastContent.appendChild(message);
 			toast.appendChild(toastContent);
 			toast.appendChild(closeBtn);
 			document.body.appendChild(toast);
-			
+
 			// Close button handler
 			closeBtn.addEventListener('click', () => {
 				toast?.classList.remove('afs-cart-toast--show');
@@ -4009,7 +4008,7 @@ async function createProductModal(handle: string, modalId: string): Promise<Prod
 	`;
 
 	// Get locale-aware URL using Shopify routes
-	const routesRoot = (AFSW.Shopify && AFSW.Shopify.routes && AFSW.Shopify.routes.root) || '/';
+	const routesRoot = (window as any)?.Shopify?.routes?.root || '/';
 	const productUrl = `${routesRoot}products/${handle}.js`;
 
 	try {
@@ -4208,15 +4207,10 @@ async function createProductModal(handle: string, modalId: string): Promise<Prod
 		const imagesHTML = buildImagesHTML();
 		const variantSelectorHTML = buildVariantSelector();
 
-		// Format price
-		const formatPrice = (price: number | string): string => {
-			return $.formatMoney(price, FilterState.moneyFormat || '{{amount}}', FilterState.currency || '');
-		};
-
 		const currentVariant = productData.variants.find(v => v.id === currentVariantId) || selectedVariant;
-		const priceHTML = formatPrice(currentVariant.price);
+		const priceHTML = $.formatMoney(currentVariant.price, FilterState.moneyFormat);
 		const comparePriceHTML = currentVariant.compare_at_price && currentVariant.compare_at_price > currentVariant.price
-			? `<span class="afs-product-modal__compare-price">${formatPrice(currentVariant.compare_at_price)}</span>`
+			? `<span class="afs-product-modal__compare-price">${$.formatMoney(currentVariant.compare_at_price, FilterState.moneyFormat)}</span>`
 			: '';
 
 		// Build full modal HTML
@@ -4329,8 +4323,12 @@ async function createProductModal(handle: string, modalId: string): Promise<Prod
 			}
 		})();
 
-		// Setup event handlers
-		setupModalHandlers(dialog, modalId, productData, formatPrice);
+		// Setup event handlers - create a format function that matches the expected signature
+		const formatPriceForModal = (price: number | string): string => {
+			const numPrice = typeof price === 'string' ? parseFloat(price) : price;
+			return $.formatMoney(numPrice, FilterState.moneyFormat || '{{amount}}', FilterState.currency || '');
+		};
+		setupModalHandlers(dialog, modalId, productData, formatPriceForModal);
 
 	} catch (error) {
 		const errorMessage = error instanceof Error ? error.message : String(error);
@@ -4551,7 +4549,7 @@ function setupModalHandlers(
 			const variantId = buyButton.dataset.variantId;
 
 			try {
-				const routesRoot = (AFSW.Shopify && AFSW.Shopify.routes && AFSW.Shopify.routes.root) || '/';
+				const routesRoot = (window as any)?.Shopify?.routes?.root || '/';
 				// Redirect to checkout
 				window.location.href = `${routesRoot}cart/${variantId}:${quantity}?checkout`;
 			} catch (error) {
@@ -4744,34 +4742,6 @@ function updateVariantInModal(
 	}
 }
 
-// Setup close handler only
-function setupCloseHandler(dialog: ProductModalElement): void {
-	const closeBtn = dialog.querySelector<HTMLButtonElement>('.afs-product-modal__close');
-	const closeModal = (): void => {
-		// Destroy slider if it exists
-		if (dialog._slider && typeof dialog._slider.destroy === 'function') {
-			dialog._slider.destroy();
-			dialog._slider = undefined;
-		}
-
-		document.body.style.overflow = '';
-		document.body.style.removeProperty('overflow');
-		if (dialog.close) {
-			dialog.close();
-		} else {
-			dialog.style.display = 'none';
-		}
-	};
-
-	if (closeBtn) {
-		closeBtn.addEventListener('click', closeModal);
-	}
-	dialog.addEventListener('cancel', closeModal);
-	dialog.addEventListener('click', (e) => {
-		if (e.target === dialog) closeModal();
-	});
-}
-
 function createQuickViewButton(product: ProductType): HTMLElement | null {
 	if (!product.handle) return null;
 
@@ -4845,13 +4815,16 @@ function handleQuickViewClick(handle: string): void {
 	});
 }
 
-// Export to window
-const AFSW = window as ShopifyWindow;
+declare global {
+	interface Window {
+		AFS: AFSInterfaceType;
+		AFS_State: FilterStateType;
+	}
+}
 
-// Export
+// Export to window
 if (typeof window !== 'undefined') {
-	AFSW.AFS = AFS;
-	AFSW.AFS_State = FilterState; // Export FilterState for search module to access
+	window.AFS = AFS;
 } else if (typeof global !== 'undefined') {
 	(global as typeof globalThis & { AFS?: AFSInterfaceType }).AFS = AFS;
 }

@@ -9,7 +9,7 @@
 // Import lightweight shared utilities
 import { Log } from './utils/shared';
 import { Lang } from './locals';
-import { ProductType, SearchAPIResponseType, SearchConfigtype, SearchResultType, ShopifyWindow } from './type';
+import { ProductType, SearchAPIResponseType, SearchConfigtype, SearchResultType } from './type';
 import { $ } from './utils/$.utils';
 
 // ============================================================================
@@ -1444,8 +1444,7 @@ declare global {
 }
 
 if (typeof window !== 'undefined') {
-	const win = window as ShopifyWindow;
-	win.AFSSearch = {
+	window.AFSSearch = {
 		init: SearchInit.init.bind(SearchInit)
 	};
 }

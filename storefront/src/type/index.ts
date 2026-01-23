@@ -272,29 +272,6 @@ export interface FilterItemsElement extends HTMLElement {
 	_items?: FilterValueType[];
 }
 
-export interface ShopifyWindow extends Window {
-	Shopify?: {
-		routes?: {
-			root?: string;
-		};
-	};
-	AFSSlider?: new (container: HTMLElement, options: {
-		thumbnailsPosition?: string;
-		enableKeyboard?: boolean;
-		enableAutoHeight?: boolean;
-		maxHeight?: number;
-		enableMagnifier?: boolean;
-		magnifierZoom?: number;
-	}) => SliderInstanceType;
-	AFS?: AFSInterface;
-	AFS_State?: FilterStateType;
-	AFSQuickView?: {
-		createQuickViewButton: (product: ProductType) => HTMLElement | null;
-		handleQuickViewClick: (handle: string) => void;
-		createProductModal: (handle: string, modalId: string) => Promise<ProductModalElement>;
-	};
-}
-
 // Type for loggable data (any JSON-serializable value)
 // Using a more permissive type for logging that allows complex objects
 // We use a type that allows any object structure for logging purposes

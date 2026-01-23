@@ -9,9 +9,9 @@
     const liquidProducts = [
       {% if collection.products %}
         {% paginate collection.products by page_size %}
-          {% assign liquid_current_page = paginate.current_page %}
-          {% assign liquid_total_pages = paginate.pages %}
-          {% assign liquid_total_products = paginate.items %}
+          {%- assign liquid_current_page = paginate.current_page -%}
+          {%- assign liquid_total_pages = paginate.pages -%}
+          {%- assign liquid_total_products = paginate.items -%}
           {% for product in collection.products %}
             {
               id: {{ product.id | json }},
