@@ -1469,10 +1469,11 @@ const DOM = {
 
 			const saved = States.get(stateKey);
 			// Check collapsed state: saved state takes precedence, then filter.collapsed, default to false
-			// In top bar layout, default to collapsed (true) unless explicitly set
+			// In top bar layout, force all filters to be collapsed (ignore saved state)
 			const isTopBarLayout = this.container?.getAttribute('data-afs-layout') === 'top';
 			const defaultCollapsed = isTopBarLayout ? true : (filter.collapsed === true || filter.collapsed === 'true' || filter.collapsed === 1);
-			const collapsed = saved?.collapsed !== undefined ? saved.collapsed : defaultCollapsed;
+			// In top bar mode, always start collapsed (ignore saved state)
+			const collapsed = isTopBarLayout ? true : (saved?.collapsed !== undefined ? saved.collapsed : defaultCollapsed);
 			group.setAttribute('data-afs-collapsed', collapsed ? 'true' : 'false');
 
 			Log.debug('Filter group created', {
@@ -1675,7 +1676,9 @@ const DOM = {
 		});
 
 		const saved = savedStates?.get(filter.key || 'priceRange');
-		const collapsed = saved?.collapsed ?? filter.collapsed === true;
+		// In top bar layout, force price range filter to be collapsed
+		const isTopBarLayout = this.container?.getAttribute('data-afs-layout') === 'top';
+		const collapsed = isTopBarLayout ? true : (saved?.collapsed ?? filter.collapsed === true);
 		group.setAttribute('data-afs-collapsed', collapsed ? 'true' : 'false');
 
 		// Header

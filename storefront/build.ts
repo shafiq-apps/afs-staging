@@ -5,7 +5,7 @@ import path from 'path';
 import { config } from './config.js';
 
 const MAX_ASSET_SIZE = 100 * 1024; // 100KB
-const BUILD_MINIFY = true; // || false;
+const BUILD_MINIFY = false; // || false;
 
 // Ensure output folder exists
 if (!fs.existsSync(config.buildDir)) fs.mkdirSync(config.buildDir, { recursive: true });

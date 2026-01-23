@@ -493,6 +493,10 @@
         visibility: hidden;
       }
 
+      &__toggle {
+        flex-direction: row-reverse;
+      }
+
       // When expanded (collapsed="false"), show overlay dropdown - use !important to override global rule
       &[data-afs-collapsed="false"] &__content {
         max-height: 400px !important;
