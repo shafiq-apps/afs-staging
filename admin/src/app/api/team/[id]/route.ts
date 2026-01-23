@@ -36,7 +36,7 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const user = getUserById(params.id);
+    const user = await getUserById(params.id);
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
@@ -73,7 +73,7 @@ export async function PATCH(
     const body = await request.json();
     const updates = updateUserSchema.parse(body);
 
-    const existingUser = getUserById(params.id);
+    const existingUser = await getUserById(params.id);
     if (!existingUser) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
@@ -106,7 +106,7 @@ export async function PATCH(
       finalUpdates.permissions.canViewSubscriptions = false;
     }
 
-    const updatedUser = updateUser(params.id, finalUpdates);
+    const updatedUser = await updateUser(params.id, finalUpdates);
     if (!updatedUser) {
       return NextResponse.json(
         { error: 'Failed to update user' },
@@ -150,7 +150,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const user = getUserById(params.id);
+    const user = await getUserById(params.id);
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
@@ -171,7 +171,7 @@ export async function DELETE(
       );
     }
 
-    const deleted = deleteUser(params.id);
+    const deleted = await deleteUser(params.id);
     if (!deleted) {
       return NextResponse.json(
         { error: 'Failed to delete user' },

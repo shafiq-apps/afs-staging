@@ -436,4 +436,139 @@
       }
     }
   }
+
+  // Top Bar Layout - Horizontal filter groups with overlay dropdowns
+  &[data-afs-layout="top"] {
+    .afs-filter-group {
+      flex: 0 0 auto;
+      // min-width: 200px;
+      // max-width: 300px;
+      margin-bottom: 0;
+      margin-right: $spacing-lg;
+      padding-bottom: 0;
+      padding-right: $spacing-lg;
+      border-bottom: none;
+      border-right: none; 
+      position: relative;
+      z-index: 1000; // Base z-index for filter groups
+
+      &:last-child {
+        border-right: none;
+        margin-right: 0;
+        padding-right: 0;
+      }
+
+      // When expanded, increase z-index to appear above other filter headings
+      &[data-afs-collapsed="false"] {
+        z-index: 10001 !important; // Higher than other filter groups
+      }
+
+      &__header {
+        margin-bottom: 0;
+        position: relative;
+        z-index: 10002; // Header should be above dropdown
+      }
+
+      &__content {
+        // Overlay dropdown - positioned absolutely below the header
+        position: absolute;
+        top: 100%;
+        left: 0;
+        min-width: 250px;
+        max-width: 400px;
+        width: max-content;
+        z-index: 10000; // Very high z-index to ensure dropdown is always on top
+        background: var(--afs-bg-color);
+        border: 1px solid var(--afs-border-color);
+        border-radius: $border-radius-md;
+        box-shadow: 0 4px 12px var(--afs-shadow-color-medium);
+        max-height: 0;
+        opacity: 0;
+        overflow: hidden;
+        transition: max-height $transition-slow, opacity $transition-base, padding $transition-base;
+        margin: 0;
+        padding: 0;
+        margin-top: $spacing-xs;
+        pointer-events: none;
+        visibility: hidden;
+      }
+
+      // When expanded (collapsed="false"), show overlay dropdown - use !important to override global rule
+      &[data-afs-collapsed="false"] &__content {
+        max-height: 400px !important;
+        opacity: 1 !important;
+        padding: $spacing-md !important;
+        margin-top: $spacing-xs !important;
+        pointer-events: auto !important;
+        visibility: visible !important;
+        overflow: hidden !important; // Hidden to contain items, items container handles scrolling
+      }
+
+      &__items {
+        max-height: 350px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding-right: $spacing-xs;
+        @include custom-scrollbar(4px);
+      }
+    }
+
+    // Override the global collapsed rule for top bar mode - ensure collapsed state works
+    .afs-filter-group[data-afs-collapsed="true"] .afs-filter-group__content {
+      max-height: 0 !important;
+      opacity: 0 !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      overflow: hidden !important;
+      pointer-events: none !important;
+      visibility: hidden !important;
+    }
+
+    // Ensure expanded filter group appears above other filter headings
+    .afs-filter-group[data-afs-collapsed="false"] {
+      z-index: 10001 !important; // Higher than collapsed filter groups
+      position: relative;
+    }
+
+    // Ensure expanded content shows items properly - explicit selector for top bar mode
+    .afs-filter-group[data-afs-collapsed="false"] .afs-filter-group__content {
+      display: block !important;
+      max-height: 400px !important;
+      opacity: 1 !important;
+      padding: $spacing-md !important;
+      margin-top: $spacing-xs !important;
+      pointer-events: auto !important;
+      visibility: visible !important;
+      overflow: hidden !important;
+      z-index: 10002 !important; // Even higher to ensure it's above everything
+    }
+
+    // Ensure the header of expanded filter is above other headers
+    .afs-filter-group[data-afs-collapsed="false"] .afs-filter-group__header {
+      position: relative;
+      z-index: 10003 !important; // Header should be above its own dropdown
+    }
+
+    // Ensure items are visible inside expanded content
+    .afs-filter-group[data-afs-collapsed="false"] .afs-filter-group__items {
+      display: flex !important;
+      flex-direction: column !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+    }
+
+    // Ensure search input is visible
+    .afs-filter-group[data-afs-collapsed="false"] .afs-filter-group__search {
+      display: block !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+    }
+
+    // Ensure price range is visible
+    .afs-filter-group[data-afs-collapsed="false"] .afs-price-range-container {
+      display: block !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+    }
+  }
 }

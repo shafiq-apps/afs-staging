@@ -1,49 +1,25 @@
 'use client';
-import { images } from '@/lib/images';
-import Image from 'next/image';
 
 export default function AnimatedBackground() {
   return (
     <div className="fixed inset-0 overflow-hidden pointer-events-none -z-10">
-      {/* Soft gradient backgrounds with red, blue, pink, green, purple */}
-      <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 via-blue-500/5 to-pink-500/5 animate-gradient-xy"></div>
-      <div className="absolute inset-0 bg-gradient-to-tr from-green-500/4 via-purple-500/4 to-red-500/4 animate-gradient-xy-reverse"></div>
-      <div className="absolute inset-0 bg-gradient-to-bl from-blue-500/3 via-pink-500/3 to-green-500/3 animate-gradient-slow"></div>
-      <div className="absolute inset-0 bg-gradient-to-tl from-purple-500/4 via-red-500/4 to-blue-500/4 animate-gradient-diagonal"></div>
-
-      {/* Moving filter symbols - traveling across screen */}
-      <div className="absolute w-64 h-64 opacity-10 animate-move-1">
-        <Image
-          alt="Filter"
-          className="w-full h-full object-contain"
-          {...images.smallIcon}
-        />
-      </div>
+      {/* Deep charcoal and slate base */}
+      <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950"></div>
       
-      <div className="absolute w-48 h-48 opacity-[0.08] animate-move-2">
-        <Image
-          alt="Filter"
-          className="w-full h-full object-contain"
-          {...images.smallIcon}
-        />
+      {/* Radial light glows - muted blue and violet, slow-moving */}
+      <div className="absolute inset-0">
+        {/* Top-left blue glow */}
+        <div className="absolute top-0 left-0 w-[800px] h-[800px] bg-blue-500/8 rounded-full blur-[120px] animate-glow-drift-1"></div>
+        
+        {/* Center-right violet glow */}
+        <div className="absolute top-1/2 right-0 w-[600px] h-[600px] bg-violet-500/6 rounded-full blur-[100px] animate-glow-drift-2"></div>
+        
+        {/* Bottom-left blue-violet glow */}
+        <div className="absolute bottom-0 left-1/4 w-[700px] h-[700px] bg-indigo-500/7 rounded-full blur-[110px] animate-glow-drift-3"></div>
+        
+        {/* Subtle overlay for depth */}
+        <div className="absolute inset-0 bg-gradient-to-t from-transparent via-slate-900/10 to-transparent"></div>
       </div>
-      
-      <div className="absolute w-56 h-56 opacity-[0.12] animate-move-3">
-        <Image
-          alt="Filter"
-          className="w-full h-full object-contain"
-          {...images.smallIcon}
-        />
-      </div>
-      
-      <div className="absolute w-40 h-40 opacity-[0.06] animate-move-4">
-        <Image
-          alt="Filter"
-          className="w-full h-full object-contain"
-          {...images.smallIcon}
-        />
-      </div>
-      
     </div>
   );
 }

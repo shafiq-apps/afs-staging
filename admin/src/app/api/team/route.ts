@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const users = getAllUsers();
+    const users = await getAllUsers();
     return NextResponse.json({ users });
   } catch (error) {
     console.error('Error fetching users:', error);
@@ -66,7 +66,8 @@ export async function POST(request: NextRequest) {
     const { email, name, role, permissions } = createUserSchema.parse(body);
 
     // Check if user already exists
-    if (getUserByEmail(email)) {
+    const existingUser = await getUserByEmail(email);
+    if (existingUser) {
       return NextResponse.json(
         { error: 'User with this email already exists' },
         { status: 400 }
@@ -86,7 +87,7 @@ export async function POST(request: NextRequest) {
       finalPermissions.canViewSubscriptions = false;
     }
 
-    const user = createUser({
+    const user = await createUser({
       email,
       name,
       role: role as UserRole,

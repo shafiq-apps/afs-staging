@@ -3,6 +3,7 @@ import { verifyPIN } from '@/lib/auth.utils';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { getOrCreateUserByEmail } from '@/lib/user.storage';
 import { generateToken } from '@/lib/jwt.utils';
+import { createOrGetAdminUserInES } from '@/lib/admin-user-es';
 import { z } from 'zod';
 
 const verifySchema = z.object({
@@ -14,9 +15,13 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { email, pin } = verifySchema.parse(body);
+    
+    // Normalize email for consistent lookup
+    const normalizedEmail = email.trim().toLowerCase();
+    console.log(`[Verify PIN] Original email: ${email}, Normalized: ${normalizedEmail}`);
 
-    // Rate limiting
-    const rateLimit = checkRateLimit(`verify-pin:${email}`, {
+    // Rate limiting (use normalized email)
+    const rateLimit = checkRateLimit(`verify-pin:${normalizedEmail}`, {
       maxRequests: 10,
       windowMs: 15 * 60 * 1000,
     });
@@ -28,18 +33,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify PIN
-    const isValid = verifyPIN(email, pin);
+    // Verify PIN (use normalized email)
+    const isValid = verifyPIN(normalizedEmail, pin);
 
     if (!isValid) {
+      console.log(`[Verify PIN] Verification failed for: ${normalizedEmail}`);
       return NextResponse.json(
         { error: 'Invalid or expired PIN code' },
         { status: 401 }
       );
     }
 
-    // Get or create user and verify super admin
-    const user = getOrCreateUserByEmail(email);
+    console.log(`[Verify PIN] Verification successful for: ${normalizedEmail}`);
+
+    // Get or create user and verify super admin (await the async function)
+    const user = await getOrCreateUserByEmail(normalizedEmail);
     if (!user.isActive) {
       return NextResponse.json(
         { error: 'Account is inactive' },
@@ -51,6 +59,28 @@ export async function POST(request: NextRequest) {
         { error: 'Unauthorized - Super admin access required' },
         { status: 403 }
       );
+    }
+
+    // Try to create/update user in ES and get API credentials
+    let apiCredentials = null;
+    try {
+      const esResult = await createOrGetAdminUserInES({
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        permissions: user.permissions,
+        isActive: user.isActive,
+      });
+      
+      if (esResult.apiKey && esResult.apiSecret) {
+        apiCredentials = {
+          apiKey: esResult.apiKey,
+          apiSecret: esResult.apiSecret,
+        };
+      }
+    } catch (error: any) {
+      // Log but don't fail - user can still login with in-memory storage
+      console.warn('Failed to sync user to ES:', error?.message || error);
     }
 
     // Generate token
@@ -71,6 +101,7 @@ export async function POST(request: NextRequest) {
         role: user.role,
         permissions: user.permissions,
       },
+      ...(apiCredentials && { apiCredentials }),
     });
 
     response.cookies.set('auth_token', token, {

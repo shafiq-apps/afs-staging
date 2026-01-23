@@ -123,7 +123,7 @@
     }
   }
 
-  // Filters Container (Left Side)
+  // Filters Container (Left Side - Default)
   .afs-filters-container {
     flex: 0 0 280px;
     min-width: 280px;
@@ -136,6 +136,37 @@
 
   .afs-filters-container:empty {
     display: none !important;
+  }
+
+  // Top Bar Layout - Activated when data-afs-layout="top" is set on container
+  &[data-afs-layout="top"] {
+    .afs-main-content {
+      flex-direction: column;
+      gap: $spacing-lg;
+    }
+
+    .afs-filters-container {
+      flex: none;
+      min-width: 0;
+      width: 100%;
+      overflow-y: visible;
+      overflow-x: visible; // Remove horizontal scrollbar
+      padding-right: 0;
+      padding-bottom: $spacing-md;
+      display: flex;
+      flex-direction: row;
+      flex-wrap: wrap;
+      gap: $spacing-lg;
+      position: relative;
+      z-index: 100; // Ensure filters container is above products
+      // Remove custom scrollbar mixin for top bar mode
+    }
+
+    .afs-products-container {
+      width: 100%;
+      position: relative;
+      z-index: 1; // Lower than filters
+    }
   }
 
   // Products Container (Right Side)

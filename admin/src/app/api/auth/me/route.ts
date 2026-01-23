@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/jwt.utils';
-import { getUserById } from '@/lib/user.storage';
+import { getUserById, getDefaultPermissions } from '@/lib/user.storage';
 
 export async function GET(request: NextRequest) {
   try {
@@ -21,12 +21,17 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const user = getUserById(session.userId);
+    let user = await getUserById(session.userId);
     if (!user || !user.isActive) {
       return NextResponse.json(
         { error: 'User not found or inactive' },
         { status: 404 }
       );
+    }
+
+    // Ensure permissions are set (fallback to defaults if missing)
+    if (!user.permissions) {
+      user.permissions = getDefaultPermissions(user.role);
     }
 
     return NextResponse.json({

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyOTP } from '@/lib/auth.utils';
 import { checkRateLimit } from '@/lib/rate-limit';
-import { getOrCreateUserByEmail } from '@/lib/user.storage';
+import { getOrCreateUserByEmail, getDefaultPermissions } from '@/lib/user.storage';
 import { generateToken } from '@/lib/jwt.utils';
+import { createOrGetAdminUserInES } from '@/lib/admin-user-es';
 import { z } from 'zod';
 
 const verifySchema = z.object({
@@ -28,18 +29,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Normalize email for consistent lookup
+    const normalizedEmail = email.trim().toLowerCase();
+    
     // Verify OTP
-    const { valid, isSuperAdmin } = verifyOTP(email, code);
+    const { valid, isSuperAdmin } = verifyOTP(normalizedEmail, code);
 
     if (!valid) {
+      console.log(`[Verify OTP] Verification failed for: ${normalizedEmail}`);
       return NextResponse.json(
         { error: 'Invalid or expired OTP code' },
         { status: 401 }
       );
     }
 
-    // Get or create user
-    const user = getOrCreateUserByEmail(email);
+    console.log(`[Verify OTP] Verification successful for: ${normalizedEmail}`);
+
+    // Get or create user (await the async function)
+    const user = await getOrCreateUserByEmail(normalizedEmail);
     if (!user.isActive) {
       return NextResponse.json(
         { error: 'Account is inactive' },
@@ -53,6 +60,28 @@ export async function POST(request: NextRequest) {
         requiresPin: true,
         message: 'PIN code required for super admin',
       });
+    }
+
+    // Try to create/update user in ES and get API credentials
+    let apiCredentials = null;
+    try {
+      const esResult = await createOrGetAdminUserInES({
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        permissions: user.permissions,
+        isActive: user.isActive,
+      });
+      
+      if (esResult.apiKey && esResult.apiSecret) {
+        apiCredentials = {
+          apiKey: esResult.apiKey,
+          apiSecret: esResult.apiSecret,
+        };
+      }
+    } catch (error: any) {
+      // Log but don't fail - user can still login with in-memory storage
+      console.warn('Failed to sync user to ES:', error?.message || error);
     }
 
     // Generate token
@@ -73,6 +102,7 @@ export async function POST(request: NextRequest) {
         role: user.role,
         permissions: user.permissions,
       },
+      ...(apiCredentials && { apiCredentials }),
     });
 
     response.cookies.set('auth_token', token, {

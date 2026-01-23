@@ -21,9 +21,13 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const { email } = emailSchema.parse(body);
+    
+    // Normalize email for consistent storage/retrieval
+    const normalizedEmail = email.trim().toLowerCase();
+    console.log(`[Send OTP] Original email: ${email}, Normalized: ${normalizedEmail}`);
 
-    // Rate limiting
-    const rateLimit = checkRateLimit(`otp:${email}`, {
+    // Rate limiting (use normalized email)
+    const rateLimit = checkRateLimit(`otp:${normalizedEmail}`, {
       maxRequests: 3,
       windowMs: 15 * 60 * 1000, // 3 requests per 15 minutes
     });
@@ -35,8 +39,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get or create user automatically
-    const user = getOrCreateUserByEmail(email);
+    // Get or create user automatically (use normalized email)
+    const user = await getOrCreateUserByEmail(normalizedEmail);
     console.log(`User: ${user.email}, Role: ${user.role}, Active: ${user.isActive}`);
 
     if (!user.isActive) {
@@ -46,17 +50,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate and store OTP
+    // Generate and store OTP (use normalized email)
     const otpCode = generateOTP();
     const isSuperAdmin = user.role === 'super_admin';
-    storeOTP(email, otpCode, isSuperAdmin);
+    storeOTP(normalizedEmail, otpCode, isSuperAdmin);
 
     // Log OTP to server console for development
     console.log('\n');
     console.log('═══════════════════════════════════════════════════════════════');
     console.log('OTP CODE FOR DEVELOPMENT (SERVER CONSOLE)');
     console.log('═══════════════════════════════════════════════════════════════');
-    console.log(`Email: ${email}`);
+    console.log(`Email: ${normalizedEmail} (normalized)`);
     console.log(`OTP Code: ${otpCode}`);
     console.log(`Super Admin: ${isSuperAdmin ? 'Yes' : 'No'}`);
     console.log(`Expires in: 5 minutes`);
@@ -64,9 +68,9 @@ export async function POST(request: NextRequest) {
     console.log('\n');
     
     // Also write to stdout to ensure it appears in server console
-    process.stdout.write(`\nOTP CODE: ${otpCode} for ${email}\n\n`);
+    process.stdout.write(`\nOTP CODE: ${otpCode} for ${normalizedEmail}\n\n`);
 
-    // Send email
+    // Send email (use original email for sending, but store with normalized)
     try {
       console.log(`Attempting to send OTP email to: ${email}`);
       await sendEmail({

@@ -17,6 +17,7 @@ import { cacheSchema } from './cache.schema';
 import { webhooksSchema } from './webhooks.schema';
 import { subscriptionSchema } from './subscriptions.schema';
 import { supportSchema } from './support.schema';
+import { adminSchema } from './admin.schema';
 
 /**
  * Array of schema strings to combine
@@ -36,6 +37,7 @@ export const schemas: string[] = [
   webhooksSchema, // Webhook processing mutations
   subscriptionSchema, // Subscription types and mutations
   supportSchema, // Support tickets with Query and Mutation
+  adminSchema, // Admin panel types and mutations
 ];
 
 /**

@@ -48,8 +48,7 @@ export async function sendEmail(options: EmailOptions): Promise<void> {
     
     console.log('Email sent successfully');
     console.log('SendGrid Response:', {
-      statusCode: response[0]?.statusCode,
-      headers: response[0]?.headers,
+      statusCode: response[0]?.statusCode
     });
   } catch (error: any) {
     console.error('SendGrid Error Details:');

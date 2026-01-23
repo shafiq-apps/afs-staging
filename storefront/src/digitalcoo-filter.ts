@@ -567,6 +567,7 @@ const DOM = {
 	mobileFilterButton: null as HTMLButtonElement | null,
 	mobileFilterClose: null as HTMLButtonElement | null,
 	mobileFilterBackdrop: null as HTMLElement | null,
+	mobileResultsButton: null as HTMLElement | null,
 
 	init(containerSel: string, filtersSel: string | undefined, productsSel: string | undefined): void {
 		// Validate container selector - must not be empty
@@ -961,6 +962,30 @@ const DOM = {
 						: (Icons.downArrow || '');
 				}
 
+				// In top bar layout, close other open filters when opening a new one (accordion behavior)
+				const isTopBarLayout = this.container?.getAttribute('data-afs-layout') === 'top';
+				if (isTopBarLayout && !collapsedState) {
+					// Close all other filter groups
+					const allGroups = this.filtersContainer?.querySelectorAll<HTMLElement>('.afs-filter-group');
+					allGroups?.forEach(otherGroup => {
+						if (otherGroup !== group && otherGroup.getAttribute('data-afs-collapsed') === 'false') {
+							otherGroup.setAttribute('data-afs-collapsed', 'true');
+							const otherToggle = otherGroup.querySelector<HTMLButtonElement>('.afs-filter-group__toggle');
+							const otherIcon = otherGroup.querySelector<HTMLElement>('.afs-filter-group__icon');
+							if (otherToggle) otherToggle.setAttribute('aria-expanded', 'false');
+							if (otherIcon) otherIcon.innerHTML = Icons.rightArrow || '';
+							
+							// Update state
+							const otherStateKey = otherGroup.getAttribute('data-afs-filter-key');
+							if (otherStateKey) {
+								const otherState = States.get(otherStateKey) || {};
+								otherState.collapsed = true;
+								States.set(otherStateKey, otherState);
+							}
+						}
+					});
+				}
+
 				// Content visibility is handled by CSS via data-afs-collapsed attribute
 				Log.debug('Filter group toggled', { collapsed: collapsedState, stateKey });
 			}
@@ -1005,6 +1030,34 @@ const DOM = {
 					});
 				}
 			}
+		});
+
+		// Click outside to close filter overlays in top bar mode
+		document.addEventListener('click', (e) => {
+			const isTopBarLayout = this.container?.getAttribute('data-afs-layout') === 'top';
+			if (!isTopBarLayout) return;
+			
+			const target = e.target as HTMLElement;
+			// Don't close if clicking inside a filter group (including content)
+			if (target.closest('.afs-filter-group')) return;
+			
+			// Close all open filter groups
+			const openGroups = this.filtersContainer?.querySelectorAll<HTMLElement>('.afs-filter-group[data-afs-collapsed="false"]');
+			openGroups?.forEach(group => {
+				group.setAttribute('data-afs-collapsed', 'true');
+				const toggle = group.querySelector<HTMLButtonElement>('.afs-filter-group__toggle');
+				const icon = group.querySelector<HTMLElement>('.afs-filter-group__icon');
+				if (toggle) toggle.setAttribute('aria-expanded', 'false');
+				if (icon) icon.innerHTML = Icons.rightArrow || '';
+				
+				// Update state
+				const stateKey = group.getAttribute('data-afs-filter-key');
+				if (stateKey) {
+					const state = States.get(stateKey) || {};
+					state.collapsed = true;
+					States.set(stateKey, state);
+				}
+			});
 		});
 
 		// Helper function to handle sort change
@@ -1244,6 +1297,11 @@ const DOM = {
 			this.filtersContainer.classList.remove('afs-filters-container--open');
 			document.body.classList.remove('afs-filters-open');
 
+			// Show mobile results button again if on mobile
+			if (window.innerWidth <= 767 && this.mobileResultsButton && FilterState.pagination.total > 0) {
+				this.mobileResultsButton.classList.add('afs-mobile-results-button--visible');
+			}
+
 			// Hide backdrop
 			if (this.mobileFilterBackdrop) {
 				this.mobileFilterBackdrop.style.display = 'none';
@@ -1270,9 +1328,16 @@ const DOM = {
 			this.filtersContainer.classList.add('afs-filters-container--open');
 			document.body.classList.add('afs-filters-open');
 
-			// Show backdrop
+			// Hide mobile results button when drawer is open
+			if (this.mobileResultsButton) {
+				this.mobileResultsButton.classList.remove('afs-mobile-results-button--visible');
+			}
+
+			// Show backdrop with smooth animation
 			if (this.mobileFilterBackdrop) {
 				this.mobileFilterBackdrop.style.display = 'block';
+				// Force reflow to trigger transition
+				this.mobileFilterBackdrop.offsetHeight;
 			}
 
 			// Store current scroll position and prevent body scroll
@@ -1280,6 +1345,8 @@ const DOM = {
 			document.body.style.position = 'fixed';
 			document.body.style.top = `-${scrollY}px`;
 			document.body.style.width = '100%';
+			document.body.style.maxWidth = '100vw';
+			document.body.style.height = '100%';
 			document.body.style.overflow = 'hidden';
 		}
 
@@ -1346,9 +1413,9 @@ const DOM = {
 		this.mobileFilterClose = $.el('button', 'afs-mobile-filter-close', {
 			type: 'button',
 			'data-afs-action': 'close-filters',
-			'aria-label': Lang.buttons.closeFilters
+			'aria-label': Lang.buttons.closeFilters || 'Close filters'
 		}) as HTMLButtonElement;
-		this.mobileFilterClose.innerHTML = Lang.buttons.close;
+		// Don't set innerHTML - CSS ::before pseudo-element adds the X
 		this.mobileFilterClose.style.display = 'none'; // Hidden on desktop
 	}
 
@@ -1402,7 +1469,10 @@ const DOM = {
 
 			const saved = States.get(stateKey);
 			// Check collapsed state: saved state takes precedence, then filter.collapsed, default to false
-			const collapsed = saved?.collapsed !== undefined ? saved.collapsed : (filter.collapsed === true || filter.collapsed === 'true' || filter.collapsed === 1);
+			// In top bar layout, default to collapsed (true) unless explicitly set
+			const isTopBarLayout = this.container?.getAttribute('data-afs-layout') === 'top';
+			const defaultCollapsed = isTopBarLayout ? true : (filter.collapsed === true || filter.collapsed === 'true' || filter.collapsed === 1);
+			const collapsed = saved?.collapsed !== undefined ? saved.collapsed : defaultCollapsed;
 			group.setAttribute('data-afs-collapsed', collapsed ? 'true' : 'false');
 
 			Log.debug('Filter group created', {
@@ -1495,8 +1565,16 @@ const DOM = {
 		this.filtersContainer.appendChild(fragment);
 		
 		// Insert mobile filter close button at the beginning of filters container
-		if (this.mobileFilterClose && !this.mobileFilterClose.parentNode) {
-			this.filtersContainer.insertBefore(this.mobileFilterClose, this.filtersContainer.firstChild);
+		// Only insert if it doesn't already have a parent (prevent duplicates)
+		if (this.mobileFilterClose) {
+			// Remove from current parent if it exists elsewhere
+			if (this.mobileFilterClose.parentNode && this.mobileFilterClose.parentNode !== this.filtersContainer) {
+				this.mobileFilterClose.parentNode.removeChild(this.mobileFilterClose);
+			}
+			// Only insert if not already in filters container
+			if (!this.mobileFilterClose.parentNode) {
+				this.filtersContainer.insertBefore(this.mobileFilterClose, this.filtersContainer.firstChild);
+			}
 		}
 		
 		// Show filters container when filters are rendered
@@ -2063,6 +2141,96 @@ const DOM = {
 			// Re-add sort container if it was removed
 			if (sortContainer && !sortContainer.parentNode) {
 				this.productsInfo.appendChild(sortContainer);
+			}
+		}
+
+		// Create/update mobile sticky results button
+		this.updateMobileResultsButton(total);
+	},
+
+	// Create or update mobile sticky results button
+	updateMobileResultsButton(total: number): void {
+		if (!this.container) return;
+
+		// Only show on mobile devices
+		const isMobile = window.innerWidth <= 767;
+		if (!isMobile) {
+			// Hide button on desktop/tablet
+			if (this.mobileResultsButton) {
+				this.mobileResultsButton.classList.remove('afs-mobile-results-button--visible');
+			}
+			return;
+		}
+
+		// Create button if it doesn't exist
+		if (!this.mobileResultsButton) {
+			this.mobileResultsButton = $.el('div', 'afs-mobile-results-button');
+			const buttonInner = $.el('button', 'afs-mobile-results-button-inner', {
+				type: 'button',
+				'aria-label': 'View results'
+			});
+			this.mobileResultsButton.appendChild(buttonInner);
+			
+			// Append to container
+			if (this.container.parentNode) {
+				this.container.parentNode.appendChild(this.mobileResultsButton);
+			} else {
+				document.body.appendChild(this.mobileResultsButton);
+			}
+
+			// Add click handler to scroll to products grid
+			buttonInner.addEventListener('click', () => {
+				if (this.productsGrid) {
+					this.productsGrid.scrollIntoView({ behavior: 'smooth', block: 'start' });
+				}
+			});
+
+			// Add resize handler to update button visibility
+			let resizeTimeout: number | null = null;
+			window.addEventListener('resize', () => {
+				if (resizeTimeout) {
+					clearTimeout(resizeTimeout);
+				}
+				resizeTimeout = window.setTimeout(() => {
+					const isMobileNow = window.innerWidth <= 767;
+					if (!isMobileNow && this.mobileResultsButton) {
+						this.mobileResultsButton.classList.remove('afs-mobile-results-button--visible');
+					} else if (isMobileNow && total > 0 && this.mobileResultsButton && !document.body.classList.contains('afs-filters-open')) {
+						this.mobileResultsButton.classList.add('afs-mobile-results-button--visible');
+					}
+				}, 150);
+			});
+		}
+
+		// Update button text
+		const buttonInner = this.mobileResultsButton.querySelector<HTMLElement>('.afs-mobile-results-button-inner');
+		if (buttonInner) {
+			if (total === 0) {
+				buttonInner.textContent = Lang.messages.noProductsFound || 'No products found';
+			} else if (total === 1) {
+				buttonInner.textContent = `See ${total} result`;
+			} else {
+				buttonInner.textContent = `See ${total} results`;
+			}
+		}
+
+		// Show button with animation (always show when there are results on mobile, unless drawer is open)
+		if (total > 0) {
+			// Use requestAnimationFrame to ensure smooth animation
+			requestAnimationFrame(() => {
+				if (this.mobileResultsButton) {
+					// Only hide if drawer is open, otherwise always show
+					const drawerOpen = document.body.classList.contains('afs-filters-open');
+					if (drawerOpen) {
+						this.mobileResultsButton.classList.remove('afs-mobile-results-button--visible');
+					} else {
+						this.mobileResultsButton.classList.add('afs-mobile-results-button--visible');
+					}
+				}
+			});
+		} else {
+			if (this.mobileResultsButton) {
+				this.mobileResultsButton.classList.remove('afs-mobile-results-button--visible');
 			}
 		}
 	},
@@ -2653,18 +2821,32 @@ const Filters = {
 		if (window.innerWidth <= 768 && DOM.filtersContainer?.classList.contains('afs-filters-container--open')) {
 			DOM.filtersContainer.classList.remove('afs-filters-container--open');
 			document.body.classList.remove('afs-filters-open');
+			
+			// Hide backdrop overlay
+			if (DOM.mobileFilterBackdrop) {
+				DOM.mobileFilterBackdrop.style.display = 'none';
+			}
+			
 			document.body.style.overflow = '';
 			document.body.style.position = '';
 			document.body.style.width = '';
 			document.body.style.height = '';
+			document.body.style.top = '';
 			document.body.style.removeProperty('overflow');
 			document.body.style.removeProperty('position');
 			document.body.style.removeProperty('width');
 			document.body.style.removeProperty('height');
+			document.body.style.removeProperty('top');
+			
 			// Restore scroll position
 			const scrollY = document.body.style.top;
 			if (scrollY) {
 				window.scrollTo(0, parseInt(scrollY || '0', 10) * -1);
+			}
+			
+			// Show mobile results button again if on mobile
+			if (window.innerWidth <= 767 && DOM.mobileResultsButton && FilterState.pagination.total > 0) {
+				DOM.mobileResultsButton.classList.add('afs-mobile-results-button--visible');
 			}
 		}
 
@@ -4171,7 +4353,34 @@ async function createProductModal(handle: string, modalId: string): Promise<Prod
 		  </div>
 		</div>
 	  `;
-		setupCloseHandler(dialog);
+		// Setup close handler for error case (use same handler as success case to avoid duplicates)
+		const closeBtn = dialog.querySelector<HTMLButtonElement>('.afs-product-modal__close');
+		const closeModal = (): void => {
+			if (dialog._slider && typeof dialog._slider.destroy === 'function') {
+				dialog._slider.destroy();
+				dialog._slider = undefined;
+			}
+			document.body.style.overflow = '';
+			document.body.style.removeProperty('overflow');
+			if (dialog.close) {
+				dialog.close();
+			} else {
+				dialog.style.display = 'none';
+			}
+		};
+		if (closeBtn) {
+			closeBtn.addEventListener('click', (e) => {
+				e.preventDefault();
+				e.stopPropagation();
+				closeModal();
+			});
+		}
+		dialog.addEventListener('cancel', closeModal);
+		dialog.addEventListener('click', (e) => {
+			if (e.target === dialog) {
+				closeModal();
+			}
+		});
 	}
 
 	return dialog;

@@ -126,10 +126,10 @@ export default function OTPForm({ email, onRequiresPin }: OTPFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div>
-        <label className="block text-sm font-medium mb-4 text-center" style={{ color: '#374151' }}>
+        <label className="block text-sm font-medium mb-6 text-center text-slate-300">
           Enter the 6-digit code sent to your email
         </label>
-        <div className="flex gap-2 justify-center">
+        <div className="flex gap-3 justify-center">
           {code.map((digit, index) => (
             <input
               key={index}
@@ -143,16 +143,15 @@ export default function OTPForm({ email, onRequiresPin }: OTPFormProps) {
               onChange={(e) => handleChange(index, e.target.value)}
               onKeyDown={(e) => handleKeyDown(index, e)}
               onPaste={handlePaste}
-              className="w-12 h-14 text-center text-2xl font-semibold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition text-gray-900 bg-white font-sans"
+              className="otp-input w-14 h-16 text-center text-2xl font-semibold border border-slate-700/30 rounded-lg bg-slate-800/20 backdrop-blur-md text-slate-100 focus:outline-none focus:border-slate-600/40 focus:ring-0 transition-all duration-300 disabled:opacity-50"
               disabled={loading}
-              style={{ color: '#111827' }}
             />
           ))}
         </div>
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+        <div className="bg-red-950/30 border border-red-900/40 text-red-300 px-4 py-3 rounded-lg text-sm font-medium backdrop-blur-sm">
           {error}
         </div>
       )}
@@ -160,7 +159,7 @@ export default function OTPForm({ email, onRequiresPin }: OTPFormProps) {
       <button
         type="submit"
         disabled={loading || code.join('').length !== 6}
-        className="w-full bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600 text-white py-3 rounded-lg font-medium hover:from-purple-700 hover:via-indigo-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition shadow-lg shadow-purple-500/50"
+        className="login-button w-full bg-slate-800/60 text-slate-100 py-3.5 rounded-lg font-semibold text-sm tracking-wide hover:bg-slate-800/80 focus:outline-none focus:ring-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-all duration-300 border border-slate-700/30"
       >
         {loading ? 'Verifying...' : 'Verify Code'}
       </button>
@@ -170,7 +169,7 @@ export default function OTPForm({ email, onRequiresPin }: OTPFormProps) {
           type="button"
           onClick={handleResend}
           disabled={resendCooldown > 0 || loading}
-          className="text-sm text-purple-600 hover:text-purple-700 disabled:text-gray-400 disabled:cursor-not-allowed cursor-pointer"
+          className="text-sm text-slate-400 hover:text-slate-300 disabled:text-slate-600 disabled:cursor-not-allowed cursor-pointer transition-colors duration-300 font-medium"
         >
           {resendCooldown > 0
             ? `Resend code in ${resendCooldown}s`

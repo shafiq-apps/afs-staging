@@ -11,16 +11,28 @@ import { rateLimit } from '@core/security/rate-limit.middleware';
 import { createModuleLogger } from '@shared/utils/logger.util';
 import { GraphQLRequest, GraphQLContext } from '../graphql.type';
 import { RATE_LIMIT } from '@shared/constants/app.constant';
-import { authenticate } from '@core/security';
+import { authenticate, adminAuthenticate } from '@core/security';
 
 const logger = createModuleLogger('graphql-route');
 
 /**
  * Middleware for GraphQL endpoint
+ * Supports both shop-based and admin-based authentication
  */
 export const middleware = [
-  authenticate(),
-  validateShopDomain(),
+  // Admin authentication (checks for admin requests)
+  adminAuthenticate(),
+  // Shop authentication (required for non-admin requests)
+  authenticate({ required: false }),
+  // Shop domain validation (optional - skipped for admin requests)
+  async (req: HttpRequest, res: HttpResponse, next: HttpNextFunction) => {
+    // Skip shop validation if this is an admin request
+    if ((req as any).adminUser) {
+      return next();
+    }
+    // Otherwise, validate shop domain
+    return validateShopDomain()(req, res, next);
+  },
   // validate graphql' variables for query/mutation
   validate({
     body: {

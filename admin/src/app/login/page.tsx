@@ -49,12 +49,12 @@ export default function LoginPage() {
 
   if (checking) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 relative">
+      <div className="min-h-screen flex items-center justify-center p-4 relative bg-slate-950">
         <AnimatedBackground />
-        <div className="w-full max-w-md relative z-10">
-          <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl p-8 border border-white/20">
-            <div className="flex justify-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+        <div className="w-full max-w-md relative z-10 animate-login-entrance">
+          <div className="login-panel">
+            <div className="flex justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-2 border-slate-500/50 border-t-slate-400/80"></div>
             </div>
           </div>
         </div>
@@ -63,46 +63,70 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative">
+    <div className="min-h-screen flex items-center justify-center p-4 relative bg-slate-950">
       <AnimatedBackground />
-      <div className="w-full max-w-md relative z-10">
-        <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl p-8 border border-white/20">
-          <div className="text-center mb-8">
-            <div className="flex justify-center mb-4">
-              <Image
-                src={images.smallIcon}
-                alt="DigitalCoo Logo"
-                width={64}
-                height={64}
-                className="w-16 h-16"
-              />
+      
+      {/* Multiple elegant glows behind card for depth and elegance */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
+        {/* Primary blue glow - top left */}
+        <div className="absolute w-[700px] h-[700px] bg-blue-500/8 rounded-full blur-[120px] animate-glow-drift-1"></div>
+        {/* Violet glow - center right */}
+        <div className="absolute w-[600px] h-[600px] bg-violet-500/6 rounded-full blur-[110px] animate-glow-drift-2"></div>
+        {/* Indigo glow - bottom center */}
+        <div className="absolute w-[550px] h-[550px] bg-indigo-500/7 rounded-full blur-[100px] animate-glow-drift-3"></div>
+        {/* Cyan accent glow - top right */}
+        <div className="absolute w-[450px] h-[450px] bg-cyan-500/5 rounded-full blur-[95px] animate-glow-drift-1" style={{ animationDelay: '2s' }}></div>
+        {/* Purple accent glow - bottom left */}
+        <div className="absolute w-[500px] h-[500px] bg-purple-500/5 rounded-full blur-[105px] animate-glow-drift-2" style={{ animationDelay: '4s' }}></div>
+      </div>
+
+      <div className="w-full max-w-md relative z-10 animate-login-entrance">
+        <div className="login-panel">
+          {/* Additional glow layers */}
+          <div className="glow-layer-1"></div>
+          <div className="glow-layer-2"></div>
+          <div className="glow-layer-3"></div>
+          <div className="corner-glow-top-left"></div>
+          <div className="corner-glow-bottom-right"></div>
+          
+          <div className="text-center mb-10 relative z-10">
+            <div className="flex justify-center mb-6">
+              <div className="w-16 h-16 rounded-xl bg-slate-800/40 backdrop-blur-sm border border-slate-700/30 flex items-center justify-center shadow-lg">
+                <Image
+                  src={images.smallIcon}
+                  alt="DigitalCoo Logo"
+                  width={48}
+                  height={48}
+                  className="w-12 h-12"
+                />
+              </div>
             </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2" style={{ color: '#111827' }}>
+            <h1 className="text-2xl font-semibold text-slate-100 mb-2 tracking-tight">
               DigitalCoo Admin
             </h1>
-            <p className="text-gray-700" style={{ color: '#374151' }}>
+            <p className="text-sm text-slate-400 font-medium">
               {step === 'email' && 'Sign in to your account'}
               {step === 'otp' && 'Enter verification code'}
               {step === 'pin' && 'Super Admin PIN Required'}
             </p>
           </div>
 
-          {step === 'email' && <LoginForm onOTPSent={handleOTPSent} />}
-          {step === 'otp' && (
-            <OTPForm email={email} onRequiresPin={handleRequiresPin} />
-          )}
-          {step === 'pin' && <PINForm email={email} />}
+          <div className="relative z-10">
+            {step === 'email' && <LoginForm onOTPSent={handleOTPSent} />}
+            {step === 'otp' && (
+              <OTPForm email={email} onRequiresPin={handleRequiresPin} />
+            )}
+            {step === 'pin' && <PINForm email={email} />}
+          </div>
 
           {step !== 'email' && (
-            <div className="mt-6 text-center">
+            <div className="mt-8 text-center relative z-10">
               <button
                 onClick={() => {
                   setStep('email');
                   setEmail('');
                 }}
-                className="text-sm cursor-pointer" style={{ color: '#4b5563' }}
-                onMouseEnter={(e) => e.currentTarget.style.color = '#111827'}
-                onMouseLeave={(e) => e.currentTarget.style.color = '#4b5563'}
+                className="text-sm text-slate-400 hover:text-slate-300 transition-colors duration-300 font-medium cursor-pointer"
               >
                 ← Back to email
               </button>
@@ -110,8 +134,10 @@ export default function LoginPage() {
           )}
         </div>
 
-        <div className="mt-6 text-center text-sm" style={{ color: '#ffffff' }}>
-          <p>Secure login with email verification</p>
+        <div className="mt-8 text-center relative z-10">
+          <p className="text-xs text-slate-500 font-medium tracking-wide">
+            Secure login with email verification
+          </p>
         </div>
       </div>
     </div>

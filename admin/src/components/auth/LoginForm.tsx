@@ -11,6 +11,7 @@ export default function LoginForm({ onOTPSent }: LoginFormProps) {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [focused, setFocused] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,27 +39,40 @@ export default function LoginForm({ onOTPSent }: LoginFormProps) {
     }
   };
 
+  const hasValue = email.length > 0;
+  const isActive = focused || hasValue;
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <div>
-        <label htmlFor="email" className="block text-sm font-medium mb-2" style={{ color: '#374151' }}>
-          Email Address
-        </label>
-        <input
-          id="email"
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition text-gray-900 bg-white font-sans"
-          placeholder="Enter your email"
-          disabled={loading}
-          style={{ color: '#111827' }}
-        />
+      <div className="relative">
+        <div className="relative">
+          <input
+            id="email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            required
+            className="login-input w-full px-4 pt-7 pb-3 bg-slate-800/20 backdrop-blur-md border border-slate-700/30 rounded-lg text-slate-100 placeholder-transparent focus:outline-none focus:border-slate-600/40 focus:ring-0 transition-all duration-300 font-medium text-sm"
+            placeholder=" "
+            disabled={loading}
+          />
+          <label
+            htmlFor="email"
+            className={`absolute left-4 transition-all duration-300 pointer-events-none font-medium text-sm ${
+              isActive
+                ? 'top-2 text-slate-400 text-xs'
+                : 'top-4 text-slate-500'
+            }`}
+          >
+            Email Address
+          </label>
+        </div>
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+        <div className="bg-red-950/30 border border-red-900/40 text-red-300 px-4 py-3 rounded-lg text-sm font-medium backdrop-blur-sm">
           {error}
         </div>
       )}
@@ -66,7 +80,7 @@ export default function LoginForm({ onOTPSent }: LoginFormProps) {
       <button
         type="submit"
         disabled={loading}
-        className="w-full bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600 text-white py-3 rounded-lg font-medium hover:from-purple-700 hover:via-indigo-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition shadow-lg shadow-purple-500/50"
+        className="login-button w-full bg-slate-800/60 text-slate-100 py-3.5 rounded-lg font-semibold text-sm tracking-wide hover:bg-slate-800/80 focus:outline-none focus:ring-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-all duration-300 border border-slate-700/30"
       >
         {loading ? 'Sending...' : 'Send Login Code'}
       </button>

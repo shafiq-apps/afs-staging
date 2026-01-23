@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import { ThemeProvider } from "@/components/providers/ThemeProvider";
+import TopLoadingBar from "@/components/ui/TopLoadingBar";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -19,11 +21,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${inter.variable} font-sans antialiased`}
       >
-        {children}
+        <ThemeProvider>
+          <TopLoadingBar />
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );

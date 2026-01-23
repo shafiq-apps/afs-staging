@@ -131,10 +131,10 @@ export default function PINForm({ email }: PINFormProps) {
   if (!pinSent) {
     return (
       <div className="text-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto mb-4"></div>
-        <p style={{ color: '#374151' }}>Sending PIN code to your email...</p>
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-slate-500/50 border-t-slate-400/80 mx-auto mb-4"></div>
+        <p className="text-slate-400 font-medium text-sm">Sending PIN code to your email...</p>
         {error && (
-          <div className="mt-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+          <div className="mt-4 bg-red-950/30 border border-red-900/40 text-red-300 px-4 py-3 rounded-lg text-sm font-medium backdrop-blur-sm">
             {error}
           </div>
         )}
@@ -144,17 +144,17 @@ export default function PINForm({ email }: PINFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
-        <p className="text-sm text-yellow-800">
-          <strong>Super Admin Access:</strong> A PIN code has been sent to your email. This code expires in 5 minutes.
+      <div className="bg-amber-950/20 border border-amber-900/30 rounded-lg p-4 mb-4 backdrop-blur-sm">
+        <p className="text-sm text-amber-200/90 font-medium">
+          <strong className="font-semibold">Super Admin Access:</strong> A PIN code has been sent to your email. This code expires in 5 minutes.
         </p>
       </div>
 
       <div>
-        <label className="block text-sm font-medium mb-4 text-center" style={{ color: '#374151' }}>
+        <label className="block text-sm font-medium mb-6 text-center text-slate-300">
           Enter your 6-digit PIN code
         </label>
-        <div className="flex gap-2 justify-center">
+        <div className="flex gap-3 justify-center">
           {pin.map((digit, index) => (
             <input
               key={index}
@@ -168,16 +168,15 @@ export default function PINForm({ email }: PINFormProps) {
               onChange={(e) => handleChange(index, e.target.value)}
               onKeyDown={(e) => handleKeyDown(index, e)}
               onPaste={handlePaste}
-              className="w-12 h-14 text-center text-2xl font-semibold border-2 border-red-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition text-gray-900 bg-white font-sans"
+              className="pin-input w-14 h-16 text-center text-2xl font-semibold border border-amber-900/30 rounded-lg bg-slate-800/20 backdrop-blur-md text-slate-100 focus:outline-none focus:border-amber-800/50 focus:ring-0 transition-all duration-300 disabled:opacity-50"
               disabled={loading}
-              style={{ color: '#111827' }}
             />
           ))}
         </div>
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+        <div className="bg-red-950/30 border border-red-900/40 text-red-300 px-4 py-3 rounded-lg text-sm font-medium backdrop-blur-sm">
           {error}
         </div>
       )}
@@ -185,7 +184,7 @@ export default function PINForm({ email }: PINFormProps) {
       <button
         type="submit"
         disabled={loading || pin.join('').length !== 6}
-        className="w-full bg-gradient-to-r from-red-600 via-pink-600 to-red-600 text-white py-3 rounded-lg font-medium hover:from-red-700 hover:via-pink-700 hover:to-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition shadow-lg shadow-red-500/50"
+        className="login-button w-full bg-slate-800/60 text-slate-100 py-3.5 rounded-lg font-semibold text-sm tracking-wide hover:bg-slate-800/80 focus:outline-none focus:ring-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-all duration-300 border border-slate-700/30"
       >
         {loading ? 'Verifying...' : 'Verify PIN'}
       </button>
@@ -195,7 +194,7 @@ export default function PINForm({ email }: PINFormProps) {
           type="button"
           onClick={handleResend}
           disabled={resendCooldown > 0 || loading}
-          className="text-sm text-red-600 hover:text-red-700 disabled:text-gray-400 disabled:cursor-not-allowed cursor-pointer"
+          className="text-sm text-slate-400 hover:text-slate-300 disabled:text-slate-600 disabled:cursor-not-allowed cursor-pointer transition-colors duration-300 font-medium"
         >
           {resendCooldown > 0
             ? `Resend PIN in ${resendCooldown}s`

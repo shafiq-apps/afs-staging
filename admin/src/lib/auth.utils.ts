@@ -17,11 +17,17 @@ export function generatePIN(): string {
   return crypto.randomInt(100000, 999999).toString();
 }
 
+// Normalize email to lowercase for consistent storage/retrieval
+function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
 export function storeOTP(email: string, code: string, isSuperAdmin: boolean = false): void {
-  const key = `otp:${email}`;
+  const normalizedEmail = normalizeEmail(email);
+  const key = `otp:${normalizedEmail}`;
   otpStore.set(key, {
     code,
-    email,
+    email: normalizedEmail,
     expiresAt: Date.now() + OTP_EXPIRY_MS,
     attempts: 0,
     isSuperAdmin,
@@ -31,11 +37,24 @@ export function storeOTP(email: string, code: string, isSuperAdmin: boolean = fa
   setTimeout(() => {
     otpStore.delete(key);
   }, OTP_EXPIRY_MS);
+  
+  // Debug logging
+  console.log(`[OTP Store] Stored OTP for: ${normalizedEmail}, Code: ${code}, Key: ${key}`);
 }
 
 export function verifyOTP(email: string, code: string): { valid: boolean; isSuperAdmin: boolean } {
-  const key = `otp:${email}`;
+  const normalizedEmail = normalizeEmail(email);
+  const key = `otp:${normalizedEmail}`;
   const stored = otpStore.get(key);
+  
+  // Debug logging
+  console.log(`[OTP Verify] Attempting verification for: ${normalizedEmail}, Key: ${key}`);
+  console.log(`[OTP Verify] Stored OTP exists: ${!!stored}`);
+  if (stored) {
+    console.log(`[OTP Verify] Stored code: ${stored.code}, Provided code: ${code}, Match: ${stored.code === code}`);
+    console.log(`[OTP Verify] Expires at: ${new Date(stored.expiresAt).toISOString()}, Now: ${new Date().toISOString()}, Expired: ${Date.now() > stored.expiresAt}`);
+    console.log(`[OTP Verify] Attempts: ${stored.attempts}/${MAX_ATTEMPTS}`);
+  }
 
   if (!stored) {
     return { valid: false, isSuperAdmin: false };
@@ -66,10 +85,11 @@ export function verifyOTP(email: string, code: string): { valid: boolean; isSupe
 }
 
 export function storePIN(email: string, code: string): void {
-  const key = `pin:${email}`;
+  const normalizedEmail = normalizeEmail(email);
+  const key = `pin:${normalizedEmail}`;
   pinStore.set(key, {
     code,
-    email,
+    email: normalizedEmail,
     expiresAt: Date.now() + PIN_EXPIRY_MS,
     attempts: 0,
   });
@@ -78,11 +98,24 @@ export function storePIN(email: string, code: string): void {
   setTimeout(() => {
     pinStore.delete(key);
   }, PIN_EXPIRY_MS);
+  
+  // Debug logging
+  console.log(`[PIN Store] Stored PIN for: ${normalizedEmail}, Code: ${code}, Key: ${key}`);
 }
 
 export function verifyPIN(email: string, code: string): boolean {
-  const key = `pin:${email}`;
+  const normalizedEmail = normalizeEmail(email);
+  const key = `pin:${normalizedEmail}`;
   const stored = pinStore.get(key);
+  
+  // Debug logging
+  console.log(`[PIN Verify] Attempting verification for: ${normalizedEmail}, Key: ${key}`);
+  console.log(`[PIN Verify] Stored PIN exists: ${!!stored}`);
+  if (stored) {
+    console.log(`[PIN Verify] Stored code: ${stored.code}, Provided code: ${code}, Match: ${stored.code === code}`);
+    console.log(`[PIN Verify] Expires at: ${new Date(stored.expiresAt).toISOString()}, Now: ${new Date().toISOString()}, Expired: ${Date.now() > stored.expiresAt}`);
+    console.log(`[PIN Verify] Attempts: ${stored.attempts}/${MAX_ATTEMPTS}`);
+  }
 
   if (!stored) {
     return false;
@@ -112,10 +145,12 @@ export function verifyPIN(email: string, code: string): boolean {
 }
 
 export function clearOTP(email: string): void {
-  otpStore.delete(`otp:${email}`);
+  const normalizedEmail = normalizeEmail(email);
+  otpStore.delete(`otp:${normalizedEmail}`);
 }
 
 export function clearPIN(email: string): void {
-  pinStore.delete(`pin:${email}`);
+  const normalizedEmail = normalizeEmail(email);
+  pinStore.delete(`pin:${normalizedEmail}`);
 }
 

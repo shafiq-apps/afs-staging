@@ -18,6 +18,7 @@ import { configureStaticFiles } from '@core/http/static.middleware';
 import cors from "cors";
 import { createSubscriptionModule } from '@modules/subscriptions/subscriptions.factory.js';
 import { createSubscriptionPlansModule } from '@modules/subscription-plans/subscription-plans.factory.js';
+import { createAdminUsersModule } from '@modules/admin-users/admin-users.factory';
 
 const logger = createModuleLogger('bootstrap');
 
@@ -109,6 +110,7 @@ export async function bootstrap() {
   const filtersModule = createFiltersModule(esClient);
   const subscriptionsModule = createSubscriptionModule(esClient, shopsModule.repository);
   const subscriptionPlansModule = createSubscriptionPlansModule(esClient);
+  const adminUsersModule = createAdminUsersModule(esClient);
   
   // Initialize GraphQL module
   const graphqlModule = createGraphQLModule(esClient, {
@@ -143,6 +145,7 @@ export async function bootstrap() {
     req.subscriptionsRepository = subscriptionsModule.repository;
     req.esClient = esClient; // Inject ES client for GraphQL resolvers
     req.subscriptionPlansRepository = subscriptionPlansModule.repository;
+    req.adminUsersService = adminUsersModule.service; // Inject admin users service for GraphQL resolvers
     // req.usersService = usersModule.service;
     next();
   });
