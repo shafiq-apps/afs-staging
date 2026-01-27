@@ -33,6 +33,19 @@ export interface ImageOptimizationOptionsType {
 	crop?: string | null;
 }
 
+export interface ImageAttributesType {
+	src: string;
+	srcset?: string;
+	sizes?: string;
+	width?: number;
+	height?: number;
+	alt: string;
+	loading?: 'lazy' | 'eager';
+	decoding?: 'async' | 'sync' | 'auto';
+	fetchpriority?: 'high' | 'low' | 'auto';
+	fallbackUrl?: string;
+}
+
 export interface PriceRangeType {
 	min?: number;
 	max?: number;

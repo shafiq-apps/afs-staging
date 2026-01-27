@@ -1939,63 +1939,60 @@ const DOM = {
 
 		if (p.imageUrl || p.featuredImage) {
 			const imgContainer = $.el('div', 'afs-product-card__image');
-			const img = $.el('img', '', {
-				alt: p.title || '',
-				loading: 'lazy',
-				decoding: 'async',
-				fetchpriority: 'low'
-			}) as HTMLImageElement;
+			
+			// Use utility function to build image attributes
+			const imageAttrs = $.buildImageAttributes(
+				{
+					featuredImage: p.featuredImage,
+					imageUrl: p.imageUrl
+				},
+				{
+					alt: p.title || '',
+					loading: 'lazy',
+					decoding: 'async',
+					fetchpriority: 'low',
+					defaultWidth: 300,
+					defaultHeight: 300,
+					srcsetSizes: [200, 300, 500],
+					sizes: '(max-width: 768px) 200px, (max-width: 1024px) 300px, 500px',
+					quality: 80
+				}
+			);
 
-			// Get base image URL (first image)
-			const baseImageUrl = p.imageUrl || '';
+			if (imageAttrs) {
+				const img = $.el('img', '', {
+					alt: imageAttrs.alt,
+					loading: imageAttrs.loading || 'lazy',
+					decoding: imageAttrs.decoding || 'async',
+					fetchpriority: imageAttrs.fetchpriority || 'low'
+				}) as HTMLImageElement;
 
-			// Get second image for hover effect (from imagesUrls array)
-			let secondImageUrl: string | null = null;
-			const imagesArray = (p as any).imagesUrls;
-			if (imagesArray && Array.isArray(imagesArray) && imagesArray.length > 1) {
-				secondImageUrl = imagesArray[1];
-				Logger.debug('Second image found for hover', {
-					secondImageUrl,
-					totalImages: imagesArray.length
-				});
-			}
-
-			if (baseImageUrl) {
-				// Use responsive images with srcset for optimal loading
-				if (p.featuredImage && (p.featuredImage.urlSmall || p.featuredImage.urlMedium || p.featuredImage.urlLarge)) {
-					// Use pre-optimized URLs from Liquid if available
-					const srcset: string[] = [];
-					if (p.featuredImage.urlSmall) srcset.push(`${p.featuredImage.urlSmall} 200w`);
-					if (p.featuredImage.urlMedium) srcset.push(`${p.featuredImage.urlMedium} 300w`);
-					if (p.featuredImage.urlLarge) srcset.push(`${p.featuredImage.urlLarge} 500w`);
-
-					if (srcset.length > 0) {
-						img.setAttribute('srcset', srcset.join(', '));
-						img.setAttribute('sizes', '(max-width: 768px) 200px, (max-width: 1024px) 300px, 500px');
-					}
-
-					// Set src with WebP first, fallback to original
-					img.src = p.featuredImage.url || p.featuredImage.urlFallback || baseImageUrl;
-				} else {
-					// Optimize image URL on-the-fly for API responses
-					const optimizedUrl = $.optimizeImageUrl(baseImageUrl, { width: 300, format: 'webp', quality: 80 });
-					const srcset = $.buildImageSrcset(baseImageUrl, [200, 300, 500]);
-
-					if (srcset) {
-						img.setAttribute('srcset', srcset);
-						img.setAttribute('sizes', '(max-width: 768px) 200px, (max-width: 1024px) 300px, 500px');
-					}
-
-					img.src = optimizedUrl || baseImageUrl;
+				// Set image attributes
+				img.src = imageAttrs.src;
+				
+				if (imageAttrs.srcset) {
+					img.setAttribute('srcset', imageAttrs.srcset);
+				}
+				
+				if (imageAttrs.sizes) {
+					img.setAttribute('sizes', imageAttrs.sizes);
+				}
+				
+				if (imageAttrs.width) {
+					img.setAttribute('width', String(imageAttrs.width));
+				}
+				
+				if (imageAttrs.height) {
+					img.setAttribute('height', String(imageAttrs.height));
 				}
 
-				// Store original image URL for hover revert
-				img.setAttribute('data-original-src', img.src);
+				// Get base image URL for error handling
+				const baseImageUrl = p.imageUrl || p.featuredImage?.urlFallback || imageAttrs.src;
 
 				// Add error handling for failed image loads
 				img.onerror = function (this: HTMLImageElement) {
 					// Fallback to original format if WebP fails
-					const fallbackUrl = p.featuredImage?.urlFallback || baseImageUrl;
+					const fallbackUrl = imageAttrs.fallbackUrl || baseImageUrl;
 					if (fallbackUrl && this.src !== fallbackUrl) {
 						// Try original format
 						this.src = fallbackUrl;
@@ -2015,128 +2012,111 @@ const DOM = {
 						this.style.display = 'none';
 					}
 				};
-			}
 
-			imgContainer.appendChild(img);
+				imgContainer.appendChild(img);
 
-			// Add hover effect for second image if available
-			if (secondImageUrl) {
-				// Use original second image URL directly (no optimization for hover to avoid issues)
-				// Optimization can cause problems if the URL format changes
-				const hoverImageUrl = secondImageUrl;
+				// Get second image for hover effect (from imagesUrls array)
+				let secondImageUrl: string | null = null;
+				const imagesArray = (p as any).imagesUrls;
+				if (imagesArray && Array.isArray(imagesArray) && imagesArray.length > 1) {
+					secondImageUrl = imagesArray[1];
+					Logger.debug('Second image found for hover', {
+						secondImageUrl,
+						totalImages: imagesArray.length
+					});
+				}
+				// Add hover effect for second image if available
+				if (secondImageUrl) {
+					const hoverImageAttrs = $.buildImageAttributes(
+						{
+							imageUrl: secondImageUrl
+						},
+						{
+							alt: p.title || '',
+							loading: 'lazy',
+							decoding: 'async',
+							fetchpriority: 'low',
+							defaultWidth: 300,
+							defaultHeight: 300,
+							srcsetSizes: [200, 300, 500],
+							sizes: '(max-width: 768px) 200px, (max-width: 1024px) 300px, 500px',
+							quality: 80
+						}
+					);
+					if(hoverImageAttrs) {
+						const hoverImg = $.el('img', '', {
+							alt: hoverImageAttrs.alt,
+							loading: hoverImageAttrs.loading || 'lazy',
+							decoding: hoverImageAttrs.decoding || 'async',
+							fetchpriority: hoverImageAttrs.fetchpriority || 'low'
+						}) as HTMLImageElement;
 
-				// Preload second image for smooth hover transition
-				const hoverImg = new Image();
-				hoverImg.src = hoverImageUrl;
+						// Set image attributes
+						hoverImg.src = hoverImageAttrs.src;
+						
+						if (hoverImageAttrs.srcset) {
+							hoverImg.setAttribute('srcset', hoverImageAttrs.srcset);
+						}
+						
+						if (hoverImageAttrs.sizes) {
+							hoverImg.setAttribute('sizes', hoverImageAttrs.sizes);
+						}
+						
+						if (hoverImageAttrs.width) {
+							hoverImg.setAttribute('width', String(hoverImageAttrs.width));
+						}
+						
+						if (hoverImageAttrs.height) {
+							hoverImg.setAttribute('height', String(hoverImageAttrs.height));
+						}
 
-				// Store original src - use the actual current src after image loads
-				let originalSrc = img.src || baseImageUrl;
-
-				// Update original src when main image loads (in case srcset changes it)
-				const updateOriginalSrc = () => {
-					const currentSrc = img.src;
-					if (currentSrc && currentSrc !== hoverImageUrl) {
-						originalSrc = currentSrc;
+						imgContainer.appendChild(hoverImg);
 					}
-				};
-
-				// Capture original src after image loads
-				if (img.complete) {
-					updateOriginalSrc();
-				} else {
-					img.addEventListener('load', updateOriginalSrc, { once: true });
+					
 				}
 
-				// Add hover event listeners with smooth transition
-				imgContainer.addEventListener('mouseenter', () => {
-					// Update original src if it changed (e.g., due to srcset)
-					updateOriginalSrc();
+				// Add sold out badge if product is unavailable
+				const isSoldOut = parseInt(String(p.totalInventory || 0), 10) <= 0 || (p.variants && !p.variants.some(v => v.availableForSale));
+				if (isSoldOut) {
+					const soldOutBadge = $.el('div', 'afs-product-card__badge', {
+						'class': 'afs-product-card__badge--sold-out'
+					});
+					soldOutBadge.textContent = Lang.buttons.soldOut || 'Sold out';
+					imgContainer.appendChild(soldOutBadge);
+				}
 
-					// Swap to hover image
-					const swapToHover = () => {
-						img.style.opacity = '0';
-						setTimeout(() => {
-							img.src = hoverImageUrl;
-							img.style.opacity = '1';
-						}, 150);
-					};
-
-					if (hoverImg.complete) {
-						// Image already loaded, swap immediately
-						swapToHover();
-					} else {
-						// Wait for image to load, then swap
-						const loadHandler = () => {
-							swapToHover();
-						};
-
-						// Check again in case it loaded between checks (race condition)
-						if (hoverImg.complete) {
-							swapToHover();
-						} else {
-							hoverImg.addEventListener('load', loadHandler, { once: true });
-							// If image fails to load, log error but don't swap
-							hoverImg.addEventListener('error', () => {
-								Logger.debug('Hover image failed to load', {
-									url: secondImageUrl,
-									hoverImageUrl
-								});
-							}, { once: true });
-						}
-					}
+				// Add Quick Add button - bottom right corner with + icon
+				const quickAddBtn = $.el('button', 'afs-product-card__quick-add', {
+					'data-product-handle': p.handle || '',
+					'data-product-id': $.id(p) || '',
+					'aria-label': Lang.buttons.quickAddToCart,
+					'type': 'button'
 				});
 
-				imgContainer.addEventListener('mouseleave', () => {
-					// Revert to original image with fade
-					img.style.opacity = '0';
-					setTimeout(() => {
-						img.src = originalSrc;
-						img.style.opacity = '1';
-					}, 150);
-				});
+				// Add + icon
+				const plusIcon = $.el('span', 'afs-product-card__quick-add-icon');
+				plusIcon.innerHTML = Icons.plus;
+				quickAddBtn.appendChild(plusIcon);
+
+				// Add text that shows on hover
+				const quickAddText = $.el('span', 'afs-product-card__quick-add-text');
+				quickAddText.textContent = Lang.buttons.quickAdd;
+				quickAddBtn.appendChild(quickAddText);
+
+				// Disable button if product is not available
+				if (parseInt(String(p.totalInventory || 0), 10) <= 0 || (p.variants && !p.variants.some(v => v.availableForSale))) {
+					(quickAddBtn as HTMLButtonElement).disabled = true;
+					quickAddBtn.classList.add('afs-product-card__quick-add--disabled');
+					quickAddBtn.setAttribute('aria-label', Lang.labels.productUnavailable);
+				}
+
+				// Add Quick View button - opens product modal
+				const quickViewBtn = createQuickViewButton(p);
+				if (quickViewBtn) {
+					imgContainer.appendChild(quickViewBtn);
+				}
+				card.appendChild(imgContainer);
 			}
-
-			// Add sold out badge if product is unavailable
-			const isSoldOut = parseInt(String(p.totalInventory || 0), 10) <= 0 || (p.variants && !p.variants.some(v => v.availableForSale));
-			if (isSoldOut) {
-				const soldOutBadge = $.el('div', 'afs-product-card__badge', {
-					'class': 'afs-product-card__badge--sold-out'
-				});
-				soldOutBadge.textContent = Lang.buttons.soldOut || 'Sold out';
-				imgContainer.appendChild(soldOutBadge);
-			}
-
-			// Add Quick Add button - bottom right corner with + icon
-			const quickAddBtn = $.el('button', 'afs-product-card__quick-add', {
-				'data-product-handle': p.handle || '',
-				'data-product-id': $.id(p) || '',
-				'aria-label': Lang.buttons.quickAddToCart,
-				'type': 'button'
-			});
-
-			// Add + icon
-			const plusIcon = $.el('span', 'afs-product-card__quick-add-icon');
-			plusIcon.innerHTML = Icons.plus;
-			quickAddBtn.appendChild(plusIcon);
-
-			// Add text that shows on hover
-			const quickAddText = $.el('span', 'afs-product-card__quick-add-text');
-			quickAddText.textContent = Lang.buttons.quickAdd;
-			quickAddBtn.appendChild(quickAddText);
-
-			// Disable button if product is not available
-			if (parseInt(String(p.totalInventory || 0), 10) <= 0 || (p.variants && !p.variants.some(v => v.availableForSale))) {
-				(quickAddBtn as HTMLButtonElement).disabled = true;
-				quickAddBtn.classList.add('afs-product-card__quick-add--disabled');
-				quickAddBtn.setAttribute('aria-label', Lang.labels.productUnavailable);
-			}
-
-			// Add Quick View button - opens product modal
-			const quickViewBtn = createQuickViewButton(p);
-			if (quickViewBtn) {
-				imgContainer.appendChild(quickViewBtn);
-			}
-			card.appendChild(imgContainer);
 		}
 
 		const info = $.el('a', 'afs-product-card__info', { 'href': `/products/${p.handle}` });
