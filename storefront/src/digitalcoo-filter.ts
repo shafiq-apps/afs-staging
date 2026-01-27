@@ -882,10 +882,10 @@ const DOM = {
 					Filters.applyProductsOnly();
 				}
 			}
-			else if (target.closest<HTMLElement>('.afs-filter-group__clear')) {
+			else if (target.closest<HTMLElement>('.afs-filter-group__clear') || target.closest<HTMLElement>('.afs-filter-group__overlay-reset')) {
 				e.preventDefault();
 				e.stopPropagation();
-				const clearBtn = target.closest<HTMLElement>('.afs-filter-group__clear');
+				const clearBtn = target.closest<HTMLElement>('.afs-filter-group__clear') || target.closest<HTMLElement>('.afs-filter-group__overlay-reset');
 				if (!clearBtn) return;
 
 				const handle = clearBtn.getAttribute('data-afs-filter-handle');
@@ -900,6 +900,9 @@ const DOM = {
 
 					delete FilterState.filters[handle];
 					Log.debug('Filter cleared', { handle, isCollectionFilter });
+
+					// Update filter group's selected state for top bar layout
+					DOM.updateFilterGroupSelectedState(handle);
 
 					// Update URL
 					UrlManager.update(FilterState.filters, FilterState.pagination, FilterState.sort);
@@ -1362,7 +1365,8 @@ const DOM = {
 		this.hideFiltersSkeleton();
 
 		// Save States with improved persistence (reuse module-level `States` map)
-		States.clear();
+		// Save current state before clearing
+		const savedStates = new Map<string, FilterGroupStateType & { lastUpdated?: number }>();
 		this.filtersContainer.querySelectorAll('.afs-filter-group').forEach(g => {
 			const key = g.getAttribute('data-afs-filter-key');
 			if (key) {
@@ -1372,7 +1376,7 @@ const DOM = {
 
 				// Get existing state to preserve other properties
 				const existingState = States.get(key);
-				States.set(key, {
+				savedStates.set(key, {
 					...existingState,
 					collapsed,
 					search,
@@ -1380,6 +1384,12 @@ const DOM = {
 					lastUpdated: Date.now()
 				} as FilterGroupStateType & { lastUpdated?: number });
 			}
+		});
+		
+		// Clear and restore saved states
+		States.clear();
+		savedStates.forEach((state, key) => {
+			States.set(key, state);
 		});
 
 		// Clear and rebuild in one batch
@@ -1470,11 +1480,10 @@ const DOM = {
 
 			const saved = States.get(stateKey);
 			// Check collapsed state: saved state takes precedence, then filter.collapsed, default to false
-			// In top bar layout, force all filters to be collapsed (ignore saved state)
 			const isTopBarLayout = this.container?.getAttribute('data-afs-layout') === 'top';
-			const defaultCollapsed = isTopBarLayout ? true : (filter.collapsed === true || filter.collapsed === 'true' || filter.collapsed === 1);
-			// In top bar mode, always start collapsed (ignore saved state)
-			const collapsed = isTopBarLayout ? true : (saved?.collapsed !== undefined ? saved.collapsed : defaultCollapsed);
+			const defaultCollapsed = filter.collapsed === true || filter.collapsed === 'true' || filter.collapsed === 1;
+			// In top bar mode, preserve saved state (don't force collapsed) - only default to collapsed if no saved state
+			const collapsed = saved?.collapsed !== undefined ? saved.collapsed : (isTopBarLayout ? true : defaultCollapsed);
 			group.setAttribute('data-afs-collapsed', collapsed ? 'true' : 'false');
 
 			Log.debug('Filter group created', {
@@ -1493,23 +1502,38 @@ const DOM = {
 				'aria-expanded': !collapsed ? 'true' : 'false',
 				'title': filter.tooltipContent || `Toggle ${filter.label || handle} filter`,
 			});
-			const icon = $.el('span', 'afs-filter-group__icon');
-			// Use inline SVG HTML for better CSS control
-			icon.innerHTML = collapsed ? (Icons.rightArrow || '') : (Icons.downArrow || '');
-			toggle.appendChild(icon);
-			toggle.appendChild($.txt($.el('label', 'afs-filter-group__label', {
+			const labelEl = $.el('label', 'afs-filter-group__label', {
 				'for': 'afs-filter-group__label'
-			}), filter.label || filter.optionType || ''));
-			header.appendChild(toggle);
-
-			// Add clear button next to the label (only show if filter has active values)
+			});
+			labelEl.textContent = filter.label || filter.optionType || '';
+			toggle.appendChild(labelEl);
+			
+			// Add count badge for top bar layout (only show if filter has active values)
 			const filterValue = FilterState.filters[handle];
 			const hasActiveValues = filterValue && (
 				Array.isArray(filterValue) ? filterValue.length > 0 :
 					typeof filterValue === 'object' && !Array.isArray(filterValue) ? Object.keys(filterValue).length > 0 :
 						Boolean(filterValue)
 			);
-			if (hasActiveValues) {
+			
+			// Set data attribute for top bar layout background color
+			group.setAttribute('data-afs-has-selected', hasActiveValues ? 'true' : 'false');
+			
+			if (isTopBarLayout && hasActiveValues) {
+				const selectedCount = Array.isArray(filterValue) ? filterValue.length : 
+					(typeof filterValue === 'object' && !Array.isArray(filterValue) ? Object.keys(filterValue).length : 1);
+				const countBadge = $.el('span', 'afs-filter-group__count-badge');
+				countBadge.textContent = String(selectedCount);
+				toggle.appendChild(countBadge);
+			}
+			
+			const icon = $.el('span', 'afs-filter-group__icon');
+			// Use inline SVG HTML for better CSS control
+			icon.innerHTML = collapsed ? (Icons.rightArrow || '') : (Icons.downArrow || '');
+			toggle.appendChild(icon);
+			
+			// Add clear button next to the label (only show if filter has active values and NOT in top bar layout)
+			if (!isTopBarLayout && hasActiveValues) {
 				const clearBtn = $.el('button', 'afs-filter-group__clear', {
 					type: 'button',
 					'aria-label': `${Lang.buttons.clear} ${filter.label || handle} filters`,
@@ -1520,10 +1544,33 @@ const DOM = {
 				header.appendChild(clearBtn);
 			}
 
+			header.appendChild(toggle);
 			group.appendChild(header);
 
 			// Content
 			const content = $.el('div', 'afs-filter-group__content');
+			
+			// Add overlay dropdown header for top bar layout (with count and reset button)
+			if (isTopBarLayout && hasActiveValues) {
+				const overlayHeader = $.el('div', 'afs-filter-group__overlay-header');
+				const selectedCount = Array.isArray(filterValue) ? filterValue.length : 
+					(typeof filterValue === 'object' && !Array.isArray(filterValue) ? Object.keys(filterValue).length : 1);
+				const countText = $.el('span', 'afs-filter-group__overlay-count');
+				countText.textContent = `${selectedCount} selected`;
+				overlayHeader.appendChild(countText);
+				
+				const resetBtn = $.el('button', 'afs-filter-group__overlay-reset', {
+					type: 'button',
+					'aria-label': `Reset ${filter.label || handle} filters`,
+					'data-afs-filter-handle': handle
+				});
+				resetBtn.textContent = 'Reset filters';
+				resetBtn.title = `Reset ${filter.label || handle} filters`;
+				overlayHeader.appendChild(resetBtn);
+				
+				content.appendChild(overlayHeader);
+			}
+			
 			// Check searchable: check for true, any truthy value that indicates searchable
 			const isSearchable = filter.searchable === true || (typeof filter.searchable === 'string' && filter.searchable.toLowerCase() === 'true');
 
@@ -1677,27 +1724,42 @@ const DOM = {
 		});
 
 		const saved = savedStates?.get(filter.key || 'priceRange');
-		// In top bar layout, force price range filter to be collapsed
+		// In top bar layout, preserve saved state (don't force collapsed) - only default to collapsed if no saved state
 		const isTopBarLayout = this.container?.getAttribute('data-afs-layout') === 'top';
-		const collapsed = isTopBarLayout ? true : (saved?.collapsed ?? filter.collapsed === true);
+		const defaultCollapsed = filter.collapsed === true;
+		const collapsed = saved?.collapsed !== undefined ? saved.collapsed : (isTopBarLayout ? true : defaultCollapsed);
 		group.setAttribute('data-afs-collapsed', collapsed ? 'true' : 'false');
 
 		// Header
 		const header = $.el('div', 'afs-filter-group__header');
 		const toggle = $.el('button', 'afs-filter-group__toggle', { type: 'button', 'aria-expanded': !collapsed ? 'true' : 'false' });
-		const icon = $.el('span', 'afs-filter-group__icon');
-		// Use inline SVG HTML for better CSS control
-		icon.innerHTML = collapsed ? (Icons.rightArrow || '') : (Icons.downArrow || '');
-		toggle.appendChild(icon);
-		toggle.appendChild($.txt($.el('label', 'afs-filter-group__label', { 'for': 'afs-filter-group__label' }), filter.label || 'Price'));
-		header.appendChild(toggle);
+		const labelEl = $.el('label', 'afs-filter-group__label', { 'for': 'afs-filter-group__label' });
+		labelEl.textContent = filter.label || 'Price';
+		toggle.appendChild(labelEl);
 
 		// Add clear button for price range (only show if price range is active and not at default)
 		const isPriceRangeActive = FilterState.filters.priceRange && (
 			(typeof FilterState.filters.priceRange.min === 'number' && FilterState.filters.priceRange.min !== minRange) ||
 			(typeof FilterState.filters.priceRange.max === 'number' && FilterState.filters.priceRange.max !== maxRange)
 		);
-		if (isPriceRangeActive) {
+		
+		// Set data attribute for top bar layout background color
+		group.setAttribute('data-afs-has-selected', isPriceRangeActive ? 'true' : 'false');
+		
+		// Add count badge for top bar layout (price range is always 1 when active)
+		if (isTopBarLayout && isPriceRangeActive) {
+			const countBadge = $.el('span', 'afs-filter-group__count-badge');
+			countBadge.textContent = '1';
+			toggle.appendChild(countBadge);
+		}
+		
+		const icon = $.el('span', 'afs-filter-group__icon');
+		// Use inline SVG HTML for better CSS control
+		icon.innerHTML = collapsed ? (Icons.rightArrow || '') : (Icons.downArrow || '');
+		toggle.appendChild(icon);
+		
+		// Add clear button (only show if NOT in top bar layout)
+		if (!isTopBarLayout && isPriceRangeActive) {
 			const clearBtn = $.el('button', 'afs-filter-group__clear', {
 				type: 'button',
 				'aria-label': `${Lang.buttons.clear} ${filter.label} filter`,
@@ -1708,10 +1770,30 @@ const DOM = {
 			header.appendChild(clearBtn);
 		}
 
+		header.appendChild(toggle);
 		group.appendChild(header);
 
 		// Content
 		const content = $.el('div', 'afs-filter-group__content');
+		
+		// Add overlay dropdown header for top bar layout (with count and reset button)
+		if (isTopBarLayout && isPriceRangeActive) {
+			const overlayHeader = $.el('div', 'afs-filter-group__overlay-header');
+			const countText = $.el('span', 'afs-filter-group__overlay-count');
+			countText.textContent = '1 selected';
+			overlayHeader.appendChild(countText);
+			
+			const resetBtn = $.el('button', 'afs-filter-group__overlay-reset', {
+				type: 'button',
+				'aria-label': `Reset ${filter.label} filter`,
+				'data-afs-filter-handle': 'priceRange'
+			});
+			resetBtn.textContent = 'Reset filters';
+			resetBtn.title = `Reset ${filter.label} filter`;
+			overlayHeader.appendChild(resetBtn);
+			
+			content.appendChild(overlayHeader);
+		}
 
 		// Price range slider container
 		const sliderContainer = $.el('div', 'afs-price-range-container');
@@ -2086,6 +2168,116 @@ const DOM = {
 		return card;
 	},
 
+	// Update filter group's selected state attribute (for top bar layout background color)
+	updateFilterGroupSelectedState(handle: string): void {
+		if (!this.filtersContainer) return;
+
+		// Try to find by handle first (for regular filters)
+		let group = this.filtersContainer.querySelector<HTMLElement>(`.afs-filter-group[data-afs-filter-handle="${handle}"]`);
+		
+		// If not found, try to find by key (for price range filters)
+		if (!group) {
+			group = this.filtersContainer.querySelector<HTMLElement>(`.afs-filter-group[data-afs-filter-key="${handle}"]`);
+		}
+		
+		if (!group) return;
+
+		const isTopBarLayout = this.container?.getAttribute('data-afs-layout') === 'top';
+		let hasActiveValues = false;
+		let selectedCount = 0;
+
+		// For price range filters, check if it's active (not at default range)
+		if (handle === 'priceRange' || $.isPriceRangeKey(handle)) {
+			const priceFilter = FilterState.availableFilters.find(f => $.isPriceRangeOptionType(f.optionType) || $.equals(f.optionKey, FilterKeyType.PRICE_RANGE));
+			if (priceFilter && priceFilter.range) {
+				const priceRange = FilterState.filters.priceRange;
+				const minRange = formatPrice(priceFilter.range.min);
+				const maxRange = formatPrice(priceFilter.range.max);
+				hasActiveValues = !!(priceRange && (
+					(typeof priceRange.min === 'number' && priceRange.min !== minRange) ||
+					(typeof priceRange.max === 'number' && priceRange.max !== maxRange)
+				));
+				selectedCount = hasActiveValues ? 1 : 0;
+			}
+		} else {
+			// For regular filters
+			const filterValue = FilterState.filters[handle];
+			hasActiveValues = !!(filterValue && (
+				Array.isArray(filterValue) ? filterValue.length > 0 :
+					(typeof filterValue === 'object' && !Array.isArray(filterValue) ? Object.keys(filterValue).length > 0 :
+						Boolean(filterValue))
+			));
+			if (hasActiveValues) {
+				selectedCount = Array.isArray(filterValue) ? filterValue.length : 
+					(typeof filterValue === 'object' && !Array.isArray(filterValue) && filterValue ? Object.keys(filterValue).length : 1);
+			} else {
+				selectedCount = 0;
+			}
+		}
+
+		group.setAttribute('data-afs-has-selected', hasActiveValues ? 'true' : 'false');
+
+		// Update count badge and overlay header for top bar layout
+		if (isTopBarLayout) {
+			const countBadge = group.querySelector<HTMLElement>('.afs-filter-group__count-badge');
+			const overlayCount = group.querySelector<HTMLElement>('.afs-filter-group__overlay-count');
+			const overlayHeader = group.querySelector<HTMLElement>('.afs-filter-group__overlay-header');
+			
+			if (hasActiveValues) {
+				// Update or create count badge
+				if (countBadge) {
+					countBadge.textContent = String(selectedCount);
+				} else {
+					const toggle = group.querySelector<HTMLElement>('.afs-filter-group__toggle');
+					if (toggle) {
+						const badge = $.el('span', 'afs-filter-group__count-badge');
+						badge.textContent = String(selectedCount);
+						toggle.appendChild(badge);
+					}
+				}
+				
+				// Update or create overlay header
+				if (overlayHeader) {
+					if (overlayCount) {
+						overlayCount.textContent = `${selectedCount} selected`;
+					}
+				} else {
+					const content = group.querySelector<HTMLElement>('.afs-filter-group__content');
+					if (content) {
+						const header = $.el('div', 'afs-filter-group__overlay-header');
+						const countText = $.el('span', 'afs-filter-group__overlay-count');
+						countText.textContent = `${selectedCount} selected`;
+						header.appendChild(countText);
+						
+						const resetBtn = $.el('button', 'afs-filter-group__overlay-reset', {
+							type: 'button',
+							'aria-label': `Reset filters`,
+							'data-afs-filter-handle': handle
+						});
+						resetBtn.textContent = 'Reset filters';
+						resetBtn.title = 'Reset filters';
+						header.appendChild(resetBtn);
+						
+						// Insert before search or items
+						const search = content.querySelector<HTMLElement>('.afs-filter-group__search');
+						const items = content.querySelector<HTMLElement>('.afs-filter-group__items');
+						if (search) {
+							content.insertBefore(header, search);
+						} else if (items) {
+							content.insertBefore(header, items);
+						} else {
+							content.appendChild(header);
+						}
+					}
+				}
+			} else {
+				// Remove count badge and overlay header when no selections
+				if (countBadge) countBadge.remove();
+				if (overlayHeader) overlayHeader.remove();
+			}
+		}
+	},
+
 	// Update filter active state (optimized)
 	updateFilterState(handle: string, value: string, active: boolean): void {
 		if (!this.filtersContainer) {
@@ -2112,6 +2304,9 @@ const DOM = {
 		} else {
 			Log.warn('Filter item not found for state update', { handle, value, active, selector });
 		}
+
+		// Update filter group's selected state for top bar layout
+		this.updateFilterGroupSelectedState(handle);
 	},
 
 	// Products info
@@ -2284,6 +2479,14 @@ const DOM = {
 	// Applied filters with clear all
 	renderApplied(filters: FiltersStateType): void {
 		if (!this.container) return;
+
+		// Hide applied filters section in top bar layout
+		const isTopBarLayout = this.container.getAttribute('data-afs-layout') === 'top';
+		if (isTopBarLayout) {
+			const existing = this.container.querySelector<HTMLElement>('.afs-applied-filters');
+			if (existing) existing.remove();
+			return;
+		}
 
 		// Remove existing applied filters
 		const existing = this.container.querySelector<HTMLElement>('.afs-applied-filters');
@@ -2883,6 +3086,11 @@ const Filters = {
 		FilterState.pagination.page = 1;
 
 		Log.debug('Price range updated', { min, max, priceRange: FilterState.filters.priceRange });
+
+		// Update filter group's selected state for top bar layout
+		const priceRangeFilter = FilterState.availableFilters.find(f => $.isPriceRangeOptionType(f.optionType) || $.equals(f.optionKey, FilterKeyType.PRICE_RANGE));
+		const priceRangeKey = priceRangeFilter?.key || 'priceRange';
+		DOM.updateFilterGroupSelectedState(priceRangeKey);
 
 		UrlManager.update(FilterState.filters, FilterState.pagination, FilterState.sort);
 		// Scroll to top when price range is updated
@@ -4318,7 +4526,6 @@ async function createProductModal(handle: string, modalId: string): Promise<Prod
 					Log.warn('No images found for slider', { modalId });
 				}
 			} catch (error) {
-
 				Log.error('Failed to initialize slider', {
 					error: error instanceof Error ? error.message : String(error),
 					modalId
