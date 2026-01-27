@@ -6,6 +6,7 @@ import { waitForElement, waitForElements } from './utils/dom-ready';
 import { FilterKeyType, FilterStateType, FilterOptionType, FilterMetadataType, FiltersStateType, PaginationStateType, SortStateType, ProductsResponseDataType, FiltersResponseDataType, PriceRangeType, AFSConfigType, FilterValueType, SpecialValueType, SortFieldType, SortOrderType, AppliedFilterType, ParsedUrlParamsType, FilterGroupStateType, ProductType, APIResponse, AFSInterfaceType, FilterItemsElement, SliderOptionsType, SliderSlideChangeEventDetailType, ProductVariantType, ProductModalElement, AFSInterface } from "./type";
 import { findMatchingVariants, getSelectedOptions, isOptionValueAvailable, isVariantAvailable } from './utils/variant-util';
 import { Log } from './utils/shared';
+import { detectDevice } from './utils/detect-device';
 
 // Persistent map for filter group UI states (collapsed/search/lastUpdated)
 const States = new Map<string, FilterGroupStateType>();
@@ -3205,7 +3206,9 @@ const AFS: AFSInterface = {
 		}
 	},
 
-	Logger: Log
+	Logger: Log,
+
+	detectDevice: detectDevice
 };
 
 // ============================================================================

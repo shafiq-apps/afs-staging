@@ -445,6 +445,7 @@ export interface AFSInterfaceType {
 	init(config?: AFSConfigType): void;
 	load(): Promise<void>;
 	Logger: any;
+	detectDevice: any;
 }
 
 

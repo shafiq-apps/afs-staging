@@ -80,6 +80,13 @@
     function initializeAFS() {
       if (typeof window.AFS !== 'undefined') {
         try {
+          var deviceType = AFS.detectDevice();
+          console.log("AFS Device Type", deviceType);
+          if(!deviceType.isDesktop) {
+            try{
+              document.querySelector('div[data-afs-layout="top"]').setAttribute('data-afs-layout', 'left');
+            }catch(e){}
+          }
           window.AFS.init(config);
         } catch (error) {
           console.error('Failed to initialize Advanced Filter Search:', error);

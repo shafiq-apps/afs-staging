@@ -313,14 +313,6 @@
       }
     }
 
-    // Top bar layout on mobile - still use mobile drawer
-    &[data-afs-layout="top"] {
-      .afs-filters-container {
-        // On mobile, top bar layout still uses the drawer
-        // The horizontal layout will only apply on larger screens
-      }
-    }
-
     .afs-mobile-filter-backdrop {
       display: none !important;
       position: fixed;
@@ -636,7 +628,7 @@
         display: flex !important; // Override --open display: block
         flex-direction: row;
         flex-wrap: wrap;
-        gap: $spacing-lg;
+        gap: $spacing-md;
         overflow-x: visible !important; // Remove horizontal scrollbar
         overflow-y: visible !important;
         padding-bottom: $spacing-md;

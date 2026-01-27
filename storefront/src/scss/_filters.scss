@@ -156,8 +156,8 @@
 
     &__label {
       flex: 1;
-      font-size: $font-size-lg;
-      font-weight: var(--afs-font-weight-bold, $font-weight-semibold);
+      font-size: $font-size-md;
+      // font-weight: var(--afs-font-weight-bold, $font-weight-semibold);
       color: var(--afs-text-color);
       font-family: var(--afs-font-family);
       text-transform: capitalize;
@@ -393,7 +393,7 @@
 
     &__label {
       flex: 1;
-      font-weight: var(--afs-font-weight, $font-weight-normal);
+      // font-weight: var(--afs-font-weight, $font-weight-normal);
       font-family: var(--afs-font-family);
       cursor: pointer;
       user-select: none;
@@ -441,16 +441,15 @@
   &[data-afs-layout="top"] {
     .afs-filter-group {
       flex: 0 0 auto;
-      // min-width: 200px;
-      // max-width: 300px;
+      align-content: center;
+      min-width: 140px;
       margin-bottom: 0;
-      margin-right: $spacing-lg;
-      padding-bottom: 0;
-      padding-right: 0;
-      border-bottom: none;
-      border-right: none; 
+      margin-right: 0;
       position: relative;
       z-index: 1000; // Base z-index for filter groups
+      border: 1px solid var(--afs-border-color);
+      border-radius: $border-radius-md;
+      padding: 4px 8px;
 
       &:last-child {
         border-right: none;
@@ -514,6 +513,10 @@
         overflow-x: hidden;
         padding-right: $spacing-xs;
         @include custom-scrollbar(4px);
+      }
+
+      &__clear {
+        display: none;
       }
     }
 

@@ -58,6 +58,10 @@ export const $ = {
         return e;
     },
 
+    getAttrVal: (el: HTMLElement, attr: string): string | null => {
+        return el?.getAttribute(attr);
+    },
+
     // Fast text setter
     txt: (el: HTMLElement, text: string): HTMLElement => {
         el.textContent = text;
