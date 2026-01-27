@@ -22,7 +22,6 @@ const buildFiltersJS = async (watch = false) => {
     target: 'es6',
     drop: ["debugger"],
     ignoreAnnotations: true,
-
     platform: 'browser',
     outfile: path.join(config.buildDir, `${config.filtersFileName}.js`),
     ...(watch
@@ -122,7 +121,7 @@ const buildSearchJS = async (watch = false) => {
 const buildFiltersSCSS = async (watch = false) => {
   const compile = () => {
     try {
-      const result = sass.compile('src/system/build-filter.scss', { style: 'compressed' });
+      const result = sass.compile('src/system/build-filter.scss', { style: 'expanded' });
       const outFile = path.join(config.buildDir, `${config.filtersFileName}.css`);
 
       fs.writeFileSync(outFile, result.css);
@@ -158,7 +157,7 @@ const buildFiltersSCSS = async (watch = false) => {
 const buildSearchSCSS = async (watch = false) => {
   const compile = () => {
     try {
-      const result = sass.compile('src/system/build-search.scss', { style: 'compressed' });
+      const result = sass.compile('src/system/build-search.scss', { style: 'expanded' });
       const outFile = path.join(config.buildDir, `${config.searchFileName}.css`);
 
       fs.writeFileSync(outFile, result.css);

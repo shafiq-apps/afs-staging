@@ -49,6 +49,7 @@
       svg {
         width: 26px;
         height: 26px;
+        fill: currentColor;
       }
     }
 
@@ -86,6 +87,10 @@
       background: var(--afs-accent-color);
       color: var(--afs-text-color-inverse);
       border-color: var(--afs-accent-color);
+      
+      svg {
+        color: var(--afs-text-color-inverse);
+      }
     }
 
     .afs-product-card__quick-view span:not(.afs-product-card__quick-view-icon) {
