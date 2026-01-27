@@ -146,6 +146,7 @@
         height: 20px;
         display: block;
         fill: currentColor;
+        color: var(--afs-text-color);
       }
     }
 
@@ -220,7 +221,7 @@
       display: flex;
       flex-direction: column;
       gap: $spacing-sm;
-      max-height: 250px;
+      max-height: $filter-content-max-height;
       overflow-y: auto;
       overflow-x: hidden;
       padding-right: $spacing-xs;
@@ -448,14 +449,11 @@
       position: relative;
       z-index: 1000; // Base z-index for filter groups
       border: 1px solid var(--afs-border-color);
-      border-radius: $border-radius-md;
+      border-radius: $border-radius-sm;
       padding: 4px 8px;
-
-      &:last-child {
-        border-right: none;
-        margin-right: 0;
-        padding-right: 0;
-      }
+      height: auto;
+      display: flex;
+      align-items: center;
 
       // When expanded, increase z-index to appear above other filter headings
       &[data-afs-collapsed="false"] {
@@ -464,8 +462,18 @@
 
       &__header {
         margin-bottom: 0;
+        padding: 0;
         position: relative;
         z-index: 10002; // Header should be above dropdown
+        width: 100%;
+      }
+
+      &__toggle {
+        width: 100%;
+        padding: 0;
+        font-size: $font-size-base;
+        line-height: 1.4;
+        flex-direction: row-reverse;
       }
 
       &__content {
@@ -474,12 +482,12 @@
         top: 100%;
         left: 0;
         min-width: 250px;
-        max-width: 400px;
+        max-width: min($filter-content-max-height, calc(100vw - 32px)); // Prevent overflow beyond viewport
         width: max-content;
         z-index: 10000; // Very high z-index to ensure dropdown is always on top
         background: var(--afs-bg-color);
         border: 1px solid var(--afs-border-color);
-        border-radius: $border-radius-md;
+        border-radius: $border-radius-sm;
         box-shadow: none;
         max-height: 0;
         opacity: 0;
@@ -492,23 +500,94 @@
         visibility: hidden;
       }
 
-      &__toggle {
-        flex-direction: row-reverse;
+      &__label {
+        position: relative;
+      }
+
+      &__count-badge {
+        display: inline-block;
+        margin-left: 6px;
+        padding: 2px 6px;
+        background: var(--afs-bg-color);
+        color: var(--afs-accent-color);
+        border-radius: 10px;
+        font-size: $font-size-sm;
+        font-weight: $font-weight-semibold;
+        line-height: 1.2;
+        min-width: 18px;
+        text-align: center;
+      }
+
+      // Inverse colors when filter has active values
+      &[data-afs-has-active="true"] {
+        background: var(--afs-accent-color);
+        border-color: var(--afs-accent-color);
+
+        .afs-filter-group__label {
+          color: var(--afs-text-color-inverse, #fff);
+        }
+
+        .afs-filter-group__icon {
+          color: var(--afs-text-color-inverse, #fff);
+
+          svg {
+            color: var(--afs-text-color-inverse, #fff);
+          }
+        }
+
+        .afs-filter-group__count-badge {
+          background: var(--afs-bg-color);
+          color: var(--afs-accent-color);
+        }
+      }
+
+      &__overlay-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: $spacing-md;
+        padding-bottom: $spacing-md;
+        border-bottom: 1px solid var(--afs-border-color);
+      }
+
+      &__overlay-count {
+        font-size: $font-size-sm;
+        color: var(--afs-text-color);
+        font-weight: $font-weight-normal;
+      }
+
+      &__overlay-reset {
+        padding: 4px 8px;
+        background: transparent;
+        border: 1px solid var(--afs-border-color);
+        border-radius: $border-radius-sm;
+        font-size: $font-size-sm;
+        color: var(--afs-text-color);
+        cursor: pointer;
+        transition: all $transition-base;
+
+        &:hover {
+          background: var(--afs-accent-color);
+          color: var(--afs-text-color-inverse, #fff);
+          border-color: var(--afs-accent-color);
+        }
       }
 
       // When expanded (collapsed="false"), show overlay dropdown - use !important to override global rule
       &[data-afs-collapsed="false"] &__content {
-        max-height: 400px !important;
+        max-height: $filter-content-max-height !important;
         opacity: 1 !important;
         padding: $spacing-md !important;
         margin-top: $spacing-xs !important;
         pointer-events: auto !important;
         visibility: visible !important;
         overflow: hidden !important; // Hidden to contain items, items container handles scrolling
+        // Allow JavaScript to override left/right positioning for edge cases
+        // left: 0 is default, but can be set to 'auto' with right: 0 via JS
       }
 
       &__items {
-        max-height: 350px;
+        max-height: $filter-content-max-height;
         overflow-y: auto;
         overflow-x: hidden;
         padding-right: $spacing-xs;
@@ -540,7 +619,7 @@
     // Ensure expanded content shows items properly - explicit selector for top bar mode
     .afs-filter-group[data-afs-collapsed="false"] .afs-filter-group__content {
       display: block !important;
-      max-height: 400px !important;
+      max-height: $filter-content-max-height !important;
       opacity: 1 !important;
       padding: $spacing-md !important;
       margin-top: $spacing-xs !important;
@@ -562,6 +641,7 @@
       flex-direction: column !important;
       visibility: visible !important;
       opacity: 1 !important;
+      max-height: 210px;
     }
 
     // Ensure search input is visible

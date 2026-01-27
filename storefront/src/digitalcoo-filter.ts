@@ -1,12 +1,9 @@
 import { Icons } from './components/Icons';
 import { Config } from './config';
 import { Lang } from './locals';
-import { $ } from './utils/$.utils';
-import { waitForElement, waitForElements } from './utils/dom-ready';
+import { $, waitForElement, waitForElements, detectDevice, findMatchingVariants, getSelectedOptions, isOptionValueAvailable, isVariantAvailable, Logger } from './utils';
 import { FilterKeyType, FilterStateType, FilterOptionType, FilterMetadataType, FiltersStateType, PaginationStateType, SortStateType, ProductsResponseDataType, FiltersResponseDataType, PriceRangeType, AFSConfigType, FilterValueType, SpecialValueType, SortFieldType, SortOrderType, AppliedFilterType, ParsedUrlParamsType, FilterGroupStateType, ProductType, APIResponse, AFSInterfaceType, FilterItemsElement, SliderOptionsType, SliderSlideChangeEventDetailType, ProductVariantType, ProductModalElement, AFSInterface } from "./type";
-import { findMatchingVariants, getSelectedOptions, isOptionValueAvailable, isVariantAvailable } from './utils/variant-util';
-import { Log } from './utils/shared';
-import { detectDevice } from './utils/detect-device';
+
 
 // Persistent map for filter group UI states (collapsed/search/lastUpdated)
 const States = new Map<string, FilterGroupStateType>();
@@ -149,7 +146,7 @@ const UrlManager = {
 			else {
 				// Everything else is a handle (dynamic filter) - use directly, no conversion
 				params[key] = $.split(value);
-				Log.debug('Handle filter parsed directly', { handle: key, value });
+				Logger.debug('Handle filter parsed directly', { handle: key, value });
 			}
 		});
 
@@ -168,7 +165,7 @@ const UrlManager = {
 		const url = new URL(window.location.href);
 		url.search = '';
 
-		Log.debug('Updating URL', { filters, pagination });
+		Logger.debug('Updating URL', { filters, pagination });
 
 		if (filters && !$.empty(filters)) {
 			Object.keys(filters).forEach(key => {
@@ -178,7 +175,7 @@ const UrlManager = {
 				// Standard filters and handles - all use same format
 				if (Array.isArray(value) && value.length > 0) {
 					url.searchParams.set(key, value.join(','));
-					Log.debug('URL param set', { key, value: value.join(',') });
+					Logger.debug('URL param set', { key, value: value.join(',') });
 				}
 				// Price range: write as server-supported params
 				else if ($.isPriceRangeKey(key) && value && typeof value === 'object' && !Array.isArray(value)) {
@@ -189,12 +186,12 @@ const UrlManager = {
 						// Handle-style: {handle}=min-max
 						const handleValue = `${min !== undefined ? min : ''}-${max !== undefined ? max : ''}`;
 						url.searchParams.set(FilterState.priceRangeHandle, handleValue);
-						Log.debug('Price range URL handle param set', { handle: FilterState.priceRangeHandle, value: handleValue });
+						Logger.debug('Price range URL handle param set', { handle: FilterState.priceRangeHandle, value: handleValue });
 					} else {
 						// Backward compatibility
 						if (min !== undefined) url.searchParams.set('priceMin', String(min));
 						if (max !== undefined) url.searchParams.set('priceMax', String(max));
-						Log.debug('Price range URL params set', { priceMin: min, priceMax: max });
+						Logger.debug('Price range URL params set', { priceMin: min, priceMax: max });
 					}
 				}
 				else if ($.equals(key, FilterKeyType.SEARCH) && typeof value === 'string' && value.trim()) {
@@ -203,14 +200,14 @@ const UrlManager = {
 					const isSearchTemplate = (window as any).AFS_Config?.isSearchTemplate || false;
 					const paramKey = isSearchTemplate ? 'q' : 'search';
 					url.searchParams.set(paramKey, value.trim());
-					Log.debug('Search URL param set', { key: paramKey, value: value.trim(), isSearchTemplate });
+					Logger.debug('Search URL param set', { key: paramKey, value: value.trim(), isSearchTemplate });
 				}
 			});
 		}
 
 		if (pagination && pagination.page > 1) {
 			url.searchParams.set('page', String(pagination.page));
-			Log.debug('Page URL param set', { page: pagination.page });
+			Logger.debug('Page URL param set', { page: pagination.page });
 		}
 
 		// Update sort parameter
@@ -222,11 +219,11 @@ const UrlManager = {
 				const direction = $.equals(sort.order, SortOrderType.ASC) ? SortOrderType.ASCENDING : SortOrderType.DESCENDING;
 				url.searchParams.set('sort', `${sort.field}-${direction}`);
 			}
-			Log.debug('Sort URL param set', { field: sort.field, order: sort.order });
+			Logger.debug('Sort URL param set', { field: sort.field, order: sort.order });
 		}
 
 		const newUrl = url.toString();
-		Log.info('URL updated', { newUrl, oldUrl: window.location.href });
+		Logger.info('URL updated', { newUrl, oldUrl: window.location.href });
 		history.pushState({ filters, pagination, sort }, '', url);
 	}
 };
@@ -271,7 +268,7 @@ const API = {
 		const controller = new AbortController();
 		const timeoutId = setTimeout(() => controller.abort(), timeout);
 		try {
-			Log.debug('Fetching', { url });
+			Logger.debug('Fetching', { url });
 			const res = await fetch(url, { signal: controller.signal });
 			clearTimeout(timeoutId);
 			if (!res.ok) {
@@ -279,12 +276,12 @@ const API = {
 				throw new Error(`HTTP ${res.status}: ${res.statusText}${errorText ? ' - ' + errorText : ''}`);
 			}
 			const data = await res.json() as APIResponse<ProductsResponseDataType | FiltersResponseDataType>;
-			Log.debug('Fetch success', { url, hasData: !!data });
+			Logger.debug('Fetch success', { url, hasData: !!data });
 			return data;
 		} catch (e) {
 			clearTimeout(timeoutId);
 			if (e instanceof Error && e.name === 'AbortError') throw new Error('Request timeout');
-			Log.error('Fetch failed', { url, error: e instanceof Error ? e.message : String(e) });
+			Logger.error('Fetch failed', { url, error: e instanceof Error ? e.message : String(e) });
 			throw e;
 		}
 	},
@@ -308,13 +305,13 @@ const API = {
 		const key = this.key(filters, safePagination, safeSort);
 		const cached = this.get(key);
 		if (cached) {
-			Log.debug('Cache hit', { key });
+			Logger.debug('Cache hit', { key });
 			return cached;
 		}
 
 		// Deduplication: return existing promise if same request
 		if (this.pending.has(key)) {
-			Log.debug('Request deduplication', { key });
+			Logger.debug('Request deduplication', { key });
 			return this.pending.get(key)!;
 		}
 
@@ -325,9 +322,9 @@ const API = {
 		// CPID is server-managed and should always be sent to products API
 		if (FilterState.selectedCollection?.id) {
 			params.set('cpid', FilterState.selectedCollection.id);
-			Log.debug('cpid sent to products API', { cpid: FilterState.selectedCollection.id, filters });
+			Logger.debug('cpid sent to products API', { cpid: FilterState.selectedCollection.id, filters });
 		} else {
-			Log.warn('cpid not available in selectedCollection', { selectedCollection: FilterState.selectedCollection });
+			Logger.warn('cpid not available in selectedCollection', { selectedCollection: FilterState.selectedCollection });
 		}
 
 		// Send ALL filters as direct query parameters using handles as keys
@@ -358,10 +355,10 @@ const API = {
 				// k is already the handle (from FilterState.filters which uses handle as key)
 				if (Array.isArray(v) && v.length > 0) {
 					params.set(k, v.join(','));
-					Log.debug('Filter sent as direct handle param', { handle: k, value: v.join(',') });
+					Logger.debug('Filter sent as direct handle param', { handle: k, value: v.join(',') });
 				} else if (typeof v === 'string') {
 					params.set(k, v);
-					Log.debug('Filter sent as direct handle param', { handle: k, value: v });
+					Logger.debug('Filter sent as direct handle param', { handle: k, value: v });
 				}
 			}
 		});
@@ -379,16 +376,16 @@ const API = {
 		}
 
 		const url = `${this.baseURL}/products?${params}`;
-		Log.info('Fetching products', { url, shop: FilterState.shop, page: safePagination.page });
+		Logger.info('Fetching products', { url, shop: FilterState.shop, page: safePagination.page });
 		DOM.showProductsSkeleton();
 
 		const promise = this.fetch(url).then(res => {
 			if (!res.success || !res.data) {
-				Log.error('Invalid products response', { response: res });
+				Logger.error('Invalid products response', { response: res });
 				throw new Error(`Invalid products response: ${res.message || Lang.messages.unknownError}`);
 			}
 			const data = res.data as ProductsResponseDataType;
-			Log.info('Products response', {
+			Logger.info('Products response', {
 				productsCount: data.products?.length || 0,
 				total: data.pagination?.total || 0,
 				hasFilters: !!data.filters
@@ -398,7 +395,7 @@ const API = {
 			return data;
 		}).catch(e => {
 			this.pending.delete(key);
-			Log.error('Products fetch failed', { error: e instanceof Error ? e.message : String(e), url });
+			Logger.error('Products fetch failed', { error: e instanceof Error ? e.message : String(e), url });
 			throw e;
 		});
 		DOM.showProductsSkeleton();
@@ -417,9 +414,9 @@ const API = {
 		// CPID is server-managed and should always be sent to filters API
 		if (FilterState.selectedCollection?.id) {
 			params.set('cpid', FilterState.selectedCollection.id);
-			Log.debug('cpid sent to filters API', { cpid: FilterState.selectedCollection.id, filters });
+			Logger.debug('cpid sent to filters API', { cpid: FilterState.selectedCollection.id, filters });
 		} else {
-			Log.warn('cpid not available in selectedCollection', { selectedCollection: FilterState.selectedCollection });
+			Logger.warn('cpid not available in selectedCollection', { selectedCollection: FilterState.selectedCollection });
 		}
 
 		// When calculating aggregations for a specific filter, that filter should be excluded
@@ -447,23 +444,23 @@ const API = {
 			}
 		});
 
-		// Debug: Log all params before constructing URL
+		// Debug: Logger all params before constructing URL
 		const allParams: Record<string, string> = {};
 		params.forEach((value, key) => {
 			allParams[key] = value;
 		});
-		Log.debug('All params for filters endpoint', {
+		Logger.debug('All params for filters endpoint', {
 			params: allParams
 		});
 
 		const url = `${this.baseURL}/filters?${params}`;
-		Log.info('Fetching filters', { url, shop: FilterState.shop });
+		Logger.info('Fetching filters', { url, shop: FilterState.shop });
 
 		DOM.showLoading();
 
 		const res = await this.fetch(url);
 		if (!res.success || !res.data) {
-			Log.error('Invalid filters response', { response: res });
+			Logger.error('Invalid filters response', { response: res });
 			throw new Error(`Invalid filters response: ${res.message || Lang.messages.unknownError}`);
 		}
 
@@ -473,11 +470,11 @@ const API = {
 			throw new Error('Invalid filters response: data is not an object');
 		}
 		if (data.filters !== undefined && !Array.isArray(data.filters)) {
-			Log.warn('Filters response contains non-array filters', { filters: data.filters });
+			Logger.warn('Filters response contains non-array filters', { filters: data.filters });
 			data.filters = [];
 		}
 
-		Log.info('Filters response:', { filters: data.filters });
+		Logger.info('Filters response:', { filters: data.filters });
 
 		return data;
 	},
@@ -758,7 +755,7 @@ const DOM = {
 		// Store reference to sync function for use in popstate handler
 		(searchInput as any)._syncSearchInput = syncSearchInput;
 
-		Log.debug('Search bar initialized', { hasInput: !!searchInput, hasForm: !!searchForm });
+		Logger.debug('Search bar initialized', { hasInput: !!searchInput, hasForm: !!searchForm });
 	},
 
 	attachEvents(): void {
@@ -776,7 +773,7 @@ const DOM = {
 				FilterState.filters = { vendor: [], productType: [], tags: [], collections: [], search: '', priceRange: null };
 				// Keep CPID when clearing client-visible filters; CPID is server-managed
 				if (FilterState.selectedCollection?.id) {
-					Log.debug('Clear All: keeping server-managed cpid (not exposed to UI)');
+					Logger.debug('Clear All: keeping server-managed cpid (not exposed to UI)');
 				}
 				FilterState.pagination.page = 1;
 				UrlManager.update(FilterState.filters, FilterState.pagination, FilterState.sort);
@@ -804,7 +801,7 @@ const DOM = {
 
 				if ($.equals(key, FilterKeyType.CPID)) {
 					if (FilterState.selectedCollection?.id) {
-						Log.debug('cpid removed, cleared selectedCollection');
+						Logger.debug('cpid removed, cleared selectedCollection');
 					}
 					UrlManager.update(FilterState.filters, FilterState.pagination, FilterState.sort);
 					DOM.scrollToProducts();
@@ -849,11 +846,11 @@ const DOM = {
 				const allowMultiselect = item.getAttribute('data-afs-filter-multiselect') || item.parentElement?.getAttribute('data-afs-filter-multiselect');
 
 				if (!handle || !value) {
-					Log.warn('Invalid filter item clicked', { handle, value });
+					Logger.warn('Invalid filter item clicked', { handle, value });
 					return;
 				}
 
-				Log.debug('Filter toggle', { handle, value, currentChecked: checkbox.checked });
+				Logger.debug('Filter toggle', { handle, value, currentChecked: checkbox.checked });
 
 				// remove other selections if multiselect not allowed
 				if (allowMultiselect === '0' || allowMultiselect === 'false') {
@@ -882,10 +879,10 @@ const DOM = {
 					Filters.applyProductsOnly();
 				}
 			}
-			else if (target.closest<HTMLElement>('.afs-filter-group__clear')) {
+			else if (target.closest<HTMLElement>('.afs-filter-group__clear') || target.closest<HTMLElement>('.afs-filter-group__overlay-reset')) {
 				e.preventDefault();
 				e.stopPropagation();
-				const clearBtn = target.closest<HTMLElement>('.afs-filter-group__clear');
+				const clearBtn = target.closest<HTMLElement>('.afs-filter-group__clear') || target.closest<HTMLElement>('.afs-filter-group__overlay-reset');
 				if (!clearBtn) return;
 
 				const handle = clearBtn.getAttribute('data-afs-filter-handle');
@@ -899,7 +896,7 @@ const DOM = {
 				if (FilterState.filters[handle]) {
 
 					delete FilterState.filters[handle];
-					Log.debug('Filter cleared', { handle, isCollectionFilter });
+					Logger.debug('Filter cleared', { handle, isCollectionFilter });
 
 					// Update URL
 					UrlManager.update(FilterState.filters, FilterState.pagination, FilterState.sort);
@@ -938,10 +935,10 @@ const DOM = {
 							sessionStorage.setItem(stateKey, JSON.stringify({ collapsed: collapsedState }));
 						} catch (e) {
 							// SessionStorage might be disabled, ignore
-							Log.debug('Could not persist to sessionStorage', { error: e instanceof Error ? e.message : String(e) });
+							Logger.debug('Could not persist to sessionStorage', { error: e instanceof Error ? e.message : String(e) });
 						}
 					} catch (error) {
-						Log.error('Failed to persist filter state', {
+						Logger.error('Failed to persist filter state', {
 							stateKey,
 							error: error instanceof Error ? error.message : String(error)
 						});
@@ -985,10 +982,13 @@ const DOM = {
 							}
 						}
 					});
+					
+					// Adjust overlay position to prevent right-edge clipping
+					this.adjustOverlayPosition(group);
 				}
 
 				// Content visibility is handled by CSS via data-afs-collapsed attribute
-				Log.debug('Filter group toggled', { collapsed: collapsedState, stateKey });
+				Logger.debug('Filter group toggled', { collapsed: collapsedState, stateKey });
 			}
 			else if (target.closest<HTMLElement>('.afs-product-card__quick-add')) {
 				e.preventDefault();
@@ -1051,6 +1051,13 @@ const DOM = {
 				if (toggle) toggle.setAttribute('aria-expanded', 'false');
 				if (icon) icon.innerHTML = Icons.rightArrow || '';
 
+				// Reset overlay position
+				const content = group.querySelector<HTMLElement>('.afs-filter-group__content');
+				if (content) {
+					content.style.left = '';
+					content.style.right = '';
+				}
+
 				// Update state
 				const stateKey = group.getAttribute('data-afs-filter-key');
 				if (stateKey) {
@@ -1061,12 +1068,29 @@ const DOM = {
 			});
 		});
 
+		// Adjust overlay positions on window resize (top bar layout only)
+		let overlayResizeTimeout: ReturnType<typeof setTimeout> | null = null;
+		window.addEventListener('resize', () => {
+			const isTopBarLayout = this.container?.getAttribute('data-afs-layout') === 'top';
+			if (!isTopBarLayout) return;
+
+			if (overlayResizeTimeout) {
+				clearTimeout(overlayResizeTimeout);
+			}
+			overlayResizeTimeout = setTimeout(() => {
+				const openGroups = this.filtersContainer?.querySelectorAll<HTMLElement>('.afs-filter-group[data-afs-collapsed="false"]');
+				openGroups?.forEach(group => {
+					this.adjustOverlayPosition(group);
+				});
+			}, 150);
+		});
+
 		// Helper function to handle sort change
 		const handleSortChange = (select: HTMLSelectElement): void => {
 			const sortValue = select.value;
 			if (!sortValue) return;
 
-			Log.info('Sort dropdown changed', { sortValue, currentSort: FilterState.sort });
+			Logger.info('Sort dropdown changed', { sortValue, currentSort: FilterState.sort });
 
 			// Calculate new sort state
 			// New format: "title-ascending", "price-descending", etc.
@@ -1089,7 +1113,7 @@ const DOM = {
 			FilterState.sort = newSort;
 			FilterState.pagination.page = 1;
 			UrlManager.update(FilterState.filters, FilterState.pagination, FilterState.sort);
-			Log.info('Calling applyProductsOnly after sort change', { sort: FilterState.sort });
+			Logger.info('Calling applyProductsOnly after sort change', { sort: FilterState.sort });
 			// Show loading skeleton immediately (before debounce) - only products, not filters
 			DOM.scrollToProducts();
 			DOM.showProductsSkeleton();
@@ -1268,7 +1292,7 @@ const DOM = {
 				this.mobileFilterClose.remove();
 				this.mobileFilterClose = null;
 			}
-			Log.debug('Filters container hidden');
+			Logger.debug('Filters container hidden');
 		}
 	},
 
@@ -1283,7 +1307,7 @@ const DOM = {
 				// On mobile, ensure it's closed by default
 				this.filtersContainer.classList.remove('afs-filters-container--open');
 			}
-			Log.debug('Filters container shown');
+			Logger.debug('Filters container shown');
 		}
 	},
 
@@ -1351,7 +1375,7 @@ const DOM = {
 			document.body.style.overflow = 'hidden';
 		}
 
-		Log.debug('Mobile filters drawer toggled', { isOpen: !isOpen });
+		Logger.debug('Mobile filters drawer toggled', { isOpen: !isOpen });
 	},
 
 	// Fastest filter rendering (batched)
@@ -1383,6 +1407,11 @@ const DOM = {
 		});
 
 		// Clear and rebuild in one batch
+		const isTopBarLayoutBefore = this.container?.getAttribute('data-afs-layout') === 'top';
+		// Hide container during clear/rebuild to prevent visual flash of old styles
+		if (isTopBarLayoutBefore && this.filtersContainer) {
+			this.filtersContainer.style.display = 'none';
+		}
 		$.clear(this.filtersContainer);
 
 		const validFilters = filters.filter(f => {
@@ -1392,7 +1421,7 @@ const DOM = {
 			}
 			return f.values && f.values.length > 0;
 		});
-		Log.debug('Rendering filters', {
+		Logger.debug('Rendering filters', {
 			total: filters.length,
 			valid: validFilters.length,
 			filtersWithSearchable: validFilters.filter(f => f.searchable).length,
@@ -1400,7 +1429,7 @@ const DOM = {
 		});
 
 		if (validFilters.length === 0) {
-			Log.warn('No valid filters to render');
+			Logger.warn('No valid filters to render');
 			// Remove mobile filter close button when no filters
 			if (this.mobileFilterClose && this.mobileFilterClose.parentNode) {
 				this.mobileFilterClose.remove();
@@ -1438,19 +1467,19 @@ const DOM = {
 				// This is an option filter - MUST use filter.handle
 				handle = filter.handle;
 				if (!handle) {
-					Log.error('Option filter missing handle', { filter });
+					Logger.error('Option filter missing handle', { filter });
 					return;
 				}
 			} else {
 				// Standard filter - use queryKey or key
 				handle = filter.queryKey || filter.key;
 				if (!handle) {
-					Log.warn('Standard filter missing queryKey/key', { filter });
+					Logger.warn('Standard filter missing queryKey/key', { filter });
 					return;
 				}
 			}
 
-			Log.debug('Filter group handle determined', {
+			Logger.debug('Filter group handle determined', {
 				handle,
 				filterHandle: filter.handle,
 				queryKey: filter.queryKey,
@@ -1477,7 +1506,7 @@ const DOM = {
 			const collapsed = isTopBarLayout ? true : (saved?.collapsed !== undefined ? saved.collapsed : defaultCollapsed);
 			group.setAttribute('data-afs-collapsed', collapsed ? 'true' : 'false');
 
-			Log.debug('Filter group created', {
+			Logger.debug('Filter group created', {
 				handle,
 				label: filter.label,
 				collapsed,
@@ -1497,19 +1526,35 @@ const DOM = {
 			// Use inline SVG HTML for better CSS control
 			icon.innerHTML = collapsed ? (Icons.rightArrow || '') : (Icons.downArrow || '');
 			toggle.appendChild(icon);
-			toggle.appendChild($.txt($.el('label', 'afs-filter-group__label', {
+			
+			const labelEl = $.el('label', 'afs-filter-group__label', {
 				'for': 'afs-filter-group__label'
-			}), filter.label || filter.optionType || ''));
+			});
+			labelEl.textContent = filter.label || filter.optionType || '';
+			toggle.appendChild(labelEl);
+			
+			// For top bar layout, add count badge next to label
+			if (isTopBarLayout) {
+				const filterValue = FilterState.filters[handle];
+				const selectedCount = Array.isArray(filterValue) ? filterValue.length : (filterValue && typeof filterValue === 'object' ? Object.keys(filterValue).length : (filterValue ? 1 : 0));
+				if (selectedCount > 0) {
+					const countBadge = $.el('span', 'afs-filter-group__count-badge');
+					countBadge.textContent = String(selectedCount);
+					labelEl.appendChild(countBadge);
+					group.setAttribute('data-afs-has-active', 'true');
+				}
+			}
+			
 			header.appendChild(toggle);
 
-			// Add clear button next to the label (only show if filter has active values)
+			// Add clear button next to the label (only show if filter has active values, and NOT in top bar layout)
 			const filterValue = FilterState.filters[handle];
 			const hasActiveValues = filterValue && (
 				Array.isArray(filterValue) ? filterValue.length > 0 :
 					typeof filterValue === 'object' && !Array.isArray(filterValue) ? Object.keys(filterValue).length > 0 :
 						Boolean(filterValue)
 			);
-			if (hasActiveValues) {
+			if (hasActiveValues && !isTopBarLayout) {
 				const clearBtn = $.el('button', 'afs-filter-group__clear', {
 					type: 'button',
 					'aria-label': `${Lang.buttons.clear} ${filter.label || handle} filters`,
@@ -1524,6 +1569,25 @@ const DOM = {
 
 			// Content
 			const content = $.el('div', 'afs-filter-group__content');
+			
+			// For top bar layout, add selected count and reset button inside overlay
+			if (isTopBarLayout && hasActiveValues) {
+				const overlayHeader = $.el('div', 'afs-filter-group__overlay-header');
+				const selectedCount = Array.isArray(filterValue) ? filterValue.length : (filterValue && typeof filterValue === 'object' ? Object.keys(filterValue).length : 1);
+				const countText = $.el('span', 'afs-filter-group__overlay-count');
+				countText.textContent = `${selectedCount} selected`;
+				overlayHeader.appendChild(countText);
+				
+				const resetBtn = $.el('button', 'afs-filter-group__overlay-reset', {
+					type: 'button',
+					'aria-label': `${Lang.buttons.clear} ${filter.label || handle} filters`,
+					'data-afs-filter-handle': handle
+				});
+				resetBtn.textContent = Lang.buttons.clear;
+				resetBtn.title = `${Lang.buttons.clear} ${filter.label || handle} filters`;
+				overlayHeader.appendChild(resetBtn);
+				content.appendChild(overlayHeader);
+			}
 			// Check searchable: check for true, any truthy value that indicates searchable
 			const isSearchable = filter.searchable === true || (typeof filter.searchable === 'string' && filter.searchable.toLowerCase() === 'true');
 
@@ -1538,7 +1602,7 @@ const DOM = {
 				if (saved?.search) search.value = saved.search;
 				searchContainer.appendChild(search);
 				content.appendChild(searchContainer);
-				Log.debug('Search input added', { handle, label: filter.label, searchable: filter.searchable });
+				Logger.debug('Search input added', { handle, label: filter.label, searchable: filter.searchable });
 			}
 
 			const items = $.el('div', 'afs-filter-group__items', {
@@ -1559,12 +1623,20 @@ const DOM = {
 			items.appendChild(itemsFragment);
 			content.appendChild(items);
 			group.appendChild(content);
-
 			fragment.appendChild(group);
 		});
 
 		if (fragment.children.length > 0) {
 			this.filtersContainer.appendChild(fragment);
+			// Restore display after rebuild
+			if (isTopBarLayoutBefore && this.filtersContainer) {
+				this.filtersContainer.style.display = '';
+				// Adjust overlay positions for any open filters
+				const openGroups = this.filtersContainer.querySelectorAll<HTMLElement>('.afs-filter-group[data-afs-collapsed="false"]');
+				openGroups.forEach(group => {
+					this.adjustOverlayPosition(group);
+				});
+			}
 
 			// Insert mobile filter close button at the beginning of filters container
 			// Only insert if it doesn't already have a parent (prevent duplicates)
@@ -1581,9 +1653,9 @@ const DOM = {
 
 			// Show filters container when filters are rendered
 			this.showFilters();
-			Log.debug('Filters rendered', { count: fragment.children.length });
+			Logger.debug('Filters rendered', { count: fragment.children.length });
 		} else {
-			Log.warn('No filter groups created');
+			Logger.warn('No filter groups created');
 			// Remove mobile filter close button when no filter groups
 			if (this.mobileFilterClose && this.mobileFilterClose.parentNode) {
 				this.mobileFilterClose.remove();
@@ -1661,7 +1733,7 @@ const DOM = {
 	// Create price range filter group with dual-handle slider
 	createPriceRangeGroup(filter: FilterOptionType, savedStates: Map<string, FilterGroupStateType> | null = null): HTMLElement | null {
 		if (!filter.range || typeof filter.range.min !== 'number' || typeof filter.range.max !== 'number') {
-			Log.warn('Invalid price range filter', { filter });
+			Logger.warn('Invalid price range filter', { filter });
 			return null;
 		}
 
@@ -1882,7 +1954,7 @@ const DOM = {
 			const imagesArray = (p as any).imagesUrls;
 			if (imagesArray && Array.isArray(imagesArray) && imagesArray.length > 1) {
 				secondImageUrl = imagesArray[1];
-				Log.debug('Second image found for hover', {
+				Logger.debug('Second image found for hover', {
 					secondImageUrl,
 					totalImages: imagesArray.length
 				});
@@ -2005,7 +2077,7 @@ const DOM = {
 							hoverImg.addEventListener('load', loadHandler, { once: true });
 							// If image fails to load, log error but don't swap
 							hoverImg.addEventListener('error', () => {
-								Log.debug('Hover image failed to load', {
+								Logger.debug('Hover image failed to load', {
 									url: secondImageUrl,
 									hoverImageUrl
 								});
@@ -2089,7 +2161,7 @@ const DOM = {
 	// Update filter active state (optimized)
 	updateFilterState(handle: string, value: string, active: boolean): void {
 		if (!this.filtersContainer) {
-			Log.warn('Cannot update filter state: filtersContainer not found');
+			Logger.warn('Cannot update filter state: filtersContainer not found');
 			return;
 		}
 
@@ -2104,14 +2176,125 @@ const DOM = {
 			const cb = item.querySelector<HTMLInputElement>('.afs-filter-item__checkbox');
 			if (cb) {
 				cb.checked = active;
-				Log.debug('Checkbox state updated', { handle, value, active });
+				Logger.debug('Checkbox state updated', { handle, value, active });
 			} else {
-				Log.warn('Checkbox not found in filter item', { handle, value });
+				Logger.warn('Checkbox not found in filter item', { handle, value });
 			}
 			item.classList.toggle('afs-filter-item--active', active);
 		} else {
-			Log.warn('Filter item not found for state update', { handle, value, active, selector });
+			Logger.warn('Filter item not found for state update', { handle, value, active, selector });
 		}
+
+		// Update filter group UI for top bar layout
+		const isTopBarLayout = this.container?.getAttribute('data-afs-layout') === 'top';
+		if (isTopBarLayout) {
+			const group = this.filtersContainer.querySelector<HTMLElement>(`.afs-filter-group[data-afs-filter-handle="${escapedHandle}"]`);
+			if (group) {
+				// Hide group during update to prevent visual flash
+				const originalDisplay = group.style.display;
+				group.style.display = 'none';
+				
+				const filterValue = FilterState.filters[handle];
+				const selectedCount = Array.isArray(filterValue) ? filterValue.length : (filterValue && typeof filterValue === 'object' ? Object.keys(filterValue).length : (filterValue ? 1 : 0));
+				const hasActiveValues = selectedCount > 0;
+				
+				// Update count badge
+				const labelEl = group.querySelector<HTMLElement>('.afs-filter-group__label');
+				if (labelEl) {
+					let countBadge = labelEl.querySelector<HTMLElement>('.afs-filter-group__count-badge');
+					if (hasActiveValues) {
+						if (!countBadge) {
+							countBadge = $.el('span', 'afs-filter-group__count-badge');
+							labelEl.appendChild(countBadge);
+						}
+						countBadge.textContent = String(selectedCount);
+						group.setAttribute('data-afs-has-active', 'true');
+					} else {
+						if (countBadge) {
+							countBadge.remove();
+						}
+						group.removeAttribute('data-afs-has-active');
+					}
+				}
+				
+				// Restore display after update
+				group.style.display = originalDisplay || '';
+
+				// Update overlay header
+				const overlayHeader = group.querySelector<HTMLElement>('.afs-filter-group__overlay-header');
+				const content = group.querySelector<HTMLElement>('.afs-filter-group__content');
+				if (hasActiveValues) {
+					if (!overlayHeader && content) {
+						const newOverlayHeader = $.el('div', 'afs-filter-group__overlay-header');
+						const countText = $.el('span', 'afs-filter-group__overlay-count');
+						countText.textContent = `${selectedCount} selected`;
+						newOverlayHeader.appendChild(countText);
+						
+						const resetBtn = $.el('button', 'afs-filter-group__overlay-reset', {
+							type: 'button',
+							'aria-label': `Reset filters`,
+							'data-afs-filter-handle': handle
+						});
+						resetBtn.textContent = Lang.buttons.clear;
+						resetBtn.title = `Reset filters`;
+						newOverlayHeader.appendChild(resetBtn);
+						// Insert before search input if it exists, otherwise as first child
+						const searchContainer = content.querySelector<HTMLElement>('.afs-filter-group__search');
+						if (searchContainer) {
+							content.insertBefore(newOverlayHeader, searchContainer);
+						} else {
+							content.insertBefore(newOverlayHeader, content.firstChild);
+						}
+					} else if (overlayHeader) {
+						const countText = overlayHeader.querySelector<HTMLElement>('.afs-filter-group__overlay-count');
+						if (countText) {
+							countText.textContent = `${selectedCount} selected`;
+						}
+					}
+				} else {
+					if (overlayHeader) {
+						overlayHeader.remove();
+					}
+				}
+				
+				// Restore display after all updates
+				group.style.display = originalDisplay || '';
+			}
+		}
+	},
+
+	// Adjust overlay position to prevent right-edge clipping in top bar layout
+	adjustOverlayPosition(group: HTMLElement): void {
+		const isTopBarLayout = this.container?.getAttribute('data-afs-layout') === 'top';
+		if (!isTopBarLayout) return;
+
+		const content = group.querySelector<HTMLElement>('.afs-filter-group__content');
+		if (!content) return;
+
+		// Reset positioning
+		content.style.left = '';
+		content.style.right = '';
+
+		// Use requestAnimationFrame to ensure DOM is updated
+		requestAnimationFrame(() => {
+			const groupRect = group.getBoundingClientRect();
+			const contentRect = content.getBoundingClientRect();
+			const viewportWidth = window.innerWidth;
+			const padding = 300; // Safe padding from viewport edge
+
+			// Check if overlay would overflow right edge
+			const wouldOverflowRight = groupRect.left + contentRect.width > viewportWidth - padding;
+
+			if (wouldOverflowRight) {
+				// Position to right edge of filter group
+				content.style.left = 'auto';
+				content.style.right = '0';
+			} else {
+				// Default: position to left edge
+				content.style.left = '0';
+				content.style.right = 'auto';
+			}
+		});
 	},
 
 	// Products info
@@ -2284,6 +2467,9 @@ const DOM = {
 	// Applied filters with clear all
 	renderApplied(filters: FiltersStateType): void {
 		if (!this.container) return;
+		
+		const isTopBarLayout = this.container?.getAttribute('data-afs-layout') === 'top';
+		if (isTopBarLayout) return;
 
 		// Remove existing applied filters
 		const existing = this.container.querySelector<HTMLElement>('.afs-applied-filters');
@@ -2401,7 +2587,7 @@ const DOM = {
 		// Only scroll if the top of products is outside the viewport (either above or below)
 		if (!topVisible) {
 			target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-			Log.debug('Scrolled to products section');
+			Logger.debug('Scrolled to products section');
 		}
 	},
 
@@ -2524,7 +2710,7 @@ const DOM = {
 		}
 
 		if (!this.productsContainer) {
-			Log.error('Cannot show error: productsContainer not found', { message });
+			Logger.error('Cannot show error: productsContainer not found', { message });
 			return;
 		}
 
@@ -2535,7 +2721,7 @@ const DOM = {
 
 		// Check if we have fallback products to show instead of error
 		if (FilterState.fallbackProducts && fallbackProductsTotal > 0) {
-			Log.warn('API error occurred, using fallback products from Liquid', {
+			Logger.warn('API error occurred, using fallback products from Liquid', {
 				error: message,
 				fallbackCount: fallbackProductsTotal
 			});
@@ -2568,7 +2754,7 @@ const DOM = {
 			this.productsContainer.appendChild(error);
 		}
 
-		Log.error('Error displayed', { message });
+		Logger.error('Error displayed', { message });
 	},
 
 	setSortSelectValue(): void {
@@ -2582,7 +2768,7 @@ const DOM = {
 				const direction = $.equals(FilterState.sort.order, SortOrderType.ASC) ? SortOrderType.ASCENDING : SortOrderType.DESCENDING;
 				DOM.sortSelect.value = `${FilterState.sort.field}-${direction}`;
 			}
-			Log.debug('Sort select value updated programmatically', { value: DOM.sortSelect.value, sort: FilterState.sort });
+			Logger.debug('Sort select value updated programmatically', { value: DOM.sortSelect.value, sort: FilterState.sort });
 		}
 	}
 };
@@ -2650,14 +2836,14 @@ const FallbackMode = {
 			}
 		});
 
-		Log.info('Reloading page for fallback mode', { url: url.toString(), sort, pagination });
+		Logger.info('Reloading page for fallback mode', { url: url.toString(), sort, pagination });
 		window.location.href = url.toString();
 	}
 };
 
 function handleLoadError(e: unknown) {
 	DOM.hideLoading();
-	Log.error('Load failed', {
+	Logger.error('Load failed', {
 		error: e instanceof Error ? e.message : String(e),
 		stack: e instanceof Error ? e.stack : undefined,
 		shop: FilterState.shop,
@@ -2665,7 +2851,7 @@ function handleLoadError(e: unknown) {
 	});
 	// Try to use fallback products if available
 	if (FilterState.fallbackProducts && FilterState.fallbackProducts.length > 0) {
-		Log.warn('Initial load failed, using fallback products from Liquid', {
+		Logger.warn('Initial load failed, using fallback products from Liquid', {
 			error: e instanceof Error ? e.message : String(e),
 			fallbackCount: FilterState.fallbackProducts.length
 		});
@@ -2701,11 +2887,11 @@ function handleLoadError(e: unknown) {
 
 const Products = {
 	process: (productsData: ProductsResponseDataType) => {
-		Log.info('Products loaded', { count: productsData.products?.length || 0, total: productsData.pagination?.total || 0 });
+		Logger.info('Products loaded', { count: productsData.products?.length || 0, total: productsData.pagination?.total || 0 });
 		const hasProducts = productsData.products && Array.isArray(productsData.products) && productsData.products.length > 0;
 
 		if (!hasProducts && FilterState.fallbackProducts && FilterState.fallbackProducts.length > 0) {
-			Log.warn('API returned no products, using fallback products from Liquid', {
+			Logger.warn('API returned no products, using fallback products from Liquid', {
 				apiProductsCount: productsData.products?.length || 0,
 				fallbackCount: FilterState.fallbackProducts.length
 			});
@@ -2750,7 +2936,7 @@ const Filters = {
 			// Cache range filter handles (so we can write handle-style URL params like other filters)
 			const priceFilter = FilterState.availableFilters.find(f => $.isPriceRangeOptionType(f.optionType));
 			FilterState.priceRangeHandle = priceFilter?.handle || FilterState.priceRangeHandle || null;
-			Log.info('Filters set from URL', { filters: FilterState.filters });
+			Logger.info('Filters set from URL', { filters: FilterState.filters });
 			// If URL used handle-based price param (e.g. pr_xxx=10-100), normalize into FilterState.filters.priceRange
 			// so the slider renders correctly. Keep URL updates handle-based via FilterState.priceRangeHandle.
 			const priceRangeFilterValue = FilterState.priceRangeHandle ? FilterState.filters[FilterState.priceRangeHandle] : null;
@@ -2776,11 +2962,17 @@ const Filters = {
 				}
 			}
 
+			// #region agent log
+			fetch('http://127.0.0.1:7242/ingest/f093e62f-5bb2-4995-8b8d-97d186534b8f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'digitalcoo-filter.ts:2881',message:'Before renderFilters call',data:{filtersCount:FilterState.availableFilters.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H'})}).catch(()=>{});
+			// #endregion
 			DOM.renderFilters(FilterState.availableFilters);
-			Log.info('Filters rendered', { count: FilterState.availableFilters.length });
+			// #region agent log
+			fetch('http://127.0.0.1:7242/ingest/f093e62f-5bb2-4995-8b8d-97d186534b8f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'digitalcoo-filter.ts:2883',message:'After renderFilters call',data:{filtersCount:FilterState.availableFilters.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H'})}).catch(()=>{});
+			// #endregion
+			Logger.info('Filters rendered', { count: FilterState.availableFilters.length });
 
 		} catch (error) {
-			Log.error("PROCESS FILTER ERROR", { error: error instanceof Error ? error.message : String(error) });
+			Logger.error("PROCESS FILTER ERROR", { error: error instanceof Error ? error.message : String(error) });
 		}
 		finally {
 			Products.updateUI();
@@ -2793,7 +2985,7 @@ const Filters = {
 	toggle(handle: string, value: string): void {
 		const normalized = $.str(value);
 		if (!normalized || !handle) {
-			Log.warn('Invalid filter toggle', { handle, value });
+			Logger.warn('Invalid filter toggle', { handle, value });
 			return;
 		}
 
@@ -2811,10 +3003,16 @@ const Filters = {
 
 		FilterState.pagination.page = 1;
 
-		Log.debug('Filter toggled', { handle, value: normalized, wasActive: isActive, isActive: !isActive, filterValues });
+		Logger.debug('Filter toggled', { handle, value: normalized, wasActive: isActive, isActive: !isActive, filterValues });
 
 		UrlManager.update(FilterState.filters, FilterState.pagination, FilterState.sort);
+		// #region agent log
+		fetch('http://127.0.0.1:7242/ingest/f093e62f-5bb2-4995-8b8d-97d186534b8f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'digitalcoo-filter.ts:2940',message:'Before updateFilterState call',data:{handle,normalized,isActive:!isActive},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+		// #endregion
 		DOM.updateFilterState(handle, normalized, !isActive);
+		// #region agent log
+		fetch('http://127.0.0.1:7242/ingest/f093e62f-5bb2-4995-8b8d-97d186534b8f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'digitalcoo-filter.ts:2942',message:'After updateFilterState call',data:{handle},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+		// #endregion
 		// Scroll to top when filter is clicked
 		DOM.scrollToProducts();
 		// Show loading skeleton immediately (before debounce) - only products, filters will update via Filters.process
@@ -2862,7 +3060,7 @@ const Filters = {
 		max = formatPrice(max);
 
 		if (typeof min !== 'number' || typeof max !== 'number' || min < 0 || max < min) {
-			Log.warn('Invalid price range', { min, max });
+			Logger.warn('Invalid price range', { min, max });
 			return;
 		}
 
@@ -2882,7 +3080,7 @@ const Filters = {
 
 		FilterState.pagination.page = 1;
 
-		Log.debug('Price range updated', { min, max, priceRange: FilterState.filters.priceRange });
+		Logger.debug('Price range updated', { min, max, priceRange: FilterState.filters.priceRange });
 
 		UrlManager.update(FilterState.filters, FilterState.pagination, FilterState.sort);
 		// Scroll to top when price range is updated
@@ -2894,11 +3092,11 @@ const Filters = {
 
 	// Apply products only (for sort/pagination changes - no filter update needed)
 	applyProductsOnly: $.debounce(async (): Promise<void> => {
-		Log.info('applyProductsOnly called', { filters: FilterState.filters, pagination: FilterState.pagination, sort: FilterState.sort, usingFallback: FilterState.usingFallback });
+		Logger.info('applyProductsOnly called', { filters: FilterState.filters, pagination: FilterState.pagination, sort: FilterState.sort, usingFallback: FilterState.usingFallback });
 
 		// If in fallback mode, reload page with new URL parameters
 		if (FilterState.usingFallback) {
-			Log.info('In fallback mode, reloading page with new parameters');
+			Logger.info('In fallback mode, reloading page with new parameters');
 			FallbackMode.reloadPage(FilterState.filters, FilterState.pagination, FilterState.sort);
 			return;
 		}
@@ -2947,7 +3145,7 @@ const QuickAdd = {
 
 			await this.addVariant(Number(variant.id), 1);
 		} catch (error) {
-			Log.error('Quick add failed', { error: error instanceof Error ? error.message : String(error), handle });
+			Logger.error('Quick add failed', { error: error instanceof Error ? error.message : String(error), handle });
 			DOM.showError('Failed to add product to cart. Please try again.');
 		}
 	},
@@ -2987,7 +3185,7 @@ const QuickAdd = {
 				await this.addVariant(Number(variantId), quantity);
 			}
 		} catch (error) {
-			Log.error('Add from form failed', { error: error instanceof Error ? error.message : String(error) });
+			Logger.error('Add from form failed', { error: error instanceof Error ? error.message : String(error) });
 			DOM.showError('Failed to add product to cart. Please try again.');
 		}
 	},
@@ -3020,7 +3218,7 @@ const QuickAdd = {
 
 			// Quick view close removed (handled by modal close handlers)
 		} catch (error) {
-			Log.error('Add variant failed', { error: error instanceof Error ? error.message : String(error), variantId });
+			Logger.error('Add variant failed', { error: error instanceof Error ? error.message : String(error), variantId });
 			throw error;
 		}
 	},
@@ -3088,12 +3286,12 @@ const QuickAdd = {
 const AFS: AFSInterface = {
 	init(config: AFSConfigType = {}): void {
 		try {
-			Log.init(config.debug);
-			Log.info('Initializing AFS', config);
+			Logger.init(config.debug);
+			Logger.info('Initializing AFS', config);
 
 			if (config.apiBaseUrl) {
 				API.setBaseURL(config.apiBaseUrl);
-				Log.info('API base URL set', { url: API.baseURL });
+				Logger.info('API base URL set', { url: API.baseURL });
 			}
 
 			if (!config.shop) {
@@ -3134,12 +3332,12 @@ const AFS: AFSInterface = {
 			// Store fallback products and pagination from Liquid
 			if (config.fallbackProducts && Array.isArray(config.fallbackProducts) && config.fallbackProducts.length > 0) {
 				FilterState.fallbackProducts = config.fallbackProducts;
-				Log.info('Fallback products loaded from Liquid', { count: FilterState.fallbackProducts.length });
+				Logger.info('Fallback products loaded from Liquid', { count: FilterState.fallbackProducts.length });
 			}
 
 			if (config.fallbackPagination) {
 				FilterState.fallbackPagination = config.fallbackPagination;
-				Log.info('Fallback pagination loaded from Liquid', {
+				Logger.info('Fallback pagination loaded from Liquid', {
 					currentPage: FilterState.fallbackPagination.currentPage,
 					totalPages: FilterState.fallbackPagination.totalPages,
 					totalProducts: FilterState.fallbackPagination.totalProducts
@@ -3151,8 +3349,8 @@ const AFS: AFSInterface = {
 				FilterState.priceRangeHandle = config.priceRangeHandle;
 			}
 
-			Log.info('Shop set', { shop: FilterState.shop });
-			Log.info('Collections set', { collections: FilterState.collections });
+			Logger.info('Shop set', { shop: FilterState.shop });
+			Logger.info('Collections set', { collections: FilterState.collections });
 
 			// Map config properties to selectors (support both old and new naming)
 			const containerSelector = config.containerSelector || (config as any).container || '[data-afs-container]';
@@ -3160,17 +3358,17 @@ const AFS: AFSInterface = {
 			const productsSelector = config.productsSelector || (config as any).productsContainer;
 
 			DOM.init(containerSelector, filtersSelector, productsSelector);
-			Log.info('DOM initialized');
+			Logger.info('DOM initialized');
 
 			// Show loading skeleton immediately on initial load (before API calls) - both filters and products
 			DOM.showLoading();
 
 			DOM.attachEvents();
-			Log.info('DOM events attached');
+			Logger.info('DOM events attached');
 
 			this.load();
 		} catch (e) {
-			Log.error('Initialization failed', { error: e instanceof Error ? e.message : String(e), stack: e instanceof Error ? e.stack : undefined, config });
+			console.error('Initialization failed', { error: e instanceof Error ? e.message : String(e), stack: e instanceof Error ? e.stack : undefined, config });
 			if (DOM.container) {
 				DOM.showError(`Initialization failed: ${e instanceof Error ? e.message : String(e)}`);
 			}
@@ -3184,14 +3382,14 @@ const AFS: AFSInterface = {
 		try {
 			// Parse URL params FIRST before loading filters, so filters endpoint gets the correct filters
 			const urlParams = UrlManager.parse();
-			Log.debug('Parsed URL params on load', { urlParams });
+			Logger.debug('Parsed URL params on load', { urlParams });
 
 			// Rebuild filters from url params
 			API.buildFiltersFromUrl(urlParams);
 			API.setPaginationFromUrl(urlParams);
 			API.setSortFromUrl(urlParams);
 
-			Log.info('Loading products & filters...', { shop: FilterState.shop, filters: FilterState.filters });
+			Logger.info('Loading products & filters...', { shop: FilterState.shop, filters: FilterState.filters });
 
 
 			API.filters(FilterState.filters).then(Filters.process).catch(handleLoadError).finally(() => {
@@ -3206,7 +3404,7 @@ const AFS: AFSInterface = {
 		}
 	},
 
-	Logger: Log,
+	Logger: Logger,
 
 	detectDevice: detectDevice
 };
@@ -3238,7 +3436,7 @@ class AFSSlider {
 		const containerElement = typeof container === 'string' ? document.querySelector<HTMLElement>(container) : container;
 
 		if (!containerElement) {
-			Log.error('AFSSlider: Container not found');
+			Logger.error('AFSSlider: Container not found');
 			throw new Error('AFSSlider: Container not found');
 		}
 
@@ -3266,14 +3464,14 @@ class AFSSlider {
 		// Find main image container
 		this.mainContainer = this.container.querySelector<HTMLElement>('.afs-slider__main');
 		if (!this.mainContainer) {
-			Log.error('AFSSlider: Main container (.afs-slider__main) not found');
+			Logger.error('AFSSlider: Main container (.afs-slider__main) not found');
 			return;
 		}
 
 		// Find thumbnail container
 		this.thumbnailContainer = this.container.querySelector<HTMLElement>('.afs-slider__thumbnails');
 		if (!this.thumbnailContainer) {
-			Log.error('AFSSlider: Thumbnail container (.afs-slider__thumbnails) not found');
+			Logger.error('AFSSlider: Thumbnail container (.afs-slider__thumbnails) not found');
 			return;
 		}
 
@@ -3281,7 +3479,7 @@ class AFSSlider {
 		const imageElements = this.mainContainer.querySelectorAll<HTMLImageElement>('.afs-slider__image');
 		this.images = Array.from(imageElements);
 		if (this.images.length === 0) {
-			Log.error('AFSSlider: No images found');
+			Logger.error('AFSSlider: No images found');
 			return;
 		}
 
@@ -3291,7 +3489,7 @@ class AFSSlider {
 
 		// If no thumbnails found, log warning but continue (thumbnails might be optional)
 		if (this.thumbnails.length === 0) {
-			Log.warn('AFSSlider: No thumbnails found, continuing without thumbnails');
+			Logger.warn('AFSSlider: No thumbnails found, continuing without thumbnails');
 		}
 
 		// Set thumbnail position
@@ -3301,7 +3499,7 @@ class AFSSlider {
 		try {
 			this.buildSlider();
 		} catch (e) {
-			Log.error('AFSSlider: Error building slider structure', { error: e instanceof Error ? e.message : String(e) });
+			Logger.error('AFSSlider: Error building slider structure', { error: e instanceof Error ? e.message : String(e) });
 			return;
 		}
 
@@ -3309,7 +3507,7 @@ class AFSSlider {
 		try {
 			this.setupEvents();
 		} catch (e) {
-			Log.error('AFSSlider: Error setting up events', { error: e instanceof Error ? e.message : String(e) });
+			Logger.error('AFSSlider: Error setting up events', { error: e instanceof Error ? e.message : String(e) });
 			// Continue anyway - basic functionality should still work
 		}
 
@@ -3322,7 +3520,7 @@ class AFSSlider {
 					this.setupPanZoom();
 				}, 0);
 			} catch (e) {
-				Log.error('AFSSlider: Error setting up pan-zoom', { error: e instanceof Error ? e.message : String(e) });
+				Logger.error('AFSSlider: Error setting up pan-zoom', { error: e instanceof Error ? e.message : String(e) });
 				// Continue anyway - magnifier is optional
 			}
 		}
@@ -3332,7 +3530,7 @@ class AFSSlider {
 			try {
 				this.setupPinchZoom();
 			} catch (e) {
-				Log.error('AFSSlider: Error setting up pinch-zoom', { error: e instanceof Error ? e.message : String(e) });
+				Logger.error('AFSSlider: Error setting up pinch-zoom', { error: e instanceof Error ? e.message : String(e) });
 				// Continue anyway - zoom is optional
 			}
 		}
@@ -3341,7 +3539,7 @@ class AFSSlider {
 		try {
 			this.goToSlide(0);
 		} catch (e) {
-			Log.error('AFSSlider: Error showing first slide', { error: e instanceof Error ? e.message : String(e) });
+			Logger.error('AFSSlider: Error showing first slide', { error: e instanceof Error ? e.message : String(e) });
 			// Continue anyway
 		}
 
@@ -3571,7 +3769,7 @@ class AFSSlider {
 
 		const viewport = this.mainContainer.querySelector<HTMLElement>('.afs-slider__viewport');
 		if (!viewport) {
-			Log.warn('AFSSlider: Viewport not found for pan-zoom, skipping zoom setup');
+			Logger.warn('AFSSlider: Viewport not found for pan-zoom, skipping zoom setup');
 			return;
 		}
 
@@ -4020,7 +4218,7 @@ async function createProductModal(handle: string, modalId: string): Promise<Prod
 		if (!response.ok) {
 			const errorText = await response.text().catch(() => '');
 			const errorMsg = `Failed to load product: HTTP ${response.status} ${response.statusText}${errorText ? ' - ' + errorText.substring(0, 100) : ''}`;
-			Log.error('Product fetch failed', { status: response.status, statusText: response.statusText, url: productUrl, errorText });
+			Logger.error('Product fetch failed', { status: response.status, statusText: response.statusText, url: productUrl, errorText });
 			throw new Error(errorMsg);
 		}
 		const productData = await response.json() as ProductType;
@@ -4302,7 +4500,7 @@ async function createProductModal(handle: string, modalId: string): Promise<Prod
 
 				// Also wait for thumbnails to be in DOM (non-blocking)
 				await waitForElement('.afs-slider__thumbnails', sliderContainer, 1000).catch(() => {
-					Log.warn('Thumbnails container not found, slider will continue without thumbnails', { modalId });
+					Logger.warn('Thumbnails container not found, slider will continue without thumbnails', { modalId });
 				});
 
 				if (images.length > 0) {
@@ -4315,11 +4513,11 @@ async function createProductModal(handle: string, modalId: string): Promise<Prod
 						magnifierZoom: 2, // 2x zoom level for magnifier
 					});
 				} else {
-					Log.warn('No images found for slider', { modalId });
+					Logger.warn('No images found for slider', { modalId });
 				}
 			} catch (error) {
 
-				Log.error('Failed to initialize slider', {
+				Logger.error('Failed to initialize slider', {
 					error: error instanceof Error ? error.message : String(error),
 					modalId
 				});
@@ -4336,7 +4534,7 @@ async function createProductModal(handle: string, modalId: string): Promise<Prod
 	} catch (error) {
 		const errorMessage = error instanceof Error ? error.message : String(error);
 		const errorDetails = error instanceof Error ? { message: errorMessage, stack: error.stack } : { message: errorMessage };
-		Log.error('Failed to load product for modal', {
+		Logger.error('Failed to load product for modal', {
 			error: errorDetails,
 			handle,
 			productUrl,
@@ -4352,7 +4550,7 @@ async function createProductModal(handle: string, modalId: string): Promise<Prod
 		  <div class="afs-product-modal__content">
 			<div style="padding: 2rem; text-align: center;">
 			  <p>${userMessage}</p>
-			  ${Log.enabled ? `<p style="font-size: 0.875rem; color: #666; margin-top: 0.5rem;">Error: ${errorMessage}</p>` : ''}
+			  ${Logger.enabled ? `<p style="font-size: 0.875rem; color: #666; margin-top: 0.5rem;">Error: ${errorMessage}</p>` : ''}
 			</div>
 		  </div>
 		</div>
@@ -4506,7 +4704,7 @@ function setupModalHandlers(
 						} else if (attempts < 20) {
 							setTimeout(() => waitForSlider(attempts + 1), 100);
 						} else {
-							Log.warn('Slider not ready for variant update', { modalId });
+							Logger.warn('Slider not ready for variant update', { modalId });
 							// Update price and buttons even if slider isn't ready
 							updateVariantInModal(dialog, modalId, selectedVariant, formatPrice);
 						}
@@ -4516,7 +4714,7 @@ function setupModalHandlers(
 					updateVariantInModal(dialog, modalId, selectedVariant, formatPrice);
 				}
 			} else {
-				Log.warn('No matching variant found for selected options', {
+				Logger.warn('No matching variant found for selected options', {
 					selected: selected.filter(Boolean) as string[],
 					matchesCount: matches.length
 				});
@@ -4537,7 +4735,7 @@ function setupModalHandlers(
 				await QuickAdd.addVariant(parseInt(variantId || '0', 10), quantity);
 				closeModal();
 			} catch (error) {
-				Log.error('Failed to add to cart from modal', { error: error instanceof Error ? error.message : String(error) });
+				Logger.error('Failed to add to cart from modal', { error: error instanceof Error ? error.message : String(error) });
 				DOM.showError(Lang?.messages?.failedToAddToCart || 'Failed to add product to cart. Please try again.');
 			}
 		});
@@ -4556,7 +4754,7 @@ function setupModalHandlers(
 				// Redirect to checkout
 				window.location.href = `${routesRoot}cart/${variantId}:${quantity}?checkout`;
 			} catch (error) {
-				Log.error('Failed to buy now', { error: error instanceof Error ? error.message : String(error) });
+				Logger.error('Failed to buy now', { error: error instanceof Error ? error.message : String(error) });
 				DOM.showError(Lang?.messages?.failedToProceedToCheckout || 'Failed to proceed to checkout. Please try again.');
 			}
 		});
@@ -4610,7 +4808,7 @@ function updateVariantInModal(
 	if (product && product.images && product.variants) {
 		// If slider is not ready yet, skip image update (price and buttons already updated above)
 		if (!dialog._slider) {
-			Log.debug('Slider not ready, skipping image update', { variantId: variant.id });
+			Logger.debug('Slider not ready, skipping image update', { variantId: variant.id });
 			return;
 		}
 		// Find which image is assigned to this variant by checking variant_ids
@@ -4807,7 +5005,7 @@ function handleQuickViewClick(handle: string): void {
 
 	openModal().catch(error => {
 		const errorMessage = error instanceof Error ? error.message : String(error);
-		Log.error('Failed to open product modal', { error: errorMessage, handle, stack: error instanceof Error ? error.stack : undefined });
+		Logger.error('Failed to open product modal', { error: errorMessage, handle, stack: error instanceof Error ? error.stack : undefined });
 		const userMessage = Lang?.messages?.failedToLoadProductModal || 'Failed to load product. Please try again.';
 		if (DOM && typeof DOM.showError === 'function') {
 			DOM.showError(userMessage);

@@ -7,10 +7,9 @@
 */
 
 // Import lightweight shared utilities
-import { Log } from './utils/shared';
+import { $, Log } from './utils';
 import { Lang } from './locals';
 import { ProductType, SearchAPIResponseType, SearchConfigtype, SearchResultType } from './type';
-import { $ } from './utils/$.utils';
 
 // ============================================================================
 // CONSTANTS

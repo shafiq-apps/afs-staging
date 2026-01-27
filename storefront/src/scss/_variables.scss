@@ -12,7 +12,7 @@
   --afs-bg-color: #ffffff;
   --afs-bg-color-inverse: #000000;
   --afs-bg-secondary: #f5f5f5;
-  --afs-border-color: #e5e5e5;
+  --afs-border-color: #c1c1c1;
   --afs-accent-color: #000000;
   --afs-accent-color-hover: #1a1a1a;
   --afs-shadow-color: rgba(0, 0, 0, 0.1);
@@ -82,3 +82,6 @@ $font-weight-normal: 400;
 $font-weight-medium: 500;
 $font-weight-semibold: 600;
 $font-weight-bold: 700;
+
+// filter content max heigh
+$filter-content-max-height: 280px;

@@ -141,7 +141,8 @@
   // Top Bar Layout - Activated when data-afs-layout="top" is set on container
   &[data-afs-layout="top"] {
     .afs-main-content {
-      flex-direction: column;
+      display: block;
+      // flex-direction: column;
       gap: $spacing-lg;
     }
 
