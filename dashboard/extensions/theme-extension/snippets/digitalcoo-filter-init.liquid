@@ -45,13 +45,12 @@
     };
 
     const config = {
-      apiBaseUrl: {{ block.settings.api_base_url | json }},
       shop: {{ shop.permanent_domain | json }},
       containerSelector: '#afs-container-{{ block.id }}',
       filtersSelector: '.afs-filters-container',
       productsSelector: '.afs-products-container',
       pageSize: {{ page_size | json }},
-      enableLogging: {{ block.settings.enable_logging | default: false }},
+      debug: {{ block.settings.enable_logging | default: false }},
       collections: [
         {% for c in collections %}
           {

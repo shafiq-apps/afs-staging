@@ -14,6 +14,7 @@ export const English: LanguageTextsType = {
         quickView: 'Quick view',
         addToCart: 'Add to cart',
         soldOut: 'Sold out',
+        inStock: 'In stock',
         buyNow: 'Buy it now',
         clear: 'Clear',
         clearAll: 'Clear All',

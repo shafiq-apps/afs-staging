@@ -246,6 +246,8 @@ export interface FilterStateType {
 	scrollToProductsOnFilter: boolean;
 	priceRangeHandle: string | null;
 	routesRoot: string;
+	isSearchTemplate: boolean;
+	settings: FilterSettingsType;
 }
 
 export interface AFSConfigType {
@@ -256,7 +258,7 @@ export interface AFSConfigType {
 	productsSelector?: string;
 	collections?: CollectionType[];
 	selectedCollection?: {
-		id?: string | null;
+		id: string | null;
 		sortBy?: string | null;
 	};
 	fallbackProducts?: ProductType[];
@@ -266,11 +268,13 @@ export interface AFSConfigType {
 	currency?: string;
 	scrollToProductsOnFilter?: boolean;
 	priceRangeHandle?: string | null;
+	isSearchTemplate?: boolean;
 	debug?: boolean;
 	shopLocale?: {
-		"locale": string;
-		"primary": boolean;
+		locale: string;
+		primary: boolean;
 	};
+	settings?: FilterSettingsType;
 }
 
 export interface SliderInstanceType {
@@ -388,6 +392,7 @@ export interface LanguageTextsType {
 		readonly quickAddToCart: string;
 		readonly quickView: string;
 		readonly addToCart: string;
+		readonly inStock: string;
 		readonly soldOut: string;
 		readonly buyNow: string;
 		readonly clear: string;
@@ -450,18 +455,18 @@ export interface LanguageTextsType {
 }
 
 export interface SliderOptionsType {
-  thumbnailsPosition?: 'top' | 'left' | 'right' | 'bottom';
-  enableKeyboard?: boolean;
-  enableAutoHeight?: boolean;
-  maxHeight?: number | null;
-  animationDuration?: number;
-  enableMagnifier?: boolean;
-  magnifierZoom?: number;
+	thumbnailsPosition?: 'top' | 'left' | 'right' | 'bottom';
+	enableKeyboard?: boolean;
+	enableAutoHeight?: boolean;
+	maxHeight?: number | null;
+	animationDuration?: number;
+	enableMagnifier?: boolean;
+	magnifierZoom?: number;
 }
 
 export interface SliderSlideChangeEventDetailType {
-  index: number;
-  total: number;
+	index: number;
+	total: number;
 }
 
 export interface AFSInterfaceType {
@@ -517,20 +522,18 @@ export interface SearchAPIResponseType {
 export interface AFSInterface extends AFSInterfaceType { }
 
 export interface MetadataType {
-  buildFilterMetadata: (
-    filters: FilterOptionType[]
-  ) => Map<string, FilterMetadataType>;
-
-  filterSettings: FilterSettingsType;
+	buildFilterMetadata: (
+		filters: FilterOptionType[]
+	) => Map<string, FilterMetadataType>;
 };
 
 type BadgeLocation = 'none' | 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left';
 type DiscountLocation = BadgeLocation | 'next-to-price';
 
 type ProductHtmlFactories = {
-  title: (content: string | HTMLElement) => HTMLElement;
-  vendor: (content: string | HTMLElement) => HTMLElement;
-  price: (content: string | HTMLElement) => HTMLElement;
+	title: (content: string | HTMLElement) => HTMLElement;
+	vendor: (content: string | HTMLElement) => HTMLElement;
+	price: (content: string | HTMLElement) => HTMLElement;
 };
 
 export interface FilterSettingsType {
@@ -540,9 +543,14 @@ export interface FilterSettingsType {
 	showComparePrice: boolean;
 	showDiscount: DiscountLocation;
 	soldOutBadgeLocation: BadgeLocation;
-	stockBadgeLocation: BadgeLocation;
+	inStockBadgeLocation: BadgeLocation;
 	quickViewLocation: BadgeLocation;
-	quickAddButtonLocation: 'inside-image' | 'outside-image';
-	showAddToCartButton: boolean;
+	addToCartButtonLocation: 'none' | 'inside-image' | 'outside-image';
 	html: ProductHtmlFactories
+}
+
+export interface QuickAddOptionsType {
+	product: ProductType;
+	isSoldOut: boolean;
+	label?: string;
 }

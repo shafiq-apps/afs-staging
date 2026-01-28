@@ -16,6 +16,7 @@
     --afs-bg-secondary: {{ block.settings.bg_secondary }};
     --afs-border-color: {{ block.settings.border_color }};
     --afs-accent-color: {{ block.settings.accent_color }};
+    --afs-accent-color-inverse: {{ block.settings.accent_color_inverse }};
     --afs-accent-color-hover: {{ block.settings.accent_color_hover }};
     --afs-shadow-color: {{ block.settings.shadow_color }};
     --afs-shadow-color-medium: {{ block.settings.shadow_color_medium }};
@@ -59,142 +60,141 @@
   "name": "Digitalcoo Filters",
   "target": "section",
   "settings": [
-    {
-      "type": "text",
-      "id": "api_base_url",
-      "label": "API Base URL",
-      "default": "https://fstaging.digitalcoo.com/storefront",
-      "info": "The base URL for your API endpoint"
-    },
-    {
-      "type": "number",
-      "id": "page_size",
-      "label": "Products per page",
-      "default": 24,
-      "info": "Maximum number of products to load per page"
-    },
-    {
-      "type": "radio",
-      "id": "filter_alignment",
-      "label": "Filter alignment",
-      "options": [
-        {
-          "value": "left",
-          "label": "Left"
-        },
-        {
-          "value": "top",
-          "label": "Top"
-        }
-      ],
-      "default": "left"
-    },
-    {
-      "type": "checkbox",
-      "id": "enable_logging",
-      "label": "Enable Debug Logging",
-      "default": false,
-      "info": "Enable console logging for debugging"
-    },
-    {
-      "type": "header",
-      "content": "Text Colors"
-    },
-    {
-      "type": "color",
-      "id": "text_color",
-      "label": "Text Color",
-      "default": "#000000"
-    },
-    {
-      "type": "color",
-      "id": "text_color_inverse",
-      "label": "Text Color (Inverse)",
-      "default": "#ffffff",
-      "info": "Used for text on dark backgrounds"
-    },
-    {
-      "type": "header",
-      "content": "Background Colors"
-    },
-    {
-      "type": "color",
-      "id": "bg_color",
-      "label": "Background Color",
-      "default": "#ffffff"
-    },
-    {
-      "type": "color",
-      "id": "bg_color_inverse",
-      "label": "Background Color (Inverse)",
-      "default": "#000000",
-      "info": "Used for dark backgrounds"
-    },
-    {
-      "type": "color",
-      "id": "bg_secondary",
-      "label": "Secondary Background",
-      "default": "#f5f5f5",
-      "info": "Used for secondary backgrounds and image containers"
-    },
-    {
-      "type": "header",
-      "content": "Border & Accent Colors"
-    },
-    {
-      "type": "color",
-      "id": "border_color",
-      "label": "Border Color",
-      "default": "#e5e5e5"
-    },
-    {
-      "type": "color",
-      "id": "accent_color",
-      "label": "Accent Color",
-      "default": "#000000",
-      "info": "Used for buttons, links, and active states"
-    },
-    {
-      "type": "color",
-      "id": "accent_color_hover",
-      "label": "Accent Color (Hover)",
-      "default": "#1a1a1a",
-      "info": "Used for hover states on buttons and links"
-    },
-    {
-      "type": "header",
-      "content": "Shadow Colors"
-    },
-    {
-      "type": "color_background",
-      "id": "shadow_color",
-      "label": "Shadow Color (Light)",
-      "default": "rgba(0, 0, 0, 0.1)"
-    },
-    {
-      "type": "color_background",
-      "id": "shadow_color_medium",
-      "label": "Shadow Color (Medium)",
-      "default": "rgba(0, 0, 0, 0.2)"
-    },
-    {
-      "type": "color_background",
-      "id": "shadow_color_strong",
-      "label": "Shadow Color (Strong)",
-      "default": "rgba(0, 0, 0, 0.25)"
-    },
-    {
-      "type": "header",
-      "content": "Font Configuration"
-    },
-    {
-      "type": "font_picker",
-      "id": "font_family",
-      "label": "Font Family",
-      "default": "helvetica_n4",
-      "info": "CSS font-family value"
-    }
-  ]
+	{
+		"type": "header",
+		"content": "Font Configuration"
+	},
+	{
+		"type": "font_picker",
+		"id": "font_family",
+		"label": "Font Family",
+		"default": "helvetica_n4",
+		"info": "CSS font-family value"
+	},
+	{
+		"type": "radio",
+		"id": "filter_alignment",
+		"label": "Filter alignment",
+		"options": [
+			{
+				"value": "left",
+				"label": "Left"
+			},
+			{
+				"value": "top",
+				"label": "Top"
+			}
+		],
+		"default": "left"
+	},
+	{
+		"type": "number",
+		"id": "page_size",
+		"label": "Products per page",
+		"default": 24,
+		"info": "Maximum number of products to load per page"
+	},
+	{
+		"type": "checkbox",
+		"id": "enable_logging",
+		"label": "Enable Debug Logging",
+		"default": false,
+		"info": "Enable console logging for debugging"
+	},
+	{
+		"type": "header",
+		"content": "Text Colors"
+	},
+	{
+		"type": "color",
+		"id": "text_color",
+		"label": "Text Color",
+		"default": "#000000"
+	},
+	{
+		"type": "color",
+		"id": "text_color_inverse",
+		"label": "Text Color (Inverse)",
+		"default": "#ffffff",
+		"info": "Used for text on dark backgrounds"
+	},
+	{
+		"type": "header",
+		"content": "Background Colors"
+	},
+	{
+		"type": "color",
+		"id": "bg_color",
+		"label": "Background Color",
+		"default": "#ffffff"
+	},
+	{
+		"type": "color",
+		"id": "bg_color_inverse",
+		"label": "Background Color (Inverse)",
+		"default": "#000000",
+		"info": "Used for dark backgrounds"
+	},
+	{
+		"type": "color",
+		"id": "bg_secondary",
+		"label": "Secondary Background",
+		"default": "#f5f5f5",
+		"info": "Used for secondary backgrounds and image containers"
+	},
+	{
+		"type": "header",
+		"content": "Border & Accent Colors"
+	},
+	{
+		"type": "color",
+		"id": "accent_color",
+		"label": "Accent Color",
+		"default": "#000000",
+		"info": "Used for buttons, links, and active states"
+	},
+	{
+		"type": "color",
+		"id": "accent_color_inverse",
+		"label": "Accent Color (Inverse)",
+		"default": "#ffffff",
+		"info": "Used for buttons, links, and active states"
+	},
+	{
+		"type": "color",
+		"id": "accent_color_hover",
+		"label": "Accent Color (Hover)",
+		"default": "#1a1a1a",
+		"info": "Used for hover states on buttons and links"
+	},
+	{
+		"type": "color",
+		"id": "border_color",
+		"label": "Border Color",
+		"default": "#e5e5e5"
+	},
+	{
+		"type": "header",
+		"content": "Shadow Colors"
+	},
+	{
+		"type": "color_background",
+		"id": "shadow_color",
+		"label": "Shadow Color (Light)",
+		"default": "rgba(0, 0, 0, 0.1)"
+	},
+	{
+		"type": "color_background",
+		"id": "shadow_color_medium",
+		"label": "Shadow Color (Medium)",
+		"default": "rgba(0, 0, 0, 0.2)"
+	},
+	{
+		"type": "color_background",
+		"id": "shadow_color_strong",
+		"label": "Shadow Color (Strong)",
+		"default": "rgba(0, 0, 0, 0.25)"
+	}
+]
 }
 {% endschema %}
-

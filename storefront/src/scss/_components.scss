@@ -68,11 +68,11 @@ $positions: top-right, top-left, bottom-right, bottom-left;
    ============================================================================ */
 
 @mixin button-base {
-  padding: 6px 12px;
-  font-size: 14px;
+  padding: $spacing-sm $spacing-md;
+  font-size: $font-size-base;
   border: 1px solid var(--afs-border-color);
-  border-radius: 4px;
-  background: transparent;
+  border-radius: $border-radius-sm;
+  background: inherit;
   color: var(--afs-text-color);
   font-family: var(--afs-font-family);
   cursor: pointer;
@@ -198,15 +198,15 @@ $positions: top-right, top-left, bottom-right, bottom-left;
   position: fixed;
   top: $spacing-lg;
   right: $spacing-lg;
-  z-index: $z-index-base;
-  background: #fff;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
+  z-index: $z-index-modal-close;
+  background: var(--afs-accent-color);
+  border: 1px solid var(--afs-accent-color);
+  border-radius: $border-radius-md;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  padding: 16px 20px;
+  padding: $spacing-md $spacing-lg;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: $spacing-md;
   min-width: 300px;
   max-width: 400px;
   opacity: 0;
@@ -223,7 +223,7 @@ $positions: top-right, top-left, bottom-right, bottom-left;
   &__content {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: $spacing-md;
     flex: 1;
     background: transparent;
   }
@@ -232,7 +232,7 @@ $positions: top-right, top-left, bottom-right, bottom-left;
     flex-shrink: 0;
     width: 24px;
     height: 24px;
-    color: #10b981;
+    color: var(--afs-accent-color-inverse);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -249,9 +249,7 @@ $positions: top-right, top-left, bottom-right, bottom-left;
   &__message {
     font-size: 15px;
     font-weight: 500;
-    color: #1f2937;
-    line-height: 1.4;
-    background: transparent;
+    color: var(--afs-accent-color-inverse);
   }
 
   &__close {
@@ -264,14 +262,14 @@ $positions: top-right, top-left, bottom-right, bottom-left;
     background: transparent;
     border: none;
     border-radius: 4px;
-    color: #6b7280;
+    color: var(--afs-bg-secondary);
     cursor: pointer;
     transition: all 0.2s ease;
-    padding: 6px;
+    padding: $spacing-md;
 
     &:hover {
-      background: #f3f4f6;
-      color: #1f2937;
+      background: var(--afs-accent-color-inverse);
+      color: var(--afs-text-color-inverse);
     }
 
     &:active {
@@ -289,23 +287,7 @@ $positions: top-right, top-left, bottom-right, bottom-left;
 
 // Dark mode support
 @media (prefers-color-scheme: dark) {
-  .afs-cart-toast {
-    background: #1f2937;
-    border-color: #374151;
 
-    &__message {
-      color: #f9fafb;
-    }
-
-    &__close {
-      color: #9ca3af;
-
-      &:hover {
-        background: #374151;
-        color: #f9fafb;
-      }
-    }
-  }
 }
 
 // Mobile responsive

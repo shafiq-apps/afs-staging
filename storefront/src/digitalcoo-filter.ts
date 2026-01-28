@@ -1,7 +1,7 @@
 import { Icons } from './components/Icons';
 import { Config } from './config';
 import { $, waitForElement, waitForElements, detectDevice, findMatchingVariants, getSelectedOptions, isOptionValueAvailable, isVariantAvailable, Logger } from './utils';
-import { FilterKeyType, FilterStateType, FilterOptionType, FilterMetadataType, FiltersStateType, PaginationStateType, SortStateType, ProductsResponseDataType, FiltersResponseDataType, PriceRangeType, AFSConfigType, FilterValueType, SpecialValueType, SortFieldType, SortOrderType, AppliedFilterType, ParsedUrlParamsType, FilterGroupStateType, ProductType, APIResponse, AFSInterfaceType, FilterItemsElement, SliderOptionsType, SliderSlideChangeEventDetailType, ProductVariantType, ProductModalElement, AFSInterface, MetadataType } from "./type";
+import { FilterKeyType, FilterStateType, FilterOptionType, FilterMetadataType, FiltersStateType, PaginationStateType, SortStateType, ProductsResponseDataType, FiltersResponseDataType, PriceRangeType, AFSConfigType, FilterValueType, SpecialValueType, SortFieldType, SortOrderType, AppliedFilterType, ParsedUrlParamsType, FilterGroupStateType, ProductType, APIResponse, AFSInterfaceType, FilterItemsElement, SliderOptionsType, SliderSlideChangeEventDetailType, ProductVariantType, ProductModalElement, AFSInterface, MetadataType, QuickAddOptionsType } from "./type";
 import { setLanguage, t } from './utils/translation';
 
 // Persistent map for filter group UI states (collapsed/search/lastUpdated)
@@ -46,23 +46,6 @@ const Metadata: MetadataType = {
 			}
 		});
 		return m;
-	},
-	filterSettings: {
-		hoverImage: true,
-		showPrice: true,
-		showVendor: true,
-		showComparePrice: true,
-		showAddToCartButton: true,
-		quickViewLocation: 'top-right',
-		soldOutBadgeLocation: 'top-left',
-		showDiscount: 'top-left',
-		stockBadgeLocation: 'top-left', // in-stock/out of stock
-		quickAddButtonLocation: 'inside-image',
-		html: {
-			title: (content) => $.el('h3', 'afs-product-card__title', {}, content),
-			vendor: (content) => $.el('div', 'afs-product-card__vendor', {}, content),
-			price: (content) => $.el('div', 'afs-product-card__price', {}, content),
-		}
 	}
 };
 
@@ -97,6 +80,23 @@ const FilterState: FilterStateType = {
 	// Handle-based keys for range filters (provided by server filter config)
 	priceRangeHandle: null,
 	routesRoot: (window as any)?.Shopify?.routes?.root || '/',
+	isSearchTemplate: false,
+	settings: {
+		hoverImage: true,
+		showPrice: true,
+		showVendor: false,
+		showComparePrice: true,
+		quickViewLocation: 'top-right',
+		soldOutBadgeLocation: 'top-left',
+		showDiscount: 'top-left',
+		inStockBadgeLocation: 'top-left', // in-stock/out of stock
+		addToCartButtonLocation: 'inside-image',
+		html: {
+			title: (content) => $.el('h3', 'afs-product-card__title', {}, content),
+			vendor: (content) => $.el('div', 'afs-product-card__vendor', {}, content),
+			price: (content) => $.el('div', 'afs-product-card__price', {}, content),
+		}
+	}
 };
 
 // ============================================================================
@@ -214,7 +214,7 @@ const UrlManager = {
 				else if ($.equals(key, FilterKeyType.SEARCH) && typeof value === 'string' && value.trim()) {
 					// For search template, use 'q' parameter (Shopify standard)
 					// For other templates, use 'search' parameter
-					const isSearchTemplate = (window as any).AFS_Config?.isSearchTemplate || false;
+					const isSearchTemplate = FilterState.isSearchTemplate || false;
 					const paramKey = isSearchTemplate ? 'q' : 'search';
 					url.searchParams.set(paramKey, value.trim());
 					Logger.debug('Search URL param set', { key: paramKey, value: value.trim(), isSearchTemplate });
@@ -250,9 +250,9 @@ const UrlManager = {
 // ============================================================================
 
 const API = {
-	baseURL: 'https://fstaging.digitalcoo.com/storefront', // Default, should be set via config
+	baseURL: 'https://fstaging.digitalcoo.com/storefront',
 	__v: '2.0.0',
-	__id: '01-23-2026',
+	__id: '01-28-2026',
 	cache: new Map<string, ProductsResponseDataType>(),
 	timestamps: new Map<string, number>(),
 	pending: new Map<string, Promise<ProductsResponseDataType>>(),
@@ -337,7 +337,7 @@ const API = {
 
 		// Always send CPID if it exists - never drop it
 		// CPID is server-managed and should always be sent to products API
-		if (FilterState.selectedCollection?.id) {
+		if (FilterState.selectedCollection.id) {
 			params.set('cpid', FilterState.selectedCollection.id);
 			Logger.debug('cpid sent to products API', { cpid: FilterState.selectedCollection.id, filters });
 		} else {
@@ -429,7 +429,7 @@ const API = {
 
 		// Always send CPID if it exists - never drop it
 		// CPID is server-managed and should always be sent to filters API
-		if (FilterState.selectedCollection?.id) {
+		if (FilterState.selectedCollection.id) {
 			params.set('cpid', FilterState.selectedCollection.id);
 			Logger.debug('cpid sent to filters API', { cpid: FilterState.selectedCollection.id, filters });
 		} else {
@@ -741,7 +741,7 @@ const DOM = {
 		});
 
 		// Handle input change with debounce (longer on search template to reduce request load)
-		const debounceDelay = ((window as any).AFS_Config?.isSearchTemplate) ? 400 : Config.DEBOUNCE;
+		const debounceDelay = FilterState.isSearchTemplate ? 400 : Config.DEBOUNCE;
 		let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 		searchInput.addEventListener('input', () => {
 			if (debounceTimer) clearTimeout(debounceTimer);
@@ -789,7 +789,7 @@ const DOM = {
 				// Reset to initial state (standard filters only, handles will be removed dynamically)
 				FilterState.filters = { vendor: [], productType: [], tags: [], collections: [], search: '', priceRange: null };
 				// Keep CPID when clearing client-visible filters; CPID is server-managed
-				if (FilterState.selectedCollection?.id) {
+				if (FilterState.selectedCollection.id) {
 					Logger.debug('Clear All: keeping server-managed cpid (not exposed to UI)');
 				}
 				FilterState.pagination.page = 1;
@@ -817,7 +817,7 @@ const DOM = {
 				if (!key) return;
 
 				if ($.equals(key, FilterKeyType.CPID)) {
-					if (FilterState.selectedCollection?.id) {
+					if (FilterState.selectedCollection.id) {
 						Logger.debug('cpid removed, cleared selectedCollection');
 					}
 					UrlManager.update(FilterState.filters, FilterState.pagination, FilterState.sort);
@@ -1702,7 +1702,7 @@ const DOM = {
 		if (isCollectionFilter && FilterState.collections && Array.isArray(FilterState.collections)) {
 			// Hide CPID's collection from the UI so users cannot toggle it. If the
 			// item's value equals the server-provided selectedCollection.id, skip it.
-			if (FilterState.selectedCollection?.id && String(value) === String(FilterState.selectedCollection.id)) {
+			if (FilterState.selectedCollection.id && String(value) === String(FilterState.selectedCollection.id)) {
 				return null;
 			}
 			// Collection IDs are already numeric strings, just convert to string for comparison
@@ -1953,7 +1953,7 @@ const DOM = {
 	// Minimal product creation
 	createProduct(p: ProductType): HTMLElement {
 		const card = $.el('div', 'afs-product-card', { 'data-afs-product-id': $.id(p) || '' });
-		const isSoldOut = parseInt(String(p.totalInventory || 0)) <= 0 || (p.variants && !p.variants.some(v => v.availableForSale));
+		const isSoldOut = parseInt(String(p.totalInventory || 0)) <= 0 || (p.variants && !p.variants.some(v => v.availableForSale)) ? true : false;
 
 		// =========================
 		// IMAGE CONTAINER
@@ -2008,7 +2008,7 @@ const DOM = {
 
 				imgContainer.appendChild(mainImg);
 
-				if (Metadata.filterSettings.hoverImage) {
+				if (FilterState.settings.hoverImage) {
 					// SECOND IMAGE (HOVER)
 					const imagesArray = (p as any).imagesUrls;
 					const secondImageUrl = imagesArray && imagesArray.length > 1 ? imagesArray[1] : null;
@@ -2044,42 +2044,32 @@ const DOM = {
 					}
 				}
 
-				if (Metadata.filterSettings.soldOutBadgeLocation !== 'none') {
-					// SOLD OUT BADGE
-					if (isSoldOut || true) {
-						const soldOutBadge = $.el('div', `afs-product-card__badge afs-product-card__badge--${Metadata.filterSettings.soldOutBadgeLocation}`);
-						soldOutBadge.textContent = t("buttons.soldOut");
-						imgContainer.appendChild(soldOutBadge);
-					}
+				if (FilterState.settings.soldOutBadgeLocation !== 'none' && isSoldOut) {
+					const soldOutBadge = $.el('div', `afs-product-card__badge afs-product-card__badge--out-stock afs-product-card__badge--${FilterState.settings.soldOutBadgeLocation}`);
+					soldOutBadge.textContent = t("buttons.soldOut");
+					imgContainer.appendChild(soldOutBadge);
+				}
+
+				if (FilterState.settings.inStockBadgeLocation !== 'none' && !isSoldOut) {
+					// IN STOCK BADGE
+					const inStockBadge = $.el('div', `afs-product-card__badge afs-product-card__badge--in-stock afs-product-card__badge--${FilterState.settings.inStockBadgeLocation}`);
+					inStockBadge.textContent = t("buttons.inStock");
+					imgContainer.appendChild(inStockBadge);
+
 				}
 
 				// QUICK ADD BUTTON
-				if (Metadata.filterSettings.showAddToCartButton) {
-					const quickAddBtn = $.el('button', 'afs-product-card__quick-add', {
-						'data-product-handle': p.handle || '',
-						'data-product-id': $.id(p) || '',
-						'aria-label': t("buttons.quickAddToCart"),
-						type: 'button'
+				if (FilterState.settings.addToCartButtonLocation === "inside-image") {
+					const quickAddBtn = createQuickAddButton({
+						product: p,
+						isSoldOut
 					});
-
-					const quickAddBtnContent = $.el('div', 'afs-product-card__quick-add__content');
-
-					const quickAddText = $.el('div', 'afs-product-card__quick-add-text');
-					quickAddText.textContent = t("buttons.addToCart");
-					quickAddBtnContent.appendChild(quickAddText);
-
-					if (isSoldOut) {
-						(quickAddBtn as HTMLButtonElement).disabled = true;
-						quickAddBtn.classList.add('afs-product-card__quick-add--disabled');
-						quickAddBtn.setAttribute('aria-label', t("labels.productUnavailable"));
-					}
-					quickAddBtn.appendChild(quickAddBtnContent);
 					imgContainer.appendChild(quickAddBtn);
 				}
 
 				// QUICK VIEW BUTTON
 				const quickViewBtn = createQuickViewButton(p);
-				if (quickViewBtn && Metadata.filterSettings.quickViewLocation !== 'none') {
+				if (quickViewBtn && FilterState.settings.quickViewLocation !== 'none') {
 					imgContainer.appendChild(quickViewBtn);
 				}
 
@@ -2093,18 +2083,26 @@ const DOM = {
 		const info = $.el('a', 'afs-product-card__info', { 'href': `${FilterState.routesRoot}products/${p.handle}` });
 
 		if (info) {
-			info.appendChild(Metadata.filterSettings.html.title(p.title || ''));
+			info.appendChild(FilterState.settings.html.title(p.title || ''));
 
-			if (p.vendor && Metadata.filterSettings.showVendor) {
-				info.appendChild(Metadata.filterSettings.html.vendor(p.vendor || ''));
+			if (p.vendor && FilterState.settings.showVendor) {
+				info.appendChild(FilterState.settings.html.vendor(p.vendor || ''));
 			}
 
-			if (Metadata.filterSettings.showPrice) {
+			if (FilterState.settings.showPrice) {
 				const minPrice = parseFloat(String(p.minPrice || 0)) * 100;
 				const maxPrice = parseFloat(String(p.maxPrice || 0)) * 100;
 				const formattedMin = $.formatMoney(minPrice, FilterState.moneyFormat || '{{amount}}', FilterState.currency || '');
 				const priceText = minPrice === maxPrice ? formattedMin : `from ${formattedMin}`;
-				info.appendChild(Metadata.filterSettings.html.price(priceText));
+				info.appendChild(FilterState.settings.html.price(priceText));
+			}
+
+			if (FilterState.settings.addToCartButtonLocation === "outside-image") {
+				const quickAddBtn = createQuickAddButton({
+					product: p,
+					isSoldOut
+				});
+				info.appendChild(quickAddBtn);
 			}
 
 			card.appendChild(info);
@@ -3228,13 +3226,13 @@ const QuickAdd = {
 const AFS: AFSInterface = {
 	init(config: AFSConfigType = {}): void {
 		try {
-			
+
 			console.log("config", config);
 
 			if (config.shopLocale?.locale) {
 				setLanguage(config.shopLocale.locale);
 			}
-			else{
+			else {
 				setLanguage('en');
 			}
 			Logger.init(config.debug);
@@ -3255,8 +3253,8 @@ const AFS: AFSInterface = {
 			FilterState.scrollToProductsOnFilter = config.scrollToProductsOnFilter !== false;
 
 			// Store search template flag and initial search query
-			if ((config as any).isSearchTemplate) {
-				(window as any).AFS_Config = { isSearchTemplate: true };
+			if (config.isSearchTemplate) {
+				FilterState.isSearchTemplate = true;
 			}
 			if ((config as any).initialSearchQuery) {
 				// Set initial search query from Liquid
@@ -3336,14 +3334,10 @@ const AFS: AFSInterface = {
 			API.buildFiltersFromUrl(urlParams);
 			API.setPaginationFromUrl(urlParams);
 			API.setSortFromUrl(urlParams);
-
 			Logger.info('Loading products & filters...', { shop: FilterState.shop, filters: FilterState.filters });
-
-
 			API.filters(FilterState.filters).then(Filters.process).catch(handleLoadError).finally(() => {
 				DOM.hideFiltersSkeleton();
 			});
-
 			API.products(FilterState.filters, FilterState.pagination, FilterState.sort).then(Products.process).catch(handleLoadError).finally(() => {
 				DOM.hideFiltersSkeleton();
 			});
@@ -4892,7 +4886,7 @@ function createQuickViewButton(product: ProductType): HTMLElement | null {
 	if (!product.handle) return null;
 	const ariaLabel = t("buttons.quickView");
 
-	const quickViewBtn = $.el('button', `afs-product-card__quick-view afs-product-card__quick-view--${Metadata.filterSettings.quickViewLocation}`, {
+	const quickViewBtn = $.el('button', `afs-product-card__quick-view afs-product-card__quick-view--${FilterState.settings.quickViewLocation}`, {
 		'data-product-handle': product.handle,
 		'data-product-id': $.id(product) || '',
 		'aria-label': ariaLabel,
@@ -4902,6 +4896,31 @@ function createQuickViewButton(product: ProductType): HTMLElement | null {
 	quickViewIcon.innerHTML = Icons.eye;
 	quickViewBtn.appendChild(quickViewIcon);
 	return quickViewBtn;
+}
+
+function createQuickAddButton({ product, isSoldOut, label }: QuickAddOptionsType): HTMLButtonElement {
+	const btn = $.el('button', 'afs-product-card__quick-add', {
+		'data-product-handle': product.handle || '',
+		'data-product-id': $.id(product) || '',
+		'aria-label': t('buttons.quickAddToCart'),
+		type: 'button'
+	}) as HTMLButtonElement;
+
+	const content = $.el('div', 'afs-product-card__quick-add__content');
+
+	const text = $.el('div', 'afs-product-card__quick-add-text');
+	text.textContent = label || t('buttons.addToCart');
+
+	content.appendChild(text);
+	btn.appendChild(content);
+
+	if (isSoldOut) {
+		btn.disabled = true;
+		btn.classList.add('afs-product-card__quick-add--disabled');
+		btn.setAttribute('aria-label', t('labels.productUnavailable'));
+	}
+
+	return btn;
 }
 
 function handleQuickViewClick(handle: string): void {

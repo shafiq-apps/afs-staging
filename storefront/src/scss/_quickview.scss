@@ -108,7 +108,7 @@
 
 .afs-product-modal {
   border: 0 !important;
-  border-radius: 0.75rem;
+  border-radius: $border-radius-sm;
   box-shadow: 0 25px 50px -12px var(--afs-shadow-color-strong);
   padding: 0 !important;
   outline: none !important;
@@ -181,12 +181,12 @@
 
   &__content {
     background-color: var(--afs-bg-color);
-    border-radius: 0.75rem;
+    border-radius: $border-radius-sm;
     width: 100%;
     overflow-y: auto;
     overflow-x: hidden;
     max-height: 90vh;
-    border: 0;
+    border: 1px solid var(--afs-border-color);
     @include custom-scrollbar(8px, var(--afs-scrollbar-track), var(--afs-scrollbar-thumb));
   }
 
@@ -340,7 +340,7 @@
 
   &__details {
     background: var(--afs-bg-color);
-    border-radius: 0.5rem;
+    border-radius: $border-radius-sm;
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
@@ -425,26 +425,27 @@
   &__add-to-cart {
     display: flex;
     flex-direction: row;
-    gap: 1.4rem;
+    gap: $spacing-md;
   }
 
   &__incrementor {
     border: 1px solid var(--afs-border-color);
     display: flex;
     align-items: center;
-    gap: 1.4rem;
-    border-radius: 0.25rem;
+    gap: $spacing-sm;
+    border-radius: $border-radius-sm;
     width: fit-content;
 
     button {
       color: var(--afs-text-color);
       background: inherit;
       cursor: pointer;
-      font-size: 1.6rem;
+      font-size: $font-size-md;
       width: 40px;
       height: 100%;
       border: none;
       padding: 0;
+      box-shadow: none;
 
       svg {
         transform: translateY(2.5px) scale(0.45);
@@ -465,10 +466,11 @@
   }
 
   &__add-button {
+    @include button-base;
     background-color: var(--afs-accent-color);
     color: var(--afs-text-color-inverse);
-    padding: 1rem;
-    font-size: 1.8rem;
+    padding: $spacing-md $spacing-lg;
+    font-size: $font-size-xl;
     font-weight: $font-weight-medium;
     width: 100%;
     border: none;
@@ -478,8 +480,9 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.5rem;
+    gap: $spacing-md;
     user-select: none;
+    border-radius: $border-radius-sm;
 
     &:disabled {
       opacity: 0.3;
@@ -493,24 +496,26 @@
   }
 
   &__buy-button {
-    background-color: var(--afs-bg-secondary);
+    background-color: var(--afs-bg-color);
     color: var(--afs-text-color);
-    padding: 1rem;
-    font-size: 1.8rem;
+    padding: $spacing-md $spacing-md;
+    font-size: $font-size-xl;
     font-weight: $font-weight-medium;
     width: 100%;
-    border: none;
+    border: 2px solid var(--afs-border-color);
     cursor: pointer;
     font-family: var(--afs-font-family);
-    transition: background-color $transition-slow, color $transition-slow;
+    transition: all $transition-slow, color $transition-slow;
+    border-radius: $border-radius-sm;
 
     &:disabled {
       opacity: 0.3;
     }
 
     &:hover {
-      color: var(--afs-text-color);
-      background: var(--afs-bg-secondary);
+      color: var(--afs-text-color-inverse);
+      background: var(--afs-accent-color);
+      border-color: var(--afs-accent-color);
     }
 
     &[disabled]:hover {
@@ -528,8 +533,8 @@
   &__option-group {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
-    margin-bottom: 1rem;
+    gap: $spacing-lg;
+    margin-bottom: $spacing-md;
   }
 
   &__option-label {
@@ -542,7 +547,7 @@
 
   &__option-values {
     display: flex;
-    gap: 0.8rem;
+    gap: $spacing-md;
     flex-wrap: wrap;
   }
 
@@ -551,7 +556,7 @@
     border: 1px solid var(--afs-accent-color);
     background: var(--afs-bg-color);
     color: var(--afs-text-color);
-    border-radius: 0.25rem;
+    border-radius: $border-radius-sm;
     cursor: pointer;
     font-size: $font-size-base;
     font-weight: $font-weight-medium;
@@ -686,7 +691,7 @@ shopify-list-context[type="image"] {
     -webkit-appearance: none;
     appearance: none;
     background: rgba(255, 255, 255, 0.3);
-    border-radius: 2px;
+    border-radius: $border-radius-sm;
     outline: none;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -702,7 +707,7 @@ shopify-list-context[type="image"] {
       width: 12px;
       height: 12px;
       background: rgba(255, 255, 255, 0.9);
-      border-radius: 50%;
+      border-radius: $border-radius-full;
       cursor: pointer;
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
       transition: all 0.2s ease;
@@ -719,7 +724,7 @@ shopify-list-context[type="image"] {
       width: 12px;
       height: 12px;
       background: rgba(255, 255, 255, 0.9);
-      border-radius: 50%;
+      border-radius: $border-radius-full;
       border: none;
       cursor: pointer;
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
@@ -735,7 +740,7 @@ shopify-list-context[type="image"] {
     // Track styling for Firefox
     &::-moz-range-track {
       background: rgba(255, 255, 255, 0.3);
-      border-radius: 2px;
+      border-radius: $border-radius-sm;
       height: 4px;
     }
 
@@ -856,7 +861,7 @@ shopify-list-context[type="image"] {
 
     &::-webkit-scrollbar-thumb {
       background: rgba(0, 0, 0, 0.2);
-      border-radius: 2px;
+      border-radius: $border-radius-sm;
 
       &:hover {
         background: rgba(0, 0, 0, 0.3);
