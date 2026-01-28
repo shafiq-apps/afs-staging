@@ -267,6 +267,10 @@ export interface AFSConfigType {
 	scrollToProductsOnFilter?: boolean;
 	priceRangeHandle?: string | null;
 	debug?: boolean;
+	shopLocale?: {
+		"locale": string;
+		"primary": boolean;
+	};
 }
 
 export interface SliderInstanceType {
@@ -401,6 +405,7 @@ export interface LanguageTextsType {
 		readonly appliedFilters: string;
 		readonly search: string;
 		readonly price: string;
+		readonly priceFrom: string;
 		readonly collection: string;
 		readonly productUnavailable: string;
 		readonly loading: string;
@@ -438,6 +443,10 @@ export interface LanguageTextsType {
 		readonly searchProducts: string;
 		readonly searchFilter: string;
 	};
+	readonly text: {
+		readonly selected: string;
+		readonly of: string;
+	}
 }
 
 export interface SliderOptionsType {

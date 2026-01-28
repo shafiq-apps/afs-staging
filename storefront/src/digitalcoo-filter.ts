@@ -1,9 +1,8 @@
 import { Icons } from './components/Icons';
 import { Config } from './config';
-import { Lang } from './locals';
 import { $, waitForElement, waitForElements, detectDevice, findMatchingVariants, getSelectedOptions, isOptionValueAvailable, isVariantAvailable, Logger } from './utils';
 import { FilterKeyType, FilterStateType, FilterOptionType, FilterMetadataType, FiltersStateType, PaginationStateType, SortStateType, ProductsResponseDataType, FiltersResponseDataType, PriceRangeType, AFSConfigType, FilterValueType, SpecialValueType, SortFieldType, SortOrderType, AppliedFilterType, ParsedUrlParamsType, FilterGroupStateType, ProductType, APIResponse, AFSInterfaceType, FilterItemsElement, SliderOptionsType, SliderSlideChangeEventDetailType, ProductVariantType, ProductModalElement, AFSInterface, MetadataType } from "./type";
-
+import { setLanguage, t } from './utils/translation';
 
 // Persistent map for filter group UI states (collapsed/search/lastUpdated)
 const States = new Map<string, FilterGroupStateType>();
@@ -400,7 +399,7 @@ const API = {
 		const promise = this.fetch(url).then(res => {
 			if (!res.success || !res.data) {
 				Logger.error('Invalid products response', { response: res });
-				throw new Error(`Invalid products response: ${res.message || Lang.messages.unknownError}`);
+				throw new Error(`Invalid products response: ${res.message || t("messages.unknownError")}`);
 			}
 			const data = res.data as ProductsResponseDataType;
 			Logger.info('Products response', {
@@ -479,7 +478,7 @@ const API = {
 		const res = await this.fetch(url);
 		if (!res.success || !res.data) {
 			Logger.error('Invalid filters response', { response: res });
-			throw new Error(`Invalid filters response: ${res.message || Lang.messages.unknownError}`);
+			throw new Error(`Invalid filters response: ${res.message || t("messages.unknownError")}`);
 		}
 
 		// Validate response structure
@@ -672,9 +671,9 @@ const DOM = {
 		this.mobileFilterButton = $.el('button', 'afs-mobile-filter-button', {
 			type: 'button',
 			'data-afs-action': 'toggle-filters',
-			'aria-label': Lang.buttons.toggleFilters
+			'aria-label': t("buttons.toggleFilters")
 		}) as HTMLButtonElement;
-		this.mobileFilterButton.innerHTML = `<span class="afs-mobile-filter-button__icon">☰</span> <span class="afs-mobile-filter-button__text">${Lang.buttons.filters}</span>`;
+		this.mobileFilterButton.innerHTML = `<span class="afs-mobile-filter-button__icon">☰</span> <span class="afs-mobile-filter-button__text">${t("buttons.filters")}</span>`;
 		if (this.productsInfo) {
 			this.productsInfo.insertBefore(this.mobileFilterButton, this.productsInfo.firstChild);
 		}
@@ -682,16 +681,16 @@ const DOM = {
 		// Sort dropdown - create and store reference
 		this.sortContainer = $.el('div', 'afs-sort-container');
 		const sortLabel = $.el('label', 'afs-sort-label', { 'for': 'afs-sort-label' });
-		sortLabel.textContent = Lang.labels.sortBy;
+		sortLabel.textContent = t("labels.sortBy");
 		this.sortSelect = $.el('select', 'afs-sort-select', { 'data-afs-sort': 'true' }) as HTMLSelectElement;
 		this.sortSelect.innerHTML = `
-        <option value="${SortFieldType.BEST_SELLING}">${Lang.sortOptions.bestSelling}</option>
-        <option value="title-${SortOrderType.ASCENDING}">${Lang.sortOptions.titleAsc}</option>
-        <option value="title-${SortOrderType.DESCENDING}">${Lang.sortOptions.titleDesc}</option>
-        <option value="price-${SortOrderType.ASCENDING}">${Lang.sortOptions.priceAsc}</option>
-        <option value="price-${SortOrderType.DESCENDING}">${Lang.sortOptions.priceDesc}</option>
-        <option value="created-${SortOrderType.ASCENDING}">${Lang.sortOptions.createdAsc}</option>
-        <option value="created-${SortOrderType.DESCENDING}">${Lang.sortOptions.createdDesc}</option>
+        <option value="${SortFieldType.BEST_SELLING}">${t("sortOptions.bestSelling")}</option>
+        <option value="title-${SortOrderType.ASCENDING}">${t("sortOptions.titleAsc")}</option>
+        <option value="title-${SortOrderType.DESCENDING}">${t("sortOptions.titleDesc")}</option>
+        <option value="price-${SortOrderType.ASCENDING}">${t("sortOptions.priceAsc")}</option>
+        <option value="price-${SortOrderType.DESCENDING}">${t("sortOptions.priceDesc")}</option>
+        <option value="created-${SortOrderType.ASCENDING}">${t("sortOptions.createdAsc")}</option>
+        <option value="created-${SortOrderType.DESCENDING}">${t("sortOptions.createdDesc")}</option>
       `;
 		this.sortContainer.appendChild(sortLabel);
 		this.sortContainer.appendChild(this.sortSelect);
@@ -1461,7 +1460,7 @@ const DOM = {
 			this.mobileFilterClose = $.el('button', 'afs-mobile-filter-close', {
 				type: 'button',
 				'data-afs-action': 'close-filters',
-				'aria-label': Lang.buttons.closeFilters || 'Close filters'
+				'aria-label': t("buttons.closeFilters")
 			}) as HTMLButtonElement;
 			// Don't set innerHTML - CSS ::before pseudo-element adds the X
 			this.mobileFilterClose.style.display = 'none'; // Hidden on desktop
@@ -1575,11 +1574,11 @@ const DOM = {
 			if (hasActiveValues && !isTopBarLayout) {
 				const clearBtn = $.el('button', 'afs-filter-group__clear', {
 					type: 'button',
-					'aria-label': `${Lang.buttons.clear} ${filter.label || handle} filters`,
+					'aria-label': `${t("buttons.clear")} ${filter.label || handle} filters`,
 					'data-afs-filter-handle': handle
 				});
-				clearBtn.textContent = Lang.buttons.clear;
-				clearBtn.title = `${Lang.buttons.clear} ${filter.label || handle} filters`;
+				clearBtn.textContent = t("buttons.clear");
+				clearBtn.title = `${t("buttons.clear")} ${filter.label || handle} filters`;
 				header.appendChild(clearBtn);
 			}
 
@@ -1593,16 +1592,16 @@ const DOM = {
 				const overlayHeader = $.el('div', 'afs-filter-group__overlay-header');
 				const selectedCount = Array.isArray(filterValue) ? filterValue.length : (filterValue && typeof filterValue === 'object' ? Object.keys(filterValue).length : 1);
 				const countText = $.el('span', 'afs-filter-group__overlay-count');
-				countText.textContent = `${selectedCount} selected`;
+				countText.textContent = `${selectedCount} ${t("text.selected")}`;
 				overlayHeader.appendChild(countText);
 
 				const resetBtn = $.el('button', 'afs-filter-group__overlay-reset', {
 					type: 'button',
-					'aria-label': `${Lang.buttons.clear} ${filter.label || handle} filters`,
+					'aria-label': `${t("buttons.clear")} ${filter.label || handle} filters`,
 					'data-afs-filter-handle': handle
 				});
-				resetBtn.textContent = Lang.buttons.clear;
-				resetBtn.title = `${Lang.buttons.clear} ${filter.label || handle} filters`;
+				resetBtn.textContent = t("buttons.clear");
+				resetBtn.title = `${t("buttons.clear")} ${filter.label || handle} filters`;
 				overlayHeader.appendChild(resetBtn);
 				content.appendChild(overlayHeader);
 			}
@@ -1613,8 +1612,8 @@ const DOM = {
 				const searchContainer = $.el('div', 'afs-filter-group__search');
 				const search = $.el('input', 'afs-filter-group__search-input', {
 					'type': 'text',
-					'placeholder': filter.searchPlaceholder || 'Search...',
-					'aria-label': `${Lang.labels.search}${filter.label || handle}`,
+					'placeholder': t("placeholders.searchFilter"),
+					'aria-label': `${t("labels.search")}${filter.label || handle}`,
 					'name': `afs-search-${handle}`
 				}) as HTMLInputElement;
 				if (saved?.search) search.value = saved.search;
@@ -1790,11 +1789,11 @@ const DOM = {
 		if (isPriceRangeActive) {
 			const clearBtn = $.el('button', 'afs-filter-group__clear', {
 				type: 'button',
-				'aria-label': `${Lang.buttons.clear} ${filter.label} filter`,
+				'aria-label': `${t("buttons.clear")} ${filter.label} filter`,
 				'data-afs-filter-handle': 'priceRange'
 			});
-			clearBtn.textContent = Lang.buttons.clear;
-			clearBtn.title = `${Lang.buttons.clear} ${filter.label} filter`;
+			clearBtn.textContent = t("buttons.clear");
+			clearBtn.title = `${t("buttons.clear")} ${filter.label} filter`;
 			header.appendChild(clearBtn);
 		}
 
@@ -1930,7 +1929,7 @@ const DOM = {
 					const formattedMin = $.formatMoney(minPrice, FilterState.moneyFormat || '{{amount}}', FilterState.currency || '');
 
 					// If prices are equal, show single price, otherwise show "from" prefix
-					const priceText = minPrice === maxPrice ? formattedMin : `${Lang.labels.price}from ${formattedMin}`;
+					const priceText = minPrice === maxPrice ? formattedMin : `${t("labels.priceFrom")} ${formattedMin}`;
 
 					if (price.textContent !== priceText) price.textContent = priceText;
 				}
@@ -2049,7 +2048,7 @@ const DOM = {
 					// SOLD OUT BADGE
 					if (isSoldOut || true) {
 						const soldOutBadge = $.el('div', `afs-product-card__badge afs-product-card__badge--${Metadata.filterSettings.soldOutBadgeLocation}`);
-						soldOutBadge.textContent = Lang.buttons.soldOut || 'Sold out';
+						soldOutBadge.textContent = t("buttons.soldOut");
 						imgContainer.appendChild(soldOutBadge);
 					}
 				}
@@ -2059,20 +2058,20 @@ const DOM = {
 					const quickAddBtn = $.el('button', 'afs-product-card__quick-add', {
 						'data-product-handle': p.handle || '',
 						'data-product-id': $.id(p) || '',
-						'aria-label': Lang.buttons.quickAddToCart,
+						'aria-label': t("buttons.quickAddToCart"),
 						type: 'button'
 					});
 
 					const quickAddBtnContent = $.el('div', 'afs-product-card__quick-add__content');
 
 					const quickAddText = $.el('div', 'afs-product-card__quick-add-text');
-					quickAddText.textContent = Lang.buttons.quickAdd;
+					quickAddText.textContent = t("buttons.quickAdd");
 					quickAddBtnContent.appendChild(quickAddText);
 
 					if (isSoldOut) {
 						(quickAddBtn as HTMLButtonElement).disabled = true;
 						quickAddBtn.classList.add('afs-product-card__quick-add--disabled');
-						quickAddBtn.setAttribute('aria-label', Lang.labels.productUnavailable);
+						quickAddBtn.setAttribute('aria-label', t("labels.productUnavailable"));
 					}
 					quickAddBtn.appendChild(quickAddBtnContent);
 					imgContainer.appendChild(quickAddBtn);
@@ -2183,7 +2182,7 @@ const DOM = {
 					if (!overlayHeader && content) {
 						const newOverlayHeader = $.el('div', 'afs-filter-group__overlay-header');
 						const countText = $.el('span', 'afs-filter-group__overlay-count');
-						countText.textContent = `${selectedCount} selected`;
+						countText.textContent = `${selectedCount} ${t("text.selected")}`;
 						newOverlayHeader.appendChild(countText);
 
 						const resetBtn = $.el('button', 'afs-filter-group__overlay-reset', {
@@ -2191,7 +2190,7 @@ const DOM = {
 							'aria-label': `Reset filters`,
 							'data-afs-filter-handle': handle
 						});
-						resetBtn.textContent = Lang.buttons.clear;
+						resetBtn.textContent = t("buttons.clear");
 						resetBtn.title = `Reset filters`;
 						newOverlayHeader.appendChild(resetBtn);
 						// Insert before search input if it exists, otherwise as first child
@@ -2204,7 +2203,7 @@ const DOM = {
 					} else if (overlayHeader) {
 						const countText = overlayHeader.querySelector<HTMLElement>('.afs-filter-group__overlay-count');
 						if (countText) {
-							countText.textContent = `${selectedCount} selected`;
+							countText.textContent = `${selectedCount} ${t("text.selected")}`;
 						}
 					}
 				} else {
@@ -2267,13 +2266,13 @@ const DOM = {
 		// Create results text
 		let resultsEl: HTMLElement;
 		if (total === 0) {
-			resultsEl = $.txt($.el('div', 'afs-products-info__results'), Lang.messages.noProductsFound);
+			resultsEl = $.txt($.el('div', 'afs-products-info__results'), t("messages.noProductsFound"));
 		} else if (total === 1) {
-			resultsEl = $.txt($.el('div', 'afs-products-info__results'), Lang.messages.oneProductFound);
+			resultsEl = $.txt($.el('div', 'afs-products-info__results'), t("messages.oneProductFound"));
 		} else {
 			const start = (pagination.page - 1) * pagination.limit + 1;
 			const end = Math.min(pagination.page * pagination.limit, total);
-			resultsEl = $.txt($.el('div', 'afs-products-info__results'), `${Lang.messages.showingProducts} ${start}-${end} of ${total} ${Lang.messages.productsFound}`);
+			resultsEl = $.txt($.el('div', 'afs-products-info__results'), `${t("messages.showingProducts")} ${start}-${end} ${t("text.of")} ${total} ${t("messages.productsFound")}`);
 		}
 
 		// Insert results before sort container (left side)
@@ -2349,7 +2348,7 @@ const DOM = {
 		const buttonInner = this.mobileResultsButton.querySelector<HTMLElement>('.afs-mobile-results-button-inner');
 		if (buttonInner) {
 			if (total === 0) {
-				buttonInner.textContent = Lang.messages.noProductsFound || 'No products found';
+				buttonInner.textContent = t("messages.noProductsFound") || 'No products found';
 			} else if (total === 1) {
 				buttonInner.textContent = `See ${total} result`;
 			} else {
@@ -2394,24 +2393,24 @@ const DOM = {
 		const prevBtn = $.el('button', 'afs-pagination__button', {
 			type: 'button',
 			'data-afs-page': String(pagination.page - 1),
-			'aria-label': `${Lang.buttons.previous} ${Lang.messages.pageOf.toLowerCase()}`
+			'aria-label': `${t("buttons.previous")} ${t("messages.pageOf")}`
 		}) as HTMLButtonElement;
-		prevBtn.textContent = Lang.buttons.previous;
+		prevBtn.textContent = t("buttons.previous");
 		prevBtn.disabled = pagination.page <= 1;
 		paginationEl.appendChild(prevBtn);
 
 		// Page info
 		const info = $.el('span', 'afs-pagination__info');
-		info.textContent = `${Lang.messages.pageOf} ${pagination.page} of ${pagination.totalPages}`;
+		info.textContent = `${t("messages.pageOf")} ${pagination.page} of ${pagination.totalPages}`;
 		paginationEl.appendChild(info);
 
 		// Next button
 		const nextBtn = $.el('button', 'afs-pagination__button', {
 			type: 'button',
 			'data-afs-page': String(pagination.page + 1),
-			'aria-label': `${Lang.buttons.next} ${Lang.messages.pageOf.toLowerCase()}`
+			'aria-label': `${t("buttons.next")} ${t("messages.pageOf")}`
 		}) as HTMLButtonElement;
-		nextBtn.textContent = Lang.buttons.next;
+		nextBtn.textContent = t("buttons.next");
 		nextBtn.disabled = pagination.page >= pagination.totalPages;
 		paginationEl.appendChild(nextBtn);
 
@@ -2443,7 +2442,7 @@ const DOM = {
 				// no cpid to render
 			}
 			else if ($.equals(key, FilterKeyType.SEARCH) && value && typeof value === 'string' && value.trim()) {
-				activeFilters.push({ handle: key, label: `${Lang.labels.search}${value}`, value });
+				activeFilters.push({ handle: key, label: `${t("labels.search")}${value}`, value });
 			} else if ($.isPriceRangeKey(key) && value && typeof value === 'object' && !Array.isArray(value)) {
 				const priceRange = value as PriceRangeType;
 				const hasMin = typeof priceRange.min === 'number' && !isNaN(priceRange.min);
@@ -2451,13 +2450,13 @@ const DOM = {
 				if (hasMin && hasMax) {
 					const formattedMin = formatPrice(priceRange.min!);
 					const formattedMax = formatPrice(priceRange.max!);
-					activeFilters.push({ handle: key, label: `${Lang.labels.price}$${formattedMin} - $${formattedMax}`, value: SpecialValueType.CLEAR });
+					activeFilters.push({ handle: key, label: `${t("labels.price")}$${formattedMin} - $${formattedMax}`, value: SpecialValueType.CLEAR });
 				} else if (hasMin) {
 					const formattedMin = formatPrice(priceRange.min!);
-					activeFilters.push({ handle: key, label: `${Lang.labels.price}$${formattedMin}+`, value: SpecialValueType.CLEAR });
+					activeFilters.push({ handle: key, label: `${t("labels.price")}$${formattedMin}+`, value: SpecialValueType.CLEAR });
 				} else if (hasMax) {
 					const formattedMax = formatPrice(priceRange.max!);
-					activeFilters.push({ handle: key, label: `${Lang.labels.price}Up to $${formattedMax}`, value: SpecialValueType.CLEAR });
+					activeFilters.push({ handle: key, label: `${t("labels.price")}Up to $${formattedMax}`, value: SpecialValueType.CLEAR });
 				}
 			} else if (Array.isArray(value) && value.length > 0) {
 				value.forEach(v => {
@@ -2490,7 +2489,7 @@ const DOM = {
 
 		const appliedContainer = $.el('div', 'afs-applied-filters');
 		const header = $.el('div', 'afs-applied-filters__header');
-		header.appendChild($.txt($.el('div', 'afs-applied-filters__label'), Lang.labels.appliedFilters));
+		header.appendChild($.txt($.el('div', 'afs-applied-filters__label'), t("labels.appliedFilters")));
 		appliedContainer.appendChild(header);
 
 		const list = $.el('div', 'afs-applied-filters__list');
@@ -2500,7 +2499,7 @@ const DOM = {
 			const remove = $.el('button', 'afs-applied-filter-chip__remove', {
 				'data-afs-filter-key': filter.handle,
 				'data-afs-filter-value': filter.value,
-				'aria-label': `${Lang.buttons.clear} filter`,
+				'aria-label': `${t("buttons.clear")} filter`,
 				type: 'button'
 			});
 			remove.innerHTML = Icons.close;
@@ -2512,7 +2511,7 @@ const DOM = {
 			'data-afs-action': 'clear-all',
 			type: 'button'
 		});
-		clearAll.textContent = Lang.buttons.clearAll;
+		clearAll.textContent = t("buttons.clearAll");
 		list.appendChild(clearAll);
 
 		appliedContainer.appendChild(list);
@@ -2700,7 +2699,7 @@ const DOM = {
 		if (existingError) existingError.remove();
 
 		const error = $.el('div', 'afs-error-message');
-		error.textContent = message || Lang.messages.failedToLoad;
+		error.textContent = message || t("messages.failedToLoad");
 
 		// Insert error in products grid or container
 		if (this.productsGrid) {
@@ -2837,7 +2836,7 @@ function handleLoadError(e: unknown) {
 		DOM.renderApplied(FilterState.filters);
 
 	} else {
-		DOM.showError(`${Lang.messages.failedToLoad}: ${e instanceof Error ? e.message : Lang.messages.unknownError}. ${Lang.messages.checkConsole}`);
+		DOM.showError(`${t("messages.failedToLoad")}: ${e instanceof Error ? e.message : t("messages.unknownError")}. ${t("messages.checkConsole")}`);
 	}
 }
 
@@ -3073,7 +3072,7 @@ const QuickAdd = {
 			const response = await fetch(productUrl);
 
 			if (!response.ok) {
-				throw new Error(Lang.messages.failedToLoadProduct);
+				throw new Error(t("messages.failedToLoadProduct"));
 			}
 
 			const data = await response.json() as { product: ProductType };
@@ -3148,7 +3147,7 @@ const QuickAdd = {
 
 			if (!response.ok) {
 				const error = await response.json() as { description?: string };
-				throw new Error(error.description || Lang.messages.failedToAddToCart);
+				throw new Error(error.description || t("messages.failedToAddToCart"));
 			}
 
 			await response.json();
@@ -3185,7 +3184,7 @@ const QuickAdd = {
 
 			// Message text
 			const message = $.el('div', 'afs-cart-toast__message');
-			message.textContent = Lang.messages.addedToCart || 'Product added to cart!';
+			message.textContent = t("messages.addedToCart");
 
 			// Close button
 			const closeBtn = $.el('button', 'afs-cart-toast__close');
@@ -3229,18 +3228,24 @@ const QuickAdd = {
 const AFS: AFSInterface = {
 	init(config: AFSConfigType = {}): void {
 		try {
+			
+			console.log("config", config);
+
+			if (config.shopLocale?.locale) {
+				setLanguage(config.shopLocale.locale);
+			}
+			else{
+				setLanguage('en');
+			}
 			Logger.init(config.debug);
 			Logger.info('Initializing AFS', config);
-
 			if (config.apiBaseUrl) {
 				API.setBaseURL(config.apiBaseUrl);
 				Logger.info('API base URL set', { url: API.baseURL });
 			}
-
 			if (!config.shop) {
 				throw new Error('Shop parameter is required in config');
 			}
-
 			FilterState.shop = config.shop;
 			FilterState.collections = config.collections || [];
 			FilterState.selectedCollection = {
@@ -4137,7 +4142,7 @@ async function createProductModal(handle: string, modalId: string): Promise<Prod
 	const dialog = $.el('dialog', 'afs-product-modal', { 'id': modalId }) as ProductModalElement;
 
 	// Show loading state
-	const loadingText = Lang?.labels?.loadingProduct || 'Loading product...';
+	const loadingText = t("labels.loadingProduct");
 	dialog.innerHTML = `
 	  <div class="afs-product-modal__container">
 		<div class="afs-product-modal__close-container">
@@ -4395,7 +4400,7 @@ async function createProductModal(handle: string, modalId: string): Promise<Prod
 					  ${!isVariantAvailable(currentVariant) ? 'disabled' : ''}
 					  type="button"
 					>
-					  ${!isVariantAvailable(currentVariant) ? (Lang?.buttons?.soldOut || 'Sold out') : (Lang?.buttons?.addToCart || 'Add to cart')}
+					  ${!isVariantAvailable(currentVariant) ? t("buttons.soldOut") : t("buttons.addToCart")}
 					</button>
 				  </div>
 				  <button
@@ -4405,7 +4410,7 @@ async function createProductModal(handle: string, modalId: string): Promise<Prod
 					${!isVariantAvailable(currentVariant) ? 'disabled' : ''}
 					type="button"
 				  >
-					${Lang?.buttons?.buyNow || 'Buy it now'}
+					${t("buttons.buyNow")}
 				  </button>
 				</div>
 				<div class="afs-product-modal__description">
@@ -4482,7 +4487,7 @@ async function createProductModal(handle: string, modalId: string): Promise<Prod
 			responseStatus: error instanceof Error && 'status' in error ? (error as any).status : undefined
 		});
 
-		const userMessage = Lang?.messages?.failedToLoadProductModal || 'Failed to load product. Please try again.';
+		const userMessage = t("messages.failedToLoadProductModal");
 		dialog.innerHTML = `
 		<div class="afs-product-modal__container">
 		  <div class="afs-product-modal__close-container">
@@ -4677,7 +4682,7 @@ function setupModalHandlers(
 				closeModal();
 			} catch (error) {
 				Logger.error('Failed to add to cart from modal', { error: error instanceof Error ? error.message : String(error) });
-				DOM.showError(Lang?.messages?.failedToAddToCart || 'Failed to add product to cart. Please try again.');
+				DOM.showError(t("messages.failedToAddToCart"));
 			}
 		});
 	}
@@ -4695,7 +4700,7 @@ function setupModalHandlers(
 				window.location.href = `${FilterState.routesRoot}cart/${variantId}:${quantity}?checkout`;
 			} catch (error) {
 				Logger.error('Failed to buy now', { error: error instanceof Error ? error.message : String(error) });
-				DOM.showError(Lang?.messages?.failedToProceedToCheckout || 'Failed to proceed to checkout. Please try again.');
+				DOM.showError(t("messages.failedToProceedToCheckout"));
 			}
 		});
 	}
@@ -4730,8 +4735,8 @@ function updateVariantInModal(
 		addButton.dataset.variantId = String(variant.id);
 		addButton.disabled = !variantAvailable;
 		addButton.innerHTML = !variantAvailable
-			? (Lang?.buttons?.soldOut || 'Sold out')
-			: (Lang?.buttons?.addToCart || 'Add to cart');
+			? t("buttons.soldOut")
+			: t("buttons.addToCart");
 	}
 
 	// Update buy now button
@@ -4885,9 +4890,7 @@ function updateVariantInModal(
 
 function createQuickViewButton(product: ProductType): HTMLElement | null {
 	if (!product.handle) return null;
-
-	// Safety check: ensure Lang.buttons exists before accessing quickView
-	const ariaLabel = (Lang?.buttons?.quickView) || 'Quick view';
+	const ariaLabel = t("buttons.quickView");
 
 	const quickViewBtn = $.el('button', `afs-product-card__quick-view afs-product-card__quick-view--${Metadata.filterSettings.quickViewLocation}`, {
 		'data-product-handle': product.handle,
@@ -4946,7 +4949,7 @@ function handleQuickViewClick(handle: string): void {
 	openModal().catch(error => {
 		const errorMessage = error instanceof Error ? error.message : String(error);
 		Logger.error('Failed to open product modal', { error: errorMessage, handle, stack: error instanceof Error ? error.stack : undefined });
-		const userMessage = Lang?.messages?.failedToLoadProductModal || 'Failed to load product. Please try again.';
+		const userMessage = t("messages.failedToLoadProductModal");
 		if (DOM && typeof DOM.showError === 'function') {
 			DOM.showError(userMessage);
 		} else {

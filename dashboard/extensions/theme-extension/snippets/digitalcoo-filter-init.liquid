@@ -73,7 +73,11 @@
       {% if template.name == 'search' and search.terms %}
       initialSearchQuery: {{ search.terms | json }},
       {% endif %}
-      isSearchTemplate: {% if template.name == 'search' %}true{% else %}false{% endif %}
+      isSearchTemplate: {% if template.name == 'search' %}true{% else %}false{% endif %},
+      shopLocale: {
+        locale: {{ localization.language.iso_code | default: request.locale.iso_code | json }},
+        primary: {{ localization.language.primary | default: request.locale.primary | json }},
+      }
     };
 
     // Function to initialize AFS
