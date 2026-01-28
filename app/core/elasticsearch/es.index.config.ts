@@ -16,6 +16,7 @@ import {
   SUBSCRIPTIONS_INDEX_NAME,
   SUBSCRIPTION_PLANS_INDEX_NAME,
   APP_SUPPORT_TICKET_INDEX,
+  ADMIN_USERS_INDEX_NAME,
 } from '@shared/constants/es.constant';
 
 export interface StaticIndexConfig {
@@ -350,6 +351,38 @@ export const STATIC_INDEX_CONFIGS: StaticIndexConfig[] = [
         }
       }
     }
-  }
+  },
+
+  // Admin users index
+  {
+    index: ADMIN_USERS_INDEX_NAME,
+    mappings: {
+      properties: {
+        id: { type: 'keyword' },
+        email: { type: 'keyword' },
+        name: { type: 'text' },
+        role: { type: 'keyword' },
+        permissions: {
+          type: 'object',
+          properties: {
+            canViewPayments: { type: 'boolean' },
+            canViewSubscriptions: { type: 'boolean' },
+            canManageShops: { type: 'boolean' },
+            canManageTeam: { type: 'boolean' },
+            canViewDocs: { type: 'boolean' },
+          },
+        },
+        apiKey: { type: 'keyword' },
+        apiSecret: { type: 'keyword' },
+        isActive: { type: 'boolean' },
+        createdAt: { type: 'date' },
+        updatedAt: { type: 'date' },
+      },
+    },
+    settings: {
+      number_of_shards: 1,
+      number_of_replicas: 0,
+    },
+  },
 ];
 

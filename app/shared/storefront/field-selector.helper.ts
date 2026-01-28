@@ -17,7 +17,7 @@ export const DEFAULT_STOREFRONT_FIELDS = [
   'handle',
   'title',
   'imageUrl',
-  // 'imagesUrls',
+  'imagesUrls',
   'vendor',
   'minPrice',
   'maxPrice',
@@ -31,11 +31,14 @@ export const DEFAULT_STOREFRONT_FIELDS = [
  */
 export const DEFAULT_VARIANT_FIELDS = [
   'id',
-  'displayName',
+  // 'displayName',
+  'title',
   'price',
+  'compareAtPrice',
   'sku',
   'availableForSale',
   'sellableOnlineQuantity',
+  'selectedOptions',
 ] as const;
 
 /**

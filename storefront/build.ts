@@ -4,8 +4,8 @@ import fs from 'fs';
 import path from 'path';
 import { config } from './config.js';
 
-const MAX_ASSET_SIZE = 100 * 1024; // 100KB
-const BUILD_MINIFY = true; // || false;
+const MAX_ASSET_SIZE = 140 * 1024; // 140KB
+const BUILD_MINIFY = false; // || false;
 
 // Ensure output folder exists
 if (!fs.existsSync(config.buildDir)) fs.mkdirSync(config.buildDir, { recursive: true });
@@ -19,7 +19,9 @@ const buildFiltersJS = async (watch = false) => {
     sourcemap: false,
     treeShaking: true,
     format: 'cjs',
-    target: 'es2018',
+    target: 'es6',
+    drop: ["debugger"],
+    ignoreAnnotations: true,
     platform: 'browser',
     outfile: path.join(config.buildDir, `${config.filtersFileName}.js`),
     ...(watch
@@ -34,7 +36,7 @@ const buildFiltersJS = async (watch = false) => {
             },
           },
         }
-      : {}),
+      : {})
   };
 
   const checkFiltersJSSize = () => {
@@ -71,7 +73,8 @@ const buildSearchJS = async (watch = false) => {
     sourcemap: false,
     treeShaking: true,
     format: 'cjs',
-    target: 'es2018',
+    target: 'es6',
+    drop: ["debugger"],
     platform: 'browser',
     outfile: path.join(config.buildDir, `${config.searchFileName}.js`),
     ...(watch
@@ -118,7 +121,7 @@ const buildSearchJS = async (watch = false) => {
 const buildFiltersSCSS = async (watch = false) => {
   const compile = () => {
     try {
-      const result = sass.compile('src/system/build-filter.scss', { style: 'compressed' });
+      const result = sass.compile('src/system/build-filter.scss', { style: 'expanded' });
       const outFile = path.join(config.buildDir, `${config.filtersFileName}.css`);
 
       fs.writeFileSync(outFile, result.css);
@@ -154,7 +157,7 @@ const buildFiltersSCSS = async (watch = false) => {
 const buildSearchSCSS = async (watch = false) => {
   const compile = () => {
     try {
-      const result = sass.compile('src/system/build-search.scss', { style: 'compressed' });
+      const result = sass.compile('src/system/build-search.scss', { style: 'expanded' });
       const outFile = path.join(config.buildDir, `${config.searchFileName}.css`);
 
       fs.writeFileSync(outFile, result.css);

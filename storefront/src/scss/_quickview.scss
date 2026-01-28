@@ -49,6 +49,7 @@
       svg {
         width: 26px;
         height: 26px;
+        fill: currentColor;
       }
     }
 
@@ -86,6 +87,10 @@
       background: var(--afs-accent-color);
       color: var(--afs-text-color-inverse);
       border-color: var(--afs-accent-color);
+      
+      svg {
+        color: var(--afs-text-color-inverse);
+      }
     }
 
     .afs-product-card__quick-view span:not(.afs-product-card__quick-view-icon) {
@@ -95,21 +100,6 @@
   }
 }
 
-/* Show quick view button by default on touch devices (no hover capability) */
-@media (hover: none) and (pointer: coarse) {
-  [data-afs-container] .afs-product-card__quick-view {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Show quick view button by default on mobile devices */
-@media (max-width: $breakpoint-mobile) {
-  [data-afs-container] .afs-product-card__quick-view {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
 
 /* ============================================================================
    Product Modal
@@ -1140,118 +1130,6 @@ shopify-list-context[type="image"] {
     &[data-thumbnails-position="left"] &__thumbnails,
     &[data-thumbnails-position="right"] &__thumbnails {
       max-height: 80px;
-    }
-  }
-}
-
-/* ============================================================================
-   RESPONSIVE DESIGN
-   ============================================================================ */
-
-@media (max-width: $breakpoint-mobile) {
-  [data-afs-container] .afs-product-card__quick-view {
-    opacity: 1 !important;
-    transform: translateY(0) !important;
-  }
-
-  .afs-product-modal {
-    width: 100%;
-    max-width: 100%;
-    margin: 0;
-    border-radius: 0;
-    max-height: 100vh;
-    height: 100vh;
-
-    &__container {
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-    }
-
-    &__close-container {
-      padding: $spacing-md;
-      position: sticky;
-      top: 0;
-      background: var(--afs-bg-color);
-      z-index: $z-index-dropdown;
-    }
-
-    &__content {
-      flex: 1;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-    }
-
-    &__layout {
-      flex-direction: column;
-      flex: 1;
-      min-height: 0;
-    }
-
-    &__media {
-      min-width: auto;
-      max-width: 100%;
-      width: 100%;
-      padding: 0.5rem;
-      flex-shrink: 0;
-      flex-direction: column;
-      height: 600px;
-      max-height: 600px;
-      min-height: 600px;
-    }
-
-    &__images {
-      flex-direction: row;
-      overflow-x: auto;
-      overflow-y: hidden;
-      max-height: none;
-      padding: 0.5rem 0;
-      gap: 0.25rem;
-      order: 2;
-    }
-
-    &__image-slider {
-      order: 1;
-    }
-
-    &__image-grid {
-      max-height: 50vh;
-
-      shopify-media img {
-        max-height: 50vh;
-      }
-    }
-
-    &__image {
-      flex: 0 0 60px;
-      width: 60px;
-      height: 60px;
-    }
-
-    &__details {
-      padding: 1rem;
-      gap: 1rem;
-      flex: 1;
-      overflow-y: auto;
-    }
-
-    &__title {
-      font-size: 18px;
-    }
-
-    &__price-container {
-      font-size: 16px;
-    }
-
-    &__description-text {
-      font-size: $font-size-base;
-    }
-
-    &__add-button,
-    &__buy-button {
-      padding: 14px;
-      font-size: $font-size-md;
     }
   }
 }

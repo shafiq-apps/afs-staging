@@ -13,6 +13,7 @@ export * from './default-security.middleware';
 export * from './auth.middleware';
 export * from './auth.helper';
 export * from './api-keys.helper';
+export * from './admin-auth.middleware';
 
 // Re-export sanitizers from shared utils
 export {

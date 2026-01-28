@@ -20,12 +20,15 @@
         "start": "pm2 start dist/index.js -i 1",
         "deploy": "bash system/cli/deploy.sh",
         "gitpush": "bash system/cli/gitpush.sh",
-        "setup:env": "node system/cli/setup-env.js"
+        "setup:env": "node system/cli/setup-env.js",
+        "seed:admin-users": "tsx -r tsconfig-paths/register system/cli/seed-admin-users.ts"
     },
     "dependencies": {
         "@elastic/elasticsearch": "^9.2.0",
         "@sendgrid/mail": "^8.1.6",
+        "@types/bcryptjs": "^2.4.6",
         "axios": "^1.13.2",
+        "bcryptjs": "^3.0.3",
         "compression": "^1.8.1",
         "cors": "^2.8.5",
         "crypto": "^1.0.1",

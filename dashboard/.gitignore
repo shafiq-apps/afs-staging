@@ -31,3 +31,6 @@ gitpush.sh
 /dashboard/public/frontendbuild
 dashboard/public/frontendbuild
 dashboard/public/frontendbuild/*
+
+*.min.js
+*.min.css

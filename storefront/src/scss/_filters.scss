@@ -146,6 +146,7 @@
         height: 20px;
         display: block;
         fill: currentColor;
+        color: var(--afs-text-color);
       }
     }
 
@@ -156,8 +157,8 @@
 
     &__label {
       flex: 1;
-      font-size: $font-size-lg;
-      font-weight: var(--afs-font-weight-bold, $font-weight-semibold);
+      font-size: $font-size-md;
+      // font-weight: var(--afs-font-weight-bold, $font-weight-semibold);
       color: var(--afs-text-color);
       font-family: var(--afs-font-family);
       text-transform: capitalize;
@@ -220,7 +221,7 @@
       display: flex;
       flex-direction: column;
       gap: $spacing-sm;
-      max-height: 250px;
+      max-height: $filter-content-max-height;
       overflow-y: auto;
       overflow-x: hidden;
       padding-right: $spacing-xs;
@@ -393,7 +394,7 @@
 
     &__label {
       flex: 1;
-      font-weight: var(--afs-font-weight, $font-weight-normal);
+      // font-weight: var(--afs-font-weight, $font-weight-normal);
       font-family: var(--afs-font-family);
       cursor: pointer;
       user-select: none;
@@ -434,6 +435,227 @@
       .afs-filter-item:hover .afs-filter-item__label {
         font-weight: var(--afs-font-weight-bold, $font-weight-semibold);
       }
+    }
+  }
+
+  // Top Bar Layout - Horizontal filter groups with overlay dropdowns
+  &[data-afs-layout="top"] {
+    .afs-filter-group {
+      flex: 0 0 auto;
+      align-content: center;
+      min-width: 140px;
+      margin-bottom: 0;
+      margin-right: 0;
+      position: relative;
+      z-index: 1000; // Base z-index for filter groups
+      border: 1px solid var(--afs-border-color);
+      border-radius: $border-radius-sm;
+      padding: 4px 8px;
+      height: auto;
+      display: flex;
+      align-items: center;
+
+      // When expanded, increase z-index to appear above other filter headings
+      &[data-afs-collapsed="false"] {
+        z-index: 10001 !important; // Higher than other filter groups
+      }
+
+      &__header {
+        margin-bottom: 0;
+        padding: 0;
+        position: relative;
+        z-index: 10002; // Header should be above dropdown
+        width: 100%;
+      }
+
+      &__toggle {
+        width: 100%;
+        padding: 0;
+        font-size: $font-size-base;
+        line-height: 1.4;
+        flex-direction: row-reverse;
+      }
+
+      &__content {
+        // Overlay dropdown - positioned absolutely below the header
+        position: absolute;
+        top: 100%;
+        left: 0;
+        min-width: 250px;
+        max-width: min($filter-content-max-height, calc(100vw - 32px)); // Prevent overflow beyond viewport
+        width: max-content;
+        z-index: 10000; // Very high z-index to ensure dropdown is always on top
+        background: var(--afs-bg-color);
+        border: 1px solid var(--afs-border-color);
+        border-radius: $border-radius-sm;
+        box-shadow: none;
+        max-height: 0;
+        opacity: 0;
+        overflow: hidden;
+        transition: max-height $transition-slow, opacity $transition-base, padding $transition-base;
+        margin: 0;
+        padding: 0;
+        margin-top: $spacing-xs;
+        pointer-events: none;
+        visibility: hidden;
+      }
+
+      &__label {
+        position: relative;
+      }
+
+      &__count-badge {
+        display: inline-block;
+        margin-left: 6px;
+        padding: 2px 6px;
+        background: var(--afs-bg-color);
+        color: var(--afs-accent-color);
+        border-radius: 10px;
+        font-size: $font-size-sm;
+        font-weight: $font-weight-semibold;
+        line-height: 1.2;
+        min-width: 18px;
+        text-align: center;
+      }
+
+      // Inverse colors when filter has active values
+      &[data-afs-has-active="true"] {
+        background: var(--afs-accent-color);
+        border-color: var(--afs-accent-color);
+
+        .afs-filter-group__label {
+          color: var(--afs-text-color-inverse, #fff);
+        }
+
+        .afs-filter-group__icon {
+          color: var(--afs-text-color-inverse, #fff);
+
+          svg {
+            color: var(--afs-text-color-inverse, #fff);
+          }
+        }
+
+        .afs-filter-group__count-badge {
+          background: var(--afs-bg-color);
+          color: var(--afs-accent-color);
+        }
+      }
+
+      &__overlay-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: $spacing-md;
+        padding-bottom: $spacing-md;
+        border-bottom: 1px solid var(--afs-border-color);
+      }
+
+      &__overlay-count {
+        font-size: $font-size-sm;
+        color: var(--afs-text-color);
+        font-weight: $font-weight-normal;
+      }
+
+      &__overlay-reset {
+        padding: 4px 8px;
+        background: transparent;
+        border: 1px solid var(--afs-border-color);
+        border-radius: $border-radius-sm;
+        font-size: $font-size-sm;
+        color: var(--afs-text-color);
+        cursor: pointer;
+        transition: all $transition-base;
+
+        &:hover {
+          background: var(--afs-accent-color);
+          color: var(--afs-text-color-inverse, #fff);
+          border-color: var(--afs-accent-color);
+        }
+      }
+
+      // When expanded (collapsed="false"), show overlay dropdown - use !important to override global rule
+      &[data-afs-collapsed="false"] &__content {
+        max-height: $filter-content-max-height !important;
+        opacity: 1 !important;
+        padding: $spacing-md !important;
+        margin-top: $spacing-xs !important;
+        pointer-events: auto !important;
+        visibility: visible !important;
+        overflow: hidden !important; // Hidden to contain items, items container handles scrolling
+        // Allow JavaScript to override left/right positioning for edge cases
+        // left: 0 is default, but can be set to 'auto' with right: 0 via JS
+      }
+
+      &__items {
+        max-height: $filter-content-max-height;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding-right: $spacing-xs;
+        @include custom-scrollbar(4px);
+      }
+
+      &__clear {
+        display: none;
+      }
+    }
+
+    // Override the global collapsed rule for top bar mode - ensure collapsed state works
+    .afs-filter-group[data-afs-collapsed="true"] .afs-filter-group__content {
+      max-height: 0 !important;
+      opacity: 0 !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      overflow: hidden !important;
+      pointer-events: none !important;
+      visibility: hidden !important;
+    }
+
+    // Ensure expanded filter group appears above other filter headings
+    .afs-filter-group[data-afs-collapsed="false"] {
+      z-index: 10001 !important; // Higher than collapsed filter groups
+      position: relative;
+    }
+
+    // Ensure expanded content shows items properly - explicit selector for top bar mode
+    .afs-filter-group[data-afs-collapsed="false"] .afs-filter-group__content {
+      display: block !important;
+      max-height: $filter-content-max-height !important;
+      opacity: 1 !important;
+      padding: $spacing-md !important;
+      margin-top: $spacing-xs !important;
+      pointer-events: auto !important;
+      visibility: visible !important;
+      overflow: hidden !important;
+      z-index: 10002 !important; // Even higher to ensure it's above everything
+    }
+
+    // Ensure the header of expanded filter is above other headers
+    .afs-filter-group[data-afs-collapsed="false"] .afs-filter-group__header {
+      position: relative;
+      z-index: 10003 !important; // Header should be above its own dropdown
+    }
+
+    // Ensure items are visible inside expanded content
+    .afs-filter-group[data-afs-collapsed="false"] .afs-filter-group__items {
+      display: flex !important;
+      flex-direction: column !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+      max-height: 210px;
+    }
+
+    // Ensure search input is visible
+    .afs-filter-group[data-afs-collapsed="false"] .afs-filter-group__search {
+      display: block !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+    }
+
+    // Ensure price range is visible
+    .afs-filter-group[data-afs-collapsed="false"] .afs-price-range-container {
+      display: block !important;
+      visibility: visible !important;
+      opacity: 1 !important;
     }
   }
 }

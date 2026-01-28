@@ -1,0 +1,583 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-inter);
+}
+
+/* Light mode (default) */
+.light {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+/* Dark mode */
+.dark {
+  --background: #0f172a;
+  --foreground: #f1f5f9;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Ensure input text is visible */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+textarea,
+select {
+  color: #111827 !important;
+  font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif !important;
+  font-size: 16px !important;
+}
+
+.dark input[type="text"],
+.dark input[type="email"],
+.dark input[type="password"],
+.dark input[type="number"],
+.dark textarea,
+.dark select {
+  color: #f1f5f9 !important;
+  background-color: #1e293b !important;
+}
+
+/* Override for login form inputs - ensure text is visible on dark background */
+.login-input,
+.login-input[type="text"],
+.login-input[type="email"] {
+  color: rgb(241, 245, 249) !important;
+}
+
+/* OTP and PIN input fields - ensure text is visible */
+.otp-input,
+.pin-input,
+input.otp-input,
+input.pin-input {
+  color: rgb(241, 245, 249) !important;
+}
+
+input::placeholder {
+  color: #9ca3af !important;
+  opacity: 1 !important;
+}
+
+input:disabled {
+  color: #6b7280 !important;
+}
+
+/* Pointer cursor for interactive elements */
+button:not(:disabled),
+a,
+[role="button"] {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+/* Custom animations for neon gradients and moving symbols */
+@keyframes gradient-xy {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes gradient-xy-reverse {
+  0%, 100% {
+    background-position: 100% 50%;
+  }
+  50% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes gradient-slow {
+  0%, 100% {
+    background-position: 0% 0%;
+  }
+  50% {
+    background-position: 100% 100%;
+  }
+}
+
+@keyframes gradient-diagonal {
+  0%, 100% {
+    background-position: 0% 0%;
+  }
+  50% {
+    background-position: 100% 100%;
+  }
+}
+
+.animate-gradient-xy {
+  background-size: 200% 200%;
+  animation: gradient-xy 15s ease infinite;
+}
+
+.animate-gradient-xy-reverse {
+  background-size: 200% 200%;
+  animation: gradient-xy-reverse 20s ease infinite;
+}
+
+.animate-gradient-slow {
+  background-size: 200% 200%;
+  animation: gradient-slow 25s ease infinite;
+}
+
+.animate-gradient-diagonal {
+  background-size: 200% 200%;
+  animation: gradient-diagonal 18s ease infinite;
+}
+
+/* Subtle gradient animations for enterprise background */
+@keyframes gradient-subtle {
+  0%, 100% {
+    background-position: 0% 50%;
+    opacity: 1;
+  }
+  50% {
+    background-position: 100% 50%;
+    opacity: 0.95;
+  }
+}
+
+@keyframes gradient-subtle-reverse {
+  0%, 100% {
+    background-position: 100% 50%;
+    opacity: 1;
+  }
+  50% {
+    background-position: 0% 50%;
+    opacity: 0.95;
+  }
+}
+
+.animate-gradient-subtle {
+  background-size: 200% 200%;
+  animation: gradient-subtle 30s ease-in-out infinite;
+}
+
+.animate-gradient-subtle-reverse {
+  background-size: 200% 200%;
+  animation: gradient-subtle-reverse 35s ease-in-out infinite;
+}
+
+/* Glassmorphism login panel - enterprise design with elegant glows */
+.login-panel {
+  background: rgba(15, 23, 42, 0.25);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(148, 163, 184, 0.08);
+  border-radius: 16px;
+  padding: 3rem;
+  box-shadow: 
+    0 8px 32px 0 rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(59, 130, 246, 0.1),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Multiple elegant glows within the card */
+.login-panel::before {
+  content: '';
+  position: absolute;
+  top: -60%;
+  left: -60%;
+  width: 220%;
+  height: 220%;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.12) 0%, transparent 65%);
+  animation: glow-pulse 8s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.login-panel::after {
+  content: '';
+  position: absolute;
+  bottom: -40%;
+  right: -40%;
+  width: 180%;
+  height: 180%;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.1) 0%, transparent 70%);
+  animation: glow-pulse-reverse 10s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Additional glow layers - child elements */
+.glow-layer-1 {
+  position: absolute;
+  top: 20%;
+  right: -20%;
+  width: 120%;
+  height: 60%;
+  background: radial-gradient(ellipse, rgba(99, 102, 241, 0.08) 0%, transparent 70%);
+  animation: glow-pulse 12s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 0;
+  border-radius: 50%;
+}
+
+.glow-layer-2 {
+  position: absolute;
+  bottom: -30%;
+  left: 10%;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(ellipse, rgba(168, 85, 247, 0.06) 0%, transparent 75%);
+  animation: glow-pulse-reverse 14s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 0;
+  border-radius: 50%;
+}
+
+.glow-layer-3 {
+  position: absolute;
+  top: -20%;
+  left: 30%;
+  width: 80%;
+  height: 80%;
+  background: radial-gradient(circle, rgba(14, 165, 233, 0.07) 0%, transparent 60%);
+  animation: glow-pulse 15s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 0;
+  border-radius: 50%;
+}
+
+/* Corner accent glows */
+.corner-glow-top-left {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 200px;
+  height: 200px;
+  background: radial-gradient(circle at top left, rgba(59, 130, 246, 0.15) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+  border-radius: 16px 0 0 0;
+}
+
+.corner-glow-bottom-right {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 200px;
+  height: 200px;
+  background: radial-gradient(circle at bottom right, rgba(139, 92, 246, 0.12) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+  border-radius: 0 0 16px 0;
+}
+
+/* Slow radial glow animations - elegant and smooth */
+@keyframes glow-pulse {
+  0%, 100% {
+    opacity: 0.5;
+    transform: scale(1) translate(0, 0);
+  }
+  33% {
+    opacity: 0.7;
+    transform: scale(1.08) translate(2%, -2%);
+  }
+  66% {
+    opacity: 0.6;
+    transform: scale(1.05) translate(-2%, 2%);
+  }
+}
+
+@keyframes glow-pulse-reverse {
+  0%, 100% {
+    opacity: 0.4;
+    transform: scale(1) translate(0, 0);
+  }
+  33% {
+    opacity: 0.6;
+    transform: scale(1.12) translate(-2%, 2%);
+  }
+  66% {
+    opacity: 0.5;
+    transform: scale(1.08) translate(2%, -2%);
+  }
+}
+
+/* Radial glow drift animations for background */
+@keyframes glow-drift-1 {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.4;
+  }
+  33% {
+    transform: translate(10%, -5%) scale(1.1);
+    opacity: 0.5;
+  }
+  66% {
+    transform: translate(-5%, 10%) scale(0.95);
+    opacity: 0.35;
+  }
+}
+
+@keyframes glow-drift-2 {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.3;
+  }
+  33% {
+    transform: translate(-8%, 8%) scale(1.05);
+    opacity: 0.4;
+  }
+  66% {
+    transform: translate(5%, -5%) scale(0.98);
+    opacity: 0.25;
+  }
+}
+
+@keyframes glow-drift-3 {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.35;
+  }
+  33% {
+    transform: translate(12%, 5%) scale(1.08);
+    opacity: 0.45;
+  }
+  66% {
+    transform: translate(-8%, -8%) scale(0.92);
+    opacity: 0.3;
+  }
+}
+
+.animate-glow-drift-1 {
+  animation: glow-drift-1 25s ease-in-out infinite;
+}
+
+.animate-glow-drift-2 {
+  animation: glow-drift-2 30s ease-in-out infinite;
+}
+
+.animate-glow-drift-3 {
+  animation: glow-drift-3 28s ease-in-out infinite;
+}
+
+/* Login entrance animation - minimal fade-in with slight elevation */
+@keyframes login-entrance {
+  0% {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-login-entrance {
+  animation: login-entrance 0.6s ease-out;
+}
+
+/* Login input styling - glassmorphism with floating labels */
+.login-input {
+  transition: all 0.3s ease;
+  background: rgba(15, 23, 42, 0.3) !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.login-input:focus {
+  background: rgba(15, 23, 42, 0.4) !important;
+  border-color: rgba(148, 163, 184, 0.2);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.login-input::placeholder {
+  color: transparent;
+}
+
+/* Floating label styling */
+.floating-label {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+}
+
+.floating-label-active {
+  transform: translateY(-8px) scale(0.875);
+  color: rgb(148, 163, 184);
+}
+
+.floating-label-inactive {
+  transform: translateY(0) scale(1);
+  color: rgb(100, 116, 139);
+}
+
+/* Login button styling - premium, calm, enterprise-ready */
+.login-button {
+  transition: all 0.3s ease;
+  background: rgba(30, 41, 59, 0.6) !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.login-button:hover:not(:disabled) {
+  background: rgba(30, 41, 59, 0.75) !important;
+  border-color: rgba(148, 163, 184, 0.2);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.login-button:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.login-button:focus:not(:disabled) {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+/* Moving animations - icons travel across screen */
+@keyframes move-1 {
+  0% {
+    transform: translate(0, 0);
+  }
+  25% {
+    transform: translate(80vw, 20vh);
+  }
+  50% {
+    transform: translate(60vw, 70vh);
+  }
+  75% {
+    transform: translate(20vw, 50vh);
+  }
+  100% {
+    transform: translate(0, 0);
+  }
+}
+
+@keyframes move-2 {
+  0% {
+    transform: translate(100vw, 0);
+  }
+  25% {
+    transform: translate(40vw, 60vh);
+  }
+  50% {
+    transform: translate(10vw, 80vh);
+  }
+  75% {
+    transform: translate(70vw, 30vh);
+  }
+  100% {
+    transform: translate(100vw, 0);
+  }
+}
+
+@keyframes move-3 {
+  0% {
+    transform: translate(50vw, 100vh);
+  }
+  25% {
+    transform: translate(90vw, 40vh);
+  }
+  50% {
+    transform: translate(30vw, 10vh);
+  }
+  75% {
+    transform: translate(0vw, 60vh);
+  }
+  100% {
+    transform: translate(50vw, 100vh);
+  }
+}
+
+@keyframes move-4 {
+  0% {
+    transform: translate(20vw, 30vh);
+  }
+  25% {
+    transform: translate(70vw, 80vh);
+  }
+  50% {
+    transform: translate(100vw, 50vh);
+  }
+  75% {
+    transform: translate(0vw, 20vh);
+  }
+  100% {
+    transform: translate(20vw, 30vh);
+  }
+}
+
+@keyframes move-5 {
+  0% {
+    transform: translate(80vw, 60vh);
+  }
+  25% {
+    transform: translate(10vw, 90vh);
+  }
+  50% {
+    transform: translate(50vw, 20vh);
+  }
+  75% {
+    transform: translate(90vw, 10vh);
+  }
+  100% {
+    transform: translate(80vw, 60vh);
+  }
+}
+
+@keyframes move-6 {
+  0% {
+    transform: translate(30vw, 10vh);
+  }
+  25% {
+    transform: translate(100vw, 70vh);
+  }
+  50% {
+    transform: translate(0vw, 40vh);
+  }
+  75% {
+    transform: translate(60vw, 100vh);
+  }
+  100% {
+    transform: translate(30vw, 10vh);
+  }
+}
+
+.animate-move-1 {
+  animation: move-1 45s ease-in-out infinite;
+}
+
+.animate-move-2 {
+  animation: move-2 50s ease-in-out infinite;
+}
+
+.animate-move-3 {
+  animation: move-3 55s ease-in-out infinite;
+}
+
+.animate-move-4 {
+  animation: move-4 42s ease-in-out infinite;
+}
+
+.animate-move-5 {
+  animation: move-5 48s ease-in-out infinite;
+}
+
+.animate-move-6 {
+  animation: move-6 52s ease-in-out infinite;
+}

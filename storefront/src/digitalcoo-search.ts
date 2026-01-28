@@ -7,10 +7,9 @@
 */
 
 // Import lightweight shared utilities
-import { Log } from './utils/shared';
+import { $, Log } from './utils';
 import { Lang } from './locals';
-import { ProductType, SearchAPIResponseType, SearchConfigtype, SearchResultType, ShopifyWindow } from './type';
-import { $ } from './utils/$.utils';
+import { ProductType, SearchAPIResponseType, SearchConfigtype, SearchResultType } from './type';
 
 // ============================================================================
 // CONSTANTS
@@ -201,18 +200,54 @@ const SearchDOM = {
 		// Image
 		if (product.imageUrl || product.featuredImage) {
 			const imgContainer = $.el('div', 'afs-search-dropdown__product-image');
-			const img = $.el('img', '', {
-				'alt': product.title || '',
-				'loading': 'lazy',
-				'decoding': 'async'
-			}) as HTMLImageElement;
 			
-			const baseImageUrl = product.featuredImage?.url || product.featuredImage?.urlFallback || product.imageUrl || '';
-			if (baseImageUrl) {
-				img.src = baseImageUrl;
+			// Use utility function to build image attributes
+			const imageAttrs = $.buildImageAttributes(
+				{
+					featuredImage: product.featuredImage,
+					imageUrl: product.imageUrl
+				},
+				{
+					alt: product.title || '',
+					loading: 'lazy',
+					decoding: 'async',
+					defaultWidth: 100,
+					defaultHeight: 100,
+					srcsetSizes: [100, 150, 200],
+					sizes: '(max-width: 768px) 100px, 150px',
+					quality: 75
+				}
+			);
+
+			if (imageAttrs) {
+				const img = $.el('img', '', {
+					'alt': imageAttrs.alt,
+					'loading': imageAttrs.loading || 'lazy',
+					'decoding': imageAttrs.decoding || 'async'
+				}) as HTMLImageElement;
+
+				// Set image attributes
+				img.src = imageAttrs.src;
+				
+				if (imageAttrs.srcset) {
+					img.setAttribute('srcset', imageAttrs.srcset);
+				}
+				
+				if (imageAttrs.sizes) {
+					img.setAttribute('sizes', imageAttrs.sizes);
+				}
+				
+				if (imageAttrs.width) {
+					img.setAttribute('width', String(imageAttrs.width));
+				}
+				
+				if (imageAttrs.height) {
+					img.setAttribute('height', String(imageAttrs.height));
+				}
+
+				imgContainer.appendChild(img);
+				item.appendChild(imgContainer);
 			}
-			imgContainer.appendChild(img);
-			item.appendChild(imgContainer);
 		}
 
 		// Info
@@ -1444,8 +1479,7 @@ declare global {
 }
 
 if (typeof window !== 'undefined') {
-	const win = window as ShopifyWindow;
-	win.AFSSearch = {
+	window.AFSSearch = {
 		init: SearchInit.init.bind(SearchInit)
 	};
 }

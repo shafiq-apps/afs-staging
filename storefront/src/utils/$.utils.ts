@@ -2,7 +2,7 @@
 // TINY REUSABLE UTILITIES (Smallest possible functions)
 // ============================================================================
 
-import { DisplayType, FilterKeyType, ImageOptimizationOptionsType, OptionType, PriceRangeType, SelectionType, SortFieldType } from "../type";
+import { DisplayType, FilterKeyType, ImageAttributesType, ImageOptimizationOptionsType, OptionType, PriceRangeType, ProductImageType, SelectionType, SortFieldType } from "../type";
 
 export const $ = {
     // Fastest debounce
@@ -56,6 +56,10 @@ export const $ = {
         if (cls) e.className = cls;
         Object.entries(attrs).forEach(([k, v]) => e.setAttribute(k, v));
         return e;
+    },
+
+    getAttrVal: (el: HTMLElement, attr: string): string | null => {
+        return el?.getAttribute(attr);
     },
 
     // Fast text setter
@@ -258,5 +262,116 @@ export const $ = {
     // Check if option type is priceRange
     isPriceRangeOptionType: (optionType: string | null | undefined): boolean => {
         return $.equals(optionType, OptionType.PRICE_RANGE);
+    },
+
+    // Build image attributes for product images
+    buildImageAttributes: (
+        imageData: {
+            featuredImage?: ProductImageType;
+            imageUrl?: string;
+        },
+        options: {
+            alt?: string;
+            loading?: 'lazy' | 'eager';
+            decoding?: 'async' | 'sync' | 'auto';
+            fetchpriority?: 'high' | 'low' | 'auto';
+            defaultWidth?: number;
+            defaultHeight?: number;
+            srcsetSizes?: number[];
+            sizes?: string;
+            quality?: number;
+        } = {}
+    ): ImageAttributesType | null => {
+        const {
+            alt = '',
+            loading = 'lazy',
+            decoding = 'async',
+            fetchpriority = 'low',
+            defaultWidth = 300,
+            defaultHeight = 300,
+            srcsetSizes = [200, 300, 500],
+            sizes = '(max-width: 768px) 200px, (max-width: 1024px) 300px, 500px',
+            quality = 80
+        } = options;
+
+        // Get base image URL
+        const baseImageUrl = imageData.featuredImage?.url || 
+                           imageData.featuredImage?.urlFallback || 
+                           imageData.imageUrl || 
+                           '';
+
+        if (!baseImageUrl) {
+            return null;
+        }
+
+        // Check if we have pre-optimized URLs from featuredImage
+        const hasPreOptimized = imageData.featuredImage && 
+                               (imageData.featuredImage.urlSmall || 
+                                imageData.featuredImage.urlMedium || 
+                                imageData.featuredImage.urlLarge);
+
+        let src: string;
+        let srcset: string | undefined;
+        let fallbackUrl: string | undefined;
+
+        if (hasPreOptimized && imageData.featuredImage) {
+            // Use pre-optimized URLs from Liquid if available
+            const srcsetParts: string[] = [];
+            
+            if (imageData.featuredImage.urlSmall) {
+                srcsetParts.push(`${imageData.featuredImage.urlSmall} 200w`);
+            }
+            if (imageData.featuredImage.urlMedium) {
+                srcsetParts.push(`${imageData.featuredImage.urlMedium} 300w`);
+            }
+            if (imageData.featuredImage.urlLarge) {
+                srcsetParts.push(`${imageData.featuredImage.urlLarge} 500w`);
+            }
+
+            if (srcsetParts.length > 0) {
+                srcset = srcsetParts.join(', ');
+            }
+
+            // Set src with WebP first, fallback to original
+            src = imageData.featuredImage.url || 
+                  imageData.featuredImage.urlFallback || 
+                  baseImageUrl;
+            fallbackUrl = imageData.featuredImage.urlFallback || baseImageUrl;
+        } else {
+            // Optimize image URL on-the-fly for API responses
+            src = $.optimizeImageUrl(baseImageUrl, { 
+                width: defaultWidth, 
+                height: defaultHeight,
+                format: 'webp', 
+                quality: quality 
+            }) || baseImageUrl;
+            
+            srcset = $.buildImageSrcset(baseImageUrl, srcsetSizes);
+            fallbackUrl = baseImageUrl;
+        }
+
+        // Extract width and height from URL if available, otherwise use defaults
+        let width: number | undefined = defaultWidth;
+        let height: number | undefined = defaultHeight;
+
+        // Try to extract dimensions from URL (e.g., _300x300_)
+        const dimensionMatch = baseImageUrl.match(/_(\d+)x(\d+)[_.]/i);
+        if (dimensionMatch) {
+            width = parseInt(dimensionMatch[1], 10);
+            height = parseInt(dimensionMatch[2], 10);
+        }
+
+        return {
+            src,
+            srcset: srcset || undefined,
+            sizes: srcset ? sizes : undefined,
+            width,
+            height,
+            alt,
+            loading,
+            decoding,
+            fetchpriority,
+            fallbackUrl
+        };
     }
 };
