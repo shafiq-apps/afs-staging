@@ -5,7 +5,7 @@
  */
 
 import { handler } from '@core/http/http.handler';
-import { HttpRequest } from '@core/http/http.types';
+import { HttpNextFunction, HttpRequest, HttpResponse } from '@core/http/http.types';
 import { validate, validateShopDomain } from '@core/http/validation.middleware';
 import { rateLimit } from '@core/security/rate-limit.middleware';
 import { createModuleLogger } from '@shared/utils/logger.util';

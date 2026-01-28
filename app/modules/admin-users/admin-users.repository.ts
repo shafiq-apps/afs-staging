@@ -24,13 +24,11 @@ export class AdminUsersRepository {
    */
   async findByEmail(email: string): Promise<AdminUser | null> {
     try {
-      const response = await this.esClient.search({
+      const response = await this.esClient.search<AdminUser>({
         index: this.index,
-        body: {
-          query: {
-            term: {
-              email: email.toLowerCase(),
-            },
+        query: {
+          term: {
+            email: email.toLowerCase(),
           },
         },
       });
@@ -68,7 +66,7 @@ export class AdminUsersRepository {
       }
 
       return {
-        ...response._source,
+        ...response._source as AdminUser,
         id: response._id,
       } as AdminUser;
     } catch (error: any) {
@@ -88,15 +86,13 @@ export class AdminUsersRepository {
    */
   async findByApiKey(apiKey: string): Promise<AdminUser | null> {
     try {
-      const response = await this.esClient.search({
+      const response = await this.esClient.search<AdminUser>({
         index: this.index,
-        body: {
-          query: {
-            term: {
-              apiKey: apiKey,
-            },
+        query: {
+          term: {
+            apiKey: apiKey,
           },
-        },
+        }
       });
 
       if (response.hits.hits.length === 0) {
@@ -121,14 +117,12 @@ export class AdminUsersRepository {
    */
   async findAll(): Promise<AdminUser[]> {
     try {
-      const response = await this.esClient.search({
+      const response = await this.esClient.search<AdminUser>({
         index: this.index,
-        body: {
-          query: {
-            match_all: {},
-          },
-          size: 1000,
+        query: {
+          match_all: {},
         },
+        size: 1000,
       });
 
       return response.hits.hits.map((hit: any) => ({
@@ -198,16 +192,11 @@ export class AdminUsersRepository {
 
       const updated: Partial<AdminUser> = {
         ...updates,
+        permissions: updates.permissions
+          ? { ...existing.permissions, ...updates.permissions }
+          : existing.permissions,
         updatedAt: new Date().toISOString(),
       };
-
-      // Merge permissions if provided
-      if (updates.permissions) {
-        updated.permissions = {
-          ...existing.permissions,
-          ...updates.permissions,
-        };
-      }
 
       await this.esClient.update({
         index: this.index,
