@@ -2941,14 +2941,7 @@ const Filters = {
 
 				}
 			}
-
-			// #region agent log
-			fetch('http://127.0.0.1:7242/ingest/f093e62f-5bb2-4995-8b8d-97d186534b8f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'digitalcoo-filter.ts:2881',message:'Before renderFilters call',data:{filtersCount:FilterState.availableFilters.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H'})}).catch(()=>{});
-			// #endregion
 			DOM.renderFilters(FilterState.availableFilters);
-			// #region agent log
-			fetch('http://127.0.0.1:7242/ingest/f093e62f-5bb2-4995-8b8d-97d186534b8f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'digitalcoo-filter.ts:2883',message:'After renderFilters call',data:{filtersCount:FilterState.availableFilters.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H'})}).catch(()=>{});
-			// #endregion
 			Logger.info('Filters rendered', { count: FilterState.availableFilters.length });
 
 		} catch (error) {
@@ -2986,13 +2979,7 @@ const Filters = {
 		Logger.debug('Filter toggled', { handle, value: normalized, wasActive: isActive, isActive: !isActive, filterValues });
 
 		UrlManager.update(FilterState.filters, FilterState.pagination, FilterState.sort);
-		// #region agent log
-		fetch('http://127.0.0.1:7242/ingest/f093e62f-5bb2-4995-8b8d-97d186534b8f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'digitalcoo-filter.ts:2940',message:'Before updateFilterState call',data:{handle,normalized,isActive:!isActive},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
-		// #endregion
 		DOM.updateFilterState(handle, normalized, !isActive);
-		// #region agent log
-		fetch('http://127.0.0.1:7242/ingest/f093e62f-5bb2-4995-8b8d-97d186534b8f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'digitalcoo-filter.ts:2942',message:'After updateFilterState call',data:{handle},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
-		// #endregion
 		// Scroll to top when filter is clicked
 		DOM.scrollToProducts();
 		// Show loading skeleton immediately (before debounce) - only products, filters will update via Filters.process
