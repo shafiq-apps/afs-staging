@@ -2,7 +2,7 @@ import { Icons } from './components/Icons';
 import { Config } from './config';
 import { Lang } from './locals';
 import { $, waitForElement, waitForElements, detectDevice, findMatchingVariants, getSelectedOptions, isOptionValueAvailable, isVariantAvailable, Logger } from './utils';
-import { FilterKeyType, FilterStateType, FilterOptionType, FilterMetadataType, FiltersStateType, PaginationStateType, SortStateType, ProductsResponseDataType, FiltersResponseDataType, PriceRangeType, AFSConfigType, FilterValueType, SpecialValueType, SortFieldType, SortOrderType, AppliedFilterType, ParsedUrlParamsType, FilterGroupStateType, ProductType, APIResponse, AFSInterfaceType, FilterItemsElement, SliderOptionsType, SliderSlideChangeEventDetailType, ProductVariantType, ProductModalElement, AFSInterface } from "./type";
+import { FilterKeyType, FilterStateType, FilterOptionType, FilterMetadataType, FiltersStateType, PaginationStateType, SortStateType, ProductsResponseDataType, FiltersResponseDataType, PriceRangeType, AFSConfigType, FilterValueType, SpecialValueType, SortFieldType, SortOrderType, AppliedFilterType, ParsedUrlParamsType, FilterGroupStateType, ProductType, APIResponse, AFSInterfaceType, FilterItemsElement, SliderOptionsType, SliderSlideChangeEventDetailType, ProductVariantType, ProductModalElement, AFSInterface, MetadataType } from "./type";
 
 
 // Persistent map for filter group UI states (collapsed/search/lastUpdated)
@@ -30,7 +30,7 @@ const formatPrice = (value: number): number => {
 // ============================================================================
 // METADATA BUILDERS (For display only, not for state management)
 // ============================================================================
-const Metadata = {
+const Metadata: MetadataType = {
 	// Build metadata map from filters array (for display labels, types, etc.)
 	buildFilterMetadata: (filters: FilterOptionType[]): Map<string, FilterMetadataType> => {
 		const m = new Map<string, FilterMetadataType>();
@@ -47,6 +47,23 @@ const Metadata = {
 			}
 		});
 		return m;
+	},
+	filterSettings: {
+		hoverImage: true,
+		showPrice: true,
+		showVendor: true,
+		showComparePrice: true,
+		showAddToCartButton: true,
+		quickViewLocation: 'top-right',
+		soldOutBadgeLocation: 'top-left',
+		showDiscount: 'top-left',
+		stockBadgeLocation: 'top-left', // in-stock/out of stock
+		quickAddButtonLocation: 'inside-image',
+		html: {
+			title: (content) => $.el('h3', 'afs-product-card__title', {}, content),
+			vendor: (content) => $.el('div', 'afs-product-card__vendor', {}, content),
+			price: (content) => $.el('div', 'afs-product-card__price', {}, content),
+		}
 	}
 };
 
@@ -80,6 +97,7 @@ const FilterState: FilterStateType = {
 	scrollToProductsOnFilter: false,
 	// Handle-based keys for range filters (provided by server filter config)
 	priceRangeHandle: null,
+	routesRoot: (window as any)?.Shopify?.routes?.root || '/',
 };
 
 // ============================================================================
@@ -982,7 +1000,7 @@ const DOM = {
 							}
 						}
 					});
-					
+
 					// Adjust overlay position to prevent right-edge clipping
 					this.adjustOverlayPosition(group);
 				}
@@ -1526,13 +1544,13 @@ const DOM = {
 			// Use inline SVG HTML for better CSS control
 			icon.innerHTML = collapsed ? (Icons.rightArrow || '') : (Icons.downArrow || '');
 			toggle.appendChild(icon);
-			
+
 			const labelEl = $.el('label', 'afs-filter-group__label', {
 				'for': 'afs-filter-group__label'
 			});
 			labelEl.textContent = filter.label || filter.optionType || '';
 			toggle.appendChild(labelEl);
-			
+
 			// For top bar layout, add count badge next to label
 			if (isTopBarLayout) {
 				const filterValue = FilterState.filters[handle];
@@ -1544,7 +1562,7 @@ const DOM = {
 					group.setAttribute('data-afs-has-active', 'true');
 				}
 			}
-			
+
 			header.appendChild(toggle);
 
 			// Add clear button next to the label (only show if filter has active values, and NOT in top bar layout)
@@ -1569,7 +1587,7 @@ const DOM = {
 
 			// Content
 			const content = $.el('div', 'afs-filter-group__content');
-			
+
 			// For top bar layout, add selected count and reset button inside overlay
 			if (isTopBarLayout && hasActiveValues) {
 				const overlayHeader = $.el('div', 'afs-filter-group__overlay-header');
@@ -1577,7 +1595,7 @@ const DOM = {
 				const countText = $.el('span', 'afs-filter-group__overlay-count');
 				countText.textContent = `${selectedCount} selected`;
 				overlayHeader.appendChild(countText);
-				
+
 				const resetBtn = $.el('button', 'afs-filter-group__overlay-reset', {
 					type: 'button',
 					'aria-label': `${Lang.buttons.clear} ${filter.label || handle} filters`,
@@ -1936,16 +1954,16 @@ const DOM = {
 	// Minimal product creation
 	createProduct(p: ProductType): HTMLElement {
 		const card = $.el('div', 'afs-product-card', { 'data-afs-product-id': $.id(p) || '' });
+		const isSoldOut = parseInt(String(p.totalInventory || 0)) <= 0 || (p.variants && !p.variants.some(v => v.availableForSale));
 
+		// =========================
+		// IMAGE CONTAINER
+		// =========================
 		if (p.imageUrl || p.featuredImage) {
 			const imgContainer = $.el('div', 'afs-product-card__image');
-			
-			// Use utility function to build image attributes
+			// MAIN IMAGE
 			const imageAttrs = $.buildImageAttributes(
-				{
-					featuredImage: p.featuredImage,
-					imageUrl: p.imageUrl
-				},
+				{ featuredImage: p.featuredImage, imageUrl: p.imageUrl },
 				{
 					alt: p.title || '',
 					loading: 'lazy',
@@ -1960,78 +1978,43 @@ const DOM = {
 			);
 
 			if (imageAttrs) {
-				const img = $.el('img', '', {
+				const mainImg = $.el('img', '', {
 					alt: imageAttrs.alt,
 					loading: imageAttrs.loading || 'lazy',
 					decoding: imageAttrs.decoding || 'async',
 					fetchpriority: imageAttrs.fetchpriority || 'low'
 				}) as HTMLImageElement;
 
-				// Set image attributes
-				img.src = imageAttrs.src;
-				
-				if (imageAttrs.srcset) {
-					img.setAttribute('srcset', imageAttrs.srcset);
-				}
-				
-				if (imageAttrs.sizes) {
-					img.setAttribute('sizes', imageAttrs.sizes);
-				}
-				
-				if (imageAttrs.width) {
-					img.setAttribute('width', String(imageAttrs.width));
-				}
-				
-				if (imageAttrs.height) {
-					img.setAttribute('height', String(imageAttrs.height));
-				}
+				mainImg.src = imageAttrs.src;
+				if (imageAttrs.srcset) mainImg.setAttribute('srcset', imageAttrs.srcset);
+				if (imageAttrs.sizes) mainImg.setAttribute('sizes', imageAttrs.sizes);
+				if (imageAttrs.width) mainImg.setAttribute('width', String(imageAttrs.width));
+				if (imageAttrs.height) mainImg.setAttribute('height', String(imageAttrs.height));
 
-				// Get base image URL for error handling
+				// ERROR HANDLING
 				const baseImageUrl = p.imageUrl || p.featuredImage?.urlFallback || imageAttrs.src;
-
-				// Add error handling for failed image loads
-				img.onerror = function (this: HTMLImageElement) {
-					// Fallback to original format if WebP fails
+				mainImg.onerror = function (this: HTMLImageElement) {
 					const fallbackUrl = imageAttrs.fallbackUrl || baseImageUrl;
 					if (fallbackUrl && this.src !== fallbackUrl) {
-						// Try original format
 						this.src = fallbackUrl;
 						this.setAttribute('data-original-src', fallbackUrl);
 					} else if (this.src.includes('_webp.')) {
-						// If WebP failed, try original format
 						const originalUrl = baseImageUrl.replace(/_(?:small|medium|large|grande|compact|master|\d+x\d+)_webp\./i, '_300x300.');
 						if (originalUrl !== this.src) {
 							this.src = originalUrl;
 							this.setAttribute('data-original-src', originalUrl);
-						} else {
-							// Hide broken image
-							this.style.display = 'none';
-						}
-					} else {
-						// Hide broken image
-						this.style.display = 'none';
-					}
+						} else this.style.display = 'none';
+					} else this.style.display = 'none';
 				};
 
-				imgContainer.appendChild(img);
+				imgContainer.appendChild(mainImg);
 
-				// Get second image for hover effect (from imagesUrls array)
-				let secondImageUrl: string | null = null;
-				const imagesArray = (p as any).imagesUrls;
-				if (imagesArray && Array.isArray(imagesArray) && imagesArray.length > 1) {
-					secondImageUrl = imagesArray[1];
-					Logger.debug('Second image found for hover', {
-						secondImageUrl,
-						totalImages: imagesArray.length
-					});
-				}
-				// Add hover effect for second image if available
-				if (secondImageUrl) {
-					const hoverImageAttrs = $.buildImageAttributes(
-						{
-							imageUrl: secondImageUrl
-						},
-						{
+				if (Metadata.filterSettings.hoverImage) {
+					// SECOND IMAGE (HOVER)
+					const imagesArray = (p as any).imagesUrls;
+					const secondImageUrl = imagesArray && imagesArray.length > 1 ? imagesArray[1] : null;
+					if (secondImageUrl) {
+						const hoverAttrs = $.buildImageAttributes({ imageUrl: secondImageUrl }, {
 							alt: p.title || '',
 							loading: 'lazy',
 							decoding: 'async',
@@ -2041,100 +2024,93 @@ const DOM = {
 							srcsetSizes: [200, 300, 500],
 							sizes: '(max-width: 768px) 200px, (max-width: 1024px) 300px, 500px',
 							quality: 80
-						}
-					);
-					if(hoverImageAttrs) {
-						const hoverImg = $.el('img', '', {
-							alt: hoverImageAttrs.alt,
-							loading: hoverImageAttrs.loading || 'lazy',
-							decoding: hoverImageAttrs.decoding || 'async',
-							fetchpriority: hoverImageAttrs.fetchpriority || 'low'
-						}) as HTMLImageElement;
+						});
 
-						// Set image attributes
-						hoverImg.src = hoverImageAttrs.src;
-						
-						if (hoverImageAttrs.srcset) {
-							hoverImg.setAttribute('srcset', hoverImageAttrs.srcset);
-						}
-						
-						if (hoverImageAttrs.sizes) {
-							hoverImg.setAttribute('sizes', hoverImageAttrs.sizes);
-						}
-						
-						if (hoverImageAttrs.width) {
-							hoverImg.setAttribute('width', String(hoverImageAttrs.width));
-						}
-						
-						if (hoverImageAttrs.height) {
-							hoverImg.setAttribute('height', String(hoverImageAttrs.height));
-						}
+						if (hoverAttrs) {
+							const hoverImg = $.el('img', 'hover__image', {
+								alt: hoverAttrs.alt,
+								loading: hoverAttrs.loading || 'lazy',
+								decoding: hoverAttrs.decoding || 'async',
+								fetchpriority: hoverAttrs.fetchpriority || 'low'
+							}) as HTMLImageElement;
 
-						imgContainer.appendChild(hoverImg);
+							hoverImg.src = hoverAttrs.src;
+							if (hoverAttrs.srcset) hoverImg.setAttribute('srcset', hoverAttrs.srcset);
+							if (hoverAttrs.sizes) hoverImg.setAttribute('sizes', hoverAttrs.sizes);
+							if (hoverAttrs.width) hoverImg.setAttribute('width', String(hoverAttrs.width));
+							if (hoverAttrs.height) hoverImg.setAttribute('height', String(hoverAttrs.height));
+
+							imgContainer.appendChild(hoverImg);
+						}
 					}
-					
 				}
 
-				// Add sold out badge if product is unavailable
-				const isSoldOut = parseInt(String(p.totalInventory || 0), 10) <= 0 || (p.variants && !p.variants.some(v => v.availableForSale));
-				if (isSoldOut) {
-					const soldOutBadge = $.el('div', 'afs-product-card__badge', {
-						'class': 'afs-product-card__badge--sold-out'
+				if (Metadata.filterSettings.soldOutBadgeLocation !== 'none') {
+					// SOLD OUT BADGE
+					if (isSoldOut || true) {
+						const soldOutBadge = $.el('div', `afs-product-card__badge afs-product-card__badge--${Metadata.filterSettings.soldOutBadgeLocation}`);
+						soldOutBadge.textContent = Lang.buttons.soldOut || 'Sold out';
+						imgContainer.appendChild(soldOutBadge);
+					}
+				}
+
+				// QUICK ADD BUTTON
+				if (Metadata.filterSettings.showAddToCartButton) {
+					const quickAddBtn = $.el('button', 'afs-product-card__quick-add', {
+						'data-product-handle': p.handle || '',
+						'data-product-id': $.id(p) || '',
+						'aria-label': Lang.buttons.quickAddToCart,
+						type: 'button'
 					});
-					soldOutBadge.textContent = Lang.buttons.soldOut || 'Sold out';
-					imgContainer.appendChild(soldOutBadge);
+
+					const quickAddBtnContent = $.el('div', 'afs-product-card__quick-add__content');
+
+					const quickAddText = $.el('div', 'afs-product-card__quick-add-text');
+					quickAddText.textContent = Lang.buttons.quickAdd;
+					quickAddBtnContent.appendChild(quickAddText);
+
+					if (isSoldOut) {
+						(quickAddBtn as HTMLButtonElement).disabled = true;
+						quickAddBtn.classList.add('afs-product-card__quick-add--disabled');
+						quickAddBtn.setAttribute('aria-label', Lang.labels.productUnavailable);
+					}
+					quickAddBtn.appendChild(quickAddBtnContent);
+					imgContainer.appendChild(quickAddBtn);
 				}
 
-				// Add Quick Add button - bottom right corner with + icon
-				const quickAddBtn = $.el('button', 'afs-product-card__quick-add', {
-					'data-product-handle': p.handle || '',
-					'data-product-id': $.id(p) || '',
-					'aria-label': Lang.buttons.quickAddToCart,
-					'type': 'button'
-				});
-
-				// Add + icon
-				const plusIcon = $.el('span', 'afs-product-card__quick-add-icon');
-				plusIcon.innerHTML = Icons.plus;
-				quickAddBtn.appendChild(plusIcon);
-
-				// Add text that shows on hover
-				const quickAddText = $.el('span', 'afs-product-card__quick-add-text');
-				quickAddText.textContent = Lang.buttons.quickAdd;
-				quickAddBtn.appendChild(quickAddText);
-
-				// Disable button if product is not available
-				if (parseInt(String(p.totalInventory || 0), 10) <= 0 || (p.variants && !p.variants.some(v => v.availableForSale))) {
-					(quickAddBtn as HTMLButtonElement).disabled = true;
-					quickAddBtn.classList.add('afs-product-card__quick-add--disabled');
-					quickAddBtn.setAttribute('aria-label', Lang.labels.productUnavailable);
-				}
-
-				// Add Quick View button - opens product modal
+				// QUICK VIEW BUTTON
 				const quickViewBtn = createQuickViewButton(p);
-				if (quickViewBtn) {
+				if (quickViewBtn && Metadata.filterSettings.quickViewLocation !== 'none') {
 					imgContainer.appendChild(quickViewBtn);
 				}
+
 				card.appendChild(imgContainer);
 			}
 		}
 
-		const info = $.el('a', 'afs-product-card__info', { 'href': `/products/${p.handle}` });
+		// =========================
+		// INFO SECTION
+		// =========================
+		const info = $.el('a', 'afs-product-card__info', { 'href': `${FilterState.routesRoot}products/${p.handle}` });
+
 		if (info) {
-			info.appendChild($.txt($.el('h3', 'afs-product-card__title'), p.title || 'Untitled'));
-			if (p.vendor) info.appendChild($.txt($.el('div', 'afs-product-card__vendor'), p.vendor));
+			info.appendChild(Metadata.filterSettings.html.title(p.title || ''));
 
-			// price amounts are in dollars, so multiply by 100 to convert to cents
-			let minPrice = parseFloat(String(p.minPrice || 0)) * 100;
-			let maxPrice = parseFloat(String(p.maxPrice || 0)) * 100;
-			const formattedMin = $.formatMoney(minPrice, FilterState.moneyFormat || '{{amount}}', FilterState.currency || '');
+			if (p.vendor && Metadata.filterSettings.showVendor) {
+				info.appendChild(Metadata.filterSettings.html.vendor(p.vendor || ''));
+			}
 
-			// If prices are equal, show single price, otherwise show "from" prefix
-			const priceText = minPrice === maxPrice ? formattedMin : `from ${formattedMin}`;
+			if (Metadata.filterSettings.showPrice) {
+				const minPrice = parseFloat(String(p.minPrice || 0)) * 100;
+				const maxPrice = parseFloat(String(p.maxPrice || 0)) * 100;
+				const formattedMin = $.formatMoney(minPrice, FilterState.moneyFormat || '{{amount}}', FilterState.currency || '');
+				const priceText = minPrice === maxPrice ? formattedMin : `from ${formattedMin}`;
+				info.appendChild(Metadata.filterSettings.html.price(priceText));
+			}
 
-			info.appendChild($.txt($.el('div', 'afs-product-card__price'), priceText));
 			card.appendChild(info);
 		}
+
 		return card;
 	},
 
@@ -2173,11 +2149,11 @@ const DOM = {
 				// Hide group during update to prevent visual flash
 				const originalDisplay = group.style.display;
 				group.style.display = 'none';
-				
+
 				const filterValue = FilterState.filters[handle];
 				const selectedCount = Array.isArray(filterValue) ? filterValue.length : (filterValue && typeof filterValue === 'object' ? Object.keys(filterValue).length : (filterValue ? 1 : 0));
 				const hasActiveValues = selectedCount > 0;
-				
+
 				// Update count badge
 				const labelEl = group.querySelector<HTMLElement>('.afs-filter-group__label');
 				if (labelEl) {
@@ -2196,7 +2172,7 @@ const DOM = {
 						group.removeAttribute('data-afs-has-active');
 					}
 				}
-				
+
 				// Restore display after update
 				group.style.display = originalDisplay || '';
 
@@ -2209,7 +2185,7 @@ const DOM = {
 						const countText = $.el('span', 'afs-filter-group__overlay-count');
 						countText.textContent = `${selectedCount} selected`;
 						newOverlayHeader.appendChild(countText);
-						
+
 						const resetBtn = $.el('button', 'afs-filter-group__overlay-reset', {
 							type: 'button',
 							'aria-label': `Reset filters`,
@@ -2236,7 +2212,7 @@ const DOM = {
 						overlayHeader.remove();
 					}
 				}
-				
+
 				// Restore display after all updates
 				group.style.display = originalDisplay || '';
 			}
@@ -2447,7 +2423,7 @@ const DOM = {
 	// Applied filters with clear all
 	renderApplied(filters: FiltersStateType): void {
 		if (!this.container) return;
-		
+
 		const isTopBarLayout = this.container?.getAttribute('data-afs-layout') === 'top';
 		if (isTopBarLayout) return;
 
@@ -4175,9 +4151,7 @@ async function createProductModal(handle: string, modalId: string): Promise<Prod
 	  </div>
 	`;
 
-	// Get locale-aware URL using Shopify routes
-	const routesRoot = (window as any)?.Shopify?.routes?.root || '/';
-	const productUrl = `${routesRoot}products/${handle}.js`;
+	const productUrl = `${FilterState.routesRoot}products/${handle}.js`;
 
 	try {
 		// Fetch product data using Ajax API
@@ -4717,9 +4691,8 @@ function setupModalHandlers(
 			const variantId = buyButton.dataset.variantId;
 
 			try {
-				const routesRoot = (window as any)?.Shopify?.routes?.root || '/';
 				// Redirect to checkout
-				window.location.href = `${routesRoot}cart/${variantId}:${quantity}?checkout`;
+				window.location.href = `${FilterState.routesRoot}cart/${variantId}:${quantity}?checkout`;
 			} catch (error) {
 				Logger.error('Failed to buy now', { error: error instanceof Error ? error.message : String(error) });
 				DOM.showError(Lang?.messages?.failedToProceedToCheckout || 'Failed to proceed to checkout. Please try again.');
@@ -4916,9 +4889,9 @@ function createQuickViewButton(product: ProductType): HTMLElement | null {
 	// Safety check: ensure Lang.buttons exists before accessing quickView
 	const ariaLabel = (Lang?.buttons?.quickView) || 'Quick view';
 
-	const quickViewBtn = $.el('button', 'afs-product-card__quick-view', {
+	const quickViewBtn = $.el('button', `afs-product-card__quick-view afs-product-card__quick-view--${Metadata.filterSettings.quickViewLocation}`, {
 		'data-product-handle': product.handle,
-		'data-product-id': String(product.id || product.productId || product.gid || ''),
+		'data-product-id': $.id(product) || '',
 		'aria-label': ariaLabel,
 		'type': 'button'
 	});

@@ -15,8 +15,8 @@
     position: absolute;
     bottom: $spacing-lg;
     right: $spacing-lg;
-    width: 48px;
-    height: 48px;
+    width: 40px;
+    height: 40px;
     border-radius: $border-radius-full;
     background: var(--afs-bg-color);
     backdrop-filter: blur(10px);
@@ -47,9 +47,15 @@
       height: 100%;
 
       svg {
-        width: 26px;
-        height: 26px;
+        width: 20px;
+        height: auto;
         fill: currentColor;
+      }
+    }
+
+    @each $pos in $positions {
+      &--#{$pos} {
+        @include badge-position($pos);
       }
     }
 
@@ -79,11 +85,6 @@
     .afs-product-card__quick-view {
       opacity: 1;
       transform: translateY(0);
-      width: auto;
-      min-width: 48px;
-      height: 48px;
-      border-radius: 24px;
-      padding: 0 20px;
       background: var(--afs-accent-color);
       color: var(--afs-text-color-inverse);
       border-color: var(--afs-accent-color);

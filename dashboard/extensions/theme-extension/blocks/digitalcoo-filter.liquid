@@ -1,3 +1,28 @@
+{% style %}
+{% unless block.settings.font_family.system? %}
+  {{ block.settings.font_family | font_face: font_display: 'swap' }}
+{% endunless %}
+{% endstyle %}
+
+<style>
+  :root {
+    --afs-font-family: {{ block.settings.font_family.family }}, {{ block.settings.body_font.fallback_families }};
+    --afs-font-weight: {{ block.settings.font_family.weight | default: "400" }};
+    --afs-font-style: {{ block.settings.font_family.style | default: "normal" }};
+    --afs-text-color: {{ block.settings.text_color }};
+    --afs-text-color-inverse: {{ block.settings.text_color_inverse }};
+    --afs-bg-color: {{ block.settings.bg_color }};
+    --afs-bg-color-inverse: {{ block.settings.bg_color_inverse }};
+    --afs-bg-secondary: {{ block.settings.bg_secondary }};
+    --afs-border-color: {{ block.settings.border_color }};
+    --afs-accent-color: {{ block.settings.accent_color }};
+    --afs-accent-color-hover: {{ block.settings.accent_color_hover }};
+    --afs-shadow-color: {{ block.settings.shadow_color }};
+    --afs-shadow-color-medium: {{ block.settings.shadow_color_medium }};
+    --afs-shadow-color-strong: {{ block.settings.shadow_color_strong }};
+  }
+</style>
+
 {{ 'digitalcoo-filter.min.css' | asset_url | stylesheet_tag }}
 
 <div data-afs-container id="afs-container-{{ block.id }}" data-afs-layout="{{ block.settings.filter_alignment }}">
@@ -163,10 +188,10 @@
       "content": "Font Configuration"
     },
     {
-      "type": "text",
+      "type": "font_picker",
       "id": "font_family",
       "label": "Font Family",
-      "default": "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+      "default": "helvetica_n4",
       "info": "CSS font-family value"
     }
   ]

@@ -245,6 +245,7 @@ export interface FilterStateType {
 	currency: string | null;
 	scrollToProductsOnFilter: boolean;
 	priceRangeHandle: string | null;
+	routesRoot: string;
 }
 
 export interface AFSConfigType {
@@ -505,3 +506,34 @@ export interface SearchAPIResponseType {
 
 
 export interface AFSInterface extends AFSInterfaceType { }
+
+export interface MetadataType {
+  buildFilterMetadata: (
+    filters: FilterOptionType[]
+  ) => Map<string, FilterMetadataType>;
+
+  filterSettings: FilterSettingsType;
+};
+
+type BadgeLocation = 'none' | 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left';
+type DiscountLocation = BadgeLocation | 'next-to-price';
+
+type ProductHtmlFactories = {
+  title: (content: string | HTMLElement) => HTMLElement;
+  vendor: (content: string | HTMLElement) => HTMLElement;
+  price: (content: string | HTMLElement) => HTMLElement;
+};
+
+export interface FilterSettingsType {
+	hoverImage: boolean;
+	showVendor: boolean;
+	showPrice: boolean;
+	showComparePrice: boolean;
+	showDiscount: DiscountLocation;
+	soldOutBadgeLocation: BadgeLocation;
+	stockBadgeLocation: BadgeLocation;
+	quickViewLocation: BadgeLocation;
+	quickAddButtonLocation: 'inside-image' | 'outside-image';
+	showAddToCartButton: boolean;
+	html: ProductHtmlFactories
+}

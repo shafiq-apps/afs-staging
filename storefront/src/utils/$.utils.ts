@@ -51,10 +51,17 @@ export const $ = {
     },
 
     // Fast element creator
-    el: (tag: string, cls: string, attrs: Record<string, string> = {}): HTMLElement => {
+    el: (tag: string, cls: string, attrs: Record<string, string> = {}, content?: string | HTMLElement): HTMLElement => {
         const e = document.createElement(tag);
         if (cls) e.className = cls;
         Object.entries(attrs).forEach(([k, v]) => e.setAttribute(k, v));
+        if (content !== undefined) {
+            if (typeof content === 'string') {
+                e.textContent = content;
+            } else {
+                e.appendChild(content);
+            }
+        }
         return e;
     },
 
@@ -295,20 +302,20 @@ export const $ = {
         } = options;
 
         // Get base image URL
-        const baseImageUrl = imageData.featuredImage?.url || 
-                           imageData.featuredImage?.urlFallback || 
-                           imageData.imageUrl || 
-                           '';
+        const baseImageUrl = imageData.featuredImage?.url ||
+            imageData.featuredImage?.urlFallback ||
+            imageData.imageUrl ||
+            '';
 
         if (!baseImageUrl) {
             return null;
         }
 
         // Check if we have pre-optimized URLs from featuredImage
-        const hasPreOptimized = imageData.featuredImage && 
-                               (imageData.featuredImage.urlSmall || 
-                                imageData.featuredImage.urlMedium || 
-                                imageData.featuredImage.urlLarge);
+        const hasPreOptimized = imageData.featuredImage &&
+            (imageData.featuredImage.urlSmall ||
+                imageData.featuredImage.urlMedium ||
+                imageData.featuredImage.urlLarge);
 
         let src: string;
         let srcset: string | undefined;
@@ -317,7 +324,7 @@ export const $ = {
         if (hasPreOptimized && imageData.featuredImage) {
             // Use pre-optimized URLs from Liquid if available
             const srcsetParts: string[] = [];
-            
+
             if (imageData.featuredImage.urlSmall) {
                 srcsetParts.push(`${imageData.featuredImage.urlSmall} 200w`);
             }
@@ -333,19 +340,19 @@ export const $ = {
             }
 
             // Set src with WebP first, fallback to original
-            src = imageData.featuredImage.url || 
-                  imageData.featuredImage.urlFallback || 
-                  baseImageUrl;
+            src = imageData.featuredImage.url ||
+                imageData.featuredImage.urlFallback ||
+                baseImageUrl;
             fallbackUrl = imageData.featuredImage.urlFallback || baseImageUrl;
         } else {
             // Optimize image URL on-the-fly for API responses
-            src = $.optimizeImageUrl(baseImageUrl, { 
-                width: defaultWidth, 
+            src = $.optimizeImageUrl(baseImageUrl, {
+                width: defaultWidth,
                 height: defaultHeight,
-                format: 'webp', 
-                quality: quality 
+                format: 'webp',
+                quality: quality
             }) || baseImageUrl;
-            
+
             srcset = $.buildImageSrcset(baseImageUrl, srcsetSizes);
             fallbackUrl = baseImageUrl;
         }
