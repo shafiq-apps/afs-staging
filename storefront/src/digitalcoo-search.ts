@@ -8,8 +8,8 @@
 
 // Import lightweight shared utilities
 import { $, Log } from './utils';
-import { Lang } from './locals';
 import { ProductType, SearchAPIResponseType, SearchConfigtype, SearchResultType } from './type';
+import { t } from './utils/translation';
 
 // ============================================================================
 // CONSTANTS
@@ -308,7 +308,7 @@ const SearchDOM = {
 		});
 		item.innerHTML = `
 			<div class="afs-search-dropdown__loading-spinner"></div>
-			<span>${Lang.labels.loading}</span>
+			<span>${t("labels.loading")}</span>
 		`;
 		return item;
 	},

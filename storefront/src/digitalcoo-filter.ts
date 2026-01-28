@@ -2065,7 +2065,7 @@ const DOM = {
 					const quickAddBtnContent = $.el('div', 'afs-product-card__quick-add__content');
 
 					const quickAddText = $.el('div', 'afs-product-card__quick-add-text');
-					quickAddText.textContent = t("buttons.quickAdd");
+					quickAddText.textContent = t("buttons.addToCart");
 					quickAddBtnContent.appendChild(quickAddText);
 
 					if (isSoldOut) {
