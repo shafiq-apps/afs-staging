@@ -3226,9 +3226,6 @@ const QuickAdd = {
 const AFS: AFSInterface = {
 	init(config: AFSConfigType = {}): void {
 		try {
-
-			console.log("config", config);
-
 			if (config.shopLocale?.locale) {
 				setLanguage(config.shopLocale.locale);
 			}
