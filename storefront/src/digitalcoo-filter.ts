@@ -90,7 +90,7 @@ const FilterState: FilterStateType = {
 		soldOutBadgeLocation: 'top-left',
 		showDiscount: 'top-left',
 		inStockBadgeLocation: 'top-left', // in-stock/out of stock
-		addToCartButtonLocation: 'inside-image',
+		addToCartButtonLocation: 'outside-image',
 		html: {
 			title: (content) => $.el('h3', 'afs-product-card__title', {}, content),
 			vendor: (content) => $.el('div', 'afs-product-card__vendor', {}, content),

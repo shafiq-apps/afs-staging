@@ -88,7 +88,7 @@
 
 /* ============================================================================
    Filter Groups
-   ============================================================================ */
+============================================================================ */
 
 [data-afs-container] {
   .afs-filter-group {
@@ -656,6 +656,184 @@
       display: block !important;
       visibility: visible !important;
       opacity: 1 !important;
+    }
+  }
+
+
+  /* ============================================================================
+   Mobile Filter Controls
+============================================================================ */
+  .afs-mobile-filter-button {
+    display: none;
+    position: relative;
+    align-items: center;
+    gap: $spacing-sm;
+    padding: 10px $spacing-lg;
+    background: transparent;
+    border: 1px solid var(--afs-border-color);
+    border-radius: $border-radius-sm;
+    font-size: $font-size-md;
+    color: var(--afs-text-color);
+    font-family: var(--afs-font-family);
+    font-weight: var(--afs-font-weight-bold, $font-weight-semibold);
+    cursor: pointer;
+    transition: all $transition-base;
+    margin-bottom: $spacing-md;
+
+    &:hover {
+      @include button-hover;
+    }
+
+    &__icon {
+      font-size: $font-size-xl;
+      line-height: 1;
+    }
+
+    &__text {
+      font-weight: $font-weight-medium;
+    }
+  }
+
+  /* Mobile Filter Close Button - Icon Only */
+  .afs-mobile-filter-close {
+    display: none;
+    position: absolute;
+    top: $spacing-lg;
+    right: $spacing-lg;
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+    padding: 0;
+    background: var(--afs-bg-color);
+    border: 1px solid var(--afs-border-color);
+    border-radius: $border-radius-full;
+    font-size: $font-size-xxl;
+    line-height: 1;
+    color: var(--afs-text-color);
+    cursor: pointer;
+    z-index: $z-index-modal-close;
+    align-items: center;
+    justify-content: center;
+    transition: all $transition-base;
+    box-shadow: 0 2px 8px var(--afs-shadow-color);
+    text-indent: 0;
+    overflow: hidden;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+
+    &::before {
+      content: '×';
+      display: block;
+      font-size: 28px;
+      line-height: 1;
+      font-weight: 300;
+    }
+
+    &:hover {
+      @include button-hover;
+    }
+
+    &:active {
+      transform: scale(0.95);
+      background: var(--afs-bg-secondary);
+    }
+  }
+
+  /* Mobile Filter Apply Button */
+  .afs-mobile-filter-apply {
+    display: none;
+    position: sticky;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    padding: $spacing-lg;
+    padding-bottom: calc($spacing-lg + env(safe-area-inset-bottom));
+    background: var(--afs-bg-color);
+    border-top: 1px solid var(--afs-border-color);
+    box-shadow: 0 -4px 12px var(--afs-shadow-color-medium);
+    z-index: $z-index-modal;
+    box-sizing: border-box;
+    margin-top: auto;
+
+    &-button {
+      width: 100%;
+      min-height: 48px;
+      padding: 16px $spacing-xl;
+      background: var(--afs-accent-color);
+      color: var(--afs-text-color-inverse);
+      border: none;
+      border-radius: $border-radius-md;
+      font-size: $font-size-lg;
+      font-weight: var(--afs-font-weight-bold, $font-weight-semibold);
+      font-family: var(--afs-font-family);
+      cursor: pointer;
+      transition: all $transition-base;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      box-shadow: 0 2px 8px var(--afs-shadow-color-medium);
+
+      &:hover {
+        background: var(--afs-accent-color-hover);
+        box-shadow: 0 4px 12px var(--afs-shadow-color-strong);
+      }
+
+      &:active {
+        transform: scale(0.98);
+        box-shadow: 0 1px 4px var(--afs-shadow-color);
+      }
+    }
+  }
+
+  /* Mobile Sticky Results Button */
+  .afs-mobile-results-button {
+    display: none;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    padding: $spacing-lg;
+    padding-bottom: calc($spacing-lg + env(safe-area-inset-bottom));
+    background: var(--afs-bg-color);
+    border-top: 1px solid var(--afs-border-color);
+    box-shadow: 0 -4px 12px var(--afs-shadow-color-medium);
+    z-index: $z-index-modal - 1;
+    box-sizing: border-box;
+    transform: translateY(100%);
+    transition: transform $transition-slow cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+
+    &--visible {
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+
+    &-inner {
+      width: 100%;
+      max-width: 100%;
+      padding: 16px $spacing-xl;
+      background: var(--afs-accent-color);
+      color: var(--afs-text-color-inverse);
+      border: none;
+      border-radius: $border-radius-md;
+      font-size: $font-size-lg;
+      font-weight: var(--afs-font-weight-bold, $font-weight-semibold);
+      font-family: var(--afs-font-family);
+      cursor: pointer;
+      transition: all $transition-base;
+      text-align: center;
+      box-shadow: 0 2px 8px var(--afs-shadow-color-medium);
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+
+      &:active {
+        transform: scale(0.98);
+        background: var(--afs-accent-color-hover);
+      }
     }
   }
 }
