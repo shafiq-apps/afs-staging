@@ -1456,14 +1456,12 @@ const DOM = {
 		}
 
 		// Create mobile filter close button only when there are filters
-		if (!this.mobileFilterClose) {
+		if (!this.mobileFilterClose && window.innerWidth <= 680) {
 			this.mobileFilterClose = $.el('button', 'afs-mobile-filter-close', {
 				type: 'button',
 				'data-afs-action': 'close-filters',
 				'aria-label': t("buttons.closeFilters")
 			}) as HTMLButtonElement;
-			// Don't set innerHTML - CSS ::before pseudo-element adds the X
-			this.mobileFilterClose.style.display = 'none'; // Hidden on desktop
 		}
 
 		const fragment = document.createDocumentFragment();
@@ -2604,6 +2602,9 @@ const DOM = {
 
 	showFiltersSkeleton(): void {
 		if (!this.filtersContainer) return;
+		const isTopBarLayout = $.get('[data-afs-layout="top"]');
+		if (isTopBarLayout) return;
+		
 		// Remove existing skeleton if present
 		const existingSkeleton = this.filtersContainer.querySelector<HTMLElement>('.afs-filters-skeleton');
 		if (existingSkeleton) {
