@@ -7,20 +7,24 @@
   "scripts": {
     "build": "npx tsx build.ts",
     "watch": "npx tsx watch build.ts",
+    "dev": "npx tsx watch build.ts",
     "check": "tsc --noEmit"
   },
   "author": "",
   "license": "ISC",
   "devDependencies": {
     "@types/node": "^25.0.3",
+    "autoprefixer": "^10.4.23",
     "concurrently": "^9.2.1",
     "esbuild": "^0.27.2",
+    "postcss": "^8.5.6",
     "sass": "^1.97.0",
     "ts-node": "^10.9.2",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   },
   "dependencies": {
+    "core-js": "^3.48.0",
     "dotenv": "^17.2.3"
   }
 }

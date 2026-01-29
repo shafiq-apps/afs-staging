@@ -3,7 +3,7 @@
  * Reusable component styles
  */
 
- 
+
 @use 'variables' as *;
 
 $positions: top-right, top-left, bottom-right, bottom-left;
@@ -12,55 +12,54 @@ $positions: top-right, top-left, bottom-right, bottom-left;
    Base Reset
    ============================================================================ */
 
-[data-afs-container] button,
-[data-afs-container] svg,
-[data-afs-container] a,
-[data-afs-container] input,
-[data-afs-container] select,
-[data-afs-container] textarea,
-[data-afs-container] label,
-[data-afs-container] span,
-[data-afs-container] div {
-  font-family: var(--afs-font-family);
-  font-weight: var(--afs-font-weight, 400);
-  font-style: var(--afs-font-style, 'normal');
-  color: var(--afs-text-color);
-  line-height: normal;
-  box-sizing: border-box;
-  height: auto;
-  width: auto;
-  padding: 0;
-  margin: 0;
-  outline: none;
-  border: none;
+.afs-product-modal,
+[data-afs-container] {
+    button,
+    a,
+    svg,
+    select,
+    label,
+    span,
+    div,
+    input,
+    textarea {
+        box-sizing: border-box;
+        line-height: normal;
+        font: inherit;
+        font-size: inherit;
+        letter-spacing: inherit;
+        box-shadow: none;
+        vertical-align: baseline;
+    }
 }
+
 
 /* ============================================================================
    Scrollbar Styles
-   ============================================================================ */
+============================================================================ */
 
 @mixin custom-scrollbar($width: 6px, $track-color: transparent, $thumb-color: var(--afs-border-color)) {
-  &::-webkit-scrollbar {
-    width: $width;
-  }
+    &::-webkit-scrollbar {
+        width: $width;
+    }
 
-  &::-webkit-scrollbar-track {
-    background: $track-color;
-    border-radius: 3px;
-  }
+    &::-webkit-scrollbar-track {
+        background: $track-color;
+        border-radius: 3px;
+    }
 
-  &::-webkit-scrollbar-thumb {
-    background: $thumb-color;
-    border-radius: 3px;
-    transition: background 0.2s ease;
-  }
+    &::-webkit-scrollbar-thumb {
+        background: $thumb-color;
+        border-radius: 3px;
+        transition: background 0.2s ease;
+    }
 
-  &::-webkit-scrollbar-thumb:hover {
-    background: var(--afs-scrollbar-thumb-hover);
-  }
+    &::-webkit-scrollbar-thumb:hover {
+        background: var(--afs-scrollbar-thumb-hover);
+    }
 
-  scrollbar-width: thin;
-  scrollbar-color: $thumb-color $track-color;
+    scrollbar-width: thin;
+    scrollbar-color: $thumb-color $track-color;
 }
 
 /* ============================================================================
@@ -68,25 +67,24 @@ $positions: top-right, top-left, bottom-right, bottom-left;
    ============================================================================ */
 
 @mixin button-base {
-  padding: $spacing-sm $spacing-md;
-  font-size: $font-size-base;
-  border: 1px solid var(--afs-border-color);
-  border-radius: $border-radius-sm;
-  background: inherit;
-  color: var(--afs-text-color);
-  font-family: var(--afs-font-family);
-  cursor: pointer;
-  transition: all 0.2s ease;
+    padding: $spacing-sm $spacing-md;
+    font-size: $font-size-base;
+    border: 1px solid var(--afs-border-color);
+    border-radius: $border-radius-sm;
+    background: inherit;
+    color: var(--afs-text-color);
+    cursor: pointer;
+    transition: all 0.2s ease;
 }
 
 @mixin button-hover {
-  background: var(--afs-accent-color);
-  color: var(--afs-text-color-inverse);
-  border-color: var(--afs-accent-color);
+    background: var(--afs-accent-color);
+    color: var(--afs-text-color-inverse);
+    border-color: var(--afs-accent-color);
 }
 
 @mixin button-active {
-  transform: scale(0.98);
+    transform: scale(0.98);
 }
 
 /* ============================================================================
@@ -94,48 +92,85 @@ $positions: top-right, top-left, bottom-right, bottom-left;
    ============================================================================ */
 
 @mixin card-base {
-  display: flex;
-  flex-direction: column;
-  background: transparent;
-  border: none;
-  border-radius: 0;
-  overflow: visible;
-  transition: none;
-  cursor: default;
+    display: flex;
+    flex-direction: column;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    overflow: visible;
+    transition: none;
+    cursor: default;
 }
 
 // Define a mixin for badge positions
 @mixin badge-position($position) {
-  @if $position == top-right {
-    top: $spacing-sm;
-    right: $spacing-sm;
-  } @else if $position == top-left {
-    top: $spacing-sm;
-    left: $spacing-sm;
-  } @else if $position == bottom-right {
-    bottom: $spacing-sm;
-    right: $spacing-sm;
-  } @else if $position == bottom-left {
-    bottom: $spacing-sm;
-    left: $spacing-sm;
-  }
+    @if $position ==top-right {
+        top: $spacing-sm;
+        right: $spacing-sm;
+    }
+
+    @else if $position ==top-left {
+        top: $spacing-sm;
+        left: $spacing-sm;
+    }
+
+    @else if $position ==bottom-right {
+        bottom: $spacing-sm;
+        right: $spacing-sm;
+    }
+
+    @else if $position ==bottom-left {
+        bottom: $spacing-sm;
+        left: $spacing-sm;
+    }
 }
 
 @mixin top-right {
-  top: $spacing-sm;
-  right: $spacing-sm;
+    top: $spacing-sm;
+    right: $spacing-sm;
 }
+
 @mixin top-left {
-  top: $spacing-sm;
-  left: $spacing-sm;
+    top: $spacing-sm;
+    left: $spacing-sm;
 }
+
 @mixin bottom-right {
-  bottom: $spacing-sm;
-  right: $spacing-sm;
+    bottom: $spacing-sm;
+    right: $spacing-sm;
 }
+
 @mixin bottom-left {
-  bottom: $spacing-sm;
-  left: $spacing-sm;
+    bottom: $spacing-sm;
+    left: $spacing-sm;
+}
+
+
+/* ==========================================================================
+   MIXINS
+   ========================================================================== */
+
+@mixin flex-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+@mixin glass-surface {
+    background: var(--afs-bg-color);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+@mixin icon-button($size: 40px) {
+    @include flex-center;
+    width: $size;
+    height: $size;
+    border-radius: 50%;
+    border: 1px solid var(--afs-border-color);
+    background: rgba(255, 255, 255, 0.9);
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 /* ============================================================================
@@ -143,38 +178,36 @@ $positions: top-right, top-left, bottom-right, bottom-left;
    ============================================================================ */
 
 @keyframes afs-skeleton-loading {
-  0% {
-    background-position: 200% 0 !important;
-  }
+    0% {
+        background-position: 200% 0 !important;
+    }
 
-  100% {
-    background-position: -200% 0 !important;
-  }
+    100% {
+        background-position: -200% 0 !important;
+    }
 }
 
 @mixin skeleton-base {
-  background: linear-gradient(
-    90deg,
-    var(--afs-skeleton-color-light) 25%,
-    var(--afs-skeleton-color-dark) 50%,
-    var(--afs-skeleton-color-light) 75%
-  ) !important;
-  background-size: 200% 100% !important;
-  background-position: 200% 0 !important;
-  animation: afs-skeleton-loading 1.5s ease-in-out infinite !important;
-  will-change: background-position;
-  border-radius: 4px;
-  display: block !important;
-  position: relative;
+    background: linear-gradient(90deg,
+            var(--afs-skeleton-color-light) 25%,
+            var(--afs-skeleton-color-dark) 50%,
+            var(--afs-skeleton-color-light) 75%) !important;
+    background-size: 200% 100% !important;
+    background-position: 200% 0 !important;
+    animation: afs-skeleton-loading 1.5s ease-in-out infinite !important;
+    will-change: background-position;
+    border-radius: 4px;
+    display: block !important;
+    position: relative;
 
-  &::before {
-    content: '';
-    display: block;
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    opacity: 0;
-  }
+    &::before {
+        content: '';
+        display: block;
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        opacity: 0;
+    }
 }
 
 /* ============================================================================
@@ -182,16 +215,15 @@ $positions: top-right, top-left, bottom-right, bottom-left;
    ============================================================================ */
 
 [data-afs-container] {
-  .afs-filter-item:focus,
-  .afs-pagination__button:focus,
-  .afs-product-card:focus {
-    outline: 2px solid var(--afs-accent-color);
-    outline-offset: 2px;
-  }
+
+    .afs-filter-item:focus,
+    .afs-pagination__button:focus,
+    .afs-product-card:focus {
+        outline: 2px solid var(--afs-accent-color);
+        outline-offset: 2px;
+    }
 }
 
 
 // Dark mode support
-@media (prefers-color-scheme: dark) {
-
-}
+@media (prefers-color-scheme: dark) {}

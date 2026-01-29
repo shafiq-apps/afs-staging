@@ -23,32 +23,30 @@
   &__form {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: $spacing-md;
     width: 100%;
     border: 1px solid var(--afs-border-color, #c9c9c9);
-    border-radius: 4px;
+    border-radius: $border-radius-sm;
     background: var(--afs-bg-color);
     color: var(--afs-text-color);
-    padding: 8px 12px;
+    padding: $spacing-sm $spacing-md;
   }
 
   &__input {
     flex: 1;
     width: 100%;
-    font-size: 15px;
-    line-height: 1.4;
+    font-size: $font-size-base;
     border: none;
     border-radius: none;
     background: var(--afs-bg-color);
     color: var(--afs-text-color);
-    font-family: var(--afs-font-family);
     box-sizing: border-box;
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
     outline: none;
 
     &::placeholder {
       color: var(--afs-text-color);
-      opacity: 0.6;
+      opacity: 0.8;
     }
 
     &:focus {
@@ -68,11 +66,11 @@
     justify-content: center;
     background: transparent;
     border: none;
-    border-radius: 6px;
+    border-radius: $border-radius-sm;
     cursor: pointer;
     transition: background-color 0.2s ease, transform 0.1s ease;
     outline: none;
-    margin-left: 8px;
+    margin-left: $spacing-sm;
 
     &:active {
       transform: scale(0.98);
@@ -93,7 +91,7 @@
 [data-afs-container] {
   .afs-filter-group {
     margin-bottom: $spacing-xl;
-    padding-bottom: 20px;
+    padding-bottom: $spacing-lg;
     border-bottom: 1px solid var(--afs-border-color);
 
     &:last-child {
@@ -120,9 +118,7 @@
       cursor: pointer;
       text-align: left;
       font-size: $font-size-lg;
-      font-weight: var(--afs-font-weight-bold, $font-weight-semibold);
       color: var(--afs-text-color);
-      font-family: var(--afs-font-family);
       transition: opacity $transition-base;
 
       &:hover {
@@ -139,7 +135,7 @@
       flex-shrink: 0;
       color: var(--afs-text-color);
       transition: color $transition-base, opacity $transition-base;
-      opacity: 0.6;
+      opacity: 0.8;
 
       svg {
         width: 20px;
@@ -158,9 +154,7 @@
     &__label {
       flex: 1;
       font-size: $font-size-md;
-      // font-weight: var(--afs-font-weight-bold, $font-weight-semibold);
       color: var(--afs-text-color);
-      font-family: var(--afs-font-family);
       text-transform: capitalize;
       cursor: pointer;
       user-select: none;
@@ -170,13 +164,12 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      padding: 2px $spacing-sm;
+      padding: $spacing-xs $spacing-sm;
       background: transparent;
       border: 1px solid var(--afs-border-color);
-      border-radius: $border-radius-lg;
+      border-radius: $border-radius-sm;
       font-size: $font-size-md;
       color: var(--afs-text-color);
-      font-family: var(--afs-font-family);
       opacity: 1;
       margin-left: auto;
       cursor: pointer;
@@ -187,8 +180,9 @@
     &__content {
       overflow: hidden;
       transition: max-height $transition-slow, opacity $transition-base, padding $transition-slow, margin $transition-slow;
-      max-height: 1000px;
+      max-height: 500px;
       opacity: 1;
+      transition: max-height $transition-slow cubic-bezier(0.4, 0, 0.2, 1), opacity $transition-base;
     }
 
     &__search {
@@ -202,7 +196,6 @@
         border-radius: $border-radius-sm;
         background: var(--afs-bg-color);
         color: var(--afs-text-color);
-        font-family: var(--afs-font-family);
         box-sizing: border-box;
         transition: border-color $transition-base;
 
@@ -240,10 +233,6 @@
   /* ============================================================================
      Price Range Slider
      ============================================================================ */
-
-  .afs-price-range-container {
-    padding: $spacing-md 0;
-  }
 
   .afs-price-range-track {
     position: relative;
@@ -339,19 +328,15 @@
     margin-top: $spacing-md;
     font-size: $font-size-md;
     color: var(--afs-text-color);
-    font-family: var(--afs-font-family);
   }
 
   .afs-price-range-value {
-    font-weight: var(--afs-font-weight-bold, $font-weight-semibold);
     color: var(--afs-text-color);
-    font-family: var(--afs-font-family);
   }
 
   .afs-price-range-separator {
     margin: 0 $spacing-sm;
     color: var(--afs-text-color);
-    font-family: var(--afs-font-family);
   }
 
   /* ============================================================================
@@ -367,7 +352,6 @@
     cursor: pointer;
     font-size: $font-size-md;
     color: var(--afs-text-color);
-    font-family: var(--afs-font-family);
     transition: color $transition-base;
     box-sizing: border-box;
 
@@ -394,8 +378,6 @@
 
     &__label {
       flex: 1;
-      // font-weight: var(--afs-font-weight, $font-weight-normal);
-      font-family: var(--afs-font-family);
       cursor: pointer;
       user-select: none;
     }
@@ -403,14 +385,12 @@
     &__count {
       font-size: $font-size-sm;
       color: var(--afs-text-color);
-      font-family: var(--afs-font-family);
       margin-left: auto;
       flex-shrink: 0;
     }
 
     &--active {
       .afs-filter-item__label {
-        font-weight: var(--afs-font-weight-bold, $font-weight-semibold);
         color: var(--afs-text-color);
       }
 
@@ -430,10 +410,6 @@
 
       .afs-filter-item {
         gap: 10px 0px;
-      }
-
-      .afs-filter-item:hover .afs-filter-item__label {
-        font-weight: var(--afs-font-weight-bold, $font-weight-semibold);
       }
     }
   }
@@ -489,10 +465,10 @@
         border: 1px solid var(--afs-border-color);
         border-radius: $border-radius-sm;
         box-shadow: none;
-        max-height: 0;
         opacity: 0;
         overflow: hidden;
-        transition: max-height $transition-slow, opacity $transition-base, padding $transition-base;
+        transition: opacity $transition-base, transform $transition-base, visibility $transition-base;
+        max-height: 50px !important;
         margin: 0;
         padding: 0;
         margin-top: $spacing-xs;
@@ -573,17 +549,33 @@
         }
       }
 
-      // When expanded (collapsed="false"), show overlay dropdown - use !important to override global rule
-      &[data-afs-collapsed="false"] &__content {
-        max-height: $filter-content-max-height !important;
-        opacity: 1 !important;
-        padding: $spacing-md !important;
-        margin-top: $spacing-xs !important;
-        pointer-events: auto !important;
-        visibility: visible !important;
-        overflow: hidden !important; // Hidden to contain items, items container handles scrolling
-        // Allow JavaScript to override left/right positioning for edge cases
-        // left: 0 is default, but can be set to 'auto' with right: 0 via JS
+      // Standard Collapsed State
+      &[data-afs-collapsed="true"] .afs-filter-group__content {
+        max-height: 0 !important;
+        opacity: 0;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+
+      // Expanded State for Top Bar
+      &[data-afs-collapsed="false"] {
+        z-index: 10001 !important;
+
+        .afs-filter-group__content {
+          opacity: 1 !important;
+          visibility: visible !important;
+          pointer-events: auto !important;
+          transform: translateY(0); // Smooth slide up instead of height jump
+          padding: $spacing-md !important;
+          margin-top: $spacing-xs !important;
+          overflow: visible !important;
+        }
+      }
+
+      /* Ensure the global collapsed rule doesn't force a 0px jump here */
+      .afs-filter-group[data-afs-collapsed="true"] .afs-filter-group__content {
+        transform: translateY(10px);
+        // Ensure max-height isn't fighting with visibility in this layout
       }
 
       &__items {
@@ -674,8 +666,6 @@
     border-radius: $border-radius-sm;
     font-size: $font-size-md;
     color: var(--afs-text-color);
-    font-family: var(--afs-font-family);
-    font-weight: var(--afs-font-weight-bold, $font-weight-semibold);
     cursor: pointer;
     transition: all $transition-base;
     margin-bottom: $spacing-md;
@@ -766,8 +756,6 @@
       border: none;
       border-radius: $border-radius-md;
       font-size: $font-size-lg;
-      font-weight: var(--afs-font-weight-bold, $font-weight-semibold);
-      font-family: var(--afs-font-family);
       cursor: pointer;
       transition: all $transition-base;
       text-transform: uppercase;
@@ -821,8 +809,6 @@
       border: none;
       border-radius: $border-radius-md;
       font-size: $font-size-lg;
-      font-weight: var(--afs-font-weight-bold, $font-weight-semibold);
-      font-family: var(--afs-font-family);
       cursor: pointer;
       transition: all $transition-base;
       text-align: center;

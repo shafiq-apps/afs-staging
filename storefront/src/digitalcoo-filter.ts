@@ -1,3 +1,13 @@
+// --- POLYFILLS MUST BE AT THE VERY TOP ---
+import 'core-js/stable/promise';         // For async/await and fetch
+import 'core-js/stable/object/assign';   // Fixes the $.utils.ts errors
+import 'core-js/stable/object/entries';  // Fixes the Object.entries error in your logs
+import 'core-js/stable/array/from';      // For converting NodeLists to Arrays
+import 'core-js/stable/string/split';    // Ensures .split() works correctly in older engines
+import 'core-js/stable/symbol';          // Required for destructuring to work internally
+// -----------------------------------------
+
+
 import { Icons } from './components/Icons';
 import { Config } from './config';
 import { $, waitForElement, waitForElements, detectDevice, findMatchingVariants, getSelectedOptions, isOptionValueAvailable, isVariantAvailable, Logger } from './utils';
@@ -90,7 +100,7 @@ const FilterState: FilterStateType = {
 		soldOutBadgeLocation: 'top-left',
 		showDiscount: 'top-left',
 		inStockBadgeLocation: 'top-left', // in-stock/out of stock
-		addToCartButtonLocation: 'outside-image',
+		addToCartButtonLocation: 'inside-image',
 		html: {
 			title: (content) => $.el('h3', 'afs-product-card__title', {}, content),
 			vendor: (content) => $.el('div', 'afs-product-card__vendor', {}, content),
@@ -252,7 +262,7 @@ const UrlManager = {
 const API = {
 	baseURL: 'https://fstaging.digitalcoo.com/storefront',
 	__v: '2.0.0',
-	__id: '01-28-2026',
+	__id: '01-29-2026',
 	cache: new Map<string, ProductsResponseDataType>(),
 	timestamps: new Map<string, number>(),
 	pending: new Map<string, Promise<ProductsResponseDataType>>(),
@@ -680,9 +690,9 @@ const DOM = {
 
 		// Sort dropdown - create and store reference
 		this.sortContainer = $.el('div', 'afs-sort-container');
-		const sortLabel = $.el('label', 'afs-sort-label', { 'for': 'afs-sort-label' });
+		const sortLabel = $.el('label', 'afs-sort-label', { 'for': 'afs-sort-selection' });
 		sortLabel.textContent = t("labels.sortBy");
-		this.sortSelect = $.el('select', 'afs-sort-select', { 'data-afs-sort': 'true' }) as HTMLSelectElement;
+		this.sortSelect = $.el('select', 'afs-sort-select', { 'data-afs-sort': 'true', 'id': 'afs-sort-selection' }) as HTMLSelectElement;
 		this.sortSelect.innerHTML = `
         <option value="${SortFieldType.BEST_SELLING}">${t("sortOptions.bestSelling")}</option>
         <option value="title-${SortOrderType.ASCENDING}">${t("sortOptions.titleAsc")}</option>
@@ -809,9 +819,9 @@ const DOM = {
 					DOM.toggleMobileFilters();
 				}
 			}
-			else if (target.closest<HTMLElement>('.afs-applied-filter-chip__remove')) {
-				const chip = target.closest<HTMLElement>('.afs-applied-filter-chip');
-				const removeBtn = chip?.querySelector<HTMLElement>('.afs-applied-filter-chip__remove');
+			else if (target.closest<HTMLElement>('.afs-applied-filters-chip__remove')) {
+				const chip = target.closest<HTMLElement>('.afs-applied-filters-chip');
+				const removeBtn = chip?.querySelector<HTMLElement>('.afs-applied-filters-chip__remove');
 				const key = removeBtn?.getAttribute('data-afs-filter-key');
 				const value = removeBtn?.getAttribute('data-afs-filter-value');
 				if (!key) return;
@@ -2492,9 +2502,9 @@ const DOM = {
 
 		const list = $.el('div', 'afs-applied-filters__list');
 		activeFilters.forEach(filter => {
-			const chip = $.el('div', 'afs-applied-filter-chip');
-			chip.appendChild($.txt($.el('span', 'afs-applied-filter-chip__label'), filter.label));
-			const remove = $.el('button', 'afs-applied-filter-chip__remove', {
+			const chip = $.el('div', 'afs-applied-filters-chip');
+			chip.appendChild($.txt($.el('span', 'afs-applied-filters-chip__label'), filter.label));
+			const remove = $.el('button', 'afs-applied-filters-chip__remove', {
 				'data-afs-filter-key': filter.handle,
 				'data-afs-filter-value': filter.value,
 				'aria-label': `${t("buttons.clear")} filter`,
@@ -3382,7 +3392,7 @@ class AFSSlider {
 		this.container = containerElement;
 
 		this.options = {
-			thumbnailsPosition: options.thumbnailsPosition || 'left',
+			thumbnailsPosition: options.thumbnailsPosition || 'right',
 			enableKeyboard: options.enableKeyboard !== false,
 			enableAutoHeight: options.enableAutoHeight !== false,
 			maxHeight: options.maxHeight || null,
@@ -4442,7 +4452,7 @@ async function createProductModal(handle: string, modalId: string): Promise<Prod
 
 				if (images.length > 0) {
 					dialog._slider = new AFSSlider(sliderContainer, {
-						thumbnailsPosition: 'left', // Can be 'top', 'left', 'right', 'bottom'
+						thumbnailsPosition: 'bottom', // Can be 'top', 'left', 'right', 'bottom'
 						enableKeyboard: true,
 						enableAutoHeight: false, // Disable auto height to prevent shrinking
 						maxHeight: 600, // Fixed max height in pixels

@@ -1,3 +1,6 @@
+import postcss from 'postcss';
+import autoprefixer from 'autoprefixer';
+
 import { build } from 'esbuild';
 import * as sass from 'sass';
 import fs from 'fs';
@@ -5,37 +8,37 @@ import path from 'path';
 import { config } from './config.js';
 
 const MAX_ASSET_SIZE = 140 * 1024; // 140KB
-const BUILD_MINIFY = false; // || false;
+const BUILD_MINIFY = true; // || false;
 
 // Ensure output folder exists
 if (!fs.existsSync(config.buildDir)) fs.mkdirSync(config.buildDir, { recursive: true });
 
 // Build Filters JS
-const buildFiltersJS = async (watch = false) => {
+const buildFiltersJS = async (watch = true) => {
   const options: Parameters<typeof build>[0] = {
     entryPoints: ['src/system/build-filter.ts'],
     bundle: true,
     minify: BUILD_MINIFY,
     sourcemap: false,
     treeShaking: true,
-    format: 'cjs',
-    target: 'es6',
+    format: 'iife',
+    target: ['es2020'],
     drop: ["debugger"],
     ignoreAnnotations: true,
     platform: 'browser',
     outfile: path.join(config.buildDir, `${config.filtersFileName}.js`),
     ...(watch
       ? {
-          watch: {
-            onRebuild(error: Error | null) {
-              if (error) console.error('Filters JS rebuild failed:', error);
-              else {
-                console.log('Filters JS rebuilt successfully');
-                checkFiltersJSSize();
-              }
-            },
+        watch: {
+          onRebuild(error: Error | null) {
+            if (error) console.error('Filters JS rebuild failed:', error);
+            else {
+              console.log('Filters JS rebuilt successfully');
+              checkFiltersJSSize();
+            }
           },
-        }
+        },
+      }
       : {})
   };
 
@@ -65,30 +68,33 @@ const buildFiltersJS = async (watch = false) => {
 };
 
 // Build Search JS
-const buildSearchJS = async (watch = false) => {
+const buildSearchJS = async (watch = true) => {
   const options: Parameters<typeof build>[0] = {
     entryPoints: ['src/system/build-search.ts'],
     bundle: true,
     minify: BUILD_MINIFY,
     sourcemap: false,
     treeShaking: true,
-    format: 'cjs',
-    target: 'es6',
+    format: 'iife',
+    target: ['es2020'],
     drop: ["debugger"],
     platform: 'browser',
+    define: {
+      'process.env.NODE_ENV': '"production"'
+    },
     outfile: path.join(config.buildDir, `${config.searchFileName}.js`),
     ...(watch
       ? {
-          watch: {
-            onRebuild(error: Error | null) {
-              if (error) console.error('Search JS rebuild failed:', error);
-              else {
-                console.log('Search JS rebuilt successfully');
-                checkSearchJSSize();
-              }
-            },
+        watch: {
+          onRebuild(error: Error | null) {
+            if (error) console.error('Search JS rebuild failed:', error);
+            else {
+              console.log('Search JS rebuilt successfully');
+              checkSearchJSSize();
+            }
           },
-        }
+        },
+      }
       : {}),
   };
 
@@ -118,13 +124,15 @@ const buildSearchJS = async (watch = false) => {
 };
 
 // Build Filters SCSS
-const buildFiltersSCSS = async (watch = false) => {
-  const compile = () => {
+const buildFiltersSCSS = async (watch = true) => {
+  const compile = async () => {
     try {
       const result = sass.compile('src/system/build-filter.scss', { style: 'expanded' });
       const outFile = path.join(config.buildDir, `${config.filtersFileName}.css`);
 
-      fs.writeFileSync(outFile, result.css);
+      const processed = await postcss([autoprefixer]).process(result.css, { from: undefined });
+
+      fs.writeFileSync(outFile, processed.css);
 
       const stats = fs.statSync(outFile);
       const sizeKB = (stats.size / 1024).toFixed(2);
@@ -154,13 +162,15 @@ const buildFiltersSCSS = async (watch = false) => {
 };
 
 // Build Search SCSS
-const buildSearchSCSS = async (watch = false) => {
-  const compile = () => {
+const buildSearchSCSS = async (watch = true) => {
+  const compile = async () => {
     try {
       const result = sass.compile('src/system/build-search.scss', { style: 'expanded' });
       const outFile = path.join(config.buildDir, `${config.searchFileName}.css`);
 
-      fs.writeFileSync(outFile, result.css);
+      const processed = await postcss([autoprefixer]).process(result.css, { from: undefined });
+
+      fs.writeFileSync(outFile, processed.css);
 
       const stats = fs.statSync(outFile);
       const sizeKB = (stats.size / 1024).toFixed(2);
@@ -190,10 +200,10 @@ const buildSearchSCSS = async (watch = false) => {
 };
 
 // Main build function
-const buildAll = async (watch = false) => {
+const buildAll = async (watch = true) => {
   try {
     console.log('Building Filters and Search modules...\n');
-    
+
     // Build all JS and CSS in parallel
     await Promise.all([
       buildFiltersJS(watch),
