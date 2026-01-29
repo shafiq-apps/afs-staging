@@ -4926,9 +4926,9 @@ function createQuickAddButton({ product, isSoldOut, label }: QuickAddOptionsType
 }
 
 async function handleQuickViewDescriptionReadMore(dialog: ProductModalElement) {
+	const descContainer = await waitForElement('.afs-product-modal__description', dialog, 3000);
 	const descText = await waitForElement(`.afs-product-modal__description--text`, dialog, 3000);
 	const btn = await waitForElement(`.afs-product-modal__description--readmore-btn`, dialog, 3000);
-
 	if (descText && btn) {
 		// STEP 1: Initial Check (Run only once)
 		// We check if the text is taller than the 100px limit
@@ -4936,18 +4936,16 @@ async function handleQuickViewDescriptionReadMore(dialog: ProductModalElement) {
 
 		if (!hasEnoughContent) {
 			// If content is small, hide the button permanently for this product
-			btn.style.display = 'none';
+			btn.remove()
 		} else {
-			// If content is long, ensure button is visible
-			btn.style.display = 'block';
-			btn.textContent = 'Read More';
+			btn.textContent = t("buttons.readMore");
 
 			// STEP 2: Handle the Toggle
 			btn.onclick = () => {
 				const isExpanded = descText.classList.toggle('afs-product-modal__description--text--is-expanded');
 
 				// Update button text based on state
-				btn.textContent = isExpanded ? 'Read Less' : 'Read More';
+				btn.textContent = isExpanded ? t("buttons.readLess") : t("buttons.readMore");
 
 				// Optional: Scroll back to top of description when closing
 				if (!isExpanded) {
