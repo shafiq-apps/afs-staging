@@ -300,22 +300,69 @@ shopify-list-context[type="image"] {
     }
 
     &__description {
-        display: flex;
-        justify-content: space-between;
+        position: relative;
 
-        &-text {
-            font-weight: $font-weight-normal;
-            letter-spacing: normal;
-            color: var(--afs-text-color);
-            font-size: 1.25rem;
+        &--text {
+            height: 100px; // The limit
+            overflow: hidden; // Required for isOverflowing to work
+            display: block;
+            transition: height 0.3s ease;
+            position: relative;
 
-
-            p {
-                margin: 0.5rem 0;
+            &:not(&--is-expanded) {
+                &::after {
+                    content: '';
+                    position: absolute;
+                    left: 0;
+                    bottom: 0;
+                    width: 100%;
+                    height: 32px;
+                    pointer-events: none;
+                    background: linear-gradient(to bottom, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.9));
+                }
             }
 
-            shopify-data {
-                display: block;
+            &--is-expanded {
+                height: auto !important; // Let it grow to full size
+                overflow: visible !important;
+
+                &::after {
+                    display: none;
+                }
+            }
+        }
+
+        &--readmore-btn {
+            display: block;
+            margin: 12px auto 0;
+            padding: $spacing-xs $spacing-md;
+
+            background: transparent;
+            color: var(--afs-text-color);
+            border: 1px solid transparent;
+            border-radius: $border-radius-lg;
+
+            font-size: $font-size-xs;
+
+            cursor: pointer;
+            transition:
+                background-color 0.2s ease,
+                color 0.2s ease,
+                box-shadow 0.2s ease;
+
+            &:hover {
+                background-color: var(--afs-text-color);
+                color: var(--afs-text-color-inverse);
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            }
+
+            &:active {
+                transform: scale(0.96);
+            }
+
+            &:focus-visible {
+                outline: none;
+                box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.25);
             }
         }
     }
@@ -437,8 +484,8 @@ shopify-list-context[type="image"] {
     &__option-group {
         display: flex;
         flex-direction: column;
-        gap: $spacing-lg;
-        margin-bottom: $spacing-md;
+        gap: $spacing-sm;
+        margin-bottom: $spacing-lg;
     }
 
     &__option-label {
@@ -456,7 +503,7 @@ shopify-list-context[type="image"] {
     }
 
     &__option-value {
-        padding: 0.8rem 1.2rem;
+        padding: $spacing-sm $spacing-lg;
         border: 1px solid var(--afs-accent-color);
         background: var(--afs-bg-color);
         color: var(--afs-text-color);
@@ -465,13 +512,12 @@ shopify-list-context[type="image"] {
         font-size: $font-size-base;
         font-weight: $font-weight-medium;
         transition: all $transition-base;
-
+        min-width: 48px;
         user-select: none;
 
         &:hover:not(:disabled) {
             background: var(--afs-accent-color);
             color: var(--afs-text-color-inverse);
-            opacity: 0.8;
         }
 
         &--selected {
@@ -520,6 +566,7 @@ shopify-list-context[type="image"] {
     /* Thumbnail Positions */
     &[data-thumbnails-position="right"] {
         flex-direction: row;
+
         .afs-slider__thumbnails {
             padding: 0px $spacing-md;
             padding-right: 0px;
@@ -528,6 +575,7 @@ shopify-list-context[type="image"] {
 
     &[data-thumbnails-position="left"] {
         flex-direction: row-reverse;
+
         .afs-slider__thumbnails {
             padding: 0px $spacing-md;
             padding-left: 0px;
@@ -536,6 +584,7 @@ shopify-list-context[type="image"] {
 
     &[data-thumbnails-position="bottom"] {
         flex-direction: column;
+
         .afs-slider__thumbnails {
             padding: $spacing-md 0px;
         }
@@ -543,6 +592,7 @@ shopify-list-context[type="image"] {
 
     &[data-thumbnails-position="top"] {
         flex-direction: column-reverse;
+
         .afs-slider__thumbnails {
             padding: $spacing-md 0px;
             padding-top: 0px;
@@ -582,12 +632,16 @@ shopify-list-context[type="image"] {
     /* Zoom Controls */
     &__zoom-controls {
         position: absolute;
-        bottom: 12px;
-        right: 12px;
-        z-index: 10;
+        bottom: $spacing-xs;
+        right: $spacing-xs;
+        z-index: $z-index-modal-close;
         opacity: 1;
         transition: opacity 0.3s ease;
         pointer-events: auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 24px;
     }
 
     &__zoom-slider {
@@ -595,14 +649,15 @@ shopify-list-context[type="image"] {
         height: 4px;
         -webkit-appearance: none;
         appearance: none;
-        background: var(--afs-bg-secondary);
-        border-radius: $border-radius-sm;
+        background: #ededed;
+        border: 1px solid var(--afs-border-color);
+        border-radius: $border-radius-md;
         outline: none;
         cursor: pointer;
         transition: all 0.2s ease;
 
         &:hover {
-            background: var(--afs-accent-color);
+            background: #dddddd;
         }
 
         // Webkit (Chrome, Safari, Edge)
@@ -614,11 +669,11 @@ shopify-list-context[type="image"] {
             background: rgba(255, 255, 255, 0.9);
             border-radius: $border-radius-full;
             cursor: pointer;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
             transition: all 0.2s ease;
+            border: 1px solid var(--afs-border-color);
 
             &:hover {
-                background: #fff;
+                background: #ffffff;
                 transform: scale(1.2);
                 box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
             }
@@ -630,7 +685,6 @@ shopify-list-context[type="image"] {
             height: 12px;
             background: rgba(255, 255, 255, 0.9);
             border-radius: $border-radius-full;
-            border: none;
             cursor: pointer;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
             transition: all 0.2s ease;
@@ -676,7 +730,7 @@ shopify-list-context[type="image"] {
         display: none;
         width: 100%;
         height: 100%;
-        object-fit: contain;
+        object-fit: cover;
         transform-origin: top left;
         transition: transform 0.2s ease-out;
         position: relative;

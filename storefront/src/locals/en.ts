@@ -24,7 +24,9 @@ export const English: LanguageTextsType = {
         filters: 'Filters',
         previous: 'Previous',
         next: 'Next',
-        apply: 'Apply'
+        apply: 'Apply',
+        readMore: "Read more",
+        readLess: "Read Less",
     },
     labels: {
         sortBy: 'Sort by: ',

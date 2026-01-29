@@ -404,6 +404,8 @@ export interface LanguageTextsType {
 		readonly previous: string;
 		readonly next: string;
 		readonly apply: string;
+		readonly readMore: string;
+		readonly readLess: string;
 	};
 	readonly labels: {
 		readonly sortBy: string;

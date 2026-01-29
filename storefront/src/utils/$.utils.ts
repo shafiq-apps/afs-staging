@@ -271,6 +271,17 @@ export const $ = {
         return $.equals(optionType, OptionType.PRICE_RANGE);
     },
 
+    /**
+     * Checks if an element has content that is hidden due to CSS overflow constraints.
+     * * @param element - The HTMLElement to check
+     * @param axis - Check for 'vertical' (height) or 'horizontal' (width) overflow
+     * @returns boolean - True if the content is larger than the visible container
+     */
+    isOverflowing: (element: HTMLElement | null): boolean => {
+        if (!element) return false;
+        return element.scrollHeight > element.clientHeight;
+    },
+
     // Build image attributes for product images
     buildImageAttributes: (
         imageData: {
@@ -380,5 +391,21 @@ export const $ = {
             fetchpriority,
             fallbackUrl
         };
-    }
+    },
+
+    get: (selector: string): HTMLElement | null => {
+        return document.querySelector(selector);
+    },
+
+    getAll: (selector: string): NodeListOf<HTMLElement> => {
+        return document.querySelectorAll(selector);
+    },
+
+    /**
+     * Suspends execution for a specified number of milliseconds.
+     * @param ms - The amount of time to sleep in milliseconds.
+     */
+    sleep: (ms: number): Promise<void> => {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    },
 };
