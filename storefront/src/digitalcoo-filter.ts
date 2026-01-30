@@ -1,8 +1,9 @@
 import { Icons } from './components/Icons';
 import { Config } from './config';
 import { $, waitForElement, waitForElements, detectDevice, findMatchingVariants, getSelectedOptions, isOptionValueAvailable, isVariantAvailable, Logger } from './utils';
-import { FilterKeyType, FilterStateType, FilterOptionType, FilterMetadataType, FiltersStateType, PaginationStateType, SortStateType, ProductsResponseDataType, FiltersResponseDataType, PriceRangeType, AFSConfigType, FilterValueType, SpecialValueType, SortFieldType, SortOrderType, AppliedFilterType, ParsedUrlParamsType, FilterGroupStateType, ProductType, APIResponse, AFSInterfaceType, FilterItemsElement, SliderOptionsType, SliderSlideChangeEventDetailType, ProductVariantType, ProductModalElement, AFSInterface, MetadataType, QuickAddOptionsType } from "./type";
-import { setLanguage, t } from './utils/translation';
+import { FilterKeyType, FilterStateType, FilterOptionType, FilterMetadataType, FiltersStateType, PaginationStateType, SortStateType, ProductsResponseDataType, FiltersResponseDataType, PriceRangeType, AFSConfigType, FilterValueType, SpecialValueType, SortFieldType, SortOrderType, AppliedFilterType, ParsedUrlParamsType, FilterGroupStateType, ProductType, APIResponse, AFSInterfaceType, FilterItemsElement, SliderOptionsType, SliderSlideChangeEventDetailType, ProductVariantType, ProductModalElement, AFSInterface, MetadataType, QuickAddOptionsType, APIType } from "./type";
+import { t } from './utils/translation';
+import { isProductAvailable } from './utils/product.utils';
 
 // Persistent map for filter group UI states (collapsed/search/lastUpdated)
 const States = new Map<string, FilterGroupStateType>();
@@ -53,9 +54,67 @@ const Metadata: MetadataType = {
 // STATE (Minimal, no copying)
 // ============================================================================
 const FilterState: FilterStateType = {
+	set(config: AFSConfigType) {
+		Object.assign(this, {
+			...(config.shop != null && { shop: config.shop }),
+			...(config.collections != null && { collections: config.collections }),
+
+			selectedCollection: {
+				id: config.selectedCollection?.id ?? this.selectedCollection.id,
+				sortBy: config.selectedCollection?.sortBy ?? this.selectedCollection.sortBy
+			},
+
+			...(config.scrollToProductsOnFilter != null && {
+				scrollToProductsOnFilter: config.scrollToProductsOnFilter !== false
+			}),
+
+			...(config.isSearchTemplate && { isSearchTemplate: true }),
+
+			...(config.moneyFormat && { moneyFormat: config.moneyFormat }),
+			...(config.moneyWithCurrencyFormat && { moneyWithCurrencyFormat: config.moneyWithCurrencyFormat }),
+			...(config.currency && { currency: config.currency }),
+
+			...(Array.isArray(config.fallbackProducts) &&
+				config.fallbackProducts.length > 0 && {
+				fallbackProducts: config.fallbackProducts
+			}),
+
+			...(config.fallbackPagination && {
+				fallbackPagination: config.fallbackPagination
+			}),
+
+			...(config.priceRangeHandle !== undefined && {
+				priceRangeHandle: config.priceRangeHandle
+			})
+		});
+
+		if (config.apiBaseUrl) {
+			API.setBaseURL(config.apiBaseUrl);
+			Logger.info('New API base URL set', { url: API.baseURL });
+		}
+
+		if (config.searchTerms) {
+			const urlParams = UrlManager.parse();
+			if (!urlParams.search && !urlParams.q) {
+				this.filters.search = config.searchTerms;
+			}
+		}
+
+		if (this.fallbackProducts?.length) {
+			Logger.info('Fallback products loaded from Liquid', {
+				count: this.fallbackProducts.length
+			});
+		}
+
+		if (this.fallbackPagination) {
+			Logger.info('Fallback pagination loaded from Liquid', {
+				currentPage: this.fallbackPagination.currentPage,
+				totalPages: this.fallbackPagination.totalPages,
+				totalProducts: this.fallbackPagination.totalProducts
+			});
+		}
+	},
 	shop: null,
-	// Filters: standard filters (fixed keys) + dynamic option filters (handles as keys)
-	// Example: { vendor: [], ef4gd: ["red"], pr_a3k9x: ["M"], search: '', priceRange: null }
 	filters: { vendor: [], productType: [], tags: [], collections: [], search: '', priceRange: null },
 	products: [],
 	collections: [],
@@ -246,13 +305,13 @@ const UrlManager = {
 };
 
 // ============================================================================
-// API CLIENT (Optimized with deduplication)
+// API CLIENT
 // ============================================================================
-
-const API = {
+const API: APIType = {
 	baseURL: 'https://fstaging.digitalcoo.com/storefront',
 	__v: '2.0.0',
-	__id: '01-29-2026',
+	__id: '01-30-2026',
+	requestId: null,
 	cache: new Map<string, ProductsResponseDataType>(),
 	timestamps: new Map<string, number>(),
 	pending: new Map<string, Promise<ProductsResponseDataType>>(),
@@ -307,7 +366,6 @@ const API = {
 		if (!this.baseURL) throw new Error('API baseURL not set. Call AFS.init({ apiBaseUrl: "..." })');
 		if (!FilterState.shop) throw new Error('Shop not set');
 
-		// Defensive checks for minification safety - ensure pagination and sort are defined
 		const safePagination: PaginationStateType = (pagination && typeof pagination === 'object') ? pagination : {
 			page: FilterState.pagination?.page || 1,
 			limit: FilterState.pagination?.limit || Config.PAGE_SIZE || 24,
@@ -323,7 +381,7 @@ const API = {
 		const cached = this.get(key);
 		if (cached) {
 			Logger.debug('Cache hit', { key });
-			return cached;
+			return Promise.resolve(cached);
 		}
 
 		// Deduplication: return existing promise if same request
@@ -333,7 +391,10 @@ const API = {
 		}
 
 		const params = new URLSearchParams();
+		API.requestId = $.generateRequestId();
+		params.set('request_id', API.requestId);
 		params.set('shop', FilterState.shop);
+		
 
 		// Always send CPID if it exists - never drop it
 		// CPID is server-managed and should always be sent to products API
@@ -344,9 +405,6 @@ const API = {
 			Logger.warn('cpid not available in selectedCollection', { selectedCollection: FilterState.selectedCollection });
 		}
 
-		// Send ALL filters as direct query parameters using handles as keys
-		// URL format: ?handle1=value1&handle2=value2
-		// API format: ?handle1=value1&handle2=value2 (same as URL)
 		Object.keys(filters).forEach(k => {
 			const v = filters[k];
 			if ($.empty(v)) return;
@@ -396,26 +454,28 @@ const API = {
 		Logger.info('Fetching products', { url, shop: FilterState.shop, page: safePagination.page });
 		DOM.showProductsSkeleton();
 
-		const promise = this.fetch(url).then(res => {
-			if (!res.success || !res.data) {
-				Logger.error('Invalid products response', { response: res });
-				throw new Error(`Invalid products response: ${res.message || t("messages.unknownError")}`);
-			}
-			const data = res.data as ProductsResponseDataType;
-			Logger.info('Products response', {
-				productsCount: data.products?.length || 0,
-				total: data.pagination?.total || 0,
-				hasFilters: !!data.filters
+		const promise = this.fetch(url)
+			.then(res => {
+				if (!res.success || !res.data) {
+					Logger.error('Invalid products response', { response: res });
+					throw new Error(`Invalid products response: ${res.message || t("messages.unknownError")}`);
+				}
+				const data = res.data as ProductsResponseDataType;
+				Logger.info('Products response', {
+					productsCount: data.products?.length || 0,
+					total: data.pagination?.total || 0,
+					hasFilters: !!data.filters
+				});
+				this.set(key, data);
+				return data;
+			})
+			.catch(e => {
+				Logger.error('Products fetch failed', { error: e instanceof Error ? e.message : String(e), url });
+				throw e;
+			})
+			.finally(() => {
+				this.pending.delete(key);
 			});
-			this.set(key, data);
-			this.pending.delete(key);
-			return data;
-		}).catch(e => {
-			this.pending.delete(key);
-			Logger.error('Products fetch failed', { error: e instanceof Error ? e.message : String(e), url });
-			throw e;
-		});
-		DOM.showProductsSkeleton();
 		this.pending.set(key, promise);
 		return promise;
 	},
@@ -472,8 +532,6 @@ const API = {
 
 		const url = `${this.baseURL}/filters?${params}`;
 		Logger.info('Fetching filters', { url, shop: FilterState.shop });
-
-		DOM.showLoading();
 
 		const res = await this.fetch(url);
 		if (!res.success || !res.data) {
@@ -562,8 +620,7 @@ const API = {
 			// Default to best-selling if no sort in URL
 			FilterState.sort = { field: 'best-selling', order: 'asc' };
 		}
-	},
-
+	}
 };
 
 // ============================================================================
@@ -584,15 +641,14 @@ const DOM = {
 	mobileFilterBackdrop: null as HTMLElement | null,
 	mobileResultsButton: null as HTMLElement | null,
 
-	init(containerSel: string, filtersSel: string | undefined, productsSel: string | undefined): void {
-		// Validate container selector - must not be empty
-		if (!containerSel || typeof containerSel !== 'string' || containerSel.trim() === '') {
-			throw new Error('Container selector cannot be empty. Provide a valid selector or ensure [data-afs-container] exists in the DOM.');
-		}
+	async set(containerSelector: string): Promise<void> {
+		const mainContainer = await waitForElement(containerSelector ?? '[data-afs-container]');
+		const filtersContainer = $.get('.afs-filters-container');
+		const productsContainer = $.get('.afs-products-container');
+		this.container = mainContainer;
 
-		this.container = document.querySelector<HTMLElement>(containerSel) || document.querySelector<HTMLElement>('[data-afs-container]');
 		if (!this.container) {
-			throw new Error(`Container not found. Selector: "${containerSel}". Please ensure the container element exists in the DOM.`);
+			throw new Error(`Container not found. Selector: "${mainContainer}". Please ensure the container element exists in the DOM.`);
 		}
 
 		this.container.setAttribute('data-afs-container', 'true');
@@ -603,10 +659,7 @@ const DOM = {
 		const main = this.container.querySelector<HTMLElement>('.afs-main-content') || $.el('div', 'afs-main-content');
 		if (!main.parentNode) this.container.appendChild(main);
 
-		// Only querySelector if selector is provided and not empty
-		this.filtersContainer = (filtersSel && filtersSel.trim() !== '')
-			? document.querySelector<HTMLElement>(filtersSel) || null
-			: null;
+		this.filtersContainer = filtersContainer ?? null;
 
 		if (!this.filtersContainer) {
 			this.filtersContainer = $.el('div', 'afs-filters-container');
@@ -652,9 +705,7 @@ const DOM = {
 		}
 
 		// Only querySelector if selector is provided and not empty
-		this.productsContainer = (productsSel && productsSel.trim() !== '')
-			? document.querySelector<HTMLElement>(productsSel) || null
-			: null;
+		this.productsContainer = productsContainer ?? null;
 
 		if (!this.productsContainer) {
 			this.productsContainer = $.el('div', 'afs-products-container');
@@ -702,6 +753,8 @@ const DOM = {
 		if (this.productsContainer) {
 			this.productsContainer.appendChild(this.productsGrid);
 		}
+		Logger.info('DOM initialized');
+		return;
 	},
 
 	initSearchBar(): void {
@@ -734,8 +787,6 @@ const DOM = {
 				FilterState.filters.search = query;
 				FilterState.pagination.page = 1;
 				UrlManager.update(FilterState.filters, FilterState.pagination, FilterState.sort);
-				DOM.scrollToProducts();
-				DOM.showProductsSkeleton();
 				Filters.apply();
 			}
 		});
@@ -751,8 +802,6 @@ const DOM = {
 				FilterState.filters.search = query;
 				FilterState.pagination.page = 1;
 				UrlManager.update(FilterState.filters, FilterState.pagination, FilterState.sort);
-				DOM.scrollToProducts();
-				DOM.showProductsSkeleton();
 				Filters.apply();
 			}, debounceDelay);
 		});
@@ -794,10 +843,6 @@ const DOM = {
 				}
 				FilterState.pagination.page = 1;
 				UrlManager.update(FilterState.filters, FilterState.pagination, FilterState.sort);
-				// Scroll to top when clearing all filters
-				DOM.scrollToProducts();
-				// Show loading skeleton immediately (before debounce) - only products, filters will update via Filters.process
-				DOM.showProductsSkeleton();
 				Filters.apply();
 			}
 			else if (action === 'toggle-filters' || action === 'close-filters') {
@@ -821,8 +866,6 @@ const DOM = {
 						Logger.debug('cpid removed, cleared selectedCollection');
 					}
 					UrlManager.update(FilterState.filters, FilterState.pagination, FilterState.sort);
-					DOM.scrollToProducts();
-					DOM.showProductsSkeleton();
 					Filters.apply();
 					return;
 				}
@@ -831,8 +874,6 @@ const DOM = {
 					FilterState.filters.search = '';
 					FilterState.pagination.page = 1;
 					UrlManager.update(FilterState.filters, FilterState.pagination, FilterState.sort);
-					DOM.scrollToProducts();
-					DOM.showProductsSkeleton();
 					Filters.apply();
 					return;
 				}
@@ -841,8 +882,6 @@ const DOM = {
 					FilterState.filters.priceRange = null;
 					FilterState.pagination.page = 1;
 					UrlManager.update(FilterState.filters, FilterState.pagination, FilterState.sort);
-					DOM.scrollToProducts();
-					DOM.showProductsSkeleton();
 					Filters.apply();
 					return;
 				}
@@ -888,11 +927,6 @@ const DOM = {
 						FilterState.pagination.page = page;
 					}
 					UrlManager.update(FilterState.filters, FilterState.pagination, FilterState.sort);
-					// Scroll to top when pagination changes
-					DOM.scrollToProducts();
-					// Show loading skeleton immediately (before debounce) - only products, not filters
-					DOM.showProductsSkeleton();
-					// Only fetch products, not filters (filters haven't changed)
 					Filters.applyProductsOnly();
 				}
 			}
@@ -917,10 +951,6 @@ const DOM = {
 
 					// Update URL
 					UrlManager.update(FilterState.filters, FilterState.pagination, FilterState.sort);
-
-					// Scroll to top and show loading - only products, filters will update via Filters.process
-					DOM.scrollToProducts();
-					DOM.showProductsSkeleton();
 
 					// Apply filters to refresh products and filters
 					Filters.apply();
@@ -1131,9 +1161,6 @@ const DOM = {
 			FilterState.pagination.page = 1;
 			UrlManager.update(FilterState.filters, FilterState.pagination, FilterState.sort);
 			Logger.info('Calling applyProductsOnly after sort change', { sort: FilterState.sort });
-			// Show loading skeleton immediately (before debounce) - only products, not filters
-			DOM.scrollToProducts();
-			DOM.showProductsSkeleton();
 			// Only fetch products, not filters (filters haven't changed)
 			Filters.applyProductsOnly();
 		};
@@ -1590,7 +1617,7 @@ const DOM = {
 				const overlayHeader = $.el('div', 'afs-filter-group__overlay-header');
 				const selectedCount = Array.isArray(filterValue) ? filterValue.length : (filterValue && typeof filterValue === 'object' ? Object.keys(filterValue).length : 1);
 				const countText = $.el('span', 'afs-filter-group__overlay-count');
-				countText.textContent = `${selectedCount} ${t("text.selected")}`;
+				countText.textContent = `${selectedCount} ${t("general.selected")}`;
 				overlayHeader.appendChild(countText);
 
 				const resetBtn = $.el('button', 'afs-filter-group__overlay-reset', {
@@ -1951,13 +1978,14 @@ const DOM = {
 	// Minimal product creation
 	createProduct(p: ProductType): HTMLElement {
 		const card = $.el('div', 'afs-product-card', { 'data-afs-product-id': $.id(p) || '' });
-		const isSoldOut = parseInt(String(p.totalInventory || 0)) <= 0 || (p.variants && !p.variants.some(v => v.availableForSale)) ? true : false;
+		const isSoldOut = isProductAvailable(p) === false;
 
 		// =========================
 		// IMAGE CONTAINER
 		// =========================
 		if (p.imageUrl || p.featuredImage) {
 			const imgContainer = $.el('div', 'afs-product-card__image');
+
 			// MAIN IMAGE
 			const imageAttrs = $.buildImageAttributes(
 				{ featuredImage: p.featuredImage, imageUrl: p.imageUrl },
@@ -1975,7 +2003,7 @@ const DOM = {
 			);
 
 			if (imageAttrs) {
-				const mainImg = $.el('img', '', {
+				const mainImg = $.el('img', 'afs-product-card__image--main', {
 					alt: imageAttrs.alt,
 					loading: imageAttrs.loading || 'lazy',
 					decoding: imageAttrs.decoding || 'async',
@@ -2024,7 +2052,7 @@ const DOM = {
 						});
 
 						if (hoverAttrs) {
-							const hoverImg = $.el('img', 'hover__image', {
+							const hoverImg = $.el('img', 'afs-product-card__image--hover-image', {
 								alt: hoverAttrs.alt,
 								loading: hoverAttrs.loading || 'lazy',
 								decoding: hoverAttrs.decoding || 'async',
@@ -2038,6 +2066,7 @@ const DOM = {
 							if (hoverAttrs.height) hoverImg.setAttribute('height', String(hoverAttrs.height));
 
 							imgContainer.appendChild(hoverImg);
+							$.setAttr(imgContainer, 'data-afs-hover-img', '1');
 						}
 					}
 				}
@@ -2178,7 +2207,7 @@ const DOM = {
 					if (!overlayHeader && content) {
 						const newOverlayHeader = $.el('div', 'afs-filter-group__overlay-header');
 						const countText = $.el('span', 'afs-filter-group__overlay-count');
-						countText.textContent = `${selectedCount} ${t("text.selected")}`;
+						countText.textContent = `${selectedCount} ${t("general.selected")}`;
 						newOverlayHeader.appendChild(countText);
 
 						const resetBtn = $.el('button', 'afs-filter-group__overlay-reset', {
@@ -2199,7 +2228,7 @@ const DOM = {
 					} else if (overlayHeader) {
 						const countText = overlayHeader.querySelector<HTMLElement>('.afs-filter-group__overlay-count');
 						if (countText) {
-							countText.textContent = `${selectedCount} ${t("text.selected")}`;
+							countText.textContent = `${selectedCount} ${t("general.selected")}`;
 						}
 					}
 				} else {
@@ -2268,7 +2297,7 @@ const DOM = {
 		} else {
 			const start = (pagination.page - 1) * pagination.limit + 1;
 			const end = Math.min(pagination.page * pagination.limit, total);
-			resultsEl = $.txt($.el('div', 'afs-products-info__results'), `${t("messages.showingProducts")} ${start}-${end} ${t("text.of")} ${total} ${t("messages.productsFound")}`);
+			resultsEl = $.txt($.el('div', 'afs-products-info__results'), `${t("messages.showingProducts")} ${start}-${end} ${t("general.of")} ${total} ${t("messages.productsFound")}`);
 		}
 
 		// Insert results before sort container (left side)
@@ -2548,25 +2577,7 @@ const DOM = {
 	},
 
 	hideLoading(): void {
-		// Remove skeleton cards if they exist
-		try {
-			if (Array.isArray(this.loading)) {
-				// If loading is an array of skeleton cards, remove each one
-				this.loading.forEach(card => {
-					if (card.parentNode) {
-						card.remove();
-					}
-				});
-				this.loading = null;
-			} else if (this.loading?.parentNode) {
-				// If loading is a single element, remove it
-				this.loading.remove();
-				this.loading = null;
-			}
-		} catch (error) {
-
-		}
-
+		this.hideProductsSkeleton();
 		this.hideFiltersSkeleton();
 	},
 
@@ -2601,10 +2612,10 @@ const DOM = {
 	},
 
 	showFiltersSkeleton(): void {
-		if (!this.filtersContainer) return;
+		if (!this.filtersContainer || API.requestId !== null) return;
 		const isTopBarLayout = $.get('[data-afs-layout="top"]');
 		if (isTopBarLayout) return;
-		
+
 		// Remove existing skeleton if present
 		const existingSkeleton = this.filtersContainer.querySelector<HTMLElement>('.afs-filters-skeleton');
 		if (existingSkeleton) {
@@ -2839,6 +2850,9 @@ function handleLoadError(e: unknown) {
 	}
 }
 
+// ============================================================================
+// PRODUCTS FUNCTIONALITY
+// ============================================================================
 const Products = {
 	process: (productsData: ProductsResponseDataType) => {
 		Logger.info('Products loaded', { count: productsData.products?.length || 0, total: productsData.pagination?.total || 0 });
@@ -2858,17 +2872,15 @@ const Products = {
 			// Hide filters section when using fallback
 			FilterState.availableFilters = [];
 			DOM.hideFilters();
-			DOM.hideProductsSkeleton();
+			DOM.hideLoading();
 		}
 		else {
 			FilterState.usingFallback = false; // Reset fallback flag on success
 			FilterState.products = productsData.products || [];
 			FilterState.pagination = productsData.pagination || FilterState.pagination;
-
-			// Show filters section when API is working
 			DOM.showFilters();
-			DOM.renderProducts(FilterState.products);
 		}
+		DOM.renderProducts(FilterState.products);
 		Products.updateUI();
 	},
 
@@ -2880,6 +2892,9 @@ const Products = {
 	}
 };
 
+// ============================================================================
+// Filters FUNCTIONALITY
+// ============================================================================
 const Filters = {
 	process: (filtersData: FiltersResponseDataType) => {
 		try {
@@ -2954,10 +2969,6 @@ const Filters = {
 
 		UrlManager.update(FilterState.filters, FilterState.pagination, FilterState.sort);
 		DOM.updateFilterState(handle, normalized, !isActive);
-		// Scroll to top when filter is clicked
-		DOM.scrollToProducts();
-		// Show loading skeleton immediately (before debounce) - only products, filters will update via Filters.process
-		DOM.showProductsSkeleton();
 
 		// Close mobile filters after applying filter (on mobile devices)
 		if (window.innerWidth <= 768 && DOM.filtersContainer?.classList.contains('afs-filters-container--open')) {
@@ -3024,10 +3035,7 @@ const Filters = {
 		Logger.debug('Price range updated', { min, max, priceRange: FilterState.filters.priceRange });
 
 		UrlManager.update(FilterState.filters, FilterState.pagination, FilterState.sort);
-		// Scroll to top when price range is updated
-		DOM.scrollToProducts();
-		// Show loading skeleton immediately (before debounce)
-		DOM.showProductsSkeleton();
+		
 		this.apply();
 	},
 
@@ -3041,22 +3049,17 @@ const Filters = {
 			FallbackMode.reloadPage(FilterState.filters, FilterState.pagination, FilterState.sort);
 			return;
 		}
-
 		// Scroll to top when products are being fetched
 		DOM.scrollToProducts();
+		// Show loading skeleton immediately (before debounce) - only products, not filters
+		DOM.showProductsSkeleton();
 		API.products(FilterState.filters, FilterState.pagination, FilterState.sort).then(Products.process);
 	}, Config.DEBOUNCE),
 
 	// Apply filters and products (for filter changes - needs to update both)
 	apply: $.debounce(async (): Promise<void> => {
-		// Scroll to top when products are being fetched
 		DOM.scrollToProducts();
-		API.products(FilterState.filters, FilterState.pagination, FilterState.sort).then(Products.process).catch(handleLoadError).finally(() => {
-			DOM.hideProductsSkeleton();
-		});
-		API.filters(FilterState.filters).then(Filters.process).catch(handleLoadError).finally(() => {
-			DOM.hideFiltersSkeleton();
-		});
+		AFS.load();
 	}, Config.DEBOUNCE)
 };
 
@@ -3111,10 +3114,9 @@ const QuickAdd = {
 				const data = await response.json() as { product: ProductType };
 				const product = data.product;
 
-				const variant = product.variants?.find(v => {
+				const variant = product.variants.find(v => {
 					if (!v.options) return false;
-					return v.options.length === options.length &&
-						v.options.every((opt, idx) => opt === options[idx]);
+					return v.options.length === options.length && v.options.every((opt, idx) => opt === options[idx]);
 				});
 
 				if (variant) {
@@ -3218,135 +3220,6 @@ const QuickAdd = {
 		// Store timeout ID to clear if user manually closes
 		(toast as any)._timeoutId = timeoutId;
 	}
-};
-
-// ============================================================================
-// MAIN API (Minimal)
-// ============================================================================
-
-const AFS: AFSInterface = {
-	init(config: AFSConfigType = {}): void {
-		try {
-			if (config.shopLocale?.locale) {
-				setLanguage(config.shopLocale.locale);
-			}
-			else {
-				setLanguage('en');
-			}
-			Logger.init(config.debug);
-			Logger.info('Initializing AFS', config);
-			if (config.apiBaseUrl) {
-				API.setBaseURL(config.apiBaseUrl);
-				Logger.info('API base URL set', { url: API.baseURL });
-			}
-			if (!config.shop) {
-				throw new Error('Shop parameter is required in config');
-			}
-			FilterState.shop = config.shop;
-			FilterState.collections = config.collections || [];
-			FilterState.selectedCollection = {
-				id: config.selectedCollection?.id ?? null,
-				sortBy: config.selectedCollection?.sortBy ?? null
-			};
-			FilterState.scrollToProductsOnFilter = config.scrollToProductsOnFilter !== false;
-
-			// Store search template flag and initial search query
-			if (config.isSearchTemplate) {
-				FilterState.isSearchTemplate = true;
-			}
-			if ((config as any).initialSearchQuery) {
-				// Set initial search query from Liquid
-				const urlParams = UrlManager.parse();
-				if (!urlParams.search && !urlParams.q) {
-					FilterState.filters.search = (config as any).initialSearchQuery;
-				}
-			}
-
-			// Store money format from Shopify
-			if (config.moneyFormat) {
-				FilterState.moneyFormat = config.moneyFormat;
-			}
-			if (config.moneyWithCurrencyFormat) {
-				FilterState.moneyWithCurrencyFormat = config.moneyWithCurrencyFormat;
-			}
-			if (config.currency) {
-				FilterState.currency = config.currency;
-			}
-
-			// Store fallback products and pagination from Liquid
-			if (config.fallbackProducts && Array.isArray(config.fallbackProducts) && config.fallbackProducts.length > 0) {
-				FilterState.fallbackProducts = config.fallbackProducts;
-				Logger.info('Fallback products loaded from Liquid', { count: FilterState.fallbackProducts.length });
-			}
-
-			if (config.fallbackPagination) {
-				FilterState.fallbackPagination = config.fallbackPagination;
-				Logger.info('Fallback pagination loaded from Liquid', {
-					currentPage: FilterState.fallbackPagination.currentPage,
-					totalPages: FilterState.fallbackPagination.totalPages,
-					totalProducts: FilterState.fallbackPagination.totalProducts
-				});
-			}
-
-			// Store price range handle if provided
-			if (config.priceRangeHandle !== undefined) {
-				FilterState.priceRangeHandle = config.priceRangeHandle;
-			}
-
-			Logger.info('Shop set', { shop: FilterState.shop });
-			Logger.info('Collections set', { collections: FilterState.collections });
-
-			// Map config properties to selectors (support both old and new naming)
-			const containerSelector = config.containerSelector || (config as any).container || '[data-afs-container]';
-			const filtersSelector = config.filtersSelector || (config as any).filtersContainer;
-			const productsSelector = config.productsSelector || (config as any).productsContainer;
-
-			DOM.init(containerSelector, filtersSelector, productsSelector);
-			Logger.info('DOM initialized');
-
-			// Show loading skeleton immediately on initial load (before API calls) - both filters and products
-			DOM.showLoading();
-
-			DOM.attachEvents();
-			Logger.info('DOM events attached');
-
-			this.load();
-		} catch (e) {
-			console.error('Initialization failed', { error: e instanceof Error ? e.message : String(e), stack: e instanceof Error ? e.stack : undefined, config });
-			if (DOM.container) {
-				DOM.showError(`Initialization failed: ${e instanceof Error ? e.message : String(e)}`);
-			}
-			throw e;
-		}
-	},
-
-	async load(): Promise<void> {
-		// Loading skeleton is already shown in init(), but ensure it's visible - both filters and products on initial load
-		DOM.showLoading();
-		try {
-			// Parse URL params FIRST before loading filters, so filters endpoint gets the correct filters
-			const urlParams = UrlManager.parse();
-			Logger.debug('Parsed URL params on load', { urlParams });
-
-			// Rebuild filters from url params
-			API.buildFiltersFromUrl(urlParams);
-			API.setPaginationFromUrl(urlParams);
-			API.setSortFromUrl(urlParams);
-			Logger.info('Loading products & filters...', { shop: FilterState.shop, filters: FilterState.filters });
-			API.filters(FilterState.filters).then(Filters.process).catch(handleLoadError).finally(() => {
-				DOM.hideFiltersSkeleton();
-			});
-			API.products(FilterState.filters, FilterState.pagination, FilterState.sort).then(Products.process).catch(handleLoadError).finally(() => {
-				DOM.hideFiltersSkeleton();
-			});
-		} catch (e) {
-			handleLoadError(e);
-		}
-	},
-
-	Logger: Logger,
-
-	detectDevice: detectDevice
 };
 
 // ============================================================================
@@ -4918,6 +4791,7 @@ function createQuickAddButton({ product, isSoldOut, label }: QuickAddOptionsType
 	btn.appendChild(content);
 
 	if (isSoldOut) {
+		text.textContent = t('buttons.soldOut');
 		btn.disabled = true;
 		btn.classList.add('afs-product-card__quick-add--disabled');
 		btn.setAttribute('aria-label', t('labels.productUnavailable'));
@@ -5012,10 +4886,86 @@ function handleQuickViewClick(handle: string): void {
 	});
 }
 
+// ============================================================================
+// MAIN API (Minimal)
+// ============================================================================
+const AFS: AFSInterface = {
+	load: async (): Promise<void> => {
+		try {
+			DOM.showLoading();
+			// Parse URL params first
+			const urlParams = UrlManager.parse();
+			Logger.log('Parsed URL params on load', { urlParams });
+
+			// Apply URL params to state
+			API.buildFiltersFromUrl(urlParams);
+			API.setPaginationFromUrl(urlParams);
+			API.setSortFromUrl(urlParams);
+
+			Logger.info('Loading products & filters...', { shop: FilterState.shop, filters: FilterState.filters });
+
+			// Parallel requests
+			await Promise.all([
+				API.filters(FilterState.filters).then(Filters.process),
+				API.products(FilterState.filters, FilterState.pagination, FilterState.sort).then(Products.process)
+			]).catch(handleLoadError);
+
+		} catch (e) {
+			handleLoadError(e);
+		} finally {
+			DOM.hideLoading();
+		}
+	},
+
+	initialize: (): void => {
+		bootstrap();
+	}
+};
+
 declare global {
 	interface Window {
 		AFS: AFSInterfaceType;
-		AFS_State: FilterStateType;
+	}
+}
+
+async function initializeAFS() {
+	var deviceType = detectDevice();
+	if (!deviceType.isDesktop) {
+		// remove topbar style on tablets & mobile devices
+		const isTopbar = $.get('div[data-afs-layout="top"]');
+		if (isTopbar) {
+			isTopbar.setAttribute('data-afs-layout', 'left');
+		}
+	}
+	await AFS.load();
+	DOM.attachEvents();
+	Logger.info('DOM events attached');
+	return;
+}
+
+// bootstraping application
+async function bootstrap() {
+	Logger.info(`[bootstrap] execution started at: ${new Date()}`);
+	await waitForElement("#digitalcoo-filter-config"); // wait unless config script is exposed to the DOM
+	const DFC = $.getJsonFromScript("digitalcoo-filter-config");
+	const config: AFSConfigType = DFC?.config || null;
+	if (!config) {
+		Logger.error("[bootstrap] Error! No config file found!");
+		return;
+	}
+	try {
+		Logger.init(config.debug);
+		Logger.info('Initializing AFS', config);
+		if (!config.shop) {
+			throw new Error('Alert! Shop parameter is missing.');
+		}
+		FilterState.set(config);
+		await DOM.set(config.containerSelector || '[data-afs-container]');
+		await initializeAFS();
+		Logger.info(`[bootstrap] execution completed at: ${new Date()}`);
+	} catch (e) {
+		console.error('Initialization failed', { error: e instanceof Error ? e.message : String(e), stack: e instanceof Error ? e.stack : undefined, config });
+		throw e;
 	}
 }
 

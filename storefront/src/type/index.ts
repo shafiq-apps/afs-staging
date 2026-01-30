@@ -157,7 +157,7 @@ export interface ProductType {
 	minPrice?: string | number;
 	maxPrice?: string | number;
 	totalInventory?: string | number;
-	variants?: ProductVariantType[];
+	variants: ProductVariantType[];
 	description?: string;
 	images?: string[];
 	options?: Array<{
@@ -227,6 +227,7 @@ export interface AppliedFilterType {
 }
 
 export interface FilterStateType {
+	set: (config: AFSConfigType) => void,
 	shop: string | null;
 	filters: FiltersStateType;
 	products: ProductType[];
@@ -275,6 +276,7 @@ export interface AFSConfigType {
 		primary: boolean;
 	};
 	settings?: FilterSettingsType;
+	searchTerms?: string;
 }
 
 export interface SliderInstanceType {
@@ -450,7 +452,7 @@ export interface LanguageTextsType {
 		readonly searchProducts: string;
 		readonly searchFilter: string;
 	};
-	readonly text: {
+	readonly general: {
 		readonly selected: string;
 		readonly of: string;
 	}
@@ -472,12 +474,8 @@ export interface SliderSlideChangeEventDetailType {
 }
 
 export interface AFSInterfaceType {
-	init(config?: AFSConfigType): void;
-	load(): Promise<void>;
-	Logger: any;
-	detectDevice: any;
+	load: () => Promise<void>;
 }
-
 
 // ============================================================================
 // TYPES FOR SEARCH MODULES
@@ -485,6 +483,8 @@ export interface AFSInterfaceType {
 
 export interface SearchConfigtype {
 	apiBaseUrl?: string;
+	__v?: string,
+	__lastEdit?: string,
 	shop: string | null;
 	moneyFormat: string | null;
 	moneyWithCurrencyFormat: string | null;
@@ -521,7 +521,9 @@ export interface SearchAPIResponseType {
 }
 
 
-export interface AFSInterface extends AFSInterfaceType { }
+export interface AFSInterface extends AFSInterfaceType {
+	initialize: () => void;
+}
 
 export interface MetadataType {
 	buildFilterMetadata: (
@@ -556,3 +558,41 @@ export interface QuickAddOptionsType {
 	isSoldOut: boolean;
 	label?: string;
 }
+
+export type DeviceType = 'mobile' | 'tablet' | 'desktop';
+
+export interface DeviceInfo {
+  type: DeviceType;
+  isMobile: boolean;
+  isTablet: boolean;
+  isDesktop: boolean;
+}
+
+export interface APIType {
+	baseURL: string;
+	__v: string;
+	__id: string;
+	requestId: string | null;
+	cache: Map<string, ProductsResponseDataType>;
+	timestamps: Map<string, number>;
+	pending: Map<string, Promise<ProductsResponseDataType>>;
+
+	key(filters: FiltersStateType, pagination: PaginationStateType, sort: SortStateType): string;
+	get(key: string): ProductsResponseDataType | null;
+	set(key: string, value: ProductsResponseDataType): void;
+	fetch(
+		url: string,
+		timeout?: number
+	): Promise<APIResponse<ProductsResponseDataType | FiltersResponseDataType>>;
+	products(
+		filters: FiltersStateType,
+		pagination: PaginationStateType,
+		sort: SortStateType
+	): Promise<ProductsResponseDataType>;
+	filters(filters: FiltersStateType): Promise<FiltersResponseDataType>;
+
+	setBaseURL(url: string): void;
+	buildFiltersFromUrl(urlParams: Record<string, any>): void;
+	setPaginationFromUrl(urlParams: Record<string, any>): void;
+	setSortFromUrl(urlParams: Record<string, any>): void;
+};

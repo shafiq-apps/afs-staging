@@ -1,42 +1,40 @@
+import { $ } from "./$.utils";
+
 // translation.ts
+type TranslationTree = Record<string, any>;
 
-import { Lang } from "../locals";
-
-let currentLanguage: keyof typeof Lang = 'en';
-
+let translations: TranslationTree | null = null;
 /**
- * Set the active language
+ * Initialize translations from the JSON script tag rendered by Liquid.
+ * This will read from:
+ *   <script type="application/json" id="digitalcoo-translations">...</script>
  */
-export function setLanguage(lang: keyof typeof Lang) {
-  if (Lang[lang]) {
-    currentLanguage = lang;
-  } else {
-    console.warn(`Language "${lang}" not found, falling back to English.`);
-    currentLanguage = 'en';
-  }
+export function initTranslations(scriptId: string = 'digitalcoo-translations'): void {
+  translations = $.getJsonFromScript(scriptId);
 }
 
 /**
- * Get a translation string using a key path like 'buttons.quickAdd'
+ * Get a translation string using a key path like 'buttons.quickAdd'.
+ *
+ * Example:
+ *   t('buttons.soldOut') -> "Sold out"
  */
 export function t(key: string, fallback?: string): string {
+  if (!translations) {
+    // If initTranslations wasn't called yet, try to initialize lazily.
+    initTranslations();
+  }
+
+  const source = translations || {};
+
   const keys = key.split('.');
-  let value: any = Lang[currentLanguage];
+  let value: any = source;
 
   for (const k of keys) {
-    if (value && k in value) {
+    if (value && typeof value === 'object' && k in value) {
       value = value[k];
     } else {
-      // fallback to English if missing
-      value = Lang.en;
-      for (const k2 of keys) {
-        if (value && k2 in value) {
-          value = value[k2];
-        } else {
-          return fallback || key;
-        }
-      }
-      break;
+      return fallback || key;
     }
   }
 

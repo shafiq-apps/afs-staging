@@ -1,3 +1,6 @@
+{% render 'digitalcoo-translations' %}
+{% render 'digitalcoo-filter-config', block: block %}
+
 <style>
   :root {
     --afs-text-color: {{ block.settings.text_color | default: '#000000' }};
@@ -44,7 +47,25 @@
 
 <script src="{{ 'digitalcoo-filter.min.js' | asset_url }}" defer></script>
 
-{% render 'digitalcoo-filter-init', block: block %}
+<script>
+	function loadApp() {
+		if(window.AFS && typeof window.AFS.load === "function") {
+			window.AFS.initialize();
+		}
+		else{
+			console.error("[AFS] AFS object not found!")
+		}
+	}
+	if (document.readyState === 'loading') {
+		document.addEventListener('DOMContentLoaded', function () {
+			// Wait a bit for the deferred script to load
+			setTimeout(loadApp, 50);
+		});
+	} else {
+		// DOM is already ready, just wait for script
+		setTimeout(loadApp, 50);
+	}
+</script>
 
 {% schema %}
 {

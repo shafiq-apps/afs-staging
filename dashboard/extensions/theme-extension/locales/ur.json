@@ -1,0 +1,69 @@
+{
+  "general": {
+    "selected": "منتخب شدہ",
+    "of": "کا"
+  },
+  "buttons": {
+    "quickAdd": "فوری اضافہ",
+    "quickAddToCart": "کارٹ میں فوری اضافہ",
+    "quickView": "جلدی دیکھیں",
+    "addToCart": "کارٹ میں شامل کریں",
+    "soldOut": "فروخت ہو گیا",
+    "inStock": "اسٹاک میں موجود",
+    "buyNow": "ابھی خریدیں",
+    "clear": "صاف کریں",
+    "clearAll": "سب صاف کریں",
+    "close": "✕",
+    "closeFilters": "فلٹر بند کریں",
+    "toggleFilters": "فلٹرز",
+    "filters": "فلٹرز",
+    "previous": "پچھلا",
+    "next": "اگلا",
+    "apply": "لاگو کریں",
+    "readMore": "مزید پڑھیں",
+    "readLess": "کم پڑھیں"
+  },
+  "labels": {
+    "sortBy": "ترتیب دیں: ",
+    "appliedFilters": "لاگو شدہ فلٹرز:",
+    "search": "تلاش: ",
+    "price": "قیمت: ",
+    "priceFrom": "سے",
+    "collection": "کلیکشن: ",
+    "productUnavailable": "مصنوعات دستیاب نہیں",
+    "loading": "لوڈ ہو رہا ہے...",
+    "loadingProduct": "مصنوعات لوڈ ہو رہی ہیں..."
+  },
+  "sortOptions": {
+    "bestSelling": "سب سے زیادہ فروخت ہونے والا",
+    "titleAsc": "عنوان (اے-زی)",
+    "titleDesc": "عنوان (زی-اے)",
+    "priceAsc": "قیمت (کم سے زیادہ)",
+    "priceDesc": "قیمت (زیادہ سے کم)",
+    "createdAsc": "سب سے پرانا پہلے",
+    "createdDesc": "سب سے نیا پہلے"
+  },
+  "messages": {
+    "noProductsFound": "کوئی مصنوعات نہیں ملیں",
+    "oneProductFound": "1 مصنوعات ملی",
+    "productsFound": "مصنوعات ملیں",
+    "showingProducts": "دکھا رہے ہیں",
+    "pageOf": "صفحہ",
+    "addedToCart": "کارٹ میں شامل کیا گیا!",
+    "failedToLoad": "لوڈ کرنے میں ناکام",
+    "failedToLoadProducts": "مصنوعات لوڈ کرنے میں ناکام",
+    "failedToLoadProduct": "مصنوعات لوڈ کرنے میں ناکام",
+    "failedToAddToCart": "مصنوعات کارٹ میں شامل کرنے میں ناکام۔ دوبارہ کوشش کریں۔",
+    "failedToProceedToCheckout": "چیک آؤٹ کرنے میں ناکام۔ دوبارہ کوشش کریں۔",
+    "failedToLoadProductModal": "مصنوعات لوڈ کرنے میں ناکام۔ دوبارہ کوشش کریں۔",
+    "failedToLoadFilters": "فلٹرز لوڈ کرنے میں ناکام، خالی فلٹرز کے ساتھ جاری رکھیں",
+    "initializationFailed": "ابتدائی عمل ناکام",
+    "loadFailed": "لوڈ ناکام",
+    "unknownError": "نامعلوم خرابی",
+    "checkConsole": "تفصیلات کے لیے کنسول چیک کریں۔"
+  },
+  "placeholders": {
+    "searchProducts": "مصنوعات تلاش کریں...",
+    "searchFilter": "تلاش"
+  }
+}

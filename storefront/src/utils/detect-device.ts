@@ -1,22 +1,10 @@
-type DeviceType = 'mobile' | 'tablet' | 'desktop';
-
-export interface DeviceInfo {
-  type: DeviceType;
-  isMobile: boolean;
-  isTablet: boolean;
-  isDesktop: boolean;
-}
+import { DeviceInfo } from "../type";
 
 export function detectDevice(): DeviceInfo {
-  const ua =
-    navigator.userAgent ||
-    navigator.vendor ||
-    (window as unknown as { opera?: string }).opera ||
-    '';
+  const ua = navigator.userAgent || (window as unknown as { opera?: string }).opera || '';
 
   const width: number = window.innerWidth;
-  const hasTouch: boolean =
-    'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  const hasTouch: boolean = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
   const isIPad: boolean =
     /iPad/i.test(ua) ||

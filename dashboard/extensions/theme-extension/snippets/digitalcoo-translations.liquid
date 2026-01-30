@@ -1,0 +1,82 @@
+{% doc %}
+  Exposes translations as a JSON object that can be consumed by JavaScript.
+
+  The keys correspond to entries in the theme (or extension) locale files,
+  such as locales/en.default.json. Values are resolved using the `t` filter
+  so they are automatically localized to the current storefront language.
+
+  @example
+  {% render 'digitalcoo-translations' %}
+{% enddoc %}
+
+<script type="application/json" id="digitalcoo-translations">
+{
+  "text": {
+    "selected": {{ 'text.selected' | t | json }},
+    "of": {{ 'text.of' | t | json }}
+  },
+  "buttons": {
+    "quickAdd": {{ 'buttons.quickAdd' | t | json }},
+    "quickAddToCart": {{ 'buttons.quickAddToCart' | t | json }},
+    "quickView": {{ 'buttons.quickView' | t | json }},
+    "addToCart": {{ 'buttons.addToCart' | t | json }},
+    "soldOut": {{ 'buttons.soldOut' | t | json }},
+    "inStock": {{ 'buttons.inStock' | t | json }},
+    "buyNow": {{ 'buttons.buyNow' | t | json }},
+    "clear": {{ 'buttons.clear' | t | json }},
+    "clearAll": {{ 'buttons.clearAll' | t | json }},
+    "close": {{ 'buttons.close' | t | json }},
+    "closeFilters": {{ 'buttons.closeFilters' | t | json }},
+    "toggleFilters": {{ 'buttons.toggleFilters' | t | json }},
+    "filters": {{ 'buttons.filters' | t | json }},
+    "previous": {{ 'buttons.previous' | t | json }},
+    "next": {{ 'buttons.next' | t | json }},
+    "apply": {{ 'buttons.apply' | t | json }},
+    "readMore": {{ 'buttons.readMore' | t | json }},
+    "readLess": {{ 'buttons.readLess' | t | json }}
+  },
+  "labels": {
+    "sortBy": {{ 'labels.sortBy' | t | json }},
+    "appliedFilters": {{ 'labels.appliedFilters' | t | json }},
+    "search": {{ 'labels.search' | t | json }},
+    "price": {{ 'labels.price' | t | json }},
+    "priceFrom": {{ 'labels.priceFrom' | t | json }},
+    "collection": {{ 'labels.collection' | t | json }},
+    "productUnavailable": {{ 'labels.productUnavailable' | t | json }},
+    "loading": {{ 'labels.loading' | t | json }},
+    "loadingProduct": {{ 'labels.loadingProduct' | t | json }}
+  },
+  "sortOptions": {
+    "bestSelling": {{ 'sortOptions.bestSelling' | t | json }},
+    "titleAsc": {{ 'sortOptions.titleAsc' | t | json }},
+    "titleDesc": {{ 'sortOptions.titleDesc' | t | json }},
+    "priceAsc": {{ 'sortOptions.priceAsc' | t | json }},
+    "priceDesc": {{ 'sortOptions.priceDesc' | t | json }},
+    "createdAsc": {{ 'sortOptions.createdAsc' | t | json }},
+    "createdDesc": {{ 'sortOptions.createdDesc' | t | json }}
+  },
+  "messages": {
+    "noProductsFound": {{ 'messages.noProductsFound' | t | json }},
+    "oneProductFound": {{ 'messages.oneProductFound' | t | json }},
+    "productsFound": {{ 'messages.productsFound' | t | json }},
+    "showingProducts": {{ 'messages.showingProducts' | t | json }},
+    "pageOf": {{ 'messages.pageOf' | t | json }},
+    "addedToCart": {{ 'messages.addedToCart' | t | json }},
+    "failedToLoad": {{ 'messages.failedToLoad' | t | json }},
+    "failedToLoadProducts": {{ 'messages.failedToLoadProducts' | t | json }},
+    "failedToLoadProduct": {{ 'messages.failedToLoadProduct' | t | json }},
+    "failedToAddToCart": {{ 'messages.failedToAddToCart' | t | json }},
+    "failedToProceedToCheckout": {{ 'messages.failedToProceedToCheckout' | t | json }},
+    "failedToLoadProductModal": {{ 'messages.failedToLoadProductModal' | t | json }},
+    "failedToLoadFilters": {{ 'messages.failedToLoadFilters' | t | json }},
+    "initializationFailed": {{ 'messages.initializationFailed' | t | json }},
+    "loadFailed": {{ 'messages.loadFailed' | t | json }},
+    "unknownError": {{ 'messages.unknownError' | t | json }},
+    "checkConsole": {{ 'messages.checkConsole' | t | json }}
+  },
+  "placeholders": {
+    "searchProducts": {{ 'placeholders.searchProducts' | t | json }},
+    "searchFilter": {{ 'placeholders.searchFilter' | t | json }}
+  }
+}
+</script>

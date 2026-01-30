@@ -3,6 +3,7 @@
 // ============================================================================
 
 import { DisplayType, FilterKeyType, ImageAttributesType, ImageOptimizationOptionsType, OptionType, PriceRangeType, ProductImageType, SelectionType, SortFieldType } from "../type";
+import { Log } from "./shared";
 
 export const $ = {
     // Fastest debounce
@@ -63,6 +64,14 @@ export const $ = {
             }
         }
         return e;
+    },
+
+    setAttr: (element: HTMLElement, attr: string, value: string) => {
+        element.setAttribute(attr, value);
+    },
+
+    remAttr: (element: HTMLElement, attr: string) => {
+        element.removeAttribute(attr);
     },
 
     getAttrVal: (el: HTMLElement, attr: string): string | null => {
@@ -408,4 +417,33 @@ export const $ = {
     sleep: (ms: number): Promise<void> => {
         return new Promise(resolve => setTimeout(resolve, ms));
     },
+
+    getJsonFromScript(scriptId: string): any {
+        const el = document.getElementById(scriptId);
+        if (!el) {
+            Log.error('[getJsonFromScript] Script not found');
+            return {};
+        }
+
+        try {
+            const json = el.textContent || el.innerHTML || '{}';
+            return JSON.parse(json);
+        } catch (error) {
+            Log.error('[getJsonFromScript] Failed to parse JSON', error instanceof Error ? error.message : String(error));
+            return {};
+        }
+    },
+    /**
+     * Generate a unique, URL-friendly request ID
+     * Length ~12-16 chars, safe for query params
+     */
+    generateRequestId: (): string => {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_';
+        let result = '';
+        // 16 chars is enough to avoid collisions in normal usage
+        for (let i = 0; i < 16; i++) {
+            result += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return result;
+    }
 };

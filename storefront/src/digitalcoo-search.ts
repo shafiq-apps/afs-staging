@@ -17,6 +17,8 @@ import { t } from './utils/translation';
 
 const DEFAULT_CONFIG: Required<SearchConfigtype> = {
 	apiBaseUrl: 'https://fstaging.digitalcoo.com/storefront',
+	__v: '2.0.0',
+	__lastEdit: '01-30-2026',
 	shop: null,
 	moneyFormat: null,
 	currency: null,
@@ -1348,6 +1350,10 @@ const SearchInit = {
 		// Then, override with explicit config if provided (for programmatic initialization)
 		if (config && Object.keys(config).length > 0) {
 			finalConfig = { ...finalConfig, ...config };
+		}
+
+		if(config?.debug === true) {
+			Log.enabled = false;
 		}
 
 		// Merge with defaults (lowest priority)
