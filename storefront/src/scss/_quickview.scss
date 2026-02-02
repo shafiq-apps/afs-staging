@@ -6,6 +6,7 @@
 @use 'variables' as *;
 @use 'components' as *;
 
+
 shopify-list-context[type="image"] {
     display: contents;
 }
@@ -111,9 +112,9 @@ shopify-list-context[type="image"] {
         max-width: 50%;
         width: 100%;
         gap: 1rem;
-        height: 600px;
-        max-height: 600px;
-        min-height: 600px;
+        min-height: $quick_view_image_min_height;
+        max-height: $quick_view_image_max_height;
+        height: $quick_view_image_height;
 
         shopify-media {
             display: block;
@@ -607,16 +608,16 @@ shopify-list-context[type="image"] {
         display: flex;
         align-items: center;
         justify-content: center;
-        min-height: 300px;
-        max-height: 600px;
-        height: 600px;
+        min-height: $quick_view_image_min_height;
+        max-height: $quick_view_image_max_height;
+        height: $quick_view_image_height;
     }
 
     &__viewport {
         position: relative;
         width: 100%;
         height: 100%;
-        max-height: 600px;
+        max-height: $quick_view_image_max_height;
         display: flex;
         align-items: center;
         justify-content: center;

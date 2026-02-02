@@ -2,7 +2,7 @@
 // TINY REUSABLE UTILITIES (Smallest possible functions)
 // ============================================================================
 
-import { DisplayType, FilterKeyType, ImageAttributesType, ImageOptimizationOptionsType, OptionType, PriceRangeType, ProductImageType, SelectionType, SortFieldType } from "../type";
+import { DisplayType, FilterKeyType, ImageAttributesType, buildImageUrlType, OptionType, PriceRangeType, ProductImageType, SelectionType, SortFieldType } from "../type";
 import { Log } from "./shared";
 
 export const $ = {
@@ -99,48 +99,121 @@ export const $ = {
         return f;
     },
 
-    // Optimize Shopify image URL with transformations
-    optimizeImageUrl: (url: string | null | undefined, options: ImageOptimizationOptionsType = {}): string => {
-        if (!url || typeof url !== "string") return "";
+    // buildImageUrl: Shopify image URL with transformations
+    buildImageUrl: (url: string | null | undefined, options: buildImageUrlType = {}): string => {
+        // 1. Hard safety: null/undefined/non-string → return empty string
+        if (!url || typeof url !== "string") {
+            return "";
+        }
 
+        const trimmedUrl = url.trim();
+        if (trimmedUrl === "") {
+            return "";
+        }
+
+        // 2. Ignore non-URL-like sources: data:, blob:, file:, etc.
+        // These cannot/should not be optimized via query params.
+        const nonOptimizableSchemes = ["data:", "blob:", "file:", "javascript:"];
+        if (nonOptimizableSchemes.some((s) => trimmedUrl.startsWith(s))) {
+            return trimmedUrl;
+        }
+
+        // 3. Only modify known Shopify CDN URLs; leave everything else as-is.
+        //    This prevents breaking external image providers.
+        const shopifyCdnPattern = /(cdn\.shopify\.com|shopifycdn\.com)/i;
+        const looksLikeShopifyCdn = shopifyCdnPattern.test(trimmedUrl);
+
+        if (!looksLikeShopifyCdn) {
+            // Unknown/external image host → just return original URL as-is
+            return trimmedUrl;
+        }
+
+        // 4. Normalize protocol-relative URLs: //cdn.shopify.com/...
+        const normalizedUrl = trimmedUrl.startsWith("//")
+            ? `https:${trimmedUrl}`
+            : trimmedUrl;
+
+        let urlObj: URL;
+        try {
+            urlObj = new URL(normalizedUrl);
+        } catch {
+            // Malformed URL → return the original string untouched
+            return trimmedUrl;
+        }
+
+        // 5. Ensure we only handle http/https for safety
+        if (!/^https?:$/i.test(urlObj.protocol)) {
+            return trimmedUrl;
+        }
+
+        // 6. Extract and sanitize options
         const {
-            width = 500,
-            height = width,
-            quality = 80,
+            width: rawWidth,
+            height: rawHeight,
+            quality: rawQuality,
             format = "webp",
-            crop = null
+            crop = null,
         } = options;
 
-        // Only modify Shopify CDN URLs
-        const shopifyCdnPattern = /(cdn\.shopify\.com|shopifycdn\.com)/i;
-        if (!shopifyCdnPattern.test(url)) return url;
+        // Helper to sanitize dimension (must be positive integer)
+        const sanitizeDimension = (value: number | null | undefined): number | null => {
+            if (typeof value !== "number" || !Number.isFinite(value)) return null;
+            const intVal = Math.floor(value);
+            if (intVal <= 0) return null;
+            return intVal;
+        };
 
-        try {
-            const urlObj = new URL(url);
-            const params = new URLSearchParams(urlObj.search);
+        // Helper to sanitize quality (1–100)
+        const sanitizeQuality = (value: number | null | undefined): number | null => {
+            if (typeof value !== "number" || !Number.isFinite(value)) return null;
+            const intVal = Math.floor(value);
+            if (intVal < 1 || intVal > 100) return null;
+            return intVal;
+        };
 
-            // Remove any existing Shopify image params
-            params.delete("width");
-            params.delete("height");
-            params.delete("crop");
-            params.delete("format");
-            params.delete("quality");
+        const width = sanitizeDimension(rawWidth ?? 500) ?? 500; // default width
+        const height = sanitizeDimension(rawHeight ?? width) ?? width; // default to square
 
-            // Apply new optimization params
-            params.set("width", String(width));
-            params.set("height", String(height));
+        const quality = sanitizeQuality(rawQuality ?? 80) ?? 80; // default quality
 
-            if (crop) params.set("crop", crop);
-            if (quality !== 100) params.set("quality", String(quality));
+        const params = new URLSearchParams(urlObj.search);
 
-            // Avoid format for GIF (Shopify does not convert animated GIFs)
-            const isGif = urlObj.pathname.toLowerCase().endsWith(".gif");
-            if (!isGif && format) params.set("format", format);
-
-            return `${urlObj.origin}${urlObj.pathname}?${params.toString()}`;
-        } catch (err) {
-            return url;
+        // 7. Remove existing Shopify-specific transformation parameters.
+        //    Keep all other query params intact.
+        const shopifyParams = ["width", "height", "crop", "format", "quality", "scale"];
+        for (const p of shopifyParams) {
+            params.delete(p);
         }
+
+        // 8. Apply new optimization params
+        params.set("width", String(width));
+        params.set("height", String(height));
+
+        if (crop) {
+            params.set("crop", crop);
+        }
+
+        if (quality !== 100) {
+            params.set("quality", String(quality));
+        }
+
+        // 9. Avoid format for GIF (Shopify won't convert animated GIFs safely)
+        const lowerPath = urlObj.pathname.toLowerCase();
+        const isGif = lowerPath.endsWith(".gif");
+        if (!isGif && format) {
+            params.set("format", format);
+        }
+
+        // 10. Rebuild URL while preserving origin, path, and ALL non-Shopify query params
+        const query = params.toString();
+        const finalUrl =
+            query.length > 0
+                ? `${urlObj.origin}${urlObj.pathname}?${query}`
+                : `${urlObj.origin}${urlObj.pathname}`;
+
+        // 11. Return protocol-relative URL (to match your original behavior)
+        //     If you prefer always-https, remove this `.replace(...)`.
+        return finalUrl.replace(/^https?:/, "");
     },
 
     // Build responsive srcset for Shopify images
@@ -148,8 +221,8 @@ export const $ = {
         if (!baseUrl) return '';
 
         return sizes.map(size => {
-            const optimized = $.optimizeImageUrl(baseUrl, { width: size, format: 'webp', quality: size <= 200 ? 75 : size <= 300 ? 80 : 85 });
-            return `${optimized} ${size}w`;
+            const imgSrc = $.buildImageUrl(baseUrl, { width: size, format: 'webp', quality: size <= 200 ? 75 : size <= 300 ? 80 : 85 });
+            return `${imgSrc} ${size}w`;
         }).join(', ');
     },
 
@@ -366,7 +439,7 @@ export const $ = {
             fallbackUrl = imageData.featuredImage.urlFallback || baseImageUrl;
         } else {
             // Optimize image URL on-the-fly for API responses
-            src = $.optimizeImageUrl(baseImageUrl, {
+            src = $.buildImageUrl(baseImageUrl, {
                 width: defaultWidth,
                 height: defaultHeight,
                 format: 'webp',

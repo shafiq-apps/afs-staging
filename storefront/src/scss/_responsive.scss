@@ -412,9 +412,9 @@
         &__media {
             min-width: 300px;
             max-width: 50%;
-            height: 600px;
-            max-height: 600px;
-            min-height: 600px;
+            min-height: $quick_view_image_min_height;
+            max-height: $quick_view_image_max_height;
+            height: $quick_view_image_height;
         }
 
         &__image-grid shopify-media img {
@@ -535,9 +535,9 @@
         &__media {
             min-width: 400px;
             max-width: 50%;
-            height: 600px;
-            max-height: 600px;
-            min-height: 600px;
+            min-height: $quick_view_image_min_height;
+            max-height: $quick_view_image_max_height + 120;
+            height: $quick_view_image_height + 120;
         }
 
         &__image-grid shopify-media img {

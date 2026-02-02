@@ -151,7 +151,7 @@ const FilterState: FilterStateType = {
 		inStockBadgeLocation: 'top-left', // in-stock/out of stock
 		addToCartButtonLocation: 'inside-image',
 		html: {
-			title: (content) => $.el('h3', 'afs-product-card__title', {}, content),
+			title: (content) => $.el('div', 'afs-product-card__title', {}, content),
 			vendor: (content) => $.el('div', 'afs-product-card__vendor', {}, content),
 			price: (content) => $.el('div', 'afs-product-card__price', {}, content),
 		}
@@ -159,7 +159,7 @@ const FilterState: FilterStateType = {
 };
 
 // ============================================================================
-// URL PARSER (Optimized with lookup maps)
+// URL PARSER (lookup maps)
 // ============================================================================
 const UrlManager = {
 	parse(): ParsedUrlParamsType {
@@ -394,7 +394,7 @@ const API: APIType = {
 		API.requestId = $.generateRequestId();
 		params.set('request_id', API.requestId);
 		params.set('shop', FilterState.shop);
-		
+
 
 		// Always send CPID if it exists - never drop it
 		// CPID is server-managed and should always be sent to products API
@@ -624,7 +624,7 @@ const API: APIType = {
 };
 
 // ============================================================================
-// DOM RENDERER (Optimized, batched operations)
+// DOM RENDERER (batched operations)
 // ============================================================================
 
 const DOM = {
@@ -1998,7 +1998,7 @@ const DOM = {
 					defaultHeight: 300,
 					srcsetSizes: [200, 300, 500],
 					sizes: '(max-width: 768px) 200px, (max-width: 1024px) 300px, 500px',
-					quality: 80
+					quality: 85
 				}
 			);
 
@@ -2138,7 +2138,7 @@ const DOM = {
 		return card;
 	},
 
-	// Update filter active state (optimized)
+	// Update filter active state
 	updateFilterState(handle: string, value: string, active: boolean): void {
 		if (!this.filtersContainer) {
 			Logger.warn('Cannot update filter state: filtersContainer not found');
@@ -3035,7 +3035,7 @@ const Filters = {
 		Logger.debug('Price range updated', { min, max, priceRange: FilterState.filters.priceRange });
 
 		UrlManager.update(FilterState.filters, FilterState.pagination, FilterState.sort);
-		
+
 		this.apply();
 	},
 
@@ -3239,7 +3239,7 @@ class DSlider {
 	private thumbnails: HTMLElement[] = [];
 	private isInitialized: boolean = false;
 	private magnifierEnabled: boolean = false;
-	private currentZoom: number = 2; // Active zoom level (2x, 3x, 4x, 5x) - initialized from options, can be changed via slider
+	private currentZoom: number = 3; // Active zoom level (2x, 3x, 4x, 5x) - initialized from options, can be changed via slider
 	private isTouchDevice: boolean = false;
 	private mainContainer: HTMLElement | null = null;
 	private thumbnailContainer: HTMLElement | null = null;
@@ -4129,84 +4129,49 @@ async function createProductModal(handle: string, modalId: string): Promise<Prod
 				};
 			}
 
-			// Build thumbnails with optimized/cropped images and srcset
+			// Build thumbnails with cropped images and srcset
 			let thumbnailsHTML = '<div class="afs-slider__thumbnails">';
 			productData.images.forEach((image, index) => {
 				const isActive = index === 0 ? 'afs-slider__thumbnail--active' : '';
-
-				// Optimize thumbnail: small square cropped image
-				const thumbnailUrl = $.optimizeImageUrl(image, {
+				const thumbnailUrl = $.buildImageUrl(image, {
 					width: 100,
 					height: 100,
 					crop: 'center',
 					format: 'webp',
 					quality: 75
 				});
-
-				// Build srcset for thumbnails (responsive sizes with crop)
-				const thumbnailSizes = [80, 100, 120];
-				const thumbnailSrcset = thumbnailSizes.map(size => {
-					const optimized = $.optimizeImageUrl(image, {
-						width: size,
-						height: size,
-						crop: 'center',
-						format: 'webp',
-						quality: 75
-					});
-					return `${optimized} ${size}w`;
-				}).join(', ');
-
+				const thumbnailSrcset = $.buildImageSrcset(image, [80, 100, 120]);
 				thumbnailsHTML += `
-			<div class="afs-slider__thumbnail ${isActive}" data-slide-index="${index}">
-			  <img 
-				src="${thumbnailUrl}" 
-				srcset="${thumbnailSrcset}"
-				sizes="100px"
-				alt="${productData.title} - Thumbnail ${index + 1}" 
-				loading="lazy"
-				width="100"
-				height="100"
-			  />
-			</div>
-		  `;
+					<div class="afs-slider__thumbnail ${isActive}" data-slide-index="${index}">
+					<img 
+						src="${thumbnailUrl}" 
+						srcset="${thumbnailSrcset}"
+						sizes="100px"
+						alt="${productData.title} - Thumbnail ${index + 1}" 
+						loading="lazy"
+						width="100"
+						height="100"
+					/>
+					</div>
+				`;
 			});
 			thumbnailsHTML += '</div>';
 
-			// Build main images with optimized full images (no cropping) and srcset
+			// Build main images full images (no cropping) and srcset
 			let mainImagesHTML = '<div class="afs-slider__main">';
 			productData.images.forEach((image, index) => {
-				// Optimize main image: larger size, no cropping, maintain aspect ratio
-				const mainImageUrl = $.optimizeImageUrl(image, {
-					width: 800,
-					height: 800, // Max height, will maintain aspect ratio
-					format: 'webp',
-					quality: 85
-					// No crop parameter = maintains aspect ratio
-				});
-
-				// Build srcset for main images (responsive sizes for different screen sizes, no crop)
-				const mainImageSizes = [400, 600, 800, 1000, 1200];
-				const mainImageSrcset = mainImageSizes.map(size => {
-					const optimized = $.optimizeImageUrl(image, {
-						width: size,
-						height: size,
-						format: 'webp',
-						quality: size <= 600 ? 80 : 85
-						// No crop = maintains aspect ratio
-					});
-					return `${optimized} ${size}w`;
-				}).join(', ');
-
+				const mainImageUrl = $.buildImageUrl(image, { format: 'png' });
+				const mainImageSrcset = $.buildImageSrcset(image, [400, 600, 800, 1000, 1200])
 				mainImagesHTML += `
-			<img
-			  class="afs-slider__image ${index === 0?'afs-slider__image--active':''}"
-			  src="${mainImageUrl}" 
-			  srcset="${mainImageSrcset}"
-			  sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 600px"
-			  alt="${productData.title} - Image ${index + 1}" 
-			  loading="${index === 0 ? 'eager' : 'lazy'}"
-			/>
-		  `;
+					<img
+					class="afs-slider__image ${index === 0 ? 'afs-slider__image--active' : ''}"
+					src="${mainImageUrl}" 
+					srcset="${mainImageSrcset}"
+					sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 600px"
+					alt="${productData.title} - Image ${index + 1}" 
+					loading="${index === 0 ? 'eager' : 'lazy'}"
+					/>
+				`;
 			});
 			mainImagesHTML += '</div>';
 
@@ -4322,9 +4287,9 @@ async function createProductModal(handle: string, modalId: string): Promise<Prod
 						thumbnailsPosition: 'bottom', // Can be 'top', 'left', 'right', 'bottom'
 						enableKeyboard: true,
 						enableAutoHeight: false, // Disable auto height to prevent shrinking
-						maxHeight: 600, // Fixed max height in pixels
+						maxHeight: 732, // Fixed max height in pixels
 						enableMagnifier: true, // Enable image magnifier on hover
-						magnifierZoom: 2, // 2x zoom level for magnifier
+						magnifierZoom: 3, // 3x zoom level for magnifier
 					});
 				} else {
 					Logger.warn('No images found for slider', { modalId });

@@ -25,13 +25,26 @@ export interface IconsType {
 	readonly close: string;
 }
 
-export interface ImageOptimizationOptionsType {
-	width?: number;
-	height?: number;
-	quality?: number;
-	format?: string;
-	crop?: string | null;
-}
+export type ShopifyCrop =
+  | "top"
+  | "bottom"
+  | "left"
+  | "right"
+  | "center"
+  | "top_left"
+  | "top_right"
+  | "bottom_left"
+  | "bottom_right";
+
+export type ShopifyFormat = "webp" | "jpg" | "jpeg" | "pjpg" | "png";
+
+export type buildImageUrlType = {
+  width?: number | null;
+  height?: number | null;
+  quality?: number | null;
+  format?: ShopifyFormat | null;
+  crop?: ShopifyCrop | null;
+};
 
 export interface ImageAttributesType {
 	src: string;

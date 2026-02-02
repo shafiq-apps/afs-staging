@@ -23,7 +23,7 @@ const buildFiltersJS = async (watch = true) => {
     treeShaking: true,
     format: 'iife',
     target: ['es2020'],
-    drop: ["debugger"],
+    // drop: ["debugger"],
     ignoreAnnotations: true,
     platform: 'browser',
     outfile: path.join(config.buildDir, `${config.filtersFileName}.js`),
