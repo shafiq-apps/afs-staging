@@ -16,7 +16,7 @@ shopify-list-context[type="image"] {
     box-shadow: 0 25px 50px -12px var(--afs-shadow-color-strong);
     padding: 0 !important;
     outline: none !important;
-    max-width: 70%;
+    max-width: 1180px;
     width: 90%;
     margin: auto;
     overflow: hidden;
@@ -730,7 +730,7 @@ shopify-list-context[type="image"] {
         display: none;
         width: 100%;
         height: 100%;
-        object-fit: cover;
+        object-fit: contain;
         transform-origin: top left;
         transition: transform 0.2s ease-out;
         position: relative;

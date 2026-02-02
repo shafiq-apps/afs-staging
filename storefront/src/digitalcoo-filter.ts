@@ -3226,7 +3226,7 @@ const QuickAdd = {
 // SLIDER CLASS
 // ============================================================================
 
-class AFSSlider {
+class DSlider {
 	private container: HTMLElement;
 	private options: Required<Omit<SliderOptionsType, 'maxHeight'>> & { maxHeight: number | null };
 	private _currentIndex: number = 0;
@@ -3249,8 +3249,8 @@ class AFSSlider {
 		const containerElement = typeof container === 'string' ? document.querySelector<HTMLElement>(container) : container;
 
 		if (!containerElement) {
-			Logger.error('AFSSlider: Container not found');
-			throw new Error('AFSSlider: Container not found');
+			Logger.error('[DSlider] Container not found');
+			throw new Error('[DSlider] Container not found');
 		}
 
 		this.container = containerElement;
@@ -3277,14 +3277,14 @@ class AFSSlider {
 		// Find main image container
 		this.mainContainer = this.container.querySelector<HTMLElement>('.afs-slider__main');
 		if (!this.mainContainer) {
-			Logger.error('AFSSlider: Main container (.afs-slider__main) not found');
+			Logger.error('[DSlider] Main container (.afs-slider__main) not found');
 			return;
 		}
 
 		// Find thumbnail container
 		this.thumbnailContainer = this.container.querySelector<HTMLElement>('.afs-slider__thumbnails');
 		if (!this.thumbnailContainer) {
-			Logger.error('AFSSlider: Thumbnail container (.afs-slider__thumbnails) not found');
+			Logger.error('[DSlider] Thumbnail container (.afs-slider__thumbnails) not found');
 			return;
 		}
 
@@ -3292,7 +3292,7 @@ class AFSSlider {
 		const imageElements = this.mainContainer.querySelectorAll<HTMLImageElement>('.afs-slider__image');
 		this.images = Array.from(imageElements);
 		if (this.images.length === 0) {
-			Logger.error('AFSSlider: No images found');
+			Logger.error('[DSlider] No images found');
 			return;
 		}
 
@@ -3302,7 +3302,7 @@ class AFSSlider {
 
 		// If no thumbnails found, log warning but continue (thumbnails might be optional)
 		if (this.thumbnails.length === 0) {
-			Logger.warn('AFSSlider: No thumbnails found, continuing without thumbnails');
+			Logger.warn('[DSlider] No thumbnails found, continuing without thumbnails');
 		}
 
 		// Set thumbnail position
@@ -3312,7 +3312,7 @@ class AFSSlider {
 		try {
 			this.buildSlider();
 		} catch (e) {
-			Logger.error('AFSSlider: Error building slider structure', { error: e instanceof Error ? e.message : String(e) });
+			Logger.error('[DSlider] Error building slider structure', { error: e instanceof Error ? e.message : String(e) });
 			return;
 		}
 
@@ -3320,7 +3320,7 @@ class AFSSlider {
 		try {
 			this.setupEvents();
 		} catch (e) {
-			Logger.error('AFSSlider: Error setting up events', { error: e instanceof Error ? e.message : String(e) });
+			Logger.error('[DSlider] Error setting up events', { error: e instanceof Error ? e.message : String(e) });
 			// Continue anyway - basic functionality should still work
 		}
 
@@ -3333,7 +3333,7 @@ class AFSSlider {
 					this.setupPanZoom();
 				}, 0);
 			} catch (e) {
-				Logger.error('AFSSlider: Error setting up pan-zoom', { error: e instanceof Error ? e.message : String(e) });
+				Logger.error('[DSlider] Error setting up pan-zoom', { error: e instanceof Error ? e.message : String(e) });
 				// Continue anyway - magnifier is optional
 			}
 		}
@@ -3343,7 +3343,7 @@ class AFSSlider {
 			try {
 				this.setupPinchZoom();
 			} catch (e) {
-				Logger.error('AFSSlider: Error setting up pinch-zoom', { error: e instanceof Error ? e.message : String(e) });
+				Logger.error('[DSlider] Error setting up pinch-zoom', { error: e instanceof Error ? e.message : String(e) });
 				// Continue anyway - zoom is optional
 			}
 		}
@@ -3352,7 +3352,7 @@ class AFSSlider {
 		try {
 			this.goToSlide(0);
 		} catch (e) {
-			Logger.error('AFSSlider: Error showing first slide', { error: e instanceof Error ? e.message : String(e) });
+			Logger.error('[DSlider] Error showing first slide', { error: e instanceof Error ? e.message : String(e) });
 			// Continue anyway
 		}
 
@@ -3582,7 +3582,7 @@ class AFSSlider {
 
 		const viewport = this.mainContainer.querySelector<HTMLElement>('.afs-slider__viewport');
 		if (!viewport) {
-			Logger.warn('AFSSlider: Viewport not found for pan-zoom, skipping zoom setup');
+			Logger.warn('[DSlider] Viewport not found for pan-zoom, skipping zoom setup');
 			return;
 		}
 
@@ -4198,8 +4198,8 @@ async function createProductModal(handle: string, modalId: string): Promise<Prod
 				}).join(', ');
 
 				mainImagesHTML += `
-			<img 
-			  class="afs-slider__image" 
+			<img
+			  class="afs-slider__image ${index === 0?'afs-slider__image--active':''}"
 			  src="${mainImageUrl}" 
 			  srcset="${mainImageSrcset}"
 			  sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 600px"
@@ -4234,7 +4234,7 @@ async function createProductModal(handle: string, modalId: string): Promise<Prod
 		  <div class="afs-product-modal__content">
 			<div class="afs-product-modal__layout">
 			  <div class="afs-product-modal__media">
-				<div class="afs-slider" id="${modalId}-slider">
+				<div class="afs-slider" id="${modalId}-slider" data-thumbnails-position="bottom">
 				  ${imagesHTML.mainImages}
 				  ${imagesHTML.thumbnails}
 				</div>
@@ -4318,7 +4318,7 @@ async function createProductModal(handle: string, modalId: string): Promise<Prod
 				});
 
 				if (images.length > 0) {
-					dialog._slider = new AFSSlider(sliderContainer, {
+					dialog._slider = new DSlider(sliderContainer, {
 						thumbnailsPosition: 'bottom', // Can be 'top', 'left', 'right', 'bottom'
 						enableKeyboard: true,
 						enableAutoHeight: false, // Disable auto height to prevent shrinking
