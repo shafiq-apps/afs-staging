@@ -4,7 +4,9 @@
   "description": "",
   "main": "ecosystem.config.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "check:all": "cd storefront && npm run check && cd ../dashboard && npm run check && cd ../app && npm run check",
+    "check": "npm run check:all"
   },
   "repository": {
     "type": "git",
