@@ -174,7 +174,7 @@ export const $ = {
         const width = sanitizeDimension(rawWidth ?? 500) ?? 500; // default width
         const height = sanitizeDimension(rawHeight ?? width) ?? width; // default to square
 
-        const quality = sanitizeQuality(rawQuality ?? 80) ?? 80; // default quality
+        const quality = sanitizeQuality(rawQuality ?? 100) ?? 100; // default quality
 
         const params = new URLSearchParams(urlObj.search);
 

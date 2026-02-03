@@ -477,7 +477,7 @@ export interface SliderOptionsType {
 	enableAutoHeight?: boolean;
 	maxHeight?: number | null;
 	animationDuration?: number;
-	enableMagnifier?: boolean;
+	magnifier?: boolean;
 	magnifierZoom?: number;
 }
 

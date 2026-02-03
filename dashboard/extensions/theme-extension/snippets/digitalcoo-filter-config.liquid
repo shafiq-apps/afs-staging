@@ -42,7 +42,27 @@
                   "urlFallback": {{ product.featured_image | image_url: width: 300 | json }},
                   "alt": {{ product.featured_image.alt | json }}
                 }{% else %}null{% endif %},
-                "variants": [],
+                "variants": [
+                  {% for variant in product.variants %}
+                    {
+                      "id": {{ variant.id | json }},
+                      "title": {{ variant.title | json }},
+                      "price": {{ variant.price | divided_by: 100.0 | json }},
+                      "compareAtPrice": {% if variant.compare_at_price %}{{ variant.compare_at_price | divided_by: 100.0 | json }}{% else %}null{% endif %},
+                      "sku": {{ variant.sku | json }},
+                      "availableForSale": {{ variant.available | json }},
+                      "sellableOnlineQuantity": {{ variant.inventory_quantity | json }},
+                      "selectedOptions": [
+                        {% for option in product.options_with_values %}
+                          {
+                            "name": {{ option.name | json }},
+                            "value": {{ variant.options[forloop.index0] | json }}
+                          }{% unless forloop.last %},{% endunless %}
+                        {% endfor %}
+                      ]
+                    }{% unless forloop.last %},{% endunless %}
+                  {% endfor %}
+                ],
                 "minPrice": {{ product.price_min | divided_by: 100.0 | json }},
                 "maxPrice": {{ product.price_max | divided_by: 100.0 | json }}
               }{% unless forloop.last %},{% endunless %}
@@ -59,7 +79,8 @@
     "moneyWithCurrencyFormat": {{ shop.money_with_currency_format | json }},
     "currency": {{ cart.currency.iso_code | default: shop.currency | json }},
     "searchTerms": {% if template.name == 'search' and search.terms %} {{ search.terms | json }}{% else %}null{% endif %},
-    "isSearchTemplate": {% if template.name == 'search' %}true{% else %}false{% endif %}
+    "isSearchTemplate": {% if template.name == 'search' %}true{% else %}false{% endif %},
+    "template": {{ template.name | json }}
   }
 }
 </script>

@@ -310,7 +310,7 @@ const UrlManager = {
 const API: APIType = {
 	baseURL: 'https://fstaging.digitalcoo.com/storefront',
 	__v: '2.0.0',
-	__id: '01-30-2026',
+	__id: '02-02-2026',
 	requestId: null,
 	cache: new Map<string, ProductsResponseDataType>(),
 	timestamps: new Map<string, number>(),
@@ -3261,12 +3261,12 @@ class DSlider {
 			enableAutoHeight: options.enableAutoHeight !== false,
 			maxHeight: options.maxHeight || null,
 			animationDuration: options.animationDuration || 300,
-			enableMagnifier: options.enableMagnifier !== false,
+			magnifier: options.magnifier !== false,
 			magnifierZoom: options.magnifierZoom || 3,
 			...options
 		} as Required<Omit<SliderOptionsType, 'maxHeight'>> & { maxHeight: number | null };
 
-		this.magnifierEnabled = this.options.enableMagnifier;
+		this.magnifierEnabled = this.options.magnifier;
 		this.currentZoom = this.options.magnifierZoom || 3; // Initialize zoom from options (default: 3x)
 		this.isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
@@ -4288,7 +4288,7 @@ async function createProductModal(handle: string, modalId: string): Promise<Prod
 						enableKeyboard: true,
 						enableAutoHeight: false, // Disable auto height to prevent shrinking
 						maxHeight: 732, // Fixed max height in pixels
-						enableMagnifier: true, // Enable image magnifier on hover
+						magnifier: true, // Enable image magnifier on hover
 						magnifierZoom: 3, // 3x zoom level for magnifier
 					});
 				} else {
