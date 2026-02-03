@@ -1,805 +1,60 @@
 import { useMemo, useState, type CSSProperties } from "react";
 import { type HeadersFunction, type LoaderFunctionArgs } from "react-router";
+import { useLoaderData } from "react-router";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
-const templateSample = {
-  "template_id": "collection-page",
-  "template_version": "1.0",
-  "settings": {
-    "colors": {
-      "background": {
-        "type": "color",
-        "label": "Background",
-        "value": "#ffffff",
-        "default": "#ffffff"
-      },
-      "text": {
-        "type": "color",
-        "label": "Text",
-        "value": "#1f1f1f",
-        "default": "#1f1f1f"
-      },
-      "accent": {
-        "type": "color",
-        "label": "Accent",
-        "value": "#111827",
-        "default": "#111827"
-      }
-    },
-    "buttons": {
-      "primary": {
-        "background_color": {
-          "type": "color",
-          "label": "Primary Background",
-          "value": "#111827",
-          "default": "#111827"
-        },
-        "text_color": {
-          "type": "color",
-          "label": "Primary Text",
-          "value": "#ffffff",
-          "default": "#ffffff"
-        },
-        "border_radius": {
-          "type": "text",
-          "label": "Primary Radius",
-          "value": "6px",
-          "default": "6px"
-        },
-        "padding": {
-          "type": "text",
-          "label": "Primary Padding",
-          "value": "10px 18px",
-          "default": "10px 18px"
-        }
-      },
-      "secondary": {
-        "background_color": {
-          "type": "color",
-          "label": "Secondary Background",
-          "value": "#ffffff",
-          "default": "#ffffff"
-        },
-        "text_color": {
-          "type": "color",
-          "label": "Secondary Text",
-          "value": "#111827",
-          "default": "#111827"
-        },
-        "border_radius": {
-          "type": "text",
-          "label": "Secondary Radius",
-          "value": "6px",
-          "default": "6px"
-        },
-        "padding": {
-          "type": "text",
-          "label": "Secondary Padding",
-          "value": "10px 18px",
-          "default": "10px 18px"
-        }
-      }
-    }
-  },
-  "areas": [
-    {
-      "id": "filters",
-      "label": "Filters",
-      "disabled": false,
-      "settings": {
-        "layout": {
-          "type": "radio",
-          "label": "Layout",
-          "value": "left",
-          "default": "left",
-          "options": [
-            { "label": "Left", "value": "left" },
-            { "label": "Top", "value": "top" }
-          ]
-        },
-        "background_color": {
-          "type": "color",
-          "label": "Background",
-          "value": "#ffffff",
-          "default": "#ffffff"
-        },
-        "border_color": {
-          "type": "color",
-          "label": "Border Color",
-          "value": "#e5e7eb",
-          "default": "#e5e7eb"
-        },
-        "padding": {
-          "type": "text",
-          "label": "Padding",
-          "value": "16px",
-          "default": "16px"
-        },
-        "border_radius": {
-          "type": "text",
-          "label": "Border Radius",
-          "value": "12px",
-          "default": "12px"
-        },
-        "search_enabled": {
-          "type": "checkbox",
-          "label": "Search Enabled",
-          "value": true,
-          "default": true
-        }
-      },
-      "blocks": [
-        {
-          "id": "filters-group",
-          "label": "Filter Group",
-          "block_type": "filter_group",
-          "disabled": false,
-          "settings": {
-            "counts_enabled": {
-              "type": "checkbox",
-              "label": "Show Counts",
-              "value": true,
-              "default": true
-            },
-            "collapsible": {
-              "type": "checkbox",
-              "label": "Collapsible",
-              "value": true,
-              "default": true
-            }
-          }
-        },
-        {
-          "id": "filters-custom-html",
-          "label": "Custom HTML",
-          "block_type": "custom_html",
-          "disabled": false,
-          "settings": {
-            "html": {
-              "type": "textarea",
-              "label": "HTML",
-              "value": "<div class='custom-block'>Free shipping over $50</div>",
-              "default": ""
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "products",
-      "label": "Products",
-      "disabled": false,
-      "settings": {
-        "layout": {
-          "type": "radio",
-          "label": "Layout",
-          "value": "grid",
-          "default": "grid",
-          "options": [
-            { "label": "Grid", "value": "grid" },
-            { "label": "List", "value": "list" }
-          ]
-        },
-        "columns": {
-          "type": "select",
-          "label": "Columns",
-          "value": "3",
-          "default": "3",
-          "options": [
-            { "label": "2", "value": "2" },
-            { "label": "3", "value": "3" },
-            { "label": "4", "value": "4" }
-          ]
-        },
-        "background_color": {
-          "type": "color",
-          "label": "Background",
-          "value": "#ffffff",
-          "default": "#ffffff"
-        },
-        "border_color": {
-          "type": "color",
-          "label": "Border Color",
-          "value": "#e5e7eb",
-          "default": "#e5e7eb"
-        },
-        "padding": {
-          "type": "text",
-          "label": "Padding",
-          "value": "16px",
-          "default": "16px"
-        },
-        "border_radius": {
-          "type": "text",
-          "label": "Border Radius",
-          "value": "12px",
-          "default": "12px"
-        },
-        "sort_enabled": {
-          "type": "checkbox",
-          "label": "Sort Enabled",
-          "value": true,
-          "default": true
-        }
-      },
-      "blocks": [
-        {
-          "id": "products-toolbar",
-          "label": "Products Toolbar",
-          "block_type": "products_toolbar",
-          "disabled": false,
-          "settings": {
-            "show_sort": {
-              "type": "checkbox",
-              "label": "Show Sort",
-              "value": true,
-              "default": true
-            },
-            "show_count": {
-              "type": "checkbox",
-              "label": "Show Count",
-              "value": true,
-              "default": true
-            }
-          }
-        },
-        {
-          "id": "product-card",
-          "label": "Product Card",
-          "block_type": "product_card",
-          "disabled": false,
-          "settings": {
-            "background_color": {
-              "type": "color",
-              "label": "Background",
-              "value": "#f9fafb",
-              "default": "#f9fafb"
-            },
-            "border_color": {
-              "type": "color",
-              "label": "Border Color",
-              "value": "#e5e7eb",
-              "default": "#e5e7eb"
-            },
-            "border_radius": {
-              "type": "text",
-              "label": "Border Radius",
-              "value": "12px",
-              "default": "12px"
-            }
-          },
-          "blocks": [
-            {
-              "id": "product-title",
-              "label": "Title",
-              "block_type": "product_title",
-              "disabled": false,
-              "settings": {
-                "tag": {
-                  "type": "select",
-                  "label": "Tag",
-                  "value": "h3",
-                  "default": "h3",
-                  "options": [
-                    { "label": "H2", "value": "h2" },
-                    { "label": "H3", "value": "h3" },
-                    { "label": "H4", "value": "h4" },
-                    { "label": "P", "value": "p" }
-                  ]
-                },
-                "text_color": {
-                  "type": "color",
-                  "label": "Text Color",
-                  "value": "#1f1f1f",
-                  "default": "#1f1f1f"
-                },
-                "font_size": {
-                  "type": "text",
-                  "label": "Font Size",
-                  "value": "18px",
-                  "default": "18px"
-                }
-              }
-            },
-            {
-              "id": "product-vendor",
-              "label": "Vendor",
-              "block_type": "vendor",
-              "disabled": false,
-              "settings": {
-                "text_color": {
-                  "type": "color",
-                  "label": "Text Color",
-                  "value": "#6b7280",
-                  "default": "#6b7280"
-                },
-                "font_size": {
-                  "type": "text",
-                  "label": "Font Size",
-                  "value": "13px",
-                  "default": "13px"
-                }
-              }
-            },
-            {
-              "id": "product-price",
-              "label": "Price",
-              "block_type": "price",
-              "disabled": false,
-              "settings": {
-                "compare_price_enabled": {
-                  "type": "checkbox",
-                  "label": "Show Compare",
-                  "value": true,
-                  "default": true
-                },
-                "text_color": {
-                  "type": "color",
-                  "label": "Text Color",
-                  "value": "#111827",
-                  "default": "#111827"
-                },
-                "font_size": {
-                  "type": "text",
-                  "label": "Font Size",
-                  "value": "15px",
-                  "default": "15px"
-                }
-              }
-            },
-            {
-              "id": "product-quick-add",
-              "label": "Quick Add",
-              "block_type": "quick_add_button",
-              "disabled": false,
-              "settings": {
-                "label": {
-                  "type": "text",
-                  "label": "Label",
-                  "value": "Quick Add",
-                  "default": "Quick Add"
-                },
-                "button_style": {
-                  "type": "select",
-                  "label": "Button Style",
-                  "value": "primary",
-                  "default": "primary",
-                  "options": [
-                    { "label": "Primary", "value": "primary" },
-                    { "label": "Secondary", "value": "secondary" }
-                  ]
-                }
-              }
-            },
-            {
-              "id": "product-stock-badge",
-              "label": "Stock Badge",
-              "block_type": "stock_badge",
-              "disabled": false,
-              "settings": {
-                "in_stock_text": {
-                  "type": "text",
-                  "label": "In Stock Text",
-                  "value": "In Stock",
-                  "default": "In Stock"
-                },
-                "out_of_stock_text": {
-                  "type": "text",
-                  "label": "Out of Stock Text",
-                  "value": "Sold Out",
-                  "default": "Sold Out"
-                },
-                "in_stock_color": {
-                  "type": "color",
-                  "label": "In Stock Color",
-                  "value": "#16a34a",
-                  "default": "#16a34a"
-                },
-                "out_of_stock_color": {
-                  "type": "color",
-                  "label": "Out of Stock Color",
-                  "value": "#dc2626",
-                  "default": "#dc2626"
-                }
-              }
-            },
-            {
-              "id": "product-hover-images",
-              "label": "Hover Images",
-              "block_type": "hover_images",
-              "disabled": false,
-              "settings": {
-                "transition": {
-                  "type": "select",
-                  "label": "Transition",
-                  "value": "fade",
-                  "default": "fade",
-                  "options": [
-                    { "label": "Fade", "value": "fade" },
-                    { "label": "Slide", "value": "slide" }
-                  ]
-                }
-              }
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "id": "pagination",
-      "label": "Pagination",
-      "disabled": false,
-      "settings": {
-        "style": {
-          "type": "select",
-          "label": "Style",
-          "value": "buttons",
-          "default": "buttons",
-          "options": [
-            { "label": "Buttons", "value": "buttons" },
-            { "label": "Numbers", "value": "numbers" }
-          ]
-        },
-        "alignment": {
-          "type": "radio",
-          "label": "Alignment",
-          "value": "center",
-          "default": "center",
-          "options": [
-            { "label": "Left", "value": "left" },
-            { "label": "Center", "value": "center" },
-            { "label": "Right", "value": "right" }
-          ]
-        },
-        "load_more_enabled": {
-          "type": "checkbox",
-          "label": "Load More",
-          "value": false,
-          "default": false
-        }
-      },
-      "blocks": [
-        {
-          "id": "pagination-controls",
-          "label": "Pagination Controls",
-          "block_type": "pagination_controls",
-          "disabled": false,
-          "settings": {
-            "numbers_enabled": {
-              "type": "checkbox",
-              "label": "Numbers Enabled",
-              "value": true,
-              "default": true
-            },
-            "arrows_enabled": {
-              "type": "checkbox",
-              "label": "Arrows Enabled",
-              "value": true,
-              "default": true
-            }
-          }
-        }
-      ]
-    }
-  ],
-  "block_presets": [
-    {
-      "id": "custom_html",
-      "label": "Custom HTML",
-      "scope": "global",
-      "disabled": false,
-      "settings": {
-        "html": {
-          "type": "textarea",
-          "label": "HTML",
-          "value": "<div class='custom-block'>Free shipping over $50</div>",
-          "default": ""
-        }
-      }
-    },
-    {
-      "id": "banner",
-      "label": "Banner",
-      "scope": "global",
-      "disabled": false,
-      "settings": {
-        "text": {
-          "type": "text",
-          "label": "Text",
-          "value": "Seasonal offer",
-          "default": "Seasonal offer"
-        },
-        "tone": {
-          "type": "select",
-          "label": "Tone",
-          "value": "info",
-          "default": "info",
-          "options": [
-            { "label": "Info", "value": "info" },
-            { "label": "Success", "value": "success" },
-            { "label": "Warning", "value": "warning" }
-          ]
-        }
-      }
-    },
-    {
-      "id": "divider",
-      "label": "Divider",
-      "scope": "global",
-      "disabled": false,
-      "settings": {
-        "style": {
-          "type": "select",
-          "label": "Style",
-          "value": "line",
-          "default": "line",
-          "options": [
-            { "label": "Line", "value": "line" },
-            { "label": "Dashed", "value": "dashed" }
-          ]
-        }
-      }
-    },
-    {
-      "id": "filter_group",
-      "label": "Filter Group",
-      "scope": "filters",
-      "disabled": false,
-      "settings": {
-        "counts_enabled": {
-          "type": "checkbox",
-          "label": "Show Counts",
-          "value": true,
-          "default": true
-        },
-        "collapsible": {
-          "type": "checkbox",
-          "label": "Collapsible",
-          "value": true,
-          "default": true
-        }
-      }
-    },
-    {
-      "id": "price_range",
-      "label": "Price Range",
-      "scope": "filters",
-      "disabled": false,
-      "settings": {
-        "min": {
-          "type": "text",
-          "label": "Min",
-          "value": "0",
-          "default": "0"
-        },
-        "max": {
-          "type": "text",
-          "label": "Max",
-          "value": "500",
-          "default": "500"
-        }
-      }
-    },
-    {
-      "id": "swatches",
-      "label": "Swatches",
-      "scope": "filters",
-      "disabled": false,
-      "settings": {
-        "shape": {
-          "type": "select",
-          "label": "Shape",
-          "value": "circle",
-          "default": "circle",
-          "options": [
-            { "label": "Circle", "value": "circle" },
-            { "label": "Square", "value": "square" }
-          ]
-        },
-        "size": {
-          "type": "select",
-          "label": "Size",
-          "value": "small",
-          "default": "small",
-          "options": [
-            { "label": "Small", "value": "small" },
-            { "label": "Medium", "value": "medium" },
-            { "label": "Large", "value": "large" }
-          ]
-        }
-      }
-    },
-    {
-      "id": "search_input",
-      "label": "Search Input",
-      "scope": "filters",
-      "disabled": false,
-      "settings": {
-        "placeholder": {
-          "type": "text",
-          "label": "Placeholder",
-          "value": "Search",
-          "default": "Search"
-        }
-      }
-    },
-    {
-      "id": "products_toolbar",
-      "label": "Products Toolbar",
-      "scope": "products",
-      "disabled": false,
-      "settings": {
-        "show_sort": {
-          "type": "checkbox",
-          "label": "Show Sort",
-          "value": true,
-          "default": true
-        },
-        "show_count": {
-          "type": "checkbox",
-          "label": "Show Count",
-          "value": true,
-          "default": true
-        }
-      }
-    },
-    {
-      "id": "product_title",
-      "label": "Product Title",
-      "scope": "product_card",
-      "disabled": false,
-      "settings": {
-        "tag": {
-          "type": "select",
-          "label": "Tag",
-          "value": "h3",
-          "default": "h3",
-          "options": [
-            { "label": "H2", "value": "h2" },
-            { "label": "H3", "value": "h3" },
-            { "label": "H4", "value": "h4" },
-            { "label": "P", "value": "p" }
-          ]
-        },
-        "text_color": {
-          "type": "color",
-          "label": "Text Color",
-          "value": "#1f1f1f",
-          "default": "#1f1f1f"
-        },
-        "font_size": {
-          "type": "text",
-          "label": "Font Size",
-          "value": "18px",
-          "default": "18px"
-        }
-      }
-    },
-    {
-      "id": "vendor",
-      "label": "Vendor",
-      "scope": "product_card",
-      "disabled": false,
-      "settings": {
-        "text_color": {
-          "type": "color",
-          "label": "Text Color",
-          "value": "#6b7280",
-          "default": "#6b7280"
-        },
-        "font_size": {
-          "type": "text",
-          "label": "Font Size",
-          "value": "13px",
-          "default": "13px"
-        }
-      }
-    },
-    {
-      "id": "price",
-      "label": "Price",
-      "scope": "product_card",
-      "disabled": false,
-      "settings": {
-        "compare_price_enabled": {
-          "type": "checkbox",
-          "label": "Show Compare",
-          "value": true,
-          "default": true
-        },
-        "text_color": {
-          "type": "color",
-          "label": "Text Color",
-          "value": "#111827",
-          "default": "#111827"
-        },
-        "font_size": {
-          "type": "text",
-          "label": "Font Size",
-          "value": "15px",
-          "default": "15px"
-        }
-      }
-    },
-    {
-      "id": "quick_add_button",
-      "label": "Quick Add Button",
-      "scope": "product_card",
-      "disabled": false,
-      "settings": {
-        "label": {
-          "type": "text",
-          "label": "Label",
-          "value": "Quick Add",
-          "default": "Quick Add"
-        },
-        "button_style": {
-          "type": "select",
-          "label": "Button Style",
-          "value": "primary",
-          "default": "primary",
-          "options": [
-            { "label": "Primary", "value": "primary" },
-            { "label": "Secondary", "value": "secondary" }
-          ]
-        }
-      }
-    },
-    {
-      "id": "stock_badge",
-      "label": "Stock Badge",
-      "scope": "product_card",
-      "disabled": false,
-      "settings": {
-        "in_stock_text": {
-          "type": "text",
-          "label": "In Stock Text",
-          "value": "In Stock",
-          "default": "In Stock"
-        },
-        "out_of_stock_text": {
-          "type": "text",
-          "label": "Out of Stock Text",
-          "value": "Sold Out",
-          "default": "Sold Out"
-        },
-        "in_stock_color": {
-          "type": "color",
-          "label": "In Stock Color",
-          "value": "#16a34a",
-          "default": "#16a34a"
-        },
-        "out_of_stock_color": {
-          "type": "color",
-          "label": "Out of Stock Color",
-          "value": "#dc2626",
-          "default": "#dc2626"
-        }
-      }
-    },
-    {
-      "id": "hover_images",
-      "label": "Hover Images",
-      "scope": "product_card",
-      "disabled": false,
-      "settings": {
-        "transition": {
-          "type": "select",
-          "label": "Transition",
-          "value": "fade",
-          "default": "fade",
-          "options": [
-            { "label": "Fade", "value": "fade" },
-            { "label": "Slide", "value": "slide" }
-          ]
-        }
-      }
-    }
-  ]
-};
+import { renderTemplate } from "../template-engine/render";
+import path from "node:path";
+import { readFile, stat, readdir } from "node:fs/promises";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   await authenticate.admin(request);
+  const url = new URL(request.url);
+  const templateId = url.searchParams.get("template") || "collection-page";
+  const candidatePaths = [
+    path.resolve(process.cwd(), "templates", templateId, "template.json"),
+    path.resolve(process.cwd(), "dashboard", "templates", templateId, "template.json"),
+  ];
+  const blocksDirCandidates = [
+    path.resolve(process.cwd(), "templates", templateId, "blocks"),
+    path.resolve(process.cwd(), "dashboard", "templates", templateId, "blocks"),
+  ];
+  let templatePath: string | null = null;
+  let blocksDir: string | null = null;
+  for (const candidate of candidatePaths) {
+    try {
+      await stat(candidate);
+      templatePath = candidate;
+      break;
+    } catch {
+      // keep searching
+    }
+  }
+  for (const candidate of blocksDirCandidates) {
+    try {
+      await stat(candidate);
+      blocksDir = candidate;
+      break;
+    } catch {
+      // keep searching
+    }
+  }
+  if (!templatePath) {
+    throw new Response(`Template not found: ${templateId}`, { status: 404 });
+  }
+  const raw = await readFile(templatePath, "utf8");
+  const template = JSON.parse(raw) as TemplateConfig;
+  const blockSources: Record<string, string> = {};
+  if (blocksDir) {
+    const files = await readdir(blocksDir);
+    for (const file of files) {
+      if (!file.endsWith(".js")) continue;
+      const blockType = file.replace(/\\.js$/, "");
+      const source = await readFile(path.join(blocksDir, file), "utf8");
+      blockSources[blockType] = source;
+    }
+  }
+  return { template, templateId, blockSources };
 };
 
 type FieldOption = { label: string; value: string };
@@ -864,8 +119,6 @@ type DragInfo = {
 
 type TextTag = "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "p" | "span" | "div";
 
-const INITIAL_TEMPLATE = templateSample as unknown as TemplateConfig;
-
 const SAMPLE_PRODUCT = {
   title: "Canvas Utility Jacket",
   vendor: "Northwind",
@@ -925,18 +178,19 @@ const getPresetsForArea = (presets: TemplatePreset[], areaId: string, scope: "ar
 };
 
 export default function TemplateEditorPage() {
+  const { template, blockSources } = useLoaderData<typeof loader>();
   const [history, setHistory] = useState<{
     past: TemplateConfig[];
     present: TemplateConfig;
     future: TemplateConfig[];
   }>({
     past: [],
-    present: INITIAL_TEMPLATE,
+    present: template as unknown as TemplateConfig,
     future: [],
   });
   const templateConfig = history.present;
   const [selected, setSelected] = useState<Selection | null>(() => {
-    const first = INITIAL_TEMPLATE.areas[0];
+    const first = (template as TemplateConfig).areas[0];
     return first ? { type: "area", areaId: first.id, label: first.label } : null;
   });
   const [hovered, setHovered] = useState<Selection | null>(null);
@@ -982,6 +236,21 @@ export default function TemplateEditorPage() {
       backgroundColor: getFieldValue(templateConfig.settings, ["colors", "background"]) || "#ffffff",
     } as CSSProperties;
   }, [templateConfig.settings]);
+
+  const previewHtml = useMemo(() => {
+    const registry = Object.fromEntries(
+      Object.entries(blockSources ?? {}).map(([blockType, source]) => {
+        try {
+          const factory = new Function(`${source}\nreturn main;`);
+          const main = factory();
+          return [blockType, main];
+        } catch {
+          return [blockType, () => `<!-- Error in ${blockType} -->`];
+        }
+      })
+    );
+    return renderTemplate(templateConfig, registry);
+  }, [templateConfig, blockSources]);
 
   const getAreaIndex = (areaId: string) => templateConfig.areas.findIndex((area) => area.id === areaId);
 
@@ -1398,13 +667,6 @@ export default function TemplateEditorPage() {
 
   return (
     <div>
-      <s-section>
-        <s-stack direction="block" gap="small">
-          <s-heading>Template Editor</s-heading>
-          <s-text tone="auto">Hover to highlight, click to select, and edit settings on the right.</s-text>
-        </s-stack>
-      </s-section>
-
       <s-section padding="none">
         <div className="template-toolbar">
           <div className="template-toolbar__group">
@@ -1646,169 +908,7 @@ export default function TemplateEditorPage() {
               <s-stack direction="block" gap="base">
                 <s-heading>Preview</s-heading>
                 <div className="template-preview" style={previewStyle}>
-                  {templateConfig.areas.map((area) => {
-                    if (area.disabled) return null;
-                    const areaSelection: Selection = { type: "area", areaId: area.id, label: area.label };
-                    const isAreaSelected = selected?.type === "area" && selected.areaId === area.id;
-                    const isAreaHovered = hovered?.type === "area" && hovered.areaId === area.id;
-
-                    if (area.id === "filters") {
-                      const filtersBackground = getFieldValue(area.settings, ["background_color"]);
-                      const filtersBorder = getFieldValue(area.settings, ["border_color"]);
-                      const filtersPadding = getFieldValue(area.settings, ["padding"]);
-                      const filtersRadius = getFieldValue(area.settings, ["border_radius"]);
-                      return (
-                        <div
-                          key={area.id}
-                          className={`template-area template-area--filters ${isAreaSelected ? "is-selected" : ""} ${isAreaHovered ? "is-hovered" : ""}`}
-                          style={{
-                            backgroundColor: filtersBackground,
-                            borderColor: filtersBorder,
-                            padding: filtersPadding,
-                            borderRadius: filtersRadius,
-                          }}
-                          onMouseEnter={() => setHovered(areaSelection)}
-                          onMouseLeave={() => setHovered(null)}
-                          onClick={() => setSelected(areaSelection)}
-                        >
-                          <div className="template-area__header">
-                            <span>Filters</span>
-                            <button className="template-link">Clear all</button>
-                          </div>
-                          {area.blocks.map((block) => {
-                            if (block.disabled) return null;
-                            const blockSelection: Selection = {
-                              type: "block",
-                              areaId: area.id,
-                              blockId: block.id,
-                              label: block.label,
-                            };
-                            if (block.block_type === "custom_html") {
-                              return renderPreviewBlock(block, blockSelection);
-                            }
-                            return (
-                              <div
-                                key={block.id}
-                                className={`template-block ${
-                                  selected?.type === "block" && selected.blockId === block.id ? "is-selected" : ""
-                                } ${
-                                  hovered?.type === "block" && hovered.blockId === block.id ? "is-hovered" : ""
-                                }`}
-                                onMouseEnter={() => setHovered(blockSelection)}
-                                onMouseLeave={() => setHovered(null)}
-                                onClick={() => setSelected(blockSelection)}
-                              >
-                                <div className="template-filter">
-                                  <span>{block.label}</span>
-                                  <div className="template-filter__chips">
-                                    <span>Northwind</span>
-                                    <span>Arbor</span>
-                                    <span>Seaside</span>
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      );
-                    }
-
-                    if (area.id === "products") {
-                      const cardBlock = area.blocks.find((block) => block.block_type === "product_card");
-                      const productsBackground = getFieldValue(area.settings, ["background_color"]);
-                      const productsBorder = getFieldValue(area.settings, ["border_color"]);
-                      const productsPadding = getFieldValue(area.settings, ["padding"]);
-                      const productsRadius = getFieldValue(area.settings, ["border_radius"]);
-                      return (
-                        <div
-                          key={area.id}
-                          className={`template-area template-area--products ${isAreaSelected ? "is-selected" : ""} ${isAreaHovered ? "is-hovered" : ""}`}
-                          style={{
-                            backgroundColor: productsBackground,
-                            borderColor: productsBorder,
-                            padding: productsPadding,
-                            borderRadius: productsRadius,
-                          }}
-                          onMouseEnter={() => setHovered(areaSelection)}
-                          onMouseLeave={() => setHovered(null)}
-                          onClick={() => setSelected(areaSelection)}
-                        >
-                          <div className="template-area__header">
-                            <span>Products</span>
-                            <select aria-label="Sort products">
-                              <option>Best selling</option>
-                              <option>Price: low to high</option>
-                              <option>Price: high to low</option>
-                            </select>
-                          </div>
-                          {cardBlock && !cardBlock.disabled && (
-                            <div
-                              className={`template-card ${
-                                selected?.type === "block" && selected.blockId === cardBlock.id ? "is-selected" : ""
-                              } ${hovered?.type === "block" && hovered.blockId === cardBlock.id ? "is-hovered" : ""}`}
-                              style={{
-                                backgroundColor: getFieldValue(cardBlock.settings, ["background_color"]),
-                                borderColor: getFieldValue(cardBlock.settings, ["border_color"]),
-                                borderRadius: getFieldValue(cardBlock.settings, ["border_radius"]),
-                              }}
-                              onMouseEnter={(e) => {
-                                e.stopPropagation();
-                                setHovered({ type: "block", areaId: area.id, blockId: cardBlock.id, label: cardBlock.label });
-                              }}
-                              onMouseLeave={(e) => {
-                                e.stopPropagation();
-                                setHovered(null);
-                              }}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelected({ type: "block", areaId: area.id, blockId: cardBlock.id, label: cardBlock.label });
-                              }}
-                            >
-                              <div className="template-card__image" />
-                              <div className="template-card__content">
-                                {(cardBlock.blocks ?? []).map((block) =>
-                                  renderPreviewBlock(block, {
-                                    type: "block",
-                                    areaId: area.id,
-                                    blockId: block.id,
-                                    label: block.label,
-                                    parentBlockId: cardBlock.id,
-                                  })
-                                )}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    }
-
-                    if (area.id === "pagination") {
-                      return (
-                        <div
-                          key={area.id}
-                          className={`template-area template-area--pagination ${isAreaSelected ? "is-selected" : ""} ${isAreaHovered ? "is-hovered" : ""}`}
-                          style={{
-                            backgroundColor: "#ffffff",
-                            borderColor: "#e5e7eb",
-                            padding: "16px",
-                            borderRadius: "12px",
-                          }}
-                          onMouseEnter={() => setHovered(areaSelection)}
-                          onMouseLeave={() => setHovered(null)}
-                          onClick={() => setSelected(areaSelection)}
-                        >
-                          <div className="template-pagination">
-                            <button className="template-toolbar__button">Prev</button>
-                            <button className="template-toolbar__button">1</button>
-                            <button className="template-toolbar__button">2</button>
-                            <button className="template-toolbar__button">Next</button>
-                          </div>
-                        </div>
-                      );
-                    }
-
-                    return null;
-                  })}
+                  <div className="template-preview-html" dangerouslySetInnerHTML={{ __html: previewHtml }} />
                 </div>
               </s-stack>
             </s-box>
@@ -1910,6 +1010,11 @@ export default function TemplateEditorPage() {
           border-radius: 16px;
           padding: 16px;
           background: #fafafa;
+        }
+
+        .template-preview-html {
+          display: grid;
+          gap: 12px;
         }
 
         .template-area {
