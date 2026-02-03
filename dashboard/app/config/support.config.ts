@@ -11,10 +11,10 @@ export const SUPPORT_CONFIG = {
    */
   contact: {
     phone: "+1 (555) 123-4567",
-    email: "shafiq.solutionwin@gmail.com",
+    email: "support@digitalcoo.com",
     hours: [
-      "Monday - Friday: 9:00 AM - 6:00 PM EST",
-      "Saturday: 10:00 AM - 4:00 PM EST",
+      "Monday - Friday: 11:00 AM - 8:00 PM EST",
+      "Saturday: 11:00 AM - 7:00 PM EST",
       "Sunday: Closed",
     ],
   },
@@ -23,8 +23,8 @@ export const SUPPORT_CONFIG = {
    * App Information
    */
   app: {
-    name: "Advanced Filters & Search",
-    version: "2.0",
+    name: "Digitalcoo AI Filters & Search",
+    version: "2.0.0",
   },
 
   /**

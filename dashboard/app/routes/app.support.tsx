@@ -11,6 +11,7 @@ import { SUPPORT_CONFIG } from "../config/support.config";
 import { sendSupportEmail } from "../utils/email.service";
 import { GraphQLError } from "../graphql.server";
 import { useTranslation } from "app/utils/translations";
+import { CallbackEvent } from "@shopify/polaris-types";
 
 interface SupportData {
   shop?: string;
@@ -143,6 +144,11 @@ export default function Support() {
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleInputChange1 = (e: any) => {
+    const { name, value } = e.target.value;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -305,26 +311,16 @@ export default function Support() {
                 <s-grid gap="base" gridTemplateColumns="repeat(auto-fit, minmax(250px, 1fr))">
                   <s-grid-item>
                     <s-stack direction="block" gap="small">
-                      <label htmlFor="name">
-                        <s-text type="strong">
-                          {t("support.form.name.label")} <span style={{ color: "red" }}>*</span>
-                        </s-text>
-                      </label>
-                      <input
-                        type="text"
+                      <s-text-field
+                        label={t("support.form.name.label")}
+                        required={true}
                         id="name"
                         name="name"
                         value={formData.name}
-                        onChange={handleInputChange}
-                        required
-                        disabled={isSubmitting}
-                        style={{
-                          width: "100%",
-                          padding: "8px 12px",
-                          borderRadius: "4px",
-                          border: "1px solid #c9cccf",
-                          fontSize: "14px",
+                        onChange={(e: any) => {
+                          setFormData((prev) => ({ ...prev, "name": e.target.value }));
                         }}
+                        disabled={isSubmitting}
                         placeholder={t("support.form.name.placeholder")}
                       />
                     </s-stack>
@@ -332,26 +328,16 @@ export default function Support() {
 
                   <s-grid-item>
                     <s-stack direction="block" gap="small">
-                      <label htmlFor="email">
-                        <s-text type="strong">
-                          {t("support.form.email.label")} <span style={{ color: "red" }}>*</span>
-                        </s-text>
-                      </label>
-                      <input
-                        type="email"
+                      <s-text-field
+                        label={t("support.form.email.label")}
+                        required={true}
                         id="email"
                         name="email"
                         value={formData.email}
-                        onChange={handleInputChange}
-                        required
-                        disabled={isSubmitting}
-                        style={{
-                          width: "100%",
-                          padding: "8px 12px",
-                          borderRadius: "4px",
-                          border: "1px solid #c9cccf",
-                          fontSize: "14px",
+                        onChange={(e: any) => {
+                          setFormData((prev) => ({ ...prev, "email": e.target.value }));
                         }}
+                        disabled={isSubmitting}
                         placeholder={t("support.form.email.placeholder")}
                       />
                     </s-stack>
@@ -359,29 +345,19 @@ export default function Support() {
                 </s-grid>
 
                 {/* Subject and Priority Row */}
-                <s-grid gap="base" gridTemplateColumns="2fr 1fr">
+                <s-grid gap="base" gridTemplateColumns="repeat(auto-fit, minmax(250px, 1fr))">
                   <s-grid-item>
                     <s-stack direction="block" gap="small">
-                      <label htmlFor="subject">
-                        <s-text type="strong">
-                          {t("support.form.subject.label")} <span style={{ color: "red" }}>*</span>
-                        </s-text>
-                      </label>
-                      <input
-                        type="text"
+                      <s-text-field
+                        label={t("support.form.subject.label")}
+                        required={true}
                         id="subject"
                         name="subject"
                         value={formData.subject}
-                        onChange={handleInputChange}
-                        required
-                        disabled={isSubmitting}
-                        style={{
-                          width: "100%",
-                          padding: "8px 12px",
-                          borderRadius: "4px",
-                          border: "1px solid #c9cccf",
-                          fontSize: "14px",
+                        onChange={(e: any) => {
+                          setFormData((prev) => ({ ...prev, "subject": e.target.value }));
                         }}
+                        disabled={isSubmitting}
                         placeholder={t("support.form.subject.placeholder")}
                       />
                     </s-stack>
@@ -389,61 +365,45 @@ export default function Support() {
 
                   <s-grid-item>
                     <s-stack direction="block" gap="small">
-                      <label htmlFor="priority">
-                        <s-text type="strong">{t("support.form.priority.label")}</s-text>
-                      </label>
-                      <select
+                      <s-select
+                        label={t("support.form.priority.label")}
                         id="priority"
                         name="priority"
                         value={formData.priority}
-                        onChange={handleInputChange}
-                        disabled={isSubmitting}
-                        style={{
-                          width: "100%",
-                          padding: "8px 12px",
-                          borderRadius: "4px",
-                          border: "1px solid #c9cccf",
-                          fontSize: "14px",
-                          backgroundColor: "white",
+                        onChange={(e: any) => {
+                          setFormData((prev) => ({ ...prev, "priority": e.target.value }));
                         }}
+                        disabled={isSubmitting}
+                        placeholder={t("support.form.priority.placeholder")}
+                        labelAccessibilityVisibility="visible"
                       >
-                        {SUPPORT_CONFIG.form.priorities.map((priority) => (
-                          <option key={priority.value} value={priority.value}>
-                            {priority.label}
-                          </option>
-                        ))}
-                      </select>
+                        {
+                          SUPPORT_CONFIG.form.priorities.map((priority) => (
+                            <s-option key={priority.value} value={priority.value}>
+                              {priority.label}
+                            </s-option>
+                          ))
+                        }
+                      </s-select>
+                      
                     </s-stack>
                   </s-grid-item>
                 </s-grid>
 
                 {/* Message */}
                 <s-stack direction="block" gap="small">
-                  <label htmlFor="message">
-                    <s-text type="strong">
-                      {t("support.form.message.label")} <span style={{ color: "red" }}>*</span>
-                    </s-text>
-                  </label>
-                  <textarea
+                  <s-text-area
+                    label={t("support.form.message.label")}
+                    required={true}
                     id="message"
                     name="message"
                     value={formData.message}
-                    onChange={handleInputChange}
-                    required
-                    disabled={isSubmitting}
-                    rows={8}
-                    minLength={SUPPORT_CONFIG.form.messageMinLength}
-                    maxLength={SUPPORT_CONFIG.form.messageMaxLength}
-                    style={{
-                      width: "100%",
-                      padding: "8px 12px",
-                      borderRadius: "4px",
-                      border: "1px solid #c9cccf",
-                      fontSize: "14px",
-                      fontFamily: "inherit",
-                      resize: "vertical",
+                    onChange={(e: any) => {
+                      setFormData((prev) => ({ ...prev, "message": e.target.value }));
                     }}
-                    placeholder={t("support.form.message.placeholder")}
+                    disabled={isSubmitting}
+                    placeholder={t("support.form.subject.placeholder")}
+                    rows={4}
                   />
                   <s-text tone="neutral">
                     {t("support.form.message.characterCount", { 
@@ -509,10 +469,6 @@ export default function Support() {
                 </s-list-item>
               </s-unordered-list>
             </s-stack>
-            <s-divider />
-            <s-text tone="neutral">
-              {t("support.appInfo.version", { appName, appVersion })} • {t("support.appInfo.shop", { shop: shop || "" })}
-            </s-text>
           </s-stack>
         </s-box>
       </s-section>
