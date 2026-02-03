@@ -3,59 +3,63 @@
  * Reusable component styles
  */
 
+
+@use 'variables' as *;
+
+$positions: top-right, top-left, bottom-right, bottom-left;
+
 /* ============================================================================
    Base Reset
    ============================================================================ */
 
-[data-afs-container] button,
-[data-afs-container] svg,
-[data-afs-container] a,
-[data-afs-container] input,
-[data-afs-container] select,
-[data-afs-container] textarea,
-[data-afs-container] label,
-[data-afs-container] span,
-[data-afs-container] div {
-  font-family: var(--afs-font-family);
-  height: auto;
-  width: auto;
-  line-height: normal;
-  color: var(--afs-text-color);
-  font-style: normal;
-  font-weight: var(--afs-font-weight, 400);
-  box-sizing: border-box;
-  padding: 0;
-  margin: 0;
-  outline: none;
-  border: none;
+.afs-product-modal,
+[data-afs-container] {
+    button,
+    a,
+    svg,
+    select,
+    label,
+    span,
+    div,
+    input,
+    textarea {
+        box-sizing: border-box;
+        line-height: normal;
+        font: inherit;
+        font-size: inherit;
+        letter-spacing: inherit;
+        box-shadow: none;
+        vertical-align: baseline;
+    }
 }
+
 
 /* ============================================================================
    Scrollbar Styles
-   ============================================================================ */
+============================================================================ */
 
 @mixin custom-scrollbar($width: 6px, $track-color: transparent, $thumb-color: var(--afs-border-color)) {
-  &::-webkit-scrollbar {
-    width: $width;
-  }
+    &::-webkit-scrollbar {
+        width: $width;
+    }
 
-  &::-webkit-scrollbar-track {
-    background: $track-color;
-    border-radius: 3px;
-  }
+    &::-webkit-scrollbar-track {
+        background: $track-color;
+        border-radius: 3px;
+    }
 
-  &::-webkit-scrollbar-thumb {
-    background: $thumb-color;
-    border-radius: 3px;
-    transition: background 0.2s ease;
-  }
+    &::-webkit-scrollbar-thumb {
+        background: $thumb-color;
+        border-radius: 3px;
+        transition: background 0.2s ease;
+    }
 
-  &::-webkit-scrollbar-thumb:hover {
-    background: var(--afs-scrollbar-thumb-hover);
-  }
+    &::-webkit-scrollbar-thumb:hover {
+        background: var(--afs-scrollbar-thumb-hover);
+    }
 
-  scrollbar-width: thin;
-  scrollbar-color: $thumb-color $track-color;
+    scrollbar-width: thin;
+    scrollbar-color: $thumb-color $track-color;
 }
 
 /* ============================================================================
@@ -63,25 +67,24 @@
    ============================================================================ */
 
 @mixin button-base {
-  padding: 6px 12px;
-  font-size: 14px;
-  border: 1px solid var(--afs-border-color);
-  border-radius: 4px;
-  background: transparent;
-  color: var(--afs-text-color);
-  font-family: var(--afs-font-family);
-  cursor: pointer;
-  transition: all 0.2s ease;
+    padding: $spacing-sm $spacing-md;
+    font-size: $font-size-base;
+    border: 1px solid var(--afs-border-color);
+    border-radius: $border-radius-sm;
+    background: inherit;
+    color: var(--afs-text-color);
+    cursor: pointer;
+    transition: all 0.2s ease;
 }
 
 @mixin button-hover {
-  background: var(--afs-accent-color);
-  color: var(--afs-text-color-inverse);
-  border-color: var(--afs-accent-color);
+    background: var(--afs-accent-color);
+    color: var(--afs-text-color-inverse);
+    border-color: var(--afs-accent-color);
 }
 
 @mixin button-active {
-  transform: scale(0.98);
+    transform: scale(0.98);
 }
 
 /* ============================================================================
@@ -89,14 +92,85 @@
    ============================================================================ */
 
 @mixin card-base {
-  display: flex;
-  flex-direction: column;
-  background: transparent;
-  border: none;
-  border-radius: 0;
-  overflow: visible;
-  transition: none;
-  cursor: default;
+    display: flex;
+    flex-direction: column;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    overflow: visible;
+    transition: none;
+    cursor: default;
+}
+
+// Define a mixin for badge positions
+@mixin badge-position($position) {
+    @if $position ==top-right {
+        top: $spacing-sm;
+        right: $spacing-sm;
+    }
+
+    @else if $position ==top-left {
+        top: $spacing-sm;
+        left: $spacing-sm;
+    }
+
+    @else if $position ==bottom-right {
+        bottom: $spacing-sm;
+        right: $spacing-sm;
+    }
+
+    @else if $position ==bottom-left {
+        bottom: $spacing-sm;
+        left: $spacing-sm;
+    }
+}
+
+@mixin top-right {
+    top: $spacing-sm;
+    right: $spacing-sm;
+}
+
+@mixin top-left {
+    top: $spacing-sm;
+    left: $spacing-sm;
+}
+
+@mixin bottom-right {
+    bottom: $spacing-sm;
+    right: $spacing-sm;
+}
+
+@mixin bottom-left {
+    bottom: $spacing-sm;
+    left: $spacing-sm;
+}
+
+
+/* ==========================================================================
+   MIXINS
+   ========================================================================== */
+
+@mixin flex-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+@mixin glass-surface {
+    background: var(--afs-bg-color);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+@mixin icon-button($size: 40px) {
+    @include flex-center;
+    width: $size;
+    height: $size;
+    border-radius: 50%;
+    border: 1px solid var(--afs-border-color);
+    background: rgba(255, 255, 255, 0.9);
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 /* ============================================================================
@@ -104,38 +178,36 @@
    ============================================================================ */
 
 @keyframes afs-skeleton-loading {
-  0% {
-    background-position: 200% 0 !important;
-  }
+    0% {
+        background-position: 200% 0 !important;
+    }
 
-  100% {
-    background-position: -200% 0 !important;
-  }
+    100% {
+        background-position: -200% 0 !important;
+    }
 }
 
 @mixin skeleton-base {
-  background: linear-gradient(
-    90deg,
-    var(--afs-skeleton-color-light) 25%,
-    var(--afs-skeleton-color-dark) 50%,
-    var(--afs-skeleton-color-light) 75%
-  ) !important;
-  background-size: 200% 100% !important;
-  background-position: 200% 0 !important;
-  animation: afs-skeleton-loading 1.5s ease-in-out infinite !important;
-  will-change: background-position;
-  border-radius: 4px;
-  display: block !important;
-  position: relative;
+    background: linear-gradient(90deg,
+            var(--afs-skeleton-color-light) 25%,
+            var(--afs-skeleton-color-dark) 50%,
+            var(--afs-skeleton-color-light) 75%) !important;
+    background-size: 200% 100% !important;
+    background-position: 200% 0 !important;
+    animation: afs-skeleton-loading 1.5s ease-in-out infinite !important;
+    will-change: background-position;
+    border-radius: 4px;
+    display: block !important;
+    position: relative;
 
-  &::before {
-    content: '';
-    display: block;
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    opacity: 0;
-  }
+    &::before {
+        content: '';
+        display: block;
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        opacity: 0;
+    }
 }
 
 /* ============================================================================
@@ -143,144 +215,15 @@
    ============================================================================ */
 
 [data-afs-container] {
-  .afs-filter-item:focus,
-  .afs-pagination__button:focus,
-  .afs-product-card:focus {
-    outline: 2px solid var(--afs-accent-color);
-    outline-offset: 2px;
-  }
+
+    .afs-filter-item:focus,
+    .afs-pagination__button:focus,
+    .afs-product-card:focus {
+        outline: 2px solid var(--afs-accent-color);
+        outline-offset: 2px;
+    }
 }
 
-/* ============================================================================
-   Cart Toast Notification
-   ============================================================================ */
-
-.afs-cart-toast {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  z-index: 10000;
-  background: #fff;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  padding: 16px 20px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 300px;
-  max-width: 400px;
-  opacity: 0;
-  transform: translateX(400px);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  pointer-events: none;
-
-  &--show {
-    opacity: 1;
-    transform: translateX(0);
-    pointer-events: auto;
-  }
-
-  &__content {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex: 1;
-    background: transparent;
-  }
-
-  &__icon {
-    flex-shrink: 0;
-    width: 24px;
-    height: 24px;
-    color: #10b981;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: transparent;
-
-    svg {
-      width: 100%;
-      height: 100%;
-      display: block;
-      background: transparent;
-    }
-  }
-
-  &__message {
-    font-size: 15px;
-    font-weight: 500;
-    color: #1f2937;
-    line-height: 1.4;
-    background: transparent;
-  }
-
-  &__close {
-    flex-shrink: 0;
-    width: 32px;
-    height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: transparent;
-    border: none;
-    border-radius: 4px;
-    color: #6b7280;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    padding: 6px;
-
-    &:hover {
-      background: #f3f4f6;
-      color: #1f2937;
-    }
-
-    &:active {
-      transform: scale(0.95);
-    }
-
-    svg {
-      width: 20px;
-      height: 20px;
-      display: block;
-      background: transparent;
-    }
-  }
-}
 
 // Dark mode support
-@media (prefers-color-scheme: dark) {
-  .afs-cart-toast {
-    background: #1f2937;
-    border-color: #374151;
-
-    &__message {
-      color: #f9fafb;
-    }
-
-    &__close {
-      color: #9ca3af;
-
-      &:hover {
-        background: #374151;
-        color: #f9fafb;
-      }
-    }
-  }
-}
-
-// Mobile responsive
-@media (max-width: 640px) {
-  .afs-cart-toast {
-    top: 10px;
-    right: 10px;
-    left: 10px;
-    min-width: auto;
-    max-width: none;
-    transform: translateY(-100px);
-
-    &--show {
-      transform: translateY(0);
-    }
-  }
-}
+@media (prefers-color-scheme: dark) {}

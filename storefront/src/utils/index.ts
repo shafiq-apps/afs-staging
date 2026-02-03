@@ -3,4 +3,4 @@ export * from './detect-device';
 export * from './dom-ready';
 export * from './events';
 export * from './shared';
-export * from './variant-util';
+export * from './variant-utils';

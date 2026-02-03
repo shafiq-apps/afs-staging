@@ -24,7 +24,8 @@
 		"graphql-codegen": "graphql-codegen",
 		"vite": "vite",
 		"typecheck": "react-router typegen && tsc --noEmit",
-		"gitpush": "bash gitpush.sh"
+		"gitpush": "bash gitpush.sh",
+		"check": "npm run typecheck"
 	},
 	"dependencies": {
 		"@react-router/dev": "^7.9.3",

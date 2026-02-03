@@ -4,7 +4,14 @@
   "description": "",
   "main": "ecosystem.config.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "check:storefront": "cd storefront && npm run check",
+    "check:dashboard": "cd dashboard && npm run typecheck",
+    "check:app": "cd app && npm run check",
+    "check:all": "run-s check:storefront check:dashboard check:app",
+    "check": "npm run check:all",
+    "storefront": "cd ./storefront && npm run dev",
+    "dashboard": "cd ./dashboard && npm run dev",
+    "app": "cd ./app && npm run dev"
   },
   "repository": {
     "type": "git",
@@ -18,5 +25,8 @@
   "homepage": "https://github.com/shafiq-apps/afs-staging#readme",
   "dependencies": {
     "dotenv": "^17.2.3"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
   }
 }

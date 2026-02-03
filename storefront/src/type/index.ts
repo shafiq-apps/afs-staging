@@ -25,13 +25,26 @@ export interface IconsType {
 	readonly close: string;
 }
 
-export interface ImageOptimizationOptionsType {
-	width?: number;
-	height?: number;
-	quality?: number;
-	format?: string;
-	crop?: string | null;
-}
+export type ShopifyCrop =
+  | "top"
+  | "bottom"
+  | "left"
+  | "right"
+  | "center"
+  | "top_left"
+  | "top_right"
+  | "bottom_left"
+  | "bottom_right";
+
+export type ShopifyFormat = "webp" | "jpg" | "jpeg" | "pjpg" | "png";
+
+export type buildImageUrlType = {
+  width?: number | null;
+  height?: number | null;
+  quality?: number | null;
+  format?: ShopifyFormat | null;
+  crop?: ShopifyCrop | null;
+};
 
 export interface ImageAttributesType {
 	src: string;
@@ -157,7 +170,7 @@ export interface ProductType {
 	minPrice?: string | number;
 	maxPrice?: string | number;
 	totalInventory?: string | number;
-	variants?: ProductVariantType[];
+	variants: ProductVariantType[];
 	description?: string;
 	images?: string[];
 	options?: Array<{
@@ -227,6 +240,7 @@ export interface AppliedFilterType {
 }
 
 export interface FilterStateType {
+	set: (config: AFSConfigType) => void,
 	shop: string | null;
 	filters: FiltersStateType;
 	products: ProductType[];
@@ -245,6 +259,9 @@ export interface FilterStateType {
 	currency: string | null;
 	scrollToProductsOnFilter: boolean;
 	priceRangeHandle: string | null;
+	routesRoot: string;
+	isSearchTemplate: boolean;
+	settings: FilterSettingsType;
 }
 
 export interface AFSConfigType {
@@ -255,7 +272,7 @@ export interface AFSConfigType {
 	productsSelector?: string;
 	collections?: CollectionType[];
 	selectedCollection?: {
-		id?: string | null;
+		id: string | null;
 		sortBy?: string | null;
 	};
 	fallbackProducts?: ProductType[];
@@ -265,7 +282,14 @@ export interface AFSConfigType {
 	currency?: string;
 	scrollToProductsOnFilter?: boolean;
 	priceRangeHandle?: string | null;
+	isSearchTemplate?: boolean;
 	debug?: boolean;
+	shopLocale?: {
+		locale: string;
+		primary: boolean;
+	};
+	settings?: FilterSettingsType;
+	searchTerms?: string;
 }
 
 export interface SliderInstanceType {
@@ -383,6 +407,7 @@ export interface LanguageTextsType {
 		readonly quickAddToCart: string;
 		readonly quickView: string;
 		readonly addToCart: string;
+		readonly inStock: string;
 		readonly soldOut: string;
 		readonly buyNow: string;
 		readonly clear: string;
@@ -394,12 +419,15 @@ export interface LanguageTextsType {
 		readonly previous: string;
 		readonly next: string;
 		readonly apply: string;
+		readonly readMore: string;
+		readonly readLess: string;
 	};
 	readonly labels: {
 		readonly sortBy: string;
 		readonly appliedFilters: string;
 		readonly search: string;
 		readonly price: string;
+		readonly priceFrom: string;
 		readonly collection: string;
 		readonly productUnavailable: string;
 		readonly loading: string;
@@ -437,30 +465,30 @@ export interface LanguageTextsType {
 		readonly searchProducts: string;
 		readonly searchFilter: string;
 	};
+	readonly general: {
+		readonly selected: string;
+		readonly of: string;
+	}
 }
 
 export interface SliderOptionsType {
-  thumbnailsPosition?: 'top' | 'left' | 'right' | 'bottom';
-  enableKeyboard?: boolean;
-  enableAutoHeight?: boolean;
-  maxHeight?: number | null;
-  animationDuration?: number;
-  enableMagnifier?: boolean;
-  magnifierZoom?: number;
+	thumbnailsPosition?: 'top' | 'left' | 'right' | 'bottom';
+	enableKeyboard?: boolean;
+	enableAutoHeight?: boolean;
+	maxHeight?: number | null;
+	animationDuration?: number;
+	magnifier?: boolean;
+	magnifierZoom?: number;
 }
 
 export interface SliderSlideChangeEventDetailType {
-  index: number;
-  total: number;
+	index: number;
+	total: number;
 }
 
 export interface AFSInterfaceType {
-	init(config?: AFSConfigType): void;
-	load(): Promise<void>;
-	Logger: any;
-	detectDevice: any;
+	load: () => Promise<void>;
 }
-
 
 // ============================================================================
 // TYPES FOR SEARCH MODULES
@@ -468,6 +496,8 @@ export interface AFSInterfaceType {
 
 export interface SearchConfigtype {
 	apiBaseUrl?: string;
+	__v?: string,
+	__lastEdit?: string,
 	shop: string | null;
 	moneyFormat: string | null;
 	moneyWithCurrencyFormat: string | null;
@@ -504,4 +534,78 @@ export interface SearchAPIResponseType {
 }
 
 
-export interface AFSInterface extends AFSInterfaceType { }
+export interface AFSInterface extends AFSInterfaceType {
+	initialize: () => void;
+}
+
+export interface MetadataType {
+	buildFilterMetadata: (
+		filters: FilterOptionType[]
+	) => Map<string, FilterMetadataType>;
+};
+
+type BadgeLocation = 'none' | 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left';
+type DiscountLocation = BadgeLocation | 'next-to-price';
+
+type ProductHtmlFactories = {
+	title: (content: string | HTMLElement) => HTMLElement;
+	vendor: (content: string | HTMLElement) => HTMLElement;
+	price: (content: string | HTMLElement) => HTMLElement;
+};
+
+export interface FilterSettingsType {
+	hoverImage: boolean;
+	showVendor: boolean;
+	showPrice: boolean;
+	showComparePrice: boolean;
+	showDiscount: DiscountLocation;
+	soldOutBadgeLocation: BadgeLocation;
+	inStockBadgeLocation: BadgeLocation;
+	quickViewLocation: BadgeLocation;
+	addToCartButtonLocation: 'none' | 'inside-image' | 'outside-image';
+	html: ProductHtmlFactories
+}
+
+export interface QuickAddOptionsType {
+	product: ProductType;
+	isSoldOut: boolean;
+	label?: string;
+}
+
+export type DeviceType = 'mobile' | 'tablet' | 'desktop';
+
+export interface DeviceInfo {
+  type: DeviceType;
+  isMobile: boolean;
+  isTablet: boolean;
+  isDesktop: boolean;
+}
+
+export interface APIType {
+	baseURL: string;
+	__v: string;
+	__id: string;
+	requestId: string | null;
+	cache: Map<string, ProductsResponseDataType>;
+	timestamps: Map<string, number>;
+	pending: Map<string, Promise<ProductsResponseDataType>>;
+
+	key(filters: FiltersStateType, pagination: PaginationStateType, sort: SortStateType): string;
+	get(key: string): ProductsResponseDataType | null;
+	set(key: string, value: ProductsResponseDataType): void;
+	fetch(
+		url: string,
+		timeout?: number
+	): Promise<APIResponse<ProductsResponseDataType | FiltersResponseDataType>>;
+	products(
+		filters: FiltersStateType,
+		pagination: PaginationStateType,
+		sort: SortStateType
+	): Promise<ProductsResponseDataType>;
+	filters(filters: FiltersStateType): Promise<FiltersResponseDataType>;
+
+	setBaseURL(url: string): void;
+	buildFiltersFromUrl(urlParams: Record<string, any>): void;
+	setPaginationFromUrl(urlParams: Record<string, any>): void;
+	setSortFromUrl(urlParams: Record<string, any>): void;
+};
