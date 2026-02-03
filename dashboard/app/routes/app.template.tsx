@@ -1,35 +1,18 @@
-import { useMemo, useState, type CSSProperties } from "react";
-import { type HeadersFunction, type LoaderFunctionArgs } from "react-router";
-import { useLoaderData } from "react-router";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { type HeadersFunction, type LoaderFunctionArgs, type ActionFunctionArgs } from "react-router";
+import { useLoaderData, useFetcher } from "react-router";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { renderTemplate } from "../template-engine/render";
 import path from "node:path";
 import { readFile, stat, readdir } from "node:fs/promises";
 
-export const loader = async ({ request }: LoaderFunctionArgs) => {
-  await authenticate.admin(request);
-  const url = new URL(request.url);
-  const templateId = url.searchParams.get("template") || "collection-page";
-  const candidatePaths = [
-    path.resolve(process.cwd(), "templates", templateId, "template.json"),
-    path.resolve(process.cwd(), "dashboard", "templates", templateId, "template.json"),
-  ];
+const loadBlockSources = async (templateId: string) => {
   const blocksDirCandidates = [
     path.resolve(process.cwd(), "templates", templateId, "blocks"),
     path.resolve(process.cwd(), "dashboard", "templates", templateId, "blocks"),
   ];
-  let templatePath: string | null = null;
   let blocksDir: string | null = null;
-  for (const candidate of candidatePaths) {
-    try {
-      await stat(candidate);
-      templatePath = candidate;
-      break;
-    } catch {
-      // keep searching
-    }
-  }
   for (const candidate of blocksDirCandidates) {
     try {
       await stat(candidate);
@@ -39,11 +22,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       // keep searching
     }
   }
-  if (!templatePath) {
-    throw new Response(`Template not found: ${templateId}`, { status: 404 });
-  }
-  const raw = await readFile(templatePath, "utf8");
-  const template = JSON.parse(raw) as TemplateConfig;
   const blockSources: Record<string, string> = {};
   if (blocksDir) {
     const files = await readdir(blocksDir);
@@ -54,7 +32,70 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       blockSources[blockType] = source;
     }
   }
-  return { template, templateId, blockSources };
+  return blockSources;
+};
+
+export const loader = async ({ request }: LoaderFunctionArgs) => {
+  await authenticate.admin(request);
+  const url = new URL(request.url);
+  const templateId = url.searchParams.get("template") || "collection-page";
+  const candidatePaths = [
+    path.resolve(process.cwd(), "templates", templateId, "template.json"),
+    path.resolve(process.cwd(), "dashboard", "templates", templateId, "template.json"),
+  ];
+  let templatePath: string | null = null;
+  for (const candidate of candidatePaths) {
+    try {
+      await stat(candidate);
+      templatePath = candidate;
+      break;
+    } catch {
+      // keep searching
+    }
+  }
+  if (!templatePath) {
+    throw new Response(`Template not found: ${templateId}`, { status: 404 });
+  }
+  const raw = await readFile(templatePath, "utf8");
+  const template = JSON.parse(raw) as TemplateConfig;
+  const blockSources = await loadBlockSources(templateId);
+  const registry = Object.fromEntries(
+    Object.entries(blockSources).map(([blockType, source]) => {
+      try {
+        const factory = new Function(`${source}\nreturn main;`);
+        const main = factory();
+        return [blockType, main];
+      } catch {
+        return [blockType, () => `<!-- Error in ${blockType} -->`];
+      }
+    })
+  );
+  const previewHtml = renderTemplate(template, registry);
+  return { template, templateId, previewHtml };
+};
+
+export const action = async ({ request }: ActionFunctionArgs) => {
+  await authenticate.admin(request);
+  const body = await request.json();
+  const template = body?.template as TemplateConfig | undefined;
+  const templateId = body?.templateId as string | undefined;
+  if (!template || !templateId) {
+    return { previewHtml: "<!-- Missing template data -->" };
+  }
+  const blockSources = await loadBlockSources(templateId);
+  const registry = Object.fromEntries(
+    Object.entries(blockSources).map(([blockType, source]) => {
+      try {
+        const factory = new Function(`${source}\nreturn main;`);
+        const main = factory();
+        return [blockType, main];
+      } catch {
+        return [blockType, () => `<!-- Error in ${blockType} -->`];
+      }
+    })
+  );
+  const previewHtml = renderTemplate(template, registry);
+  return { previewHtml };
 };
 
 type FieldOption = { label: string; value: string };
@@ -105,6 +146,12 @@ type TemplateConfig = {
   settings: SettingsTree;
   areas: TemplateArea[];
   block_presets: TemplatePreset[];
+};
+
+type LoaderData = {
+  template: TemplateConfig;
+  templateId: string;
+  previewHtml: string;
 };
 
 type Selection =
@@ -178,7 +225,9 @@ const getPresetsForArea = (presets: TemplatePreset[], areaId: string, scope: "ar
 };
 
 export default function TemplateEditorPage() {
-  const { template, blockSources } = useLoaderData<typeof loader>();
+  const { template, previewHtml, templateId } = useLoaderData() as LoaderData;
+  const previewFetcher = useFetcher<{ previewHtml: string }>();
+  const [previewHtmlState, setPreviewHtmlState] = useState(previewHtml);
   const [history, setHistory] = useState<{
     past: TemplateConfig[];
     present: TemplateConfig;
@@ -237,20 +286,15 @@ export default function TemplateEditorPage() {
     } as CSSProperties;
   }, [templateConfig.settings]);
 
-  const previewHtml = useMemo(() => {
-    const registry = Object.fromEntries(
-      Object.entries(blockSources ?? {}).map(([blockType, source]) => {
-        try {
-          const factory = new Function(`${source}\nreturn main;`);
-          const main = factory();
-          return [blockType, main];
-        } catch {
-          return [blockType, () => `<!-- Error in ${blockType} -->`];
-        }
-      })
-    );
-    return renderTemplate(templateConfig, registry);
-  }, [templateConfig, blockSources]);
+  useEffect(() => {
+    if (previewFetcher.data?.previewHtml) {
+      setPreviewHtmlState(previewFetcher.data.previewHtml);
+    }
+  }, [previewFetcher.data]);
+
+  useEffect(() => {
+    setPreviewHtmlState(previewHtml);
+  }, [previewHtml]);
 
   const getAreaIndex = (areaId: string) => templateConfig.areas.findIndex((area) => area.id === areaId);
 
@@ -688,6 +732,17 @@ export default function TemplateEditorPage() {
             >
               Redo
             </button>
+            <button
+              className="template-toolbar__button"
+              onClick={() => {
+                previewFetcher.submit(
+                  { template: templateConfig, templateId },
+                  { method: "post", encType: "application/json" }
+                );
+              }}
+            >
+              Rebuild Preview
+            </button>
           </div>
           <div className="template-toolbar__group">
             <button className="template-toolbar__button template-toolbar__button--ghost">Preview</button>
@@ -908,7 +963,7 @@ export default function TemplateEditorPage() {
               <s-stack direction="block" gap="base">
                 <s-heading>Preview</s-heading>
                 <div className="template-preview" style={previewStyle}>
-                  <div className="template-preview-html" dangerouslySetInnerHTML={{ __html: previewHtml }} />
+                  <div className="template-preview-html" dangerouslySetInnerHTML={{ __html: previewHtmlState }} />
                 </div>
               </s-stack>
             </s-box>

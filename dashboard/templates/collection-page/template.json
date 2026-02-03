@@ -224,6 +224,186 @@
               "default": true
             }
           }
+        },
+        {
+          "id": "product-card",
+          "label": "Product Card",
+          "block_type": "product_card",
+          "disabled": false,
+          "settings": {
+            "background_color": {
+              "type": "color",
+              "label": "Background",
+              "value": "#f9fafb",
+              "default": "#f9fafb"
+            },
+            "border_color": {
+              "type": "color",
+              "label": "Border Color",
+              "value": "#e5e7eb",
+              "default": "#e5e7eb"
+            },
+            "border_radius": {
+              "type": "text",
+              "label": "Border Radius",
+              "value": "12px",
+              "default": "12px"
+            }
+          },
+          "blocks": [
+            {
+              "id": "product-title",
+              "label": "Title",
+              "block_type": "product_title",
+              "disabled": false,
+              "settings": {
+                "tag": {
+                  "type": "select",
+                  "label": "Tag",
+                  "value": "h3",
+                  "default": "h3",
+                  "options": [
+                    { "label": "H2", "value": "h2" },
+                    { "label": "H3", "value": "h3" },
+                    { "label": "H4", "value": "h4" },
+                    { "label": "P", "value": "p" }
+                  ]
+                },
+                "text_color": {
+                  "type": "color",
+                  "label": "Text Color",
+                  "value": "#1f1f1f",
+                  "default": "#1f1f1f"
+                },
+                "font_size": {
+                  "type": "text",
+                  "label": "Font Size",
+                  "value": "18px",
+                  "default": "18px"
+                }
+              }
+            },
+            {
+              "id": "product-vendor",
+              "label": "Vendor",
+              "block_type": "vendor",
+              "disabled": false,
+              "settings": {
+                "text_color": {
+                  "type": "color",
+                  "label": "Text Color",
+                  "value": "#6b7280",
+                  "default": "#6b7280"
+                },
+                "font_size": {
+                  "type": "text",
+                  "label": "Font Size",
+                  "value": "13px",
+                  "default": "13px"
+                }
+              }
+            },
+            {
+              "id": "product-price",
+              "label": "Price",
+              "block_type": "price",
+              "disabled": false,
+              "settings": {
+                "compare_price_enabled": {
+                  "type": "checkbox",
+                  "label": "Show Compare",
+                  "value": true,
+                  "default": true
+                },
+                "text_color": {
+                  "type": "color",
+                  "label": "Text Color",
+                  "value": "#111827",
+                  "default": "#111827"
+                },
+                "font_size": {
+                  "type": "text",
+                  "label": "Font Size",
+                  "value": "15px",
+                  "default": "15px"
+                }
+              }
+            },
+            {
+              "id": "product-quick-add",
+              "label": "Quick Add",
+              "block_type": "quick_add_button",
+              "disabled": false,
+              "settings": {
+                "label": {
+                  "type": "text",
+                  "label": "Label",
+                  "value": "Quick Add",
+                  "default": "Quick Add"
+                },
+                "button_style": {
+                  "type": "select",
+                  "label": "Button Style",
+                  "value": "primary",
+                  "default": "primary",
+                  "options": [
+                    { "label": "Primary", "value": "primary" },
+                    { "label": "Secondary", "value": "secondary" }
+                  ]
+                }
+              }
+            },
+            {
+              "id": "product-stock-badge",
+              "label": "Stock Badge",
+              "block_type": "stock_badge",
+              "disabled": false,
+              "settings": {
+                "in_stock_text": {
+                  "type": "text",
+                  "label": "In Stock Text",
+                  "value": "In Stock",
+                  "default": "In Stock"
+                },
+                "out_of_stock_text": {
+                  "type": "text",
+                  "label": "Out of Stock Text",
+                  "value": "Sold Out",
+                  "default": "Sold Out"
+                },
+                "in_stock_color": {
+                  "type": "color",
+                  "label": "In Stock Color",
+                  "value": "#16a34a",
+                  "default": "#16a34a"
+                },
+                "out_of_stock_color": {
+                  "type": "color",
+                  "label": "Out of Stock Color",
+                  "value": "#dc2626",
+                  "default": "#dc2626"
+                }
+              }
+            },
+            {
+              "id": "product-hover-images",
+              "label": "Hover Images",
+              "block_type": "hover_images",
+              "disabled": false,
+              "settings": {
+                "transition": {
+                  "type": "select",
+                  "label": "Transition",
+                  "value": "fade",
+                  "default": "fade",
+                  "options": [
+                    { "label": "Fade", "value": "fade" },
+                    { "label": "Slide", "value": "slide" }
+                  ]
+                }
+              }
+            }
+          ]
         }
       ]
     },
