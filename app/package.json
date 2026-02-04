@@ -20,8 +20,7 @@
         "start": "pm2 start dist/index.js -i 1",
         "deploy": "bash system/cli/deploy.sh",
         "gitpush": "bash system/cli/gitpush.sh",
-        "setup:env": "node system/cli/setup-env.js",
-        "seed:admin-users": "tsx -r tsconfig-paths/register system/cli/seed-admin-users.ts"
+        "setup:env": "node system/cli/setup-env.js"
     },
     "dependencies": {
         "@elastic/elasticsearch": "^9.2.1",
