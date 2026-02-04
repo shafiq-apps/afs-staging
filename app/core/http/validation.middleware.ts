@@ -80,8 +80,14 @@ export function validateShopDomain() {
         required: true,
         transform: (value: string) => {
           const normalized = value.trim().toLowerCase();
-          const match = normalized.match(/([^\.]+)\.myshopify\.com/);
-          return match ? match[1] : normalized.replace(/^https?:\/\//, '').split('/')[0];
+          const domain = normalized.replace(/^https?:\/\//, '').split('/')[0];
+
+          const myshopifyMatch = domain.match(/^([a-z0-9][a-z0-9-]*)\.myshopify\.com$/);
+          if (myshopifyMatch) {
+            return myshopifyMatch[1];
+          }
+
+          throw new Error('Invalid shop domain (must be *.myshopify.com)');
         },
         validate: (value: string) => {
           if (!value || value.length === 0) {

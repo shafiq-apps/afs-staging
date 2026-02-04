@@ -18,7 +18,7 @@ import { handler } from '@core/http/http.handler';
 import { HttpRequest } from '@core/http/http.types';
 import { validateShopDomain } from '@core/http/validation.middleware';
 import { rateLimit } from '@core/security/rate-limit.middleware';
-import { buildSearchInput, hasSearchParams } from '@modules/storefront/search.helper';
+import { buildSearchInput } from '@modules/storefront/search.helper';
 import { createModuleLogger } from '@shared/utils/logger.util';
 import { RATE_LIMIT } from '@shared/constants/app.constant';
 
