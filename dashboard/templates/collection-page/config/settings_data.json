@@ -4,12 +4,12 @@
   "settings": {
     "colors": {
       "background": "#ffffff",
-      "text": "#1f1f1f",
-      "accent": "#111827"
+      "text": "#000000",
+      "accent": "#3158aa"
     },
     "buttons": {
       "primary": {
-        "background_color": "#111827",
+        "background_color": "#5289ff",
         "text_color": "#ffffff",
         "border_radius": "6px",
         "padding": "10px 18px"
@@ -42,6 +42,15 @@
           "settings": {
             "counts_enabled": true,
             "collapsible": true
+          }
+        },
+        {
+          "id": "product-vendor-1770220137098",
+          "block_type": "vendor",
+          "disabled": true,
+          "settings": {
+            "text_color": "#0e3177",
+            "font_size": "13px"
           }
         }
       ]
@@ -89,7 +98,7 @@
               }
             },
             {
-              "id": "product-vendor",
+              "id": "product-vendor-1770220204666",
               "block_type": "vendor",
               "disabled": false,
               "settings": {
@@ -98,9 +107,18 @@
               }
             },
             {
+              "id": "product-vendor",
+              "block_type": "vendor",
+              "disabled": true,
+              "settings": {
+                "text_color": "#6b7280",
+                "font_size": "13px"
+              }
+            },
+            {
               "id": "product-price",
               "block_type": "price",
-              "disabled": false,
+              "disabled": true,
               "settings": {
                 "compare_price_enabled": true,
                 "text_color": "#111827",
@@ -119,7 +137,7 @@
             {
               "id": "product-stock-badge",
               "block_type": "stock_badge",
-              "disabled": false,
+              "disabled": true,
               "settings": {
                 "in_stock_text": "In Stock",
                 "out_of_stock_text": "Sold Out",
@@ -130,9 +148,9 @@
             {
               "id": "product-hover-images",
               "block_type": "hover_images",
-              "disabled": false,
+              "disabled": true,
               "settings": {
-                "transition": "fade"
+                "transition": "slide"
               }
             }
           ]

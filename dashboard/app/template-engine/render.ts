@@ -62,7 +62,9 @@ export const renderBlock = (
   if (block.disabled) return "";
   const renderer = registry[block.block_type];
   if (!renderer) {
-    return `<div class="template-warning" data-block-type="${block.block_type}">Missing renderer for ${block.block_type} ${JSON.stringify(registry)}</div>`;
+    return `<div class="template-warning" data-block-type="${block.block_type}"> Test | Missing renderer for ${block.block_type}. registryKeys=${JSON.stringify(
+      Object.keys(registry)
+    )}</div>`;
   }
   const nextCtx: RenderContext = {
     ...ctx,
