@@ -1501,7 +1501,13 @@ export class StorefrontSearchRepository {
         error: error?.message || error,
         statusCode: error?.statusCode,
       });
-      throw error;
+      return {
+        limit: 0,
+        page: 0,
+        products: [],
+        total: 0,
+        totalPages: 0
+      }
     }
 
     const total = typeof response.hits.total === 'number'
@@ -1813,7 +1819,13 @@ export class StorefrontSearchRepository {
         error: error?.message || error,
         statusCode: error?.statusCode,
       });
-      throw error;
+      return {
+        limit: 0,
+        page: 0,
+        products: [],
+        total: 0,
+        totalPages: 0
+      }
     }
 
     // Fast total calculation - use relation for approximate count when available
