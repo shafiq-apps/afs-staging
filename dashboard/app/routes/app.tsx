@@ -12,6 +12,7 @@ import { AppSubscriptionStatus, ShopifyActiveSubscriptions, Subscription } from 
 import { FETCH_CURRENT_SUBSCRIPTION } from "app/graphql/subscriptions.query";
 import { UPDATE_SUBSCRIPTION_STATUS_MUTATION } from "app/graphql/subscriptions.mutation";
 import { GraphQLErrorBoundary } from "../components/GraphQLErrorBoundary";
+import AppNavBar from "app/components/AppNavBar";
 
 const SHOP_DATA_CACHE_KEY = "shop_locale_data";
 const CACHE_DURATION = 1000 * 60 * 60; // 1 hour
@@ -355,18 +356,7 @@ export default function App() {
         shopData={effectiveShopData}
         isLoading={!effectiveShopData}
       >
-        <s-app-nav>
-          {hasActiveShopifySubscription && (
-            <>
-              <s-link href="/app">{t("navigation.home")}</s-link>
-              <s-link href="/app/filters">{t("navigation.filters")}</s-link>
-              <s-link href="/app/search">{t("navigation.search")}</s-link>
-              <s-link href="/app/indexing">{t("navigation.indexing")}</s-link>
-            </>
-          )}
-          <s-link href="/app/pricing">{t("navigation.pricing")}</s-link>
-          <s-link href="/app/support">{t("navigation.support")}</s-link>
-        </s-app-nav>
+        <AppNavBar hasActiveShopifySubscription />
         {
           !hasActiveShopifySubscription && (
             <s-page >

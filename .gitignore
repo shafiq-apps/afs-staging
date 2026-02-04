@@ -95,7 +95,7 @@ prisma/migrations/*.sqlite
 prisma/migrations/*.sqlite-journal
 
 # Package manager locks (optional - uncomment if you want to ignore)
-package-lock.json
+# package-lock.json
 yarn.lock
 pnpm-lock.yaml
 

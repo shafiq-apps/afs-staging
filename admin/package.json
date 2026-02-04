@@ -9,7 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@elastic/elasticsearch": "^8.15.0",
+    "@elastic/elasticsearch": "^9.2.0",
     "@sendgrid/mail": "^8.1.6",
     "bcryptjs": "^2.4.3",
     "js-cookie": "^3.0.5",

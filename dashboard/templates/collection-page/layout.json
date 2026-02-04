@@ -1,0 +1,4 @@
+{
+  "html": "<div class=\"layout-shell\">\n  <aside class=\"layout-filters\">{{area:filters}}</aside>\n  <section class=\"layout-products\">{{area:products}}</section>\n</div>\n<div class=\"layout-pagination\">{{area:pagination}}</div>",
+  "styles": ".layout-shell{display:grid;grid-template-columns:280px 1fr;gap:16px;}\n.layout-filters{background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;padding:16px;}\n.layout-products{background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;padding:16px;}\n.layout-pagination{margin-top:16px;display:flex;justify-content:center;}"
+}

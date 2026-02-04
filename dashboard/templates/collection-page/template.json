@@ -1,0 +1,549 @@
+{
+  "template_id": "collection-page",
+  "template_version": "1.0",
+  "settings": {
+    "colors": {
+      "background": {
+        "type": "color",
+        "label": "Background",
+        "value": "#ffffff",
+        "default": "#ffffff"
+      },
+      "text": {
+        "type": "color",
+        "label": "Text",
+        "value": "#1f1f1f",
+        "default": "#1f1f1f"
+      },
+      "accent": {
+        "type": "color",
+        "label": "Accent",
+        "value": "#111827",
+        "default": "#111827"
+      }
+    },
+    "buttons": {
+      "primary": {
+        "background_color": {
+          "type": "color",
+          "label": "Primary Background",
+          "value": "#111827",
+          "default": "#111827"
+        },
+        "text_color": {
+          "type": "color",
+          "label": "Primary Text",
+          "value": "#ffffff",
+          "default": "#ffffff"
+        },
+        "border_radius": {
+          "type": "text",
+          "label": "Primary Radius",
+          "value": "6px",
+          "default": "6px"
+        },
+        "padding": {
+          "type": "text",
+          "label": "Primary Padding",
+          "value": "10px 18px",
+          "default": "10px 18px"
+        }
+      },
+      "secondary": {
+        "background_color": {
+          "type": "color",
+          "label": "Secondary Background",
+          "value": "#ffffff",
+          "default": "#ffffff"
+        },
+        "text_color": {
+          "type": "color",
+          "label": "Secondary Text",
+          "value": "#111827",
+          "default": "#111827"
+        },
+        "border_radius": {
+          "type": "text",
+          "label": "Secondary Radius",
+          "value": "6px",
+          "default": "6px"
+        },
+        "padding": {
+          "type": "text",
+          "label": "Secondary Padding",
+          "value": "10px 18px",
+          "default": "10px 18px"
+        }
+      }
+    }
+  },
+  "areas": [
+    {
+      "id": "filters",
+      "label": "Filters",
+      "disabled": false,
+      "settings": {
+        "layout": {
+          "type": "radio",
+          "label": "Layout",
+          "value": "left",
+          "default": "left",
+          "options": [
+            {
+              "label": "Left",
+              "value": "left"
+            },
+            {
+              "label": "Top",
+              "value": "top"
+            }
+          ]
+        },
+        "background_color": {
+          "type": "color",
+          "label": "Background",
+          "value": "#ffffff",
+          "default": "#ffffff"
+        },
+        "border_color": {
+          "type": "color",
+          "label": "Border Color",
+          "value": "#e5e7eb",
+          "default": "#e5e7eb"
+        },
+        "padding": {
+          "type": "text",
+          "label": "Padding",
+          "value": "16px",
+          "default": "16px"
+        },
+        "border_radius": {
+          "type": "text",
+          "label": "Border Radius",
+          "value": "12px",
+          "default": "12px"
+        },
+        "search_enabled": {
+          "type": "checkbox",
+          "label": "Search Enabled",
+          "value": true,
+          "default": true
+        }
+      },
+      "blocks": [
+        {
+          "id": "filters-group",
+          "label": "Filter Group",
+          "block_type": "filter_group",
+          "disabled": false,
+          "settings": {
+            "counts_enabled": {
+              "type": "checkbox",
+              "label": "Show Counts",
+              "value": true,
+              "default": true
+            },
+            "collapsible": {
+              "type": "checkbox",
+              "label": "Collapsible",
+              "value": true,
+              "default": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "products",
+      "label": "Products",
+      "disabled": false,
+      "settings": {
+        "layout": {
+          "type": "radio",
+          "label": "Layout",
+          "value": "grid",
+          "default": "grid",
+          "options": [
+            {
+              "label": "Grid",
+              "value": "grid"
+            },
+            {
+              "label": "List",
+              "value": "list"
+            }
+          ]
+        },
+        "columns": {
+          "type": "select",
+          "label": "Columns",
+          "value": "3",
+          "default": "3",
+          "options": [
+            {
+              "label": "2",
+              "value": "2"
+            },
+            {
+              "label": "3",
+              "value": "3"
+            },
+            {
+              "label": "4",
+              "value": "4"
+            }
+          ]
+        },
+        "background_color": {
+          "type": "color",
+          "label": "Background",
+          "value": "#ffffff",
+          "default": "#ffffff"
+        },
+        "border_color": {
+          "type": "color",
+          "label": "Border Color",
+          "value": "#e5e7eb",
+          "default": "#e5e7eb"
+        },
+        "padding": {
+          "type": "text",
+          "label": "Padding",
+          "value": "16px",
+          "default": "16px"
+        },
+        "border_radius": {
+          "type": "text",
+          "label": "Border Radius",
+          "value": "12px",
+          "default": "12px"
+        },
+        "sort_enabled": {
+          "type": "checkbox",
+          "label": "Sort Enabled",
+          "value": true,
+          "default": true
+        }
+      },
+      "blocks": [
+        {
+          "id": "products-toolbar",
+          "label": "Products Toolbar",
+          "block_type": "products_toolbar",
+          "disabled": false,
+          "settings": {
+            "show_sort": {
+              "type": "checkbox",
+              "label": "Show Sort",
+              "value": true,
+              "default": true
+            },
+            "show_count": {
+              "type": "checkbox",
+              "label": "Show Count",
+              "value": true,
+              "default": true
+            }
+          }
+        },
+        {
+          "id": "product-card",
+          "label": "Product Card",
+          "block_type": "product_card",
+          "disabled": false,
+          "settings": {
+            "background_color": {
+              "type": "color",
+              "label": "Background",
+              "value": "#f9fafb",
+              "default": "#f9fafb"
+            },
+            "border_color": {
+              "type": "color",
+              "label": "Border Color",
+              "value": "#e5e7eb",
+              "default": "#e5e7eb"
+            },
+            "border_radius": {
+              "type": "text",
+              "label": "Border Radius",
+              "value": "12px",
+              "default": "12px"
+            }
+          },
+          "blocks": [
+            {
+              "id": "product-title",
+              "label": "Title",
+              "block_type": "product_title",
+              "disabled": false,
+              "settings": {
+                "tag": {
+                  "type": "select",
+                  "label": "Tag",
+                  "value": "h3",
+                  "default": "h3",
+                  "options": [
+                    {
+                      "label": "H2",
+                      "value": "h2"
+                    },
+                    {
+                      "label": "H3",
+                      "value": "h3"
+                    },
+                    {
+                      "label": "H4",
+                      "value": "h4"
+                    },
+                    {
+                      "label": "P",
+                      "value": "p"
+                    }
+                  ]
+                },
+                "text_color": {
+                  "type": "color",
+                  "label": "Text Color",
+                  "value": "#1f1f1f",
+                  "default": "#1f1f1f"
+                },
+                "font_size": {
+                  "type": "text",
+                  "label": "Font Size",
+                  "value": "18px",
+                  "default": "18px"
+                }
+              }
+            },
+            {
+              "id": "product-vendor",
+              "label": "Vendor",
+              "block_type": "vendor",
+              "disabled": false,
+              "settings": {
+                "text_color": {
+                  "type": "color",
+                  "label": "Text Color",
+                  "value": "#6b7280",
+                  "default": "#6b7280"
+                },
+                "font_size": {
+                  "type": "text",
+                  "label": "Font Size",
+                  "value": "13px",
+                  "default": "13px"
+                }
+              }
+            },
+            {
+              "id": "product-price",
+              "label": "Price",
+              "block_type": "price",
+              "disabled": false,
+              "settings": {
+                "compare_price_enabled": {
+                  "type": "checkbox",
+                  "label": "Show Compare",
+                  "value": true,
+                  "default": true
+                },
+                "text_color": {
+                  "type": "color",
+                  "label": "Text Color",
+                  "value": "#111827",
+                  "default": "#111827"
+                },
+                "font_size": {
+                  "type": "text",
+                  "label": "Font Size",
+                  "value": "15px",
+                  "default": "15px"
+                }
+              }
+            },
+            {
+              "id": "product-quick-add",
+              "label": "Quick Add",
+              "block_type": "quick_add_button",
+              "disabled": false,
+              "settings": {
+                "label": {
+                  "type": "text",
+                  "label": "Label",
+                  "value": "Quick Add",
+                  "default": "Quick Add"
+                },
+                "button_style": {
+                  "type": "select",
+                  "label": "Button Style",
+                  "value": "primary",
+                  "default": "primary",
+                  "options": [
+                    {
+                      "label": "Primary",
+                      "value": "primary"
+                    },
+                    {
+                      "label": "Secondary",
+                      "value": "secondary"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "id": "product-stock-badge",
+              "label": "Stock Badge",
+              "block_type": "stock_badge",
+              "disabled": false,
+              "settings": {
+                "in_stock_text": {
+                  "type": "text",
+                  "label": "In Stock Text",
+                  "value": "In Stock",
+                  "default": "In Stock"
+                },
+                "out_of_stock_text": {
+                  "type": "text",
+                  "label": "Out of Stock Text",
+                  "value": "Sold Out",
+                  "default": "Sold Out"
+                },
+                "in_stock_color": {
+                  "type": "color",
+                  "label": "In Stock Color",
+                  "value": "#16a34a",
+                  "default": "#16a34a"
+                },
+                "out_of_stock_color": {
+                  "type": "color",
+                  "label": "Out of Stock Color",
+                  "value": "#dc2626",
+                  "default": "#dc2626"
+                }
+              }
+            },
+            {
+              "id": "product-hover-images",
+              "label": "Hover Images",
+              "block_type": "hover_images",
+              "disabled": false,
+              "settings": {
+                "transition": {
+                  "type": "select",
+                  "label": "Transition",
+                  "value": "fade",
+                  "default": "fade",
+                  "options": [
+                    {
+                      "label": "Fade",
+                      "value": "fade"
+                    },
+                    {
+                      "label": "Slide",
+                      "value": "slide"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pagination",
+      "label": "Pagination",
+      "disabled": false,
+      "settings": {
+        "style": {
+          "type": "select",
+          "label": "Style",
+          "value": "buttons",
+          "default": "buttons",
+          "options": [
+            {
+              "label": "Buttons",
+              "value": "buttons"
+            },
+            {
+              "label": "Numbers",
+              "value": "numbers"
+            }
+          ]
+        },
+        "alignment": {
+          "type": "radio",
+          "label": "Alignment",
+          "value": "center",
+          "default": "center",
+          "options": [
+            {
+              "label": "Left",
+              "value": "left"
+            },
+            {
+              "label": "Center",
+              "value": "center"
+            },
+            {
+              "label": "Right",
+              "value": "right"
+            }
+          ]
+        },
+        "load_more_enabled": {
+          "type": "checkbox",
+          "label": "Load More",
+          "value": false,
+          "default": false
+        }
+      },
+      "blocks": [
+        {
+          "id": "pagination-controls",
+          "label": "Pagination Controls",
+          "block_type": "pagination_controls",
+          "disabled": false,
+          "settings": {
+            "numbers_enabled": {
+              "type": "checkbox",
+              "label": "Numbers Enabled",
+              "value": true,
+              "default": true
+            },
+            "arrows_enabled": {
+              "type": "checkbox",
+              "label": "Arrows Enabled",
+              "value": true,
+              "default": true
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "block_presets": [
+    {
+      "id": "product-vendor",
+      "label": "Vendor",
+      "block_type": "vendor",
+      "disabled": false,
+      "settings": {
+        "text_color": {
+          "type": "color",
+          "label": "Text Color",
+          "value": "#6b7280",
+          "default": "#6b7280"
+        },
+        "font_size": {
+          "type": "text",
+          "label": "Font Size",
+          "value": "13px",
+          "default": "13px"
+        }
+      }
+    }
+  ]
+}

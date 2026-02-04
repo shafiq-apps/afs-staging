@@ -5,14 +5,12 @@
 
 import { handler } from '@core/http/http.handler';
 import { HttpRequest } from '@core/http/http.types';
-import { graphqlHandler } from '@modules/graphql';
 
 export const GET = handler(async (req: HttpRequest) => {
-  const shop = await graphqlHandler.read('shopExists', { domain: req.query.shop });
 
   return {
     shopshop: req.query.shop,
-    shop: shop,
+    // shop: shop,
     success: true,
     status: 'operational',
     version: process.env.npm_package_version || '0.0.1',
