@@ -3,35 +3,57 @@ import { type HeadersFunction, type LoaderFunctionArgs, type ActionFunctionArgs 
 import { useLoaderData, useFetcher } from "react-router";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
-import { renderTemplateWithLayout } from "../template-engine/render";
+import { renderAreasMap, renderTemplate } from "../template-engine/render";
 import path from "node:path";
 import { readFile, stat, readdir, writeFile, mkdir } from "node:fs/promises";
 
-const loadBlockSources = async (templateId: string) => {
-  const blocksDirCandidates = [
-    path.resolve(process.cwd(), "templates", templateId, "blocks"),
-    path.resolve(process.cwd(), "dashboard", "templates", templateId, "blocks"),
-  ];
-  let blocksDir: string | null = null;
-  for (const candidate of blocksDirCandidates) {
-    try {
-      await stat(candidate);
-      blocksDir = candidate;
-      break;
-    } catch {
-      // keep searching
-    }
-  }
+const loadBlockSources = async (templateRoot: string) => {
+  const blocksDir = path.join(templateRoot, "blocks");
   const blockSources: Record<string, string> = {};
-  if (blocksDir) {
+  try {
     const files = await readdir(blocksDir);
     for (const file of files) {
       if (!file.endsWith(".js")) continue;
-      const blockType = file.replace(/\\.js$/, "");
+      const blockType = file.replace(/\.js$/, "");
       const source = await readFile(path.join(blocksDir, file), "utf8");
       blockSources[blockType] = source;
     }
+  } catch {
+    // missing blocks dir
   }
+  return blockSources;
+};
+
+const loadBlockSourcesFallback = async (templateId: string) => {
+  const baseDir = process.cwd();
+  const candidates: string[] = [];
+  // Try multiple base locations
+  candidates.push(path.resolve(baseDir, "templates", templateId, "blocks"));
+  candidates.push(path.resolve(baseDir, "dashboard", "templates", templateId, "blocks"));
+  // Also try up to 4 parent levels
+  for (let up = 1; up <= 4; up++) {
+    const upPath = path.resolve(baseDir, ...new Array(up).fill(".."));
+    candidates.push(path.resolve(upPath, "templates", templateId, "blocks"));
+    candidates.push(path.resolve(upPath, "dashboard", "templates", templateId, "blocks"));
+  }
+  const blockSources: Record<string, string> = {};
+  console.log('[loadBlockSourcesFallback] baseDir:', baseDir);
+  console.log('[loadBlockSourcesFallback] scanning candidates:', candidates);
+  for (const blocksDir of candidates) {
+    try {
+      const files = await readdir(blocksDir);
+      console.log('[loadBlockSourcesFallback] found blocks in:', blocksDir, files.filter(f => f.endsWith('.js')).length, 'files');
+      for (const file of files) {
+        if (!file.endsWith(".js")) continue;
+        const blockType = file.replace(/\.js$/, "");
+        const source = await readFile(path.join(blocksDir, file), "utf8");
+        blockSources[blockType] = source;
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+  console.log('[loadBlockSourcesFallback] result:', Object.keys(blockSources).length, 'blocks loaded');
   return blockSources;
 };
 
@@ -89,10 +111,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   await authenticate.admin(request);
   const url = new URL(request.url);
   const templateId = url.searchParams.get("template") || "collection-page";
-  const candidatePaths = [
-    path.resolve(process.cwd(), "templates", templateId, "template.json"),
-    path.resolve(process.cwd(), "dashboard", "templates", templateId, "template.json"),
-  ];
+  const baseDir = process.cwd();
+  const candidatePaths = [path.resolve(baseDir, "templates", templateId, "template.json")];
   let templatePath: string | null = null;
   for (const candidate of candidatePaths) {
     try {
@@ -108,52 +128,111 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   }
   const raw = await readFile(templatePath, "utf8");
   const template = JSON.parse(raw) as TemplateConfig;
-  const layoutPath = path.resolve(process.cwd(), "dashboard", "templates", templateId, "layout.json");
-  let layout: { html: string; styles?: string } | null = null;
+  const templateRoot = path.dirname(templatePath);
+  const layoutPath = path.join(templateRoot, "layout.js");
+  let layoutSource: string | null = null;
   try {
-    layout = JSON.parse(await readFile(layoutPath, "utf8"));
+    layoutSource = await readFile(layoutPath, "utf8");
   } catch {
-    layout = null;
+    layoutSource = null;
   }
-  const configDirCandidates = [
-    path.resolve(process.cwd(), "templates", templateId, "config"),
-    path.resolve(process.cwd(), "dashboard", "templates", templateId, "config"),
-  ];
-  let configDir: string | null = null;
-  for (const candidate of configDirCandidates) {
-    try {
-      await stat(candidate);
-      configDir = candidate;
-      break;
-    } catch {
-      // keep searching
-    }
-  }
-  const settingsDataPath = configDir
-    ? path.join(configDir, "settings_data.json")
-    : path.resolve(process.cwd(), "dashboard", "templates", templateId, "config", "settings_data.json");
+  const configDir = path.join(templateRoot, "config");
+  const settingsDataPath = path.join(configDir, "settings_data.json");
   let settingsData: any;
   try {
     settingsData = JSON.parse(await readFile(settingsDataPath, "utf8"));
   } catch {
-    settingsData = buildSettingsDataFromTemplate(template);
+    const legacyPath = path.resolve(process.cwd(), "dashboard", "templates", templateId, "config", "settings_data.json");
+    try {
+      settingsData = JSON.parse(await readFile(legacyPath, "utf8"));
+    } catch {
+      settingsData = buildSettingsDataFromTemplate(template);
+    }
   }
-  const blockSources = await loadBlockSources(templateId);
+  let blockSources = await loadBlockSources(templateRoot);
+  console.log('[loader] Initial blockSources from templateRoot:', Object.keys(blockSources).length, 'from', templateRoot);
+  if (Object.keys(blockSources).length === 0) {
+    blockSources = await loadBlockSourcesFallback(templateId);
+    console.log('[loader] After loadBlockSourcesFallback:', Object.keys(blockSources).length);
+  }
   const usedBlockTypes = collectBlockTypes(settingsData?.areas ?? template.areas);
-  const registry = Object.fromEntries(
-    Object.entries(blockSources)
-      .filter(([blockType]) => usedBlockTypes.has(blockType))
-      .map(([blockType, source]) => {
+  console.log('[loader] usedBlockTypes:', Array.from(usedBlockTypes));
+  console.log('[loader] blockSources keys:', Object.keys(blockSources));
+  const filtered = Object.entries(blockSources)
+    .filter(([blockType]) => usedBlockTypes.size === 0 || usedBlockTypes.has(blockType));
+  console.log('[loader] filtered blockTypes:', filtered.map(([bt]) => bt));
+  const registryEntries = filtered.map(([blockType, source]) => {
+    try {
+      const factory = new Function(`${source}\nreturn main;`);
+      const main = factory();
+      console.log('[loader] loaded', blockType, typeof main);
+      return [blockType, main];
+    } catch (e) {
+      console.log('[loader] error loading', blockType, String(e));
+      return [blockType, () => `<!-- Error in ${blockType} -->`];
+    }
+  });
+  let registry = Object.fromEntries(registryEntries);
+  console.log('[loader] final registry keys:', Object.keys(registry));
+
+  if (Object.keys(registry).length === 0) {
+    const extraCandidates: string[] = [];
+    for (let up = 0; up <= 4; up++) {
+      const upPath = path.resolve(process.cwd(), ...new Array(up).fill('..'));
+      extraCandidates.push(path.join(upPath, 'templates', (template.template_id || templateId).toString(), 'blocks'));
+      extraCandidates.push(path.join(upPath, 'dashboard', 'templates', (template.template_id || templateId).toString(), 'blocks'));
+    }
+    for (const c of extraCandidates) {
       try {
-        const factory = new Function(`${source}\nreturn main;`);
-        const main = factory();
-        return [blockType, main];
+        const files = await readdir(c);
+        for (const file of files) {
+          if (!file.endsWith('.js')) continue;
+          const key = file.replace(/\\.js$/, '');
+          if (key in blockSources) continue;
+          blockSources[key] = await readFile(path.join(c, file), 'utf8');
+        }
       } catch {
-        return [blockType, () => `<!-- Error in ${blockType} -->`];
+        // ignore
       }
-    })
-  );
-  const previewHtml = renderTemplateWithLayout(layout, settingsData as any, registry);
+    }
+    registry = Object.fromEntries(
+      Object.entries(blockSources)
+        .filter(([blockType]) => usedBlockTypes.size === 0 || usedBlockTypes.has(blockType))
+        .map(([blockType, source]) => {
+        try {
+          const factory = new Function(`${source}\nreturn main;`);
+          const main = factory();
+          return [blockType, main];
+        } catch {
+          return [blockType, () => `<!-- Error in ${blockType} -->`];
+        }
+      })
+    );
+  }
+  const areasHtml = renderAreasMap(settingsData as any, registry);
+  let previewHtml = renderTemplate(settingsData as any, registry);
+  const registryKeys = Object.keys(registry);
+  const missingTypes = Array.from(usedBlockTypes).filter((type) => !registryKeys.includes(type));
+  if (registryKeys.length === 0 || missingTypes.length > 0) {
+    const debugInfo = [
+      `templateRoot=${templateRoot}`,
+      `blocksDir=${path.join(templateRoot, "blocks")}`,
+      `loadedBlocks=${Object.keys(blockSources).join(",") || "none"}`,
+      `usedBlockTypes=${Array.from(usedBlockTypes).join(",") || "none"}`,
+      `missingTypes=${missingTypes.join(",") || "none"}`,
+    ].join(" | ");
+    const label = registryKeys.length === 0 ? "Registry empty" : "Missing renderers";
+    previewHtml = `<div class="template-warning">test||${label}. ${debugInfo}</div>\n${previewHtml}`;
+  }
+  if (layoutSource) {
+    try {
+      const factory = new Function(`${layoutSource}\nreturn layout;`);
+      const layoutFn = factory();
+      previewHtml = layoutFn(areasHtml);
+    } catch {
+      previewHtml = renderTemplate(settingsData as any, registry);
+    }
+  }
   return { template, templateId, previewHtml, settingsData };
 };
 
@@ -167,11 +246,30 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return { previewHtml: "<!-- Missing template data -->" };
   }
   const nextSettingsData = settingsData ?? buildSettingsDataFromTemplate(template);
-  const blockSources = await loadBlockSources(templateId);
+  const baseDir = process.cwd();
+  const templatePathCandidates = [path.resolve(baseDir, "templates", templateId, "template.json")];
+  let templatePath: string | null = null;
+  for (const candidate of templatePathCandidates) {
+    try {
+      await stat(candidate);
+      templatePath = candidate;
+      break;
+    } catch {
+      // keep searching
+    }
+  }
+  if (!templatePath) {
+    return { previewHtml: "<!-- Missing template file -->" };
+  }
+  const templateRoot = path.dirname(templatePath);
+  let blockSources = await loadBlockSources(templateRoot);
+  if (Object.keys(blockSources).length === 0) {
+    blockSources = await loadBlockSourcesFallback(templateId);
+  }
   const usedBlockTypes = collectBlockTypes(nextSettingsData?.areas ?? template.areas);
-  const registry = Object.fromEntries(
+  let registry = Object.fromEntries(
     Object.entries(blockSources)
-      .filter(([blockType]) => usedBlockTypes.has(blockType))
+      .filter(([blockType]) => usedBlockTypes.size === 0 || usedBlockTypes.has(blockType))
       .map(([blockType, source]) => {
       try {
         const factory = new Function(`${source}\nreturn main;`);
@@ -182,15 +280,73 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }
     })
   );
-  const layoutPath = path.resolve(process.cwd(), "dashboard", "templates", templateId, "layout.json");
-  let layout: { html: string; styles?: string } | null = null;
+
+  const layoutPath = path.join(templateRoot, "layout.js");
+  let layoutSource: string | null = null;
   try {
-    layout = JSON.parse(await readFile(layoutPath, "utf8"));
+    layoutSource = await readFile(layoutPath, "utf8");
   } catch {
-    layout = null;
+    layoutSource = null;
   }
-  const previewHtml = renderTemplateWithLayout(layout, nextSettingsData as any, registry);
-  const configDir = path.resolve(process.cwd(), "dashboard", "templates", templateId, "config");
+  if (Object.keys(registry).length === 0) {
+    const extraCandidates: string[] = [];
+    for (let up = 0; up <= 4; up++) {
+      const upPath = path.resolve(process.cwd(), ...new Array(up).fill('..'));
+      extraCandidates.push(path.join(upPath, 'templates', (template.template_id || templateId).toString(), 'blocks'));
+      extraCandidates.push(path.join(upPath, 'dashboard', 'templates', (template.template_id || templateId).toString(), 'blocks'));
+    }
+    for (const c of extraCandidates) {
+      try {
+        const files = await readdir(c);
+        for (const file of files) {
+          if (!file.endsWith('.js')) continue;
+          const key = file.replace(/\\.js$/, '');
+          if (key in blockSources) continue;
+          blockSources[key] = await readFile(path.join(c, file), 'utf8');
+        }
+      } catch {
+        // ignore
+      }
+    }
+    registry = Object.fromEntries(
+      Object.entries(blockSources)
+        .filter(([blockType]) => usedBlockTypes.size === 0 || usedBlockTypes.has(blockType))
+        .map(([blockType, source]) => {
+        try {
+          const factory = new Function(`${source}\nreturn main;`);
+          const main = factory();
+          return [blockType, main];
+        } catch {
+          return [blockType, () => `<!-- Error in ${blockType} -->`];
+        }
+      })
+    );
+  }
+  const areasHtml = renderAreasMap(nextSettingsData as any, registry);
+  let previewHtml = renderTemplate(nextSettingsData as any, registry);
+  const registryKeys = Object.keys(registry);
+  const missingTypes = Array.from(usedBlockTypes).filter((type) => !registryKeys.includes(type));
+  if (registryKeys.length === 0 || missingTypes.length > 0) {
+    const debugInfo = [
+      `templateRoot=${templateRoot}`,
+      `blocksDir=${path.join(templateRoot, "blocks")}`,
+      `loadedBlocks=${Object.keys(blockSources).join(",") || "none"}`,
+      `usedBlockTypes=${Array.from(usedBlockTypes).join(",") || "none"}`,
+      `missingTypes=${missingTypes.join(",") || "none"}`,
+    ].join(" | ");
+    const label = registryKeys.length === 0 ? "Registry empty" : "Missing renderers";
+    previewHtml = `<div class="template-warning">${label}. ${debugInfo}</div>\n${previewHtml}`;
+  }
+  if (layoutSource) {
+    try {
+      const factory = new Function(`${layoutSource}\nreturn layout;`);
+      const layoutFn = factory();
+      previewHtml = layoutFn(areasHtml);
+    } catch {
+      previewHtml = renderTemplate(nextSettingsData as any, registry);
+    }
+  }
+  const configDir = path.join(templateRoot, "config");
   await mkdir(configDir, { recursive: true });
   const settingsPath = path.join(configDir, "settings_data.json");
   await writeFile(settingsPath, JSON.stringify(nextSettingsData, null, 2), "utf8");
