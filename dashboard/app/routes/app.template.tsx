@@ -3,9 +3,9 @@ import { type HeadersFunction, type LoaderFunctionArgs, type ActionFunctionArgs 
 import { useLoaderData, useFetcher } from "react-router";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
-import { renderTemplate } from "../template-engine/render";
+import { renderTemplateWithLayout } from "../template-engine/render";
 import path from "node:path";
-import { readFile, stat, readdir } from "node:fs/promises";
+import { readFile, stat, readdir, writeFile, mkdir } from "node:fs/promises";
 
 const loadBlockSources = async (templateId: string) => {
   const blocksDirCandidates = [
@@ -35,6 +35,56 @@ const loadBlockSources = async (templateId: string) => {
   return blockSources;
 };
 
+const collectBlockTypes = (areas: Array<{ blocks?: any[] }>) => {
+  const types = new Set<string>();
+  const walk = (blocks?: any[]) => {
+    if (!blocks) return;
+    blocks.forEach((block) => {
+      if (block?.block_type) types.add(block.block_type);
+      if (block?.blocks) walk(block.blocks);
+    });
+  };
+  areas.forEach((area) => walk(area.blocks));
+  return types;
+};
+
+const extractSettingsValues = (settings: SettingsTree): Record<string, any> => {
+  const output: Record<string, any> = {};
+  Object.entries(settings).forEach(([key, value]) => {
+    if (isFieldNode(value)) {
+      output[key] = value.value ?? value.default ?? (value.type === "checkbox" ? false : "");
+      return;
+    }
+    output[key] = extractSettingsValues(value as SettingsTree);
+  });
+  return output;
+};
+
+const buildSettingsDataFromTemplate = (template: TemplateConfig) => {
+  return {
+    template_id: template.template_id,
+    template_version: template.template_version,
+    settings: extractSettingsValues(template.settings),
+    areas: template.areas.map((area) => ({
+      id: area.id,
+      disabled: area.disabled,
+      settings: extractSettingsValues(area.settings),
+      blocks: area.blocks.map((block) => ({
+        id: block.id,
+        block_type: block.block_type,
+        disabled: block.disabled,
+        settings: extractSettingsValues(block.settings),
+        blocks: block.blocks?.map((inner) => ({
+          id: inner.id,
+          block_type: inner.block_type,
+          disabled: inner.disabled,
+          settings: extractSettingsValues(inner.settings),
+        })),
+      })),
+    })),
+  };
+};
+
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   await authenticate.admin(request);
   const url = new URL(request.url);
@@ -58,9 +108,42 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   }
   const raw = await readFile(templatePath, "utf8");
   const template = JSON.parse(raw) as TemplateConfig;
+  const layoutPath = path.resolve(process.cwd(), "dashboard", "templates", templateId, "layout.json");
+  let layout: { html: string; styles?: string } | null = null;
+  try {
+    layout = JSON.parse(await readFile(layoutPath, "utf8"));
+  } catch {
+    layout = null;
+  }
+  const configDirCandidates = [
+    path.resolve(process.cwd(), "templates", templateId, "config"),
+    path.resolve(process.cwd(), "dashboard", "templates", templateId, "config"),
+  ];
+  let configDir: string | null = null;
+  for (const candidate of configDirCandidates) {
+    try {
+      await stat(candidate);
+      configDir = candidate;
+      break;
+    } catch {
+      // keep searching
+    }
+  }
+  const settingsDataPath = configDir
+    ? path.join(configDir, "settings_data.json")
+    : path.resolve(process.cwd(), "dashboard", "templates", templateId, "config", "settings_data.json");
+  let settingsData: any;
+  try {
+    settingsData = JSON.parse(await readFile(settingsDataPath, "utf8"));
+  } catch {
+    settingsData = buildSettingsDataFromTemplate(template);
+  }
   const blockSources = await loadBlockSources(templateId);
+  const usedBlockTypes = collectBlockTypes(settingsData?.areas ?? template.areas);
   const registry = Object.fromEntries(
-    Object.entries(blockSources).map(([blockType, source]) => {
+    Object.entries(blockSources)
+      .filter(([blockType]) => usedBlockTypes.has(blockType))
+      .map(([blockType, source]) => {
       try {
         const factory = new Function(`${source}\nreturn main;`);
         const main = factory();
@@ -70,21 +153,26 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       }
     })
   );
-  const previewHtml = renderTemplate(template, registry);
-  return { template, templateId, previewHtml };
+  const previewHtml = renderTemplateWithLayout(layout, settingsData as any, registry);
+  return { template, templateId, previewHtml, settingsData };
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   await authenticate.admin(request);
   const body = await request.json();
   const template = body?.template as TemplateConfig | undefined;
+  const settingsData = body?.settingsData as any;
   const templateId = body?.templateId as string | undefined;
   if (!template || !templateId) {
     return { previewHtml: "<!-- Missing template data -->" };
   }
+  const nextSettingsData = settingsData ?? buildSettingsDataFromTemplate(template);
   const blockSources = await loadBlockSources(templateId);
+  const usedBlockTypes = collectBlockTypes(nextSettingsData?.areas ?? template.areas);
   const registry = Object.fromEntries(
-    Object.entries(blockSources).map(([blockType, source]) => {
+    Object.entries(blockSources)
+      .filter(([blockType]) => usedBlockTypes.has(blockType))
+      .map(([blockType, source]) => {
       try {
         const factory = new Function(`${source}\nreturn main;`);
         const main = factory();
@@ -94,8 +182,19 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }
     })
   );
-  const previewHtml = renderTemplate(template, registry);
-  return { previewHtml };
+  const layoutPath = path.resolve(process.cwd(), "dashboard", "templates", templateId, "layout.json");
+  let layout: { html: string; styles?: string } | null = null;
+  try {
+    layout = JSON.parse(await readFile(layoutPath, "utf8"));
+  } catch {
+    layout = null;
+  }
+  const previewHtml = renderTemplateWithLayout(layout, nextSettingsData as any, registry);
+  const configDir = path.resolve(process.cwd(), "dashboard", "templates", templateId, "config");
+  await mkdir(configDir, { recursive: true });
+  const settingsPath = path.join(configDir, "settings_data.json");
+  await writeFile(settingsPath, JSON.stringify(nextSettingsData, null, 2), "utf8");
+  return { previewHtml, settingsData: nextSettingsData };
 };
 
 type FieldOption = { label: string; value: string };
@@ -135,7 +234,8 @@ type TemplateArea = {
 type TemplatePreset = {
   id: string;
   label: string;
-  scope: "global" | "filters" | "products" | "product_card";
+  scope?: "global" | "filters" | "products" | "product_card";
+  block_type?: string;
   disabled: boolean;
   settings: SettingsTree;
 };
@@ -152,6 +252,7 @@ type LoaderData = {
   template: TemplateConfig;
   templateId: string;
   previewHtml: string;
+  settingsData: any;
 };
 
 type Selection =
@@ -217,10 +318,10 @@ const updateFieldValue = (settings: SettingsTree, path: Array<string | number>, 
 
 const getPresetsForArea = (presets: TemplatePreset[], areaId: string, scope: "area" | "product_card") => {
   if (scope === "product_card") {
-    return presets.filter((preset) => preset.scope === "product_card" && !preset.disabled);
+    return presets.filter((preset) => (!preset.scope || preset.scope === "product_card") && !preset.disabled);
   }
   return presets.filter(
-    (preset) => (preset.scope === "global" || preset.scope === areaId) && !preset.disabled
+    (preset) => (!preset.scope || preset.scope === "global" || preset.scope === areaId) && !preset.disabled
   );
 };
 
@@ -245,6 +346,7 @@ export default function TemplateEditorPage() {
   const [hovered, setHovered] = useState<Selection | null>(null);
   const [dragging, setDragging] = useState<DragInfo | null>(null);
   const [areaPopover, setAreaPopover] = useState<string | null>(null);
+  const [collapsedAreas, setCollapsedAreas] = useState<Record<string, boolean>>({});
 
   const commitConfig = (next: TemplateConfig) => {
     setHistory((current) => ({
@@ -295,6 +397,21 @@ export default function TemplateEditorPage() {
   useEffect(() => {
     setPreviewHtmlState(previewHtml);
   }, [previewHtml]);
+
+  const settingsDataMemo = useMemo(
+    () => buildSettingsDataFromTemplate(templateConfig),
+    [templateConfig]
+  );
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      previewFetcher.submit(
+        { template: templateConfig, templateId, settingsData: settingsDataMemo } as any,
+        { method: "post", encType: "application/json" }
+      );
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [templateConfig, templateId, settingsDataMemo]);
 
   const getAreaIndex = (areaId: string) => templateConfig.areas.findIndex((area) => area.id === areaId);
 
@@ -381,10 +498,11 @@ export default function TemplateEditorPage() {
     const preset = templateConfig.block_presets.find((item) => item.id === presetId);
     if (!preset) return;
     const nextId = `${presetId}-${Date.now()}`;
+    const blockType = preset.block_type ?? preset.id;
     const nextBlock: TemplateBlock = {
       id: nextId,
       label: preset.label,
-      block_type: preset.id,
+      block_type: blockType,
       disabled: false,
       removable: true,
       settings: structuredClone(preset.settings),
@@ -404,10 +522,11 @@ export default function TemplateEditorPage() {
     const parentBlock = templateConfig.areas[areaIndex].blocks.find((block) => block.id === parentBlockId);
     if (!parentBlock) return;
     const nextId = `${presetId}-${Date.now()}`;
+    const blockType = preset.block_type ?? preset.id;
     const nextBlock: TemplateBlock = {
       id: nextId,
       label: preset.label,
-      block_type: preset.id,
+      block_type: blockType,
       disabled: false,
       removable: true,
       settings: structuredClone(preset.settings),
@@ -736,7 +855,7 @@ export default function TemplateEditorPage() {
               className="template-toolbar__button"
               onClick={() => {
                 previewFetcher.submit(
-                  { template: templateConfig, templateId },
+                  { template: templateConfig, templateId, settingsData: settingsDataMemo } as any,
                   { method: "post", encType: "application/json" }
                 );
               }}
@@ -761,151 +880,66 @@ export default function TemplateEditorPage() {
                     {templateConfig.areas.map((area) => {
                       const areaSelection: Selection = { type: "area", areaId: area.id, label: area.label };
                       const areaPresets = getPresetsForArea(templateConfig.block_presets, area.id, "area");
+                      const isCollapsed = collapsedAreas[area.id] ?? false;
                       return (
                         <div key={area.id} className="template-section-group">
-                          <button
-                            className="template-section-item"
-                            onClick={() => setSelected(areaSelection)}
-                          >
-                            {area.label}
-                          </button>
-                          <div className="template-section-blocks">
-                            {area.blocks.map((block) => {
-                              const isDragging =
-                                dragging?.blockId === block.id && dragging.areaId === area.id && !dragging.parentBlockId;
-                              return (
-                                <div
-                                  key={block.id}
-                                  className={`template-block-row ${isDragging ? "is-dragging" : ""}`}
-                                  draggable
-                                  onDragStart={() => setDragging({ areaId: area.id, blockId: block.id })}
-                                  onDragEnd={() => setDragging(null)}
-                                  onDragOver={(e) => e.preventDefault()}
-                                  onDrop={(e) => {
-                                    e.preventDefault();
-                                    if (!dragging || dragging.areaId !== area.id || dragging.parentBlockId) return;
-                                    const fromIndex = area.blocks.findIndex((b) => b.id === dragging.blockId);
-                                    const toIndex = area.blocks.findIndex((b) => b.id === block.id);
-                                    if (fromIndex === -1 || toIndex === -1) return;
-                                    updateAreaBlocks(area.id, reorderArray(area.blocks, fromIndex, toIndex));
-                                  }}
-                                  onClick={() => setSelected({ type: "block", areaId: area.id, blockId: block.id, label: block.label })}
-                                >
-                                  <span className="template-block-handle">::</span>
-                                  <span className={`template-block-title ${block.disabled ? "is-muted" : ""}`}>{block.label}</span>
-                                  <label className="template-block-toggle">
-                                    <input
-                                      type="checkbox"
-                                      checked={!block.disabled}
-                                      onChange={(e) => {
-                                        e.stopPropagation();
-                                        updateBlockDisabled(area.id, block.id, !e.target.checked);
-                                      }}
-                                    />
-                                    <span>Enabled</span>
-                                  </label>
-                                  {block.removable ? (
-                                    <button
-                                      className="template-block-remove"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        removeBlock(area.id, block.id);
-                                      }}
-                                    >
-                                      Remove
-                                    </button>
-                                  ) : null}
-                                </div>
-                              );
-                            })}
-                          </div>
-                          <div className="template-section-actions">
+                          <div className="template-section-header">
                             <button
-                              className="template-section-add"
-                              onClick={() => setAreaPopover(areaPopover === area.id ? null : area.id)}
+                              className="template-section-toggle"
+                              onClick={() =>
+                                setCollapsedAreas((prev) => ({ ...prev, [area.id]: !isCollapsed }))
+                              }
                             >
-                              Add block
+                              <span className={`template-section-caret ${isCollapsed ? "is-collapsed" : ""}`}>▾</span>
+                              {area.label}
                             </button>
-                            {areaPopover === area.id && (
-                              <div className="template-popover">
-                                {areaPresets.map((preset) => (
-                                  <button
-                                    key={`${area.id}-${preset.id}`}
-                                    className="template-popover-item"
-                                    onClick={() => {
-                                      addBlockToArea(area.id, preset.id);
-                                      setAreaPopover(null);
-                                    }}
-                                  >
-                                    {preset.label}
-                                  </button>
-                                ))}
-                              </div>
-                            )}
+                            <button className="template-section-select" onClick={() => setSelected(areaSelection)}>
+                              Edit
+                            </button>
                           </div>
-
-                          {area.blocks
-                            .filter((block) => block.block_type === "product_card")
-                            .map((block) => (
-                              <div key={`${area.id}-${block.id}`} className="template-section-subblocks">
-                                <div className="template-section-subtitle">{block.label} Blocks</div>
-                                {(block.blocks ?? []).map((inner) => {
+                          {!isCollapsed ? (
+                            <>
+                              <div className="template-section-blocks">
+                                {area.blocks.map((block) => {
                                   const isDragging =
-                                    dragging?.blockId === inner.id &&
-                                    dragging.areaId === area.id &&
-                                    dragging.parentBlockId === block.id;
+                                    dragging?.blockId === block.id && dragging.areaId === area.id && !dragging.parentBlockId;
                                   return (
                                     <div
-                                      key={inner.id}
+                                      key={block.id}
                                       className={`template-block-row ${isDragging ? "is-dragging" : ""}`}
                                       draggable
-                                      onDragStart={() => setDragging({ areaId: area.id, blockId: inner.id, parentBlockId: block.id })}
+                                      onDragStart={() => setDragging({ areaId: area.id, blockId: block.id })}
                                       onDragEnd={() => setDragging(null)}
                                       onDragOver={(e) => e.preventDefault()}
                                       onDrop={(e) => {
                                         e.preventDefault();
-                                        if (
-                                          !dragging ||
-                                          dragging.areaId !== area.id ||
-                                          dragging.parentBlockId !== block.id
-                                        ) {
-                                          return;
-                                        }
-                                        const blocks = block.blocks ?? [];
-                                        const fromIndex = blocks.findIndex((b) => b.id === dragging.blockId);
-                                        const toIndex = blocks.findIndex((b) => b.id === inner.id);
+                                        if (!dragging || dragging.areaId !== area.id || dragging.parentBlockId) return;
+                                        const fromIndex = area.blocks.findIndex((b) => b.id === dragging.blockId);
+                                        const toIndex = area.blocks.findIndex((b) => b.id === block.id);
                                         if (fromIndex === -1 || toIndex === -1) return;
-                                        updateNestedBlocks(area.id, block.id, reorderArray(blocks, fromIndex, toIndex));
+                                        updateAreaBlocks(area.id, reorderArray(area.blocks, fromIndex, toIndex));
                                       }}
-                                      onClick={() =>
-                                        setSelected({
-                                          type: "block",
-                                          areaId: area.id,
-                                          blockId: inner.id,
-                                          label: inner.label,
-                                          parentBlockId: block.id,
-                                        })
-                                      }
+                                      onClick={() => setSelected({ type: "block", areaId: area.id, blockId: block.id, label: block.label })}
                                     >
                                       <span className="template-block-handle">::</span>
-                                      <span className={`template-block-title ${inner.disabled ? "is-muted" : ""}`}>{inner.label}</span>
+                                      <span className={`template-block-title ${block.disabled ? "is-muted" : ""}`}>{block.label}</span>
                                       <label className="template-block-toggle">
                                         <input
                                           type="checkbox"
-                                          checked={!inner.disabled}
+                                          checked={!block.disabled}
                                           onChange={(e) => {
                                             e.stopPropagation();
-                                            updateBlockDisabled(area.id, inner.id, !e.target.checked, block.id);
+                                            updateBlockDisabled(area.id, block.id, !e.target.checked);
                                           }}
                                         />
                                         <span>Enabled</span>
                                       </label>
-                                      {inner.removable ? (
+                                      {block.removable ? (
                                         <button
                                           className="template-block-remove"
                                           onClick={(e) => {
                                             e.stopPropagation();
-                                            removeBlock(area.id, inner.id, block.id);
+                                            removeBlock(area.id, block.id);
                                           }}
                                         >
                                           Remove
@@ -914,34 +948,132 @@ export default function TemplateEditorPage() {
                                     </div>
                                   );
                                 })}
-                                <div className="template-section-actions">
-                                  <button
-                                    className="template-section-add"
-                                    onClick={() =>
-                                      setAreaPopover(areaPopover === `${area.id}-${block.id}` ? null : `${area.id}-${block.id}`)
-                                    }
-                                  >
-                                    Add product card block
-                                  </button>
-                                  {areaPopover === `${area.id}-${block.id}` && (
-                                    <div className="template-popover">
-                                      {getPresetsForArea(templateConfig.block_presets, area.id, "product_card").map((preset) => (
-                                        <button
-                                          key={`${area.id}-${block.id}-${preset.id}`}
-                                          className="template-popover-item"
-                                          onClick={() => {
-                                            addBlockToProductCard(area.id, block.id, preset.id);
-                                            setAreaPopover(null);
-                                          }}
-                                        >
-                                          {preset.label}
-                                        </button>
-                                      ))}
-                                    </div>
-                                  )}
-                                </div>
                               </div>
-                            ))}
+                              <div className="template-section-actions">
+                                <button
+                                  className="template-section-add"
+                                  onClick={() => setAreaPopover(areaPopover === area.id ? null : area.id)}
+                                >
+                                  Add block
+                                </button>
+                                {areaPopover === area.id && (
+                                  <div className="template-popover">
+                                    {areaPresets.map((preset) => (
+                                      <button
+                                        key={`${area.id}-${preset.id}`}
+                                        className="template-popover-item"
+                                        onClick={() => {
+                                          addBlockToArea(area.id, preset.id);
+                                          setAreaPopover(null);
+                                        }}
+                                      >
+                                        {preset.label}
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+
+                              {area.blocks
+                                .filter((block) => block.block_type === "product_card")
+                                .map((block) => (
+                                  <div key={`${area.id}-${block.id}`} className="template-section-subblocks">
+                                    <div className="template-section-subtitle">{block.label} Blocks</div>
+                                    {(block.blocks ?? []).map((inner) => {
+                                      const isDragging =
+                                        dragging?.blockId === inner.id &&
+                                        dragging.areaId === area.id &&
+                                        dragging.parentBlockId === block.id;
+                                      return (
+                                        <div
+                                          key={inner.id}
+                                          className={`template-block-row ${isDragging ? "is-dragging" : ""}`}
+                                          draggable
+                                          onDragStart={() => setDragging({ areaId: area.id, blockId: inner.id, parentBlockId: block.id })}
+                                          onDragEnd={() => setDragging(null)}
+                                          onDragOver={(e) => e.preventDefault()}
+                                          onDrop={(e) => {
+                                            e.preventDefault();
+                                            if (
+                                              !dragging ||
+                                              dragging.areaId !== area.id ||
+                                              dragging.parentBlockId !== block.id
+                                            ) {
+                                              return;
+                                            }
+                                            const blocks = block.blocks ?? [];
+                                            const fromIndex = blocks.findIndex((b) => b.id === dragging.blockId);
+                                            const toIndex = blocks.findIndex((b) => b.id === inner.id);
+                                            if (fromIndex === -1 || toIndex === -1) return;
+                                            updateNestedBlocks(area.id, block.id, reorderArray(blocks, fromIndex, toIndex));
+                                          }}
+                                          onClick={() =>
+                                            setSelected({
+                                              type: "block",
+                                              areaId: area.id,
+                                              blockId: inner.id,
+                                              label: inner.label,
+                                              parentBlockId: block.id,
+                                            })
+                                          }
+                                        >
+                                          <span className="template-block-handle">::</span>
+                                          <span className={`template-block-title ${inner.disabled ? "is-muted" : ""}`}>{inner.label}</span>
+                                          <label className="template-block-toggle">
+                                            <input
+                                              type="checkbox"
+                                              checked={!inner.disabled}
+                                              onChange={(e) => {
+                                                e.stopPropagation();
+                                                updateBlockDisabled(area.id, inner.id, !e.target.checked, block.id);
+                                              }}
+                                            />
+                                            <span>Enabled</span>
+                                          </label>
+                                          {inner.removable ? (
+                                            <button
+                                              className="template-block-remove"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                removeBlock(area.id, inner.id, block.id);
+                                              }}
+                                            >
+                                              Remove
+                                            </button>
+                                          ) : null}
+                                        </div>
+                                      );
+                                    })}
+                                    <div className="template-section-actions">
+                                      <button
+                                        className="template-section-add"
+                                        onClick={() =>
+                                          setAreaPopover(areaPopover === `${area.id}-${block.id}` ? null : `${area.id}-${block.id}`)
+                                        }
+                                      >
+                                        Add product card block
+                                      </button>
+                                      {areaPopover === `${area.id}-${block.id}` && (
+                                        <div className="template-popover">
+                                          {getPresetsForArea(templateConfig.block_presets, area.id, "product_card").map((preset) => (
+                                            <button
+                                              key={`${area.id}-${block.id}-${preset.id}`}
+                                              className="template-popover-item"
+                                              onClick={() => {
+                                                addBlockToProductCard(area.id, block.id, preset.id);
+                                                setAreaPopover(null);
+                                              }}
+                                            >
+                                              {preset.label}
+                                            </button>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                            </>
+                          ) : null}
                         </div>
                       );
                     })}
@@ -1070,6 +1202,15 @@ export default function TemplateEditorPage() {
         .template-preview-html {
           display: grid;
           gap: 12px;
+        }
+
+        .template-warning {
+          padding: 10px 12px;
+          border-radius: 10px;
+          border: 1px dashed #f97316;
+          background: #fff7ed;
+          color: #9a3412;
+          font-size: 12px;
         }
 
         .template-area {
@@ -1238,14 +1379,43 @@ export default function TemplateEditorPage() {
           margin-bottom: 0;
         }
 
-        .template-section-item {
-          text-align: left;
+        .template-section-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 8px;
+        }
+
+        .template-section-toggle {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
           padding: 8px 10px;
           border: 1px solid #e5e5e5;
           border-radius: 8px;
           background: #ffffff;
           font-size: 13px;
+          font-weight: 600;
           cursor: pointer;
+        }
+
+        .template-section-select {
+          border: 1px solid #d0d5dd;
+          background: #ffffff;
+          color: #111827;
+          padding: 6px 10px;
+          border-radius: 6px;
+          font-size: 12px;
+          cursor: pointer;
+        }
+
+        .template-section-caret {
+          display: inline-block;
+          transition: transform 0.15s ease;
+        }
+
+        .template-section-caret.is-collapsed {
+          transform: rotate(-90deg);
         }
 
         .template-section-blocks,
