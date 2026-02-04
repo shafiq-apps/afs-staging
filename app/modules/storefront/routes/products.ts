@@ -14,7 +14,6 @@ import {
   getActiveFilterConfig,
   applyFilterConfigToInput
 } from '@shared/storefront/filter-config.helper';
-import { error } from 'console';
 
 export const middleware = [
   validateShopDomain(),
