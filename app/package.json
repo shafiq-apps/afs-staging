@@ -24,7 +24,7 @@
         "seed:admin-users": "tsx -r tsconfig-paths/register system/cli/seed-admin-users.ts"
     },
     "dependencies": {
-        "@elastic/elasticsearch": "^9.2.0",
+        "@elastic/elasticsearch": "^9.2.1",
         "@sendgrid/mail": "^8.1.6",
         "@types/bcryptjs": "^2.4.6",
         "axios": "^1.13.2",

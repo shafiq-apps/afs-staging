@@ -29,6 +29,7 @@ import { Filter } from '@shared/filters/types';
 import { mapOptionNameToHandle } from './filter-config.helper';
 import { SearchRepository } from '@modules/search/search.repository';
 import { SearchConfig } from '@shared/search/types';
+import { QueryDslQueryContainer } from 'node_modules/@elastic/elasticsearch/lib/api/types';
 
 const logger = createModuleLogger('storefront-repository');
 
@@ -1351,7 +1352,9 @@ export class StorefrontSearchRepository {
       });
     }
 
-    const query = mustQueries.length ? { bool: { must: mustQueries } } : { match_all: {} };
+    const query: QueryDslQueryContainer = mustQueries.length
+      ? { bool: { must: mustQueries } }
+      : { match_all: {} };
 
     // Build sort
     let sort: any[] = [];
