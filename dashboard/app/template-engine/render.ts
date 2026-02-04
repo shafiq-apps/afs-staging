@@ -62,7 +62,7 @@ export const renderBlock = (
   if (block.disabled) return "";
   const renderer = registry[block.block_type];
   if (!renderer) {
-    return `<div class="template-warning" data-block-type="${block.block_type}">Missing renderer for ${block.block_type}</div>`;
+    return `<div class="template-warning" data-block-type="${block.block_type}">Missing renderer for ${block.block_type} ${JSON.stringify(registry)}</div>`;
   }
   const nextCtx: RenderContext = {
     ...ctx,
@@ -76,29 +76,10 @@ export const renderTemplate = (template: TemplateConfig, registry: Record<string
   return template.areas.map((area) => renderArea(area, template, registry)).join("\n");
 };
 
-type LayoutConfig = {
-  html: string;
-  styles?: string;
-};
-
-export const renderTemplateWithLayout = (
-  layout: LayoutConfig | null,
-  template: TemplateConfig,
-  registry: Record<string, BlockRenderer>
-) => {
-  if (!layout?.html) {
-    return renderTemplate(template, registry);
-  }
-  const areaHtml = new Map<string, string>();
+export const renderAreasMap = (template: TemplateConfig, registry: Record<string, BlockRenderer>) => {
+  const areas: Record<string, string> = {};
   (template.areas ?? []).forEach((area) => {
-    areaHtml.set(area.id, renderArea(area, template, registry));
+    areas[area.id] = renderArea(area, template, registry);
   });
-  let html = layout.html;
-  areaHtml.forEach((value, key) => {
-    html = html.replaceAll(`{{area:${key}}}`, value);
-  });
-  if (layout.styles) {
-    return `<style>${layout.styles}</style>\n${html}`;
-  }
-  return html;
+  return areas;
 };

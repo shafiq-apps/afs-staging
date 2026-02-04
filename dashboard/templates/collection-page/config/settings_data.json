@@ -1,0 +1,163 @@
+{
+  "template_id": "collection-page",
+  "template_version": "1.0",
+  "settings": {
+    "colors": {
+      "background": "#ffffff",
+      "text": "#1f1f1f",
+      "accent": "#111827"
+    },
+    "buttons": {
+      "primary": {
+        "background_color": "#111827",
+        "text_color": "#ffffff",
+        "border_radius": "6px",
+        "padding": "10px 18px"
+      },
+      "secondary": {
+        "background_color": "#ffffff",
+        "text_color": "#111827",
+        "border_radius": "6px",
+        "padding": "10px 18px"
+      }
+    }
+  },
+  "areas": [
+    {
+      "id": "filters",
+      "disabled": false,
+      "settings": {
+        "layout": "left",
+        "background_color": "#ffffff",
+        "border_color": "#e5e7eb",
+        "padding": "16px",
+        "border_radius": "12px",
+        "search_enabled": true
+      },
+      "blocks": [
+        {
+          "id": "filters-group",
+          "block_type": "filter_group",
+          "disabled": false,
+          "settings": {
+            "counts_enabled": true,
+            "collapsible": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "products",
+      "disabled": false,
+      "settings": {
+        "layout": "grid",
+        "columns": "3",
+        "background_color": "#ffffff",
+        "border_color": "#e5e7eb",
+        "padding": "16px",
+        "border_radius": "12px",
+        "sort_enabled": true
+      },
+      "blocks": [
+        {
+          "id": "products-toolbar",
+          "block_type": "products_toolbar",
+          "disabled": false,
+          "settings": {
+            "show_sort": true,
+            "show_count": true
+          }
+        },
+        {
+          "id": "product-card",
+          "block_type": "product_card",
+          "disabled": false,
+          "settings": {
+            "background_color": "#f9fafb",
+            "border_color": "#e5e7eb",
+            "border_radius": "12px"
+          },
+          "blocks": [
+            {
+              "id": "product-title",
+              "block_type": "product_title",
+              "disabled": false,
+              "settings": {
+                "tag": "h3",
+                "text_color": "#1f1f1f",
+                "font_size": "18px"
+              }
+            },
+            {
+              "id": "product-vendor",
+              "block_type": "vendor",
+              "disabled": false,
+              "settings": {
+                "text_color": "#6b7280",
+                "font_size": "13px"
+              }
+            },
+            {
+              "id": "product-price",
+              "block_type": "price",
+              "disabled": false,
+              "settings": {
+                "compare_price_enabled": true,
+                "text_color": "#111827",
+                "font_size": "15px"
+              }
+            },
+            {
+              "id": "product-quick-add",
+              "block_type": "quick_add_button",
+              "disabled": false,
+              "settings": {
+                "label": "Quick Add",
+                "button_style": "primary"
+              }
+            },
+            {
+              "id": "product-stock-badge",
+              "block_type": "stock_badge",
+              "disabled": false,
+              "settings": {
+                "in_stock_text": "In Stock",
+                "out_of_stock_text": "Sold Out",
+                "in_stock_color": "#16a34a",
+                "out_of_stock_color": "#dc2626"
+              }
+            },
+            {
+              "id": "product-hover-images",
+              "block_type": "hover_images",
+              "disabled": false,
+              "settings": {
+                "transition": "fade"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pagination",
+      "disabled": false,
+      "settings": {
+        "style": "buttons",
+        "alignment": "center",
+        "load_more_enabled": false
+      },
+      "blocks": [
+        {
+          "id": "pagination-controls",
+          "block_type": "pagination_controls",
+          "disabled": false,
+          "settings": {
+            "numbers_enabled": true,
+            "arrows_enabled": true
+          }
+        }
+      ]
+    }
+  ]
+}
