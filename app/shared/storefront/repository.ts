@@ -1501,13 +1501,7 @@ export class StorefrontSearchRepository {
         error: error?.message || error,
         statusCode: error?.statusCode,
       });
-      return {
-        limit: 0,
-        page: 0,
-        products: [],
-        total: 0,
-        totalPages: 0
-      }
+      throw new Error(error?.message || error);
     }
 
     const total = typeof response.hits.total === 'number'

@@ -14,6 +14,7 @@ import {
   getActiveFilterConfig,
   applyFilterConfigToInput
 } from '@shared/storefront/filter-config.helper';
+import { error } from 'console';
 
 export const middleware = [
   validateShopDomain(),
@@ -50,7 +51,25 @@ export const GET = handler(async (req: HttpRequest) => {
   }
 
   // Pass filterConfig to only calculate aggregations for enabled options
-  const result = await productsService.searchProducts(shop, searchInput, filterConfig);
+  const result = await productsService.searchProducts(shop, searchInput, filterConfig).catch(e => {
+    return {
+      error: e
+    }
+  });
+  if(result.error) {
+    return {
+      success: false,
+      data: {
+        products: [],
+        pagination: {
+          total: 0,
+          page: 0,
+          limit: 0,
+          totalPages: 0,
+        },
+      }
+    }
+  }
 
   // Format filters with filterConfig settings applied (position sorting, filtering, etc.)
   // This pre-compiles filters on server-side for optimal performance
