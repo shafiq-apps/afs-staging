@@ -3,6 +3,7 @@ import { NAVIGATION_CONFIG } from "app/config/navigations.config";
 type AppNavBarProps = {
     hasActiveShopifySubscription: boolean;
 }
+
 export default function AppNavBar({ hasActiveShopifySubscription }: AppNavBarProps) {
     return (
         <s-app-nav>
