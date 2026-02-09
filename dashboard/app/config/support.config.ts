@@ -5,13 +5,15 @@
  * Update these values to customize the support page content.
  */
 
+import { CONFIG } from ".";
+
 export const SUPPORT_CONFIG = {
   /**
    * Contact Information
    */
   contact: {
     phone: "+1 (555) 123-4567",
-    email: "support@digitalcoo.com",
+    email: "shafiq.solutionwin@gmail.com",
     hours: [
       "Monday - Friday: 11:00 AM - 8:00 PM EST",
       "Saturday: 11:00 AM - 7:00 PM EST",
@@ -23,8 +25,8 @@ export const SUPPORT_CONFIG = {
    * App Information
    */
   app: {
-    name: "Digitalcoo AI Filters & Search",
-    version: "2.0.0",
+    name: CONFIG.app.name,
+    version: CONFIG.app.version
   },
 
   /**

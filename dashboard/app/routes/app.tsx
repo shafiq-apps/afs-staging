@@ -1,6 +1,6 @@
-import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
-import { Outlet, useLoaderData, useRouteError, useLocation, useNavigate, isRouteErrorResponse } from "react-router";
-import { useEffect } from "react";
+import type { ActionFunctionArgs, HeadersFunction, LoaderFunctionArgs } from "react-router";
+import { Outlet, useLoaderData, useRouteError, useLocation, useNavigate, isRouteErrorResponse, useActionData, useNavigation, Form } from "react-router";
+import { useEffect, useState } from "react";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { AppProvider } from "@shopify/shopify-app-react-router/react";
 import { authenticate, sessionStorage as shopSessionStorage } from "../shopify.server";
@@ -13,50 +13,12 @@ import { FETCH_CURRENT_SUBSCRIPTION } from "app/graphql/subscriptions.query";
 import { UPDATE_SUBSCRIPTION_STATUS_MUTATION } from "app/graphql/subscriptions.mutation";
 import { GraphQLErrorBoundary } from "../components/GraphQLErrorBoundary";
 import AppNavBar from "app/components/AppNavBar";
-
-const SHOP_DATA_CACHE_KEY = "shop_locale_data";
-const CACHE_DURATION = 1000 * 60 * 60; // 1 hour
-
-interface CachedShopData {
-  data: ShopLocaleData;
-  timestamp: number;
-}
-
-function getCachedShopData(): ShopLocaleData | null {
-  if (typeof window === "undefined") return null;
-
-  try {
-    const cached = sessionStorage.getItem(SHOP_DATA_CACHE_KEY);
-    if (!cached) return null;
-
-    const parsed: CachedShopData = JSON.parse(cached);
-    const now = Date.now();
-
-    // Check if cache is still valid (1 hour)
-    if (now - parsed.timestamp < CACHE_DURATION) {
-      return parsed.data;
-    }
-
-    // Cache expired, remove it
-    sessionStorage.removeItem(SHOP_DATA_CACHE_KEY);
-    return null;
-  } catch (error) {
-    return null;
-  }
-}
-
-function setCachedShopData(data: ShopLocaleData): void {
-  if (typeof window === "undefined") return;
-
-  try {
-    const cache: CachedShopData = {
-      data,
-      timestamp: Date.now(),
-    };
-    sessionStorage.setItem(SHOP_DATA_CACHE_KEY, JSON.stringify(cache));
-  } catch (error) {
-  }
-}
+import { ActionData } from "app/types";
+import { SUPPORT_CONFIG } from "app/config/support.config";
+import { sendMigrationEmail } from "app/utils/email.service";
+import { getCachedShopData } from "app/utils/get-cached-shop-data";
+import { setCachedShopData } from "app/utils/set-cached-hop-data";
+import { CONFIG } from "app/config";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
@@ -249,18 +211,63 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   };
 };
 
+export const action = async ({ request }: ActionFunctionArgs) => {
+  const { session } = await authenticate.admin(request);
+  const formData = await request.formData();
+
+  const instructions = formData.get("instructions") as string;
+
+  // Validation
+  if (!instructions) {
+    return {
+      success: false,
+      error: "Please provide migration instructions or notes",
+    } as ActionData;
+  }
+
+  try {
+    await sendMigrationEmail({
+      shop: session?.shop || "",
+      name: session?.shop || "",
+      email: CONFIG.supportEmail,
+      subject: "Migration Instructions",
+      priority: "high",
+      message: instructions,
+    });
+
+    return {
+      success: true,
+      message: SUPPORT_CONFIG.messages.success,
+    } as ActionData;
+  } catch (error: any) {
+    // Check if it's a server/network error
+    if (error instanceof GraphQLError && (error.isServerError || error.isNetworkError)) {
+      // Return a specific error message for server downtime
+      return {
+        success: false,
+        error: "Our support system is currently unavailable. Please try again later or email us directly at " + SUPPORT_CONFIG.contact.email,
+      } as ActionData;
+    }
+    
+    return {
+      success: false,
+      error: error.message || SUPPORT_CONFIG.messages.error,
+    } as ActionData;
+  }
+};
+
 export default function App() {
   const { apiKey, shop, shopData, subscription, activeSubscriptions, isLegacyShop, LEGACY_APP_URL } = useLoaderData<typeof loader>();
   const location = useLocation();
   const navigate = useNavigate();
   const { t } = useTranslation();
-
+  const [migrationInstructions, setMigrationInstructions] = useState("");
+  const actionData = useActionData<typeof action>();
+  const navigation = useNavigation();
+  const isSubmitting = navigation.state === "submitting";
 
   /* ---------------- SUBSCRIPTION HELPERS ---------------- */
   const hasActiveShopifySubscription = activeSubscriptions.some(sub => sub.status === AppSubscriptionStatus.ACTIVE);
-
-  const isSubscriptionActiveInDB = subscription?.status === AppSubscriptionStatus.ACTIVE;
-
   const isOnPricingPage = location.pathname === "/app/pricing";
 
   /* ---------------- CLIENT-SIDE SHOP DATA CACHE ---------------- */
@@ -269,6 +276,13 @@ export default function App() {
       setCachedShopData(shopData);
     }
   }, [shopData]);
+
+  // Reset form on successful submission
+  if (actionData?.success && !isSubmitting) {
+    setTimeout(() => {
+      setMigrationInstructions("");
+    }, 100);
+  }
 
   const effectiveShopData = shopData ?? (typeof window !== "undefined" ? getCachedShopData() : null);
 
@@ -332,19 +346,65 @@ export default function App() {
           shopData={effectiveShopData}
           isLoading={!effectiveShopData}
         >
-          <div style={{ height: '30vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-            <s-stack direction="inline" alignItems="center" justifyContent="center">
-              <s-button
-                onClick={handleLoadLegacyApp}
-                accessibilityLabel="Load app"
-                type="button"
-                variant="primary"
-                icon="external"
-              >
-                Load App
-              </s-button>
-            </s-stack>
-          </div>
+          <s-page heading={t("app.pageTitle")}>
+            
+              <div style={{ height: '20vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                <s-stack direction="inline" alignItems="center" justifyContent="center">
+                  <s-button
+                    onClick={handleLoadLegacyApp}
+                    accessibilityLabel="Load app"
+                    type="button"
+                    variant="primary"
+                    icon="external"
+                  >
+                    Load App
+                  </s-button>
+                </s-stack>
+              </div>
+            <s-divider />
+            <s-banner tone="warning" heading={t("app.legacyshop.description")}></s-banner>
+            <s-section heading={t("app.legacyshop.heading")} >
+              <s-stack gap="base" rowGap="base">
+                {/* Success/Error Messages */}
+                {actionData?.success && (
+                  <s-banner tone="success">
+                    <s-text>{actionData.message}</s-text>
+                  </s-banner>
+                )}
+
+                {actionData?.error && (
+                  <s-banner tone="critical">
+                    <s-text>{actionData.error}</s-text>
+                  </s-banner>
+                )}
+                <Form method="post">
+                  <s-stack direction="block" gap="base">
+                    <s-text-area
+                      labelAccessibilityVisibility="visible"
+                      label={t("app.legacyshop.inputfield.label")}
+                      name="instructions"
+                      id="instructions"
+                      value={migrationInstructions}
+                      onChange={(e: any) => setMigrationInstructions(e.target.value)}
+                      rows={7}
+                    />
+                    <s-text color="subdued">{t("app.legacyshop.inputfield.placeholder")}</s-text>
+                    <s-button
+                      type="submit"
+                      variant="primary"
+                      accessibilityLabel="Submit legacy shop info"
+                      icon="send"
+                    >
+                      {
+                        t("app.legacyshop.migrateButton")
+                      }
+                    </s-button>
+                  </s-stack>
+                </Form>
+                <s-text color="subdued">{t("app.legacyshop.learnMore")}: <a href="https://fstaging.digitalcoo.com/auth/login" target="_blank" rel="noopener noreferrer">https://fstaging.digitalcoo.com/auth/login</a></s-text>
+              </s-stack>
+            </s-section>
+          </s-page>
         </ShopProvider>
       </AppProvider>
     )
