@@ -284,7 +284,7 @@ export async function sendMigrationEmail(ticket: SupportTicket): Promise<string>
   const fromEmail = process.env.APP_EMAIL_FROM;
   const fromName = process.env.APP_EMAIL_NAME;
   const supportEmail = process.env.APP_SUPPORT_EMAIL || SUPPORT_CONFIG.contact.email;
-  const supportName = process.env.APP_SUPPORT_NAME || CONFIG.app.name;
+  const supportName = process.env.APP_EMAIL_NAME || CONFIG.app.name;
 
   logger.info("SendGrid configuration check", {
     hasApiKey: !!apiKey,
