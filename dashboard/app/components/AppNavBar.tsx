@@ -7,9 +7,9 @@ export default function AppNavBar({ hasActiveShopifySubscription }: AppNavBarPro
     return (
         <s-app-nav>
             {
-                hasActiveShopifySubscription && NAVIGATION_CONFIG.PRIVATE.MAIN_NAVIGATION.map((navItem) => (
+                hasActiveShopifySubscription ? NAVIGATION_CONFIG.PRIVATE.MAIN_NAVIGATION.map((navItem) => (
                     <s-link key={navItem.url} href={navItem.url}>{navItem.title}</s-link>
-                ))
+                )): null
             }
             {
                 NAVIGATION_CONFIG.PUBLIC.MAIN_NAVIGATION.map((navItem) => (
