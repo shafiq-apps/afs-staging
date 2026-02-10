@@ -19,11 +19,13 @@ const logger = createModuleLogger('graphql-route');
  * Middleware for GraphQL endpoint
  * Supports both shop-based and admin-based authentication
  */
+
+console.log("process.env.NODE_ENV", process.env.NODE_ENV);
 export const middleware = [
   // Admin authentication (checks for admin requests)
   adminAuthenticate(),
   // Shop authentication (required for non-admin requests)
-  authenticate({ required: false }),
+  authenticate({ skip: (req) => process.env.NODE_ENV === 'development' }),
   // Shop domain validation (optional - skipped for admin requests)
   async (req: HttpRequest, res: HttpResponse, next: HttpNextFunction) => {
     // Skip shop validation if this is an admin request

@@ -6,7 +6,7 @@ export const CONFIG = {
         name: "Digitalcoo AI Filters & Search",
         version: "2.0.0",
     },
-    supportEmail: process.env.APP_SUPPORT_EMAIL || "support@digitalcoo.com",
-    supportName:  process.env.APP_EMAIL_NAME || "Digitalcoo Support",
+    supportEmail: "shafiq.solutionwin@gmail.com",
+    supportName:  "Digitalcoo Support",
     
 }

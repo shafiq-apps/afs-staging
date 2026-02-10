@@ -10,7 +10,7 @@
 import { Client } from '@elastic/elasticsearch';
 import { createModuleLogger } from '@shared/utils/logger.util';
 import { Shop, CreateShopInput, UpdateShopInput } from './shops.type';
-import { SHOPS_INDEX_NAME } from '@shared/constants/es.constant';
+import { LEGACY_SHOPS_INDEX_NAME, SHOPS_INDEX_NAME } from '@shared/constants/es.constant';
 
 const logger = createModuleLogger('ShopsRepository');
 
@@ -70,7 +70,7 @@ export class ShopsRepository {
     try {
       logger.info("shop", shop, "index", this.index);
       const response = await this.esClient.get({
-        index: 'legacy-shops',
+        index: LEGACY_SHOPS_INDEX_NAME,
         id: shop,
       });
 

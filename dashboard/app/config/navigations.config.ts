@@ -27,10 +27,10 @@ export const NAVIGATION_CONFIG = {
                 title: t("search.pageTitle"),
                 url: "/app/search",
             },
-            {
-                title: t("templates.pageTitle"),
-                url: "/app/templates",
-            },
+            // {
+            //     title: t("templates.pageTitle"),
+            //     url: "/app/templates",
+            // },
             {
                 title: t("indexing.pageTitle"),
                 url: "/app/indexing",
