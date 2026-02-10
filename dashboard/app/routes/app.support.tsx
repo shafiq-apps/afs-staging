@@ -1,8 +1,4 @@
-import type {
-  ActionFunctionArgs,
-  HeadersFunction,
-  LoaderFunctionArgs,
-} from "react-router";
+import type { ActionFunctionArgs, HeadersFunction, LoaderFunctionArgs } from "react-router";
 import { useActionData, useLoaderData, Form, useNavigation } from "react-router";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
@@ -11,29 +7,7 @@ import { SUPPORT_CONFIG } from "../config/support.config";
 import { sendSupportEmail } from "../utils/email.service";
 import { GraphQLError } from "../graphql.server";
 import { useTranslation } from "app/utils/translations";
-import { CallbackEvent } from "@shopify/polaris-types";
-
-interface SupportData {
-  shop?: string;
-  appName: string;
-  appVersion: string;
-  supportInfo: {
-    phone: string;
-    email: string;
-    hours: string[];
-    documentationLinks: {
-      title: string;
-      url: string;
-      description: string;
-    }[];
-  };
-}
-
-interface ActionData {
-  success?: boolean;
-  error?: string;
-  message?: string;
-}
+import { ActionData, SupportData } from "app/types";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -126,7 +100,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function Support() {
-  const { shop, appName, appVersion, supportInfo } = useLoaderData<typeof loader>();
+  const { shop, supportInfo } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
@@ -139,18 +113,6 @@ export default function Support() {
     priority: SUPPORT_CONFIG.form.defaultPriority,
     message: "",
   });
-
-  const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
-  ) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleInputChange1 = (e: any) => {
-    const { name, value } = e.target.value;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
 
   // Reset form on successful submission
   if (actionData?.success && !isSubmitting) {

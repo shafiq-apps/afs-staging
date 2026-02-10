@@ -1,22 +1,22 @@
-export const APP_NAME = "Advanced Filters & Search";
+export const APP_NAME = process.env.APP_NAME || 'Digitalcoo AI Filters And Search';
 
 export const ONE_MINUTE_MS = 60000;
 
 export const RATE_LIMIT = {
   DEFAULT: {
-    MAX: 120,
+    MAX: 500,
     BUCKET_DURATION_MS: ONE_MINUTE_MS,
   },
   STOREFRONT_PRODUCTS: {
-    MAX: 120,
+    MAX: 500,
     BUCKET_DURATION_MS: ONE_MINUTE_MS,
   },
   STOREFRONT_FILTERS: {
-    MAX: 120,
+    MAX: 500,
     BUCKET_DURATION_MS: ONE_MINUTE_MS,
   },
   STOREFRONT_SEARCH: {
-    MAX: 200,
+    MAX: 500,
     BUCKET_DURATION_MS: ONE_MINUTE_MS,
   },
   GRAPHQL_ENDPOINT: {
@@ -30,5 +30,36 @@ export const RATE_LIMIT = {
   EVENTS: {
     MAX: 100,
     BUCKET_DURATION_MS: ONE_MINUTE_MS * 5,
+  },
+};
+
+export const RATE_LIMIT_PER_SECOND = {
+  DEFAULT: {
+    MAX: 30,
+    BUCKET_DURATION_MS: 1000, // 1 second
+  },
+  STOREFRONT_PRODUCTS: {
+    MAX: 30,
+    BUCKET_DURATION_MS: 1000, // 1 second
+  },
+  STOREFRONT_FILTERS: {
+    MAX: 30,
+    BUCKET_DURATION_MS: 1000, // 1 second
+  },
+  STOREFRONT_SEARCH: {
+    MAX: 30,
+    BUCKET_DURATION_MS: 1000, // 1 second
+  },
+  GRAPHQL_ENDPOINT: {
+    MAX: 30,
+    BUCKET_DURATION_MS: 1000, // 1 second
+  },
+  REINDEXING: {
+    MAX: 1,
+    BUCKET_DURATION_MS: 1000, // 1 second - allow 1 request per second for indexing to prevent overload
+  },
+  EVENTS: {
+    MAX: 30,
+    BUCKET_DURATION_MS: 1000, // 1 second
   },
 };

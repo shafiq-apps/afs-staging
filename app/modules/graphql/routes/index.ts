@@ -10,7 +10,7 @@ import { validate, validateShopDomain } from '@core/http/validation.middleware';
 import { rateLimit } from '@core/security/rate-limit.middleware';
 import { createModuleLogger } from '@shared/utils/logger.util';
 import { GraphQLRequest, GraphQLContext } from '../graphql.type';
-import { RATE_LIMIT } from '@shared/constants/app.constant';
+import { RATE_LIMIT, RATE_LIMIT_PER_SECOND } from '@shared/constants/app.constant';
 import { authenticate, adminAuthenticate } from '@core/security';
 
 const logger = createModuleLogger('graphql-route');
@@ -19,11 +19,24 @@ const logger = createModuleLogger('graphql-route');
  * Middleware for GraphQL endpoint
  * Supports both shop-based and admin-based authentication
  */
+
 export const middleware = [
+  // per second rate limit for GraphQL endpoint (separate from global rate limit)
+  rateLimit({
+    max: RATE_LIMIT_PER_SECOND.GRAPHQL_ENDPOINT.MAX,
+    windowMs: RATE_LIMIT_PER_SECOND.GRAPHQL_ENDPOINT.BUCKET_DURATION_MS,
+    message: 'Too many GraphQL requests',
+  }),
+  // global rate limit for GraphQL endpoint
+  rateLimit({
+    max: RATE_LIMIT.GRAPHQL_ENDPOINT.MAX,
+    windowMs: RATE_LIMIT.GRAPHQL_ENDPOINT.BUCKET_DURATION_MS,
+    message: 'Too many GraphQL requests',
+  }),
   // Admin authentication (checks for admin requests)
   adminAuthenticate(),
   // Shop authentication (required for non-admin requests)
-  authenticate({ required: false }),
+  authenticate({ skip: (req) => process.env.NODE_ENV === 'development' }),
   // Shop domain validation (optional - skipped for admin requests)
   async (req: HttpRequest, res: HttpResponse, next: HttpNextFunction) => {
     // Skip shop validation if this is an admin request
@@ -49,11 +62,6 @@ export const middleware = [
         required: false,
       },
     },
-  }),
-  rateLimit({
-    max: RATE_LIMIT.GRAPHQL_ENDPOINT.MAX,
-    windowMs: RATE_LIMIT.GRAPHQL_ENDPOINT.BUCKET_DURATION_MS,
-    message: 'Too many GraphQL requests',
   })
 ];
 

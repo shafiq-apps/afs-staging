@@ -9,19 +9,27 @@ import { HttpRequest } from '@core/http/http.types';
 import { validateShopDomain } from '@core/http/validation.middleware';
 import { rateLimit } from '@core/security/rate-limit.middleware';
 import { buildSearchInput } from '@modules/storefront/products.helper';
-import { RATE_LIMIT } from '@shared/constants/app.constant';
+import { RATE_LIMIT, RATE_LIMIT_PER_SECOND } from '@shared/constants/app.constant';
 import {
   getActiveFilterConfig,
   applyFilterConfigToInput
 } from '@shared/storefront/filter-config.helper';
 
 export const middleware = [
-  validateShopDomain(),
+  // per second rate limit for storefront products endpoint (separate from global rate limit)
+  rateLimit({
+    max: RATE_LIMIT_PER_SECOND.STOREFRONT_PRODUCTS.MAX,
+    windowMs: RATE_LIMIT_PER_SECOND.STOREFRONT_PRODUCTS.BUCKET_DURATION_MS,
+    message: "Too many storefront products requests"
+  }),
+  // global rate limit for storefront products endpoint
   rateLimit({
     max: RATE_LIMIT.STOREFRONT_PRODUCTS.MAX,
     windowMs: RATE_LIMIT.STOREFRONT_PRODUCTS.BUCKET_DURATION_MS,
-    message: "Too many storefront request"
-  })
+    message: "Too many storefront products requests"
+  }),
+  // Validate that shop parameter is present and valid
+  validateShopDomain()
 ];
 
 export const GET = handler(async (req: HttpRequest) => {

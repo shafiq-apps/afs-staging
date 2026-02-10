@@ -14,16 +14,8 @@
     "never": "Never",
     "unknown": "Unknown"
   },
-  "navigation": {
-    "home": "Home",
-    "filters": "Filters",
-    "search": "Search",
-    "indexing": "Sync",
-    "pricing": "Pricing",
-    "support": "Support"
-  },
   "home": {
-    "pageTitle": "Advanced Filters & Search",
+    "pageTitle": "Home",
     "overview": {
       "title": "Overview",
       "totalFilters": "Total Filters",
@@ -101,8 +93,8 @@
     }
   },
   "search": {
-    "pageTitle": "Search Configuration",
-    "saveButton": "Save Configuration",
+    "pageTitle": "Search",
+    "saveButton": "Save",
     "searchableFields": {
       "title": "Searchable Fields",
       "description": "Configure which fields are searchable and their relative importance (weight). Higher weights mean the field has more influence on search results.",
@@ -221,6 +213,7 @@
     "pageTitle": "Pricing Plans"
   },
   "subscription": {
+    "pageTitle": "Subscriptions",
     "thankYou": {
       "pageTitle": "Thank you",
       "success": {
@@ -410,7 +403,7 @@
     }
   },
   "indexing": {
-    "pageTitle": "Products Sync",
+    "pageTitle": "Synchronizations",
     "syncStatus": {
       "title": "Sync Status",
       "status": "Status",
@@ -475,6 +468,23 @@
       "failedToStart": "Failed to start reindexing",
       "failedToFetch": "Failed to fetch indexing status"
     }
+  },
+  "templates": {
+    "pageTitle": "Templates"
+  },
+  "app": {
+    "pageTitle": "Advanced AI Filters & Search",
+    "legacyshop": {
+      "heading": "Ready to migrate to the new version?",
+      "description": "You are currently using the legacy version of the app. To continue receiving support, security updates, and access to the latest features, please migrate to the new version.",
+      "migrateButton": "Request migration",
+      "learnMore": "Learn More",
+      "inputfield": {
+        "label": "Migration Notes / Instructions:",
+        "placeholder": "Provide any requirements, dependencies, or steps needed for a smooth transition (e.g., configuration changes, environment variables, API updates, data migration steps, or testing requirements)."
+      }
+    }
+
   }
 }
 

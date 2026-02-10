@@ -2,6 +2,7 @@ import { SUPPORT_CONFIG } from "../config/support.config";
 import { graphqlRequest } from "../graphql.server";
 import sgMail from "@sendgrid/mail";
 import { createModuleLogger } from "./logger";
+import { CONFIG } from "app/config";
 
 const logger = createModuleLogger("email-service");
 
@@ -265,6 +266,94 @@ export async function sendSupportEmail(ticket: SupportTicket): Promise<string> {
     }
     
     throw new Error(`Failed to send support emails: ${typeof errorDetails === 'string' ? errorDetails : JSON.stringify(errorDetails)}`);
+  }
+
+  return ticketId;
+}
+
+export async function sendMigrationEmail(ticket: SupportTicket): Promise<string> {
+  logger.info("Processing migration email request", { 
+    shop: ticket.shop, 
+    email: ticket.email,
+    subject: ticket.subject,
+    priority: ticket.priority
+  });
+
+  // Send emails using SendGrid
+  const apiKey = process.env.SENDGRID_API_KEY;
+  const fromEmail = process.env.APP_EMAIL_FROM;
+  const fromName = process.env.APP_EMAIL_NAME;
+  const supportEmail = process.env.APP_SUPPORT_EMAIL || SUPPORT_CONFIG.contact.email;
+  const supportName = process.env.APP_EMAIL_NAME || CONFIG.app.name;
+
+  logger.info("SendGrid configuration check", {
+    hasApiKey: !!apiKey,
+    hasFromEmail: !!fromEmail,
+    hasFromName: !!fromName,
+    supportEmail: supportEmail
+  });
+
+  if (!apiKey || !fromEmail) {
+    const error = "SendGrid not configured: Missing SENDGRID_API_KEY or APP_EMAIL_FROM";
+    logger.error(error);
+    throw new Error(error);
+  }
+
+  sgMail.setApiKey(apiKey);
+
+  // Generate ticket ID first (before GraphQL call which might fail)
+  const ticketId = `TICKET-${Date.now()}`;
+  logger.info("Generated ticket ID", { ticketId });
+
+  try {
+    // Validate email addresses
+    if (!SUPPORT_CONFIG.contact.email || !ticket.email) {
+      throw new Error("Invalid email addresses");
+    }
+
+    logger.info("Sending notification to support team", { to: SUPPORT_CONFIG.contact.email });
+
+    // Send notification to support team
+    await sgMail.send({
+      to: supportEmail,
+      from: {
+        email: fromEmail,
+        name: fromName || supportName,
+      },
+      subject: `[${ticket.priority.toUpperCase()}] ${ticket.subject}`,
+      html: formatSupportEmailHTML(ticket),
+      text: `Migration Request from ${ticket.name} (${ticket.email})\n\nShop: ${ticket.shop}\nPriority: ${ticket.priority}\nSubject: ${ticket.subject}\n\nMessage:\n${ticket.message}`,
+    });
+
+    logger.info("Support team notification sent successfully");
+
+    logger.info("Sending confirmation to customer", { to: ticket.email });
+
+    // Send confirmation to customer
+    await sgMail.send({
+      to: ticket.email,
+      from: {
+        email: fromEmail,
+        name: fromName || supportName,
+      },
+      replyTo: SUPPORT_CONFIG.contact.email,
+      subject: `Migration Request Received - ${ticket.subject}`,
+      html: formatConfirmationEmailHTML({ name: ticket.name, ticketId, subject: ticket.subject }),
+      text: `Hi ${ticket.name},\n\nThank you for contacting our support team. We have received your request and will get back to you as soon as possible.\n\nYour Ticket Details:\nTicket ID: ${ticketId}\nSubject: ${ticket.subject}\n\nWe typically respond to support requests within 24 hours during business hours.\n\nBest regards,\n${CONFIG.app.name} Support Team`,
+    });
+
+    logger.info("Customer confirmation sent successfully", { ticketId });
+
+  } catch (error: any) {
+    const errorDetails = error?.response?.body || error?.message || error;
+    logger.error("Failed to send migration emails", { error: errorDetails });
+    
+    // Log detailed SendGrid error if available
+    if (error?.response?.body?.errors) {
+      logger.error("SendGrid validation errors", { errors: error.response.body.errors });
+    }
+    
+    throw new Error(`Failed to send migration emails: ${typeof errorDetails === 'string' ? errorDetails : JSON.stringify(errorDetails)}`);
   }
 
   return ticketId;
