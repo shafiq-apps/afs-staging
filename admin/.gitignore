@@ -41,3 +41,7 @@ next-env.d.ts
 *.pem
 fullchain.pem
 privkey.pem
+
+/certs
+/certs/*
+

@@ -5,19 +5,41 @@
 
 import { WebSocketServer } from 'ws';
 import https from 'https';
+import http from 'http';
 import fs from 'fs';
 import { Client } from '@elastic/elasticsearch';
+import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
 dotenv.config();
 
 const WS_PORT = process.env.WS_PORT || 3001;
+const NODE_ENV = process.env.NODE_ENV || 'development';
 const ES_HOST = process.env.ELASTICSEARCH_HOST;
 const ES_USERNAME = process.env.ELASTICSEARCH_USERNAME;
 const ES_PASSWORD = process.env.ELASTICSEARCH_PASSWORD;
+const ES_CA_CERT_PATH = process.env.ELASTICSEARCH_CA_CERT_PATH;
+const ES_REJECT_UNAUTHORIZED = (process.env.ELASTICSEARCH_REJECT_UNAUTHORIZED || 'true').toLowerCase() === 'true';
+const ES_PING_TIMEOUT = parseInt(process.env.ELASTICSEARCH_PING_TIMEOUT) || 5000;
+const ES_REQUEST_TIMEOUT = parseInt(process.env.ELASTICSEARCH_REQUEST_TIMEOUT) || 30000;
+const ES_MAX_RETRIES = parseInt(process.env.ELASTICSEARCH_MAX_RETRIES) || 3;
 
 const TLS_KEY = process.env.WS_TLS_KEY;
 const TLS_CERT = process.env.WS_TLS_CERT;
+const TLS_PFX = process.env.WS_TLS_PFX;
+const TLS_PFX_PASSPHRASE = process.env.WS_TLS_PFX_PASSPHRASE;
+const WS_ALLOW_INSECURE = (process.env.WS_ALLOW_INSECURE || 'false').toLowerCase() === 'true';
 const WS_AUTH_TOKEN = process.env.WS_AUTH_TOKEN; // simple token-based auth
+const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
+const WS_ACCEPT_JWT = (process.env.WS_ACCEPT_JWT || 'true').toLowerCase() === 'true';
+const WS_REQUIRE_AUTH = (process.env.WS_REQUIRE_AUTH || (NODE_ENV === 'production' ? 'true' : 'false')).toLowerCase() === 'true';
+const WS_ALLOWED_ORIGINS = (process.env.WS_ALLOWED_ORIGINS || '')
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean);
+const WS_MAX_PAYLOAD = parseInt(process.env.WS_MAX_PAYLOAD) || 1024 * 1024;
+const WS_HEADERS_TIMEOUT = parseInt(process.env.WS_HEADERS_TIMEOUT) || 15000;
+const WS_KEEPALIVE_TIMEOUT = parseInt(process.env.WS_KEEPALIVE_TIMEOUT) || 5000;
+const WS_REQUEST_TIMEOUT = parseInt(process.env.WS_REQUEST_TIMEOUT) || 0;
 
 const POLL_INTERVAL = parseInt(process.env.ES_POLL_INTERVAL) || 5000;
 const MAX_ALERTS = parseInt(process.env.WS_MAX_ALERTS) || 1000;
@@ -39,30 +61,45 @@ let alertLog = [];
  * Initialize Elasticsearch client with TLS verification and retries
  */
 async function initES() {
-  const maxRetries = 5;
+  const maxRetries = ES_MAX_RETRIES || 5;
   let attempt = 0;
 
   while (attempt < maxRetries) {
     try {
-      const options = { node: ES_HOST, requestTimeout: 30000 };
+      if (!ES_HOST) throw new Error('ELASTICSEARCH_HOST is not set');
+
+      console.log(`[WSS] Connecting to Elasticsearch at ${ES_HOST}`);
+      if (ES_CA_CERT_PATH) {
+        console.log(`[WSS] Using CA cert at ${ES_CA_CERT_PATH} (rejectUnauthorized=${ES_REJECT_UNAUTHORIZED})`);
+      } else {
+        console.log('[WSS] No CA cert configured');
+      }
+
+      const options = { node: ES_HOST, requestTimeout: ES_REQUEST_TIMEOUT };
       if (ES_USERNAME && ES_PASSWORD) {
         options.auth = { username: ES_USERNAME, password: ES_PASSWORD };
       }
 
-      if (process.env.ELASTICSEARCH_CA_CERT_PATH) {
+      if (ES_CA_CERT_PATH) {
         options.tls = {
-          rejectUnauthorized: true,
-          ca: process.env.ELASTICSEARCH_CA_CERT_PATH ? fs.readFileSync(process.env.ELASTICSEARCH_CA_CERT_PATH) : undefined,
-        }
+          rejectUnauthorized: ES_REJECT_UNAUTHORIZED,
+          ca: fs.readFileSync(ES_CA_CERT_PATH),
+        };
       }
 
       esClient = new Client(options);
-      await esClient.ping();
-      console.log('[WSS] ✓ Connected to Elasticsearch');
+      const info = await esClient.info({}, { requestTimeout: ES_PING_TIMEOUT });
+      const version = info?.version?.number ? ` (v${info.version.number})` : '';
+      console.log(`[WSS] ✓ Connected to Elasticsearch${version}`);
       return;
     } catch (error) {
       attempt++;
-      console.warn(`[WSS] Attempt ${attempt}/${maxRetries} failed:`, error.message);
+      console.warn(`[WSS] Attempt ${attempt}/${maxRetries} failed:`, error?.message || error);
+      if (error?.name) console.warn('[WSS] Error name:', error.name);
+      if (error?.code) console.warn('[WSS] Error code:', error.code);
+      if (error?.meta?.body) console.warn('[WSS] ES response body:', JSON.stringify(error.meta.body));
+      if (error?.meta?.headers) console.warn('[WSS] ES response headers:', JSON.stringify(error.meta.headers));
+      if (error?.stack) console.warn('[WSS] Stack:', error.stack);
       if (attempt < maxRetries) await new Promise(r => setTimeout(r, 5000));
       else process.exit(1);
     }
@@ -152,19 +189,63 @@ function broadcast(message) {
  * Initialize WebSocket server with TLS and auth
  */
 async function initWebSocketServer() {
-  if (!TLS_KEY || !TLS_CERT) throw new Error('TLS_KEY and TLS_CERT must be set');
+  if (!WS_ALLOW_INSECURE && !TLS_PFX && (!TLS_KEY || !TLS_CERT)) {
+    throw new Error('TLS_KEY and TLS_CERT must be set (or WS_TLS_PFX must be provided)');
+  }
+  if (WS_REQUIRE_AUTH && !WS_AUTH_TOKEN) throw new Error('WS_AUTH_TOKEN must be set when WS_REQUIRE_AUTH=true');
 
-  const server = https.createServer({
-    key: fs.readFileSync(TLS_KEY),
-    cert: fs.readFileSync(TLS_CERT),
+  const server = WS_ALLOW_INSECURE
+    ? http.createServer()
+    : TLS_PFX
+      ? https.createServer({
+          pfx: fs.readFileSync(TLS_PFX),
+          passphrase: TLS_PFX_PASSPHRASE,
+        })
+      : https.createServer({
+          key: fs.readFileSync(TLS_KEY),
+          cert: fs.readFileSync(TLS_CERT),
+        });
+
+  server.headersTimeout = WS_HEADERS_TIMEOUT;
+  server.keepAliveTimeout = WS_KEEPALIVE_TIMEOUT;
+  if (WS_REQUEST_TIMEOUT > 0) server.requestTimeout = WS_REQUEST_TIMEOUT;
+
+  wss = new WebSocketServer({
+    server,
+    maxPayload: WS_MAX_PAYLOAD,
+    perMessageDeflate: false,
   });
 
-  wss = new WebSocketServer({ server });
-
   wss.on('connection', (ws, req) => {
-    // Simple token-based auth
-    const token = req.headers['sec-websocket-protocol'];
-    if (WS_AUTH_TOKEN && token !== WS_AUTH_TOKEN) {
+    // Optional origin allowlist
+    if (WS_ALLOWED_ORIGINS.length) {
+      const origin = req.headers.origin || '';
+      if (!WS_ALLOWED_ORIGINS.includes(origin)) {
+        ws.close(1008, 'Origin not allowed');
+        return;
+      }
+    }
+
+    // Simple token-based auth (static token or short-lived JWT)
+    const tokenHeader = req.headers['sec-websocket-protocol'];
+    const tokenList = typeof tokenHeader === 'string'
+      ? tokenHeader.split(',').map(s => s.trim()).filter(Boolean)
+      : [];
+
+    const hasValidToken = tokenList.some((token) => {
+      if (WS_AUTH_TOKEN && token === WS_AUTH_TOKEN) return true;
+      if (WS_ACCEPT_JWT && JWT_SECRET) {
+        try {
+          const payload = jwt.verify(token, JWT_SECRET);
+          return payload && payload.type === 'ws';
+        } catch {
+          return false;
+        }
+      }
+      return false;
+    });
+
+    if (WS_REQUIRE_AUTH && !hasValidToken) {
       ws.close(1008, 'Unauthorized');
       return;
     }
@@ -189,7 +270,8 @@ async function initWebSocketServer() {
     ws.on('error', err => console.error('[WSS] WS error:', err.message));
   });
 
-  server.listen(WS_PORT, () => console.log(`[WSS] Secure WebSocket server running on port ${WS_PORT}`));
+  const protocolLabel = WS_ALLOW_INSECURE ? 'ws' : 'wss';
+  server.listen(WS_PORT, () => console.log(`[WSS] ${protocolLabel} server running on port ${WS_PORT}`));
 }
 
 /**
@@ -213,6 +295,13 @@ function gracefulShutdown() {
 
 process.on('SIGINT', gracefulShutdown);
 process.on('SIGTERM', gracefulShutdown);
+process.on('unhandledRejection', err => {
+  console.error('[WSS] Unhandled rejection:', err?.message || err);
+});
+process.on('uncaughtException', err => {
+  console.error('[WSS] Uncaught exception:', err?.message || err);
+  gracefulShutdown();
+});
 
 /**
  * Main

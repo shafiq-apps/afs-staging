@@ -52,6 +52,40 @@ const formatTime = (timestamp: number): string => {
     return new Date(timestamp).toLocaleTimeString();
 };
 
+const getWebSocketUrl = (): string => {
+    const envUrl = process.env.NEXT_PUBLIC_ES_WSS_URL;
+    if (envUrl && envUrl.trim()) {
+        const trimmed = envUrl.trim();
+        if (trimmed.startsWith('ws://') || trimmed.startsWith('wss://')) {
+            return trimmed;
+        }
+        if (trimmed.startsWith('http://')) return trimmed.replace('http://', 'ws://');
+        if (trimmed.startsWith('https://')) return trimmed.replace('https://', 'wss://');
+        return trimmed;
+    }
+
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${wsProtocol}//${window.location.hostname}:3001`;
+};
+
+const fetchWebSocketToken = async (): Promise<string | undefined> => {
+    try {
+        const response = await fetch('/api/monitor/ws-token', {
+            method: 'GET',
+            credentials: 'include',
+        });
+
+        if (!response.ok) {
+            return undefined;
+        }
+
+        const data = await response.json();
+        return typeof data?.token === 'string' ? data.token : undefined;
+    } catch {
+        return undefined;
+    }
+};
+
 export default function ESMonitoring() {
     const [stats, setStats] = useState<NodeStats[]>([]);
     const [alerts, setAlerts] = useState<AlertEntry[]>([]);
@@ -82,107 +116,110 @@ export default function ESMonitoring() {
         try {
             // Try standalone WebSocket server first (production)
             // If not available, falls back to API route
-            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-
-            // Try standalone server on port 3001 first
-            let wsUrl = `${wsProtocol}//${window.location.hostname}:3001`;
+            const wsUrl = getWebSocketUrl();
 
             console.log('[ESMonitoring] Attempting to connect to WebSocket:', wsUrl);
 
-            const ws = new WebSocket(wsUrl);
             let connectTimeout: NodeJS.Timeout;
 
-            ws.onopen = () => {
-                clearTimeout(connectTimeout);
-                console.log('[ESMonitoring] WebSocket connected');
-                setIsConnected(true);
-                setIsConnecting(false);
-                setError(null);
-                reconnectAttemptsRef.current = 0;
-            };
+            const initConnection = async () => {
+                const wsToken = await fetchWebSocketToken();
+                const ws = wsToken ? new WebSocket(wsUrl, [wsToken]) : new WebSocket(wsUrl);
+                console.log(ws);
+                ws.onopen = () => {
+                    clearTimeout(connectTimeout);
+                    console.log('[ESMonitoring] WebSocket connected');
+                    setIsConnected(true);
+                    setIsConnecting(false);
+                    setError(null);
+                    reconnectAttemptsRef.current = 0;
+                };
 
-            ws.onmessage = (event: MessageEvent) => {
-                try {
-                    const message = JSON.parse(event.data);
+                ws.onmessage = (event: MessageEvent) => {
+                    try {
+                        const message = JSON.parse(event.data);
 
-                    switch (message.type) {
-                        case 'connected':
-                            console.log('[ESMonitoring] Received connected message');
-                            if (message.payload?.stats) {
-                                setStats(message.payload.stats);
-                            }
-                            if (message.payload?.alerts) {
-                                setAlerts(message.payload.alerts);
-                            }
-                            break;
+                        switch (message.type) {
+                            case 'connected':
+                                console.log('[ESMonitoring] Received connected message');
+                                if (message.payload?.stats) {
+                                    setStats(message.payload.stats);
+                                }
+                                if (message.payload?.alerts) {
+                                    setAlerts(message.payload.alerts);
+                                }
+                                break;
 
-                        case 'stats':
-                            if (message.payload) {
-                                setStats(message.payload);
-                            }
-                            break;
+                            case 'stats':
+                                if (message.payload) {
+                                    setStats(message.payload);
+                                }
+                                break;
 
-                        case 'alerts':
-                            if (message.payload) {
-                                // Add new alerts to the beginning of the list
-                                setAlerts((prev) => {
-                                    const combined = [...message.payload, ...prev];
-                                    // Keep only the latest 50 alerts
-                                    return combined.slice(0, 50);
-                                });
-                            }
-                            break;
+                            case 'alerts':
+                                if (message.payload) {
+                                    // Add new alerts to the beginning of the list
+                                    setAlerts((prev) => {
+                                        const combined = [...message.payload, ...prev];
+                                        // Keep only the latest 50 alerts
+                                        return combined.slice(0, 50);
+                                    });
+                                }
+                                break;
 
-                        case 'error':
-                            console.error('[ESMonitoring] Server error:', message.payload?.message);
-                            setError(message.payload?.message || 'Server error');
-                            break;
+                            case 'error':
+                                console.error('[ESMonitoring] Server error:', message.payload?.message);
+                                setError(message.payload?.message || 'Server error');
+                                break;
 
-                        default:
-                            console.warn('[ESMonitoring] Unknown message type:', message.type);
+                            default:
+                                console.warn('[ESMonitoring] Unknown message type:', message.type);
+                        }
+                    } catch (error) {
+                        console.error('[ESMonitoring] Error parsing message:', error);
                     }
-                } catch (error) {
-                    console.error('[ESMonitoring] Error parsing message:', error);
-                }
+                };
+
+                ws.onerror = (event: Event) => {
+                    clearTimeout(connectTimeout);
+                    console.error('[ESMonitoring] WebSocket error:', event);
+                    setError('WebSocket connection error');
+                };
+
+                ws.onclose = () => {
+                    clearTimeout(connectTimeout);
+                    console.log('[ESMonitoring] WebSocket disconnected');
+                    setIsConnected(false);
+                    setIsConnecting(false);
+                    wsRef.current = null;
+
+                    // Attempt to reconnect
+                    if (reconnectAttemptsRef.current < maxReconnectAttempts) {
+                        reconnectAttemptsRef.current++;
+                        console.log(
+                            `[ESMonitoring] Reconnecting in ${reconnectDelayMs}ms (attempt ${reconnectAttemptsRef.current}/${maxReconnectAttempts})`
+                        );
+
+                        reconnectTimerRef.current = setTimeout(() => {
+                            connect();
+                        }, reconnectDelayMs);
+                    } else {
+                        setError(`Failed to connect after ${maxReconnectAttempts} attempts. Please check WebSocket server.`);
+                    }
+                };
+
+                // Set a timeout for connection attempt
+                connectTimeout = setTimeout(() => {
+                    if (wsRef.current && wsRef.current.readyState === WebSocket.CONNECTING) {
+                        console.warn('[ESMonitoring] Connection timeout');
+                        ws.close();
+                    }
+                }, 5000);
+
+                wsRef.current = ws;
             };
 
-            ws.onerror = (event: Event) => {
-                clearTimeout(connectTimeout);
-                console.error('[ESMonitoring] WebSocket error:', event);
-                setError('WebSocket connection error');
-            };
-
-            ws.onclose = () => {
-                clearTimeout(connectTimeout);
-                console.log('[ESMonitoring] WebSocket disconnected');
-                setIsConnected(false);
-                setIsConnecting(false);
-                wsRef.current = null;
-
-                // Attempt to reconnect
-                if (reconnectAttemptsRef.current < maxReconnectAttempts) {
-                    reconnectAttemptsRef.current++;
-                    console.log(
-                        `[ESMonitoring] Reconnecting in ${reconnectDelayMs}ms (attempt ${reconnectAttemptsRef.current}/${maxReconnectAttempts})`
-                    );
-
-                    reconnectTimerRef.current = setTimeout(() => {
-                        connect();
-                    }, reconnectDelayMs);
-                } else {
-                    setError(`Failed to connect after ${maxReconnectAttempts} attempts. Please check WebSocket server.`);
-                }
-            };
-
-            // Set a timeout for connection attempt
-            connectTimeout = setTimeout(() => {
-                if (wsRef.current && wsRef.current.readyState === WebSocket.CONNECTING) {
-                    console.warn('[ESMonitoring] Connection timeout');
-                    ws.close();
-                }
-            }, 5000);
-
-            wsRef.current = ws;
+            initConnection();
         } catch (error) {
             console.error('[ESMonitoring] Connection error:', error);
             setError(error instanceof Error ? error.message : 'Connection failed');

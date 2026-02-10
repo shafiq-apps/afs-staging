@@ -301,9 +301,23 @@ export const STATIC_INDEX_CONFIGS: StaticIndexConfig[] = [
         name: { type: 'text' },
         description: { type: 'text' },
         productLimit: { type: 'integer' },
-        price: { type: 'float' },
-        currency: { type: 'keyword' },
         test: { type: 'boolean' },
+        price: {
+          properties: {
+            amount: {
+              type: "long"
+            },
+            currencyCode: {
+              type: "text",
+              fields: {
+                keyword: {
+                  type: "keyword",
+                  ignore_above: 256
+                }
+              }
+            }
+          }
+        },
         createdAt: { type: 'date' },
         updatedAt: { type: 'date' },
       },
