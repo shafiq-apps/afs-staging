@@ -39,3 +39,7 @@ system/logs
 
 http_ca.crt
 *.crt
+
+*.pem
+fullchain.pem
+privkey.pem
