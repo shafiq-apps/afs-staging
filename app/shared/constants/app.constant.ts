@@ -1,4 +1,4 @@
-export const APP_NAME = "Advanced Filters & Search";
+export const APP_NAME = process.env.APP_NAME || 'Digitalcoo AI Filters And Search';
 
 export const ONE_MINUTE_MS = 60000;
 
@@ -51,7 +51,7 @@ export const RATE_LIMIT_PER_SECOND = {
     BUCKET_DURATION_MS: 1000, // 1 second
   },
   GRAPHQL_ENDPOINT: {
-    MAX: 50,
+    MAX: 30,
     BUCKET_DURATION_MS: 1000, // 1 second
   },
   REINDEXING: {
