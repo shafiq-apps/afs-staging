@@ -20,7 +20,8 @@
         "start": "pm2 start dist/index.js -i 1",
         "deploy": "bash system/cli/deploy.sh",
         "gitpush": "bash system/cli/gitpush.sh",
-        "setup:env": "node system/cli/setup-env.js"
+        "setup:env": "node system/cli/setup-env.js",
+        "generate:keys": "bash system/cli/keys.sh"
     },
     "dependencies": {
         "@elastic/elasticsearch": "^8.19.1",
