@@ -22,17 +22,25 @@ import {
   getActiveFilterConfig,
   applyFilterConfigToInput,
 } from '@shared/storefront/filter-config.helper';
-import { RATE_LIMIT } from '@shared/constants/app.constant';
+import { RATE_LIMIT, RATE_LIMIT_PER_SECOND } from '@shared/constants/app.constant';
 
 const logger = createModuleLogger('ProductFiltersRoute');
 
 export const middleware = [
-  validateShopDomain(),
+  // per second rate limit for GraphQL endpoint (separate from global rate limit)
+  rateLimit({
+    max: RATE_LIMIT_PER_SECOND.STOREFRONT_FILTERS.MAX,
+    windowMs: RATE_LIMIT_PER_SECOND.STOREFRONT_FILTERS.BUCKET_DURATION_MS,
+    message: 'Too many storefront filter requests',
+  }),
+  // global rate limit for storefront filters endpoint
   rateLimit({
     max: RATE_LIMIT.STOREFRONT_FILTERS.MAX,
     windowMs: RATE_LIMIT.STOREFRONT_FILTERS.BUCKET_DURATION_MS,
-    message: "Too many storefront requests"
-  })
+    message: "Too many storefront filter requests"
+  }),
+  // Validate that shop parameter is present and valid
+  validateShopDomain(),
 ];
 
 export const GET = handler(async (req: HttpRequest) => {

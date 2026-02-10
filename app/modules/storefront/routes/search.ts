@@ -20,17 +20,25 @@ import { validateShopDomain } from '@core/http/validation.middleware';
 import { rateLimit } from '@core/security/rate-limit.middleware';
 import { buildSearchInput, hasSearchParams } from '@modules/storefront/search.helper';
 import { createModuleLogger } from '@shared/utils/logger.util';
-import { RATE_LIMIT } from '@shared/constants/app.constant';
+import { RATE_LIMIT, RATE_LIMIT_PER_SECOND } from '@shared/constants/app.constant';
 
 const logger = createModuleLogger('StorefrontSearchRoute');
 
 export const middleware = [
-  validateShopDomain(),
+  // per second rate limit for storefront search endpoint (separate from global rate limit)
+  rateLimit({
+    max: RATE_LIMIT_PER_SECOND.STOREFRONT_SEARCH.MAX,
+    windowMs: RATE_LIMIT_PER_SECOND.STOREFRONT_SEARCH.BUCKET_DURATION_MS,
+    message: "Too many storefront search requests"
+  }),
+  // global rate limit for storefront search endpoint
   rateLimit({
     max: RATE_LIMIT.STOREFRONT_SEARCH.MAX,
     windowMs: RATE_LIMIT.STOREFRONT_SEARCH.BUCKET_DURATION_MS,
     message: "Too many storefront search requests"
-  })
+  }),
+  // Validate that shop parameter is present and valid
+  validateShopDomain()
 ];
 
 export const GET = handler(async (req: HttpRequest) => {
