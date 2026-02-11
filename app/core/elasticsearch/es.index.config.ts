@@ -17,6 +17,7 @@ import {
   SUBSCRIPTION_PLANS_INDEX_NAME,
   APP_SUPPORT_TICKET_INDEX,
   ADMIN_USERS_INDEX_NAME,
+  LEGACY_SHOPS_INDEX_NAME,
 } from '@shared/constants/es.constant';
 
 export interface StaticIndexConfig {
@@ -390,8 +391,32 @@ export const STATIC_INDEX_CONFIGS: StaticIndexConfig[] = [
         apiSecret: { type: 'keyword' },
         isActive: { type: 'boolean' },
         createdAt: { type: 'date' },
-        updatedAt: { type: 'date' },
-      },
+        updatedAt: { type: 'date' }
+      }
+    },
+    settings: {
+      number_of_shards: 1,
+      number_of_replicas: 0,
+    },
+  },
+  {
+    index: LEGACY_SHOPS_INDEX_NAME,
+    mappings: {
+      properties: {
+        shop: {
+          type: "text",
+          fields: {
+            keyword: {
+              type: "keyword",
+              ignore_above: 256
+            }
+          }
+        },
+        isUpgradeAllowed: { type: "boolean" },
+        hasUpgradeRequest: { type: "boolean" },
+        status: { type: "keyword" },
+        statusMessage: { type: "text" },
+      }
     },
     settings: {
       number_of_shards: 1,

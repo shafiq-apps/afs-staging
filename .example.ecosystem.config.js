@@ -39,6 +39,7 @@ module.exports = {
       env: {
         NODE_ENV: 'production',
         PORT: 3556,
+        LEGACY_APP_URL: 'https://fdstaging.digitalcoo.co',
         SHOPIFY_APP_URL: 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
         SHOPIFY_API_KEY: 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
         SHOPIFY_API_SECRET: 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
@@ -49,6 +50,7 @@ module.exports = {
         SENDGRID_API_KEY: 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
         APP_EMAIL_FROM: 'support@xxxxxxx.com',
         APP_EMAIL_NAME: 'XXXXXXXXXXXXXXX',
+        APP_SUPPORT_EMAIL: 'support@xxxxxxx.com'
       },
       error_file: path.resolve(rootDir, "logs/dashboard-error.log"),
       out_file: path.resolve(rootDir, "logs/dashboard-out.log"),

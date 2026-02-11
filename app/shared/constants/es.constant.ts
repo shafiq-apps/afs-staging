@@ -18,4 +18,4 @@ export const APP_SUPPORT_TICKET_INDEX = 'app_support_tickets';
 
 export const ADMIN_USERS_INDEX_NAME = 'admin_users';
 
-export const LEGACY_SHOPS_INDEX_NAME = 'legacy-shops';
+export const LEGACY_SHOPS_INDEX_NAME = 'legacy_shops';

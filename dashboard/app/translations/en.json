@@ -473,7 +473,7 @@
     "pageTitle": "Templates"
   },
   "app": {
-    "pageTitle": "Advanced AI Filters & Search",
+    "pageTitle": "DigitalCoo AI Filters & Search",
     "legacyshop": {
       "heading": "Ready to migrate to the new version?",
       "description": "You are currently using the legacy version of the app. To continue receiving support, security updates, and access to the latest features, please migrate to the new version.",
@@ -482,7 +482,11 @@
       "inputfield": {
         "label": "Migration Notes / Instructions:",
         "placeholder": "Provide any requirements, dependencies, or steps needed for a smooth transition (e.g., configuration changes, environment variables, API updates, data migration steps, or testing requirements)."
-      }
+      },
+      "migrateSuccess": "Migration request submitted successfully. Our team will review your request and contact you shortly to assist with the migration process.",
+      "migrateError": "Failed to submit migration request. Please try again later or contact support for assistance.",
+      "upgradeRequested": "Your migration request has been received. Our team will review your request and contact you shortly to assist with the migration process.",
+      "upgradeRequestedHeading": "Migration Request Received"
     }
 
   }

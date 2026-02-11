@@ -9,7 +9,7 @@
 
 import { Client } from '@elastic/elasticsearch';
 import { createModuleLogger } from '@shared/utils/logger.util';
-import { Shop, CreateShopInput, UpdateShopInput } from './shops.type';
+import { Shop, CreateShopInput, UpdateShopInput, LegacyShop, LegacyShopInput } from './shops.type';
 import { LEGACY_SHOPS_INDEX_NAME, SHOPS_INDEX_NAME } from '@shared/constants/es.constant';
 
 const logger = createModuleLogger('ShopsRepository');
@@ -66,7 +66,7 @@ export class ShopsRepository {
    * Get shop by domain
    * @param shop Shop domain (e.g., example.myshopify.com)
    */
-  async getLegacyShop(shop: string): Promise<Shop | null> {
+  async getLegacyShop(shop: string): Promise<LegacyShop | null> {
     try {
       logger.info("shop", shop, "index", this.index);
       const response = await this.esClient.get({
@@ -79,7 +79,7 @@ export class ShopsRepository {
         const shopData = {
           shop: source.shop || shop,
           ...source,
-        } as Shop;
+        } as LegacyShop;
 
         return shopData;
       }
@@ -93,6 +93,40 @@ export class ShopsRepository {
       throw error;
     }
   }
+
+  /**
+   * create or update legacy shop (used for migration flow)
+   * @param input LegacyShopInput
+   * @return created or updated LegacyShop
+   */
+  async createOrUpdateLegacyShop(input: LegacyShopInput): Promise<LegacyShop> {
+    const doc: LegacyShopInput = {
+      shop: input.shop,
+    };
+
+    if (input.isUpgradeAllowed !== undefined)
+      doc.isUpgradeAllowed = input.isUpgradeAllowed;
+
+    if (input.hasUpgradeRequest !== undefined)
+      doc.hasUpgradeRequest = input.hasUpgradeRequest;
+
+    if (input.status !== undefined)
+      doc.status = input.status;
+
+    if (input.statusMessage !== undefined)
+      doc.statusMessage = input.statusMessage;
+
+    await this.esClient.update({
+      index: LEGACY_SHOPS_INDEX_NAME,
+      id: input.shop,
+      doc,
+      doc_as_upsert: true, // create if not exists
+      refresh: true,
+    });
+
+    return this.getLegacyShop(input.shop) as Promise<LegacyShop>;
+  }
+
 
   /**
    * Save a new shop (used during OAuth installation)

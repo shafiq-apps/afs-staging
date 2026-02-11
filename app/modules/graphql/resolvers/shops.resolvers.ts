@@ -15,6 +15,7 @@ import { IndexingStatusService } from '@modules/indexing/indexing.status.service
 import { IndexingLockService } from '@modules/indexing/indexing.lock.service';
 import { IndexerCheckpointService } from '@modules/indexing/indexing.checkpoint.service';
 import { SHOPS_INDEX_NAME } from '@shared/constants/es.constant';
+import { LegacyShop } from '@modules/shops/shops.type';
 
 const logger = createModuleLogger('shops-resolvers');
 
@@ -216,6 +217,31 @@ export const shopsResolvers = {
           args,
         });
         return false;
+      }
+    },
+    async legacyShops(parent: any, args: { where?: { shop?: string } }, context: GraphQLContext): Promise<LegacyShop | null> {
+      try {
+        const shop = args?.where?.shop;
+
+        if (!shop) {
+          throw new Error('Domain is required');
+        }
+
+        logger.info('Checking if shop exists', { shop });
+
+        const repo = getShopsRepository(context);
+        
+        // Check if shop exists by trying to get it
+        const legacyShops = await repo.getLegacyShop(shop);
+        
+        return legacyShops;
+      } catch (error: any) {
+        logger.error('Error in legacyShops resolver', {
+          error: error?.message || error,
+          stack: error?.stack,
+          args,
+        });
+        return null;
       }
     },
   },
@@ -488,6 +514,27 @@ export const shopsResolvers = {
         };
       }
     },
+
+    async createOrUpdateLegacyShop(parent: any, args: { input: LegacyShop }, context: GraphQLContext): Promise<LegacyShop> {
+      try {
+        const { input } = args;
+        if (!input || !input.shop) {
+          throw new Error('Shop input with shop field is required');
+        }
+        logger.info('Creating or updating legacy shop', { shop: input.shop });
+
+        const repo = getShopsRepository(context);
+        const legacyShop = await repo.createOrUpdateLegacyShop(input);
+        logger.info('Legacy shop created or updated', { shop: legacyShop.shop, status: legacyShop.status });
+        return legacyShop;
+      } catch (error: any) {
+        logger.error('Error in createOrUpdateLegacyShop resolver', {
+          error: error?.message || error,
+          stack: error?.stack,
+        });
+        return null as any;
+      }
+    }
   },
 };
 
