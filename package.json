@@ -7,7 +7,7 @@
     "check:storefront": "cd storefront && npm run check",
     "check:dashboard": "cd dashboard && npm run typecheck",
     "check:app": "cd app && npm run check",
-    "check:all": "run-s check:storefront check:dashboard check:app",
+    "check:all": "npm run check:storefront && npm run check:dashboard && npm run check:app",
     "check": "npm run check:all",
     "storefront": "cd ./storefront && npm run dev",
     "dashboard": "cd ./dashboard && npm run dev",
