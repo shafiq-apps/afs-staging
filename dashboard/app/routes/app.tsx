@@ -13,12 +13,13 @@ import { FETCH_CURRENT_SUBSCRIPTION } from "app/graphql/subscriptions.query";
 import { UPDATE_SUBSCRIPTION_STATUS_MUTATION } from "app/graphql/subscriptions.mutation";
 import { GraphQLErrorBoundary } from "../components/GraphQLErrorBoundary";
 import AppNavBar from "app/components/AppNavBar";
-import { ActionData } from "app/types";
+import { ActionData, LegacyShop } from "app/types";
 import { SUPPORT_CONFIG } from "app/config/support.config";
 import { sendMigrationEmail } from "app/utils/email.service";
 import { getCachedShopData } from "app/utils/get-cached-shop-data";
 import { setCachedShopData } from "app/utils/set-cached-hop-data";
 import { CONFIG } from "app/config";
+import { g } from "node_modules/@react-router/dev/dist/routes-CZR-bKRt";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
@@ -33,6 +34,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   let shopData: ShopLocaleData | null = null;
   let isNewInstallation = false;
   let isLegacyShop = false;
+  let legacyShops: LegacyShop | null = null;
 
   /* ---------------- SHOP LOCALE DATA (Non-Critical) ---------------- */
   try {
@@ -97,6 +99,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
               installedAt
             }
             isLegacyShop(shop: $shop)
+            legacyShops(where: {shop: $shop}) {
+              shop
+              isUpgradeAllowed
+              hasUpgradeRequest
+              status
+            }
           }
         `;
       const response = await graphqlRequest(gquery, { shop }).catch(e => {
@@ -106,12 +114,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         }
         return {
           shop: null,
-          isLegacyShop: false
+          isLegacyShop: false,
+          legacyShops: null,
         };
       });
       const installedAt = response?.shop?.installedAt;
       isNewInstallation = !installedAt || new Date(installedAt).getTime() > Date.now() - 60000;
       isLegacyShop = response?.isLegacyShop || false;
+      legacyShops = response?.legacyShops || null;
     } catch {
       isNewInstallation = false;
     }
@@ -207,7 +217,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     subscription: subscriptionResult?.subscription ?? null,
     activeSubscriptions,
     isLegacyShop,
-    LEGACY_APP_URL
+    LEGACY_APP_URL,
+    legacyShops
   };
 };
 
@@ -224,6 +235,25 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       error: "Please provide migration instructions or notes",
     } as ActionData;
   }
+
+  await graphqlRequest(`
+    mutation CreateOrUpdateLegacyShop($input: LegacyShopInput!) {
+      createOrUpdateLegacyShop(input: $input) {
+        shop
+        hasUpgradeRequest
+        status
+        statusMessage
+      }
+    }
+  `, {
+    input: {
+      shop: session?.shop || "",
+      hasUpgradeRequest: true,
+      status: "IN_PROGRESS",
+      statusMessage: "Upgrade requested, pending review",
+    },
+    shop: session?.shop || "",
+  });
 
   try {
     await sendMigrationEmail({
@@ -248,7 +278,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         error: "Our support system is currently unavailable. Please try again later or email us directly at " + SUPPORT_CONFIG.contact.email,
       } as ActionData;
     }
-    
+
     return {
       success: false,
       error: error.message || SUPPORT_CONFIG.messages.error,
@@ -257,7 +287,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function App() {
-  const { apiKey, shop, shopData, subscription, activeSubscriptions, isLegacyShop, LEGACY_APP_URL } = useLoaderData<typeof loader>();
+  const { apiKey, shop, shopData, subscription, activeSubscriptions, isLegacyShop, LEGACY_APP_URL, legacyShops } = useLoaderData<typeof loader>();
   const location = useLocation();
   const navigate = useNavigate();
   const { t } = useTranslation();
@@ -347,63 +377,78 @@ export default function App() {
           isLoading={!effectiveShopData}
         >
           <s-page heading={t("app.pageTitle")}>
-            
-              <div style={{ height: '20vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                <s-stack direction="inline" alignItems="center" justifyContent="center">
-                  <s-button
-                    onClick={handleLoadLegacyApp}
-                    accessibilityLabel="Load app"
-                    type="button"
-                    variant="primary"
-                    icon="external"
-                  >
-                    Load App
-                  </s-button>
-                </s-stack>
-              </div>
-            <s-divider />
-            <s-banner tone="warning" heading={t("app.legacyshop.description")}></s-banner>
-            <s-section heading={t("app.legacyshop.heading")} >
-              <s-stack gap="base" rowGap="base">
-                {/* Success/Error Messages */}
-                {actionData?.success && (
-                  <s-banner tone="success">
-                    <s-text>{actionData.message}</s-text>
-                  </s-banner>
-                )}
-
-                {actionData?.error && (
-                  <s-banner tone="critical">
-                    <s-text>{actionData.error}</s-text>
-                  </s-banner>
-                )}
-                <Form method="post">
-                  <s-stack direction="block" gap="base">
-                    <s-text-area
-                      labelAccessibilityVisibility="visible"
-                      label={t("app.legacyshop.inputfield.label")}
-                      name="instructions"
-                      id="instructions"
-                      value={migrationInstructions}
-                      onChange={(e: any) => setMigrationInstructions(e.target.value)}
-                      rows={7}
-                    />
-                    <s-text color="subdued">{t("app.legacyshop.inputfield.placeholder")}</s-text>
-                    <s-button
-                      type="submit"
-                      variant="primary"
-                      accessibilityLabel="Submit legacy shop info"
-                      icon="send"
-                    >
-                      {
-                        t("app.legacyshop.migrateButton")
-                      }
-                    </s-button>
-                  </s-stack>
-                </Form>
-                <s-text color="subdued">{t("app.legacyshop.learnMore")}: <a href="https://fstaging.digitalcoo.com/auth/login" target="_blank" rel="noopener noreferrer">https://fstaging.digitalcoo.com/auth/login</a></s-text>
+            <div style={{ height: '20vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+              <s-stack direction="inline" alignItems="center" justifyContent="center">
+                <s-button
+                  onClick={handleLoadLegacyApp}
+                  accessibilityLabel="Load app"
+                  type="button"
+                  variant="primary"
+                  icon="external"
+                >
+                  Load App
+                </s-button>
               </s-stack>
-            </s-section>
+            </div>
+            {
+              legacyShops && legacyShops.isUpgradeAllowed === true && legacyShops.hasUpgradeRequest !== true && (
+                <>
+                  <s-divider />
+                  <s-banner tone="warning" heading={t("app.legacyshop.description")}></s-banner>
+                  <s-section heading={t("app.legacyshop.heading")} >
+                    <s-stack gap="base" rowGap="base">
+                      {/* Success/Error Messages */}
+                      {actionData?.success && (
+                        <s-banner tone="success">
+                          <s-text>{actionData.message}</s-text>
+                        </s-banner>
+                      )}
+
+                      {actionData?.error && (
+                        <s-banner tone="critical">
+                          <s-text>{actionData.error}</s-text>
+                        </s-banner>
+                      )}
+                      <Form method="post">
+                        <s-stack direction="block" gap="base">
+                          <s-text-area
+                            labelAccessibilityVisibility="visible"
+                            label={t("app.legacyshop.inputfield.label")}
+                            name="instructions"
+                            id="instructions"
+                            value={migrationInstructions}
+                            onChange={(e: any) => setMigrationInstructions(e.target.value)}
+                            rows={7}
+                          />
+                          <s-text color="subdued">{t("app.legacyshop.inputfield.placeholder")}</s-text>
+                          <s-button
+                            type="submit"
+                            variant="primary"
+                            accessibilityLabel="Submit legacy shop info"
+                            icon="send"
+                          >
+                            {
+                              t("app.legacyshop.migrateButton")
+                            }
+                          </s-button>
+                        </s-stack>
+                      </Form>
+                      <s-text color="subdued">{t("app.legacyshop.learnMore")}: <a href="https://fstaging.digitalcoo.com/auth/login" target="_blank" rel="noopener noreferrer">https://fstaging.digitalcoo.com/auth/login</a></s-text>
+                    </s-stack>
+                  </s-section>
+                </>
+              )
+            }
+            {
+              legacyShops && legacyShops.hasUpgradeRequest === true && (
+                <>
+                  <s-divider />
+                  <s-banner tone="success" heading={t("app.legacyshop.upgradeRequestedHeading")}>
+                    <s-text>{t("app.legacyshop.upgradeRequested")}</s-text>
+                  </s-banner>
+                </>
+              )
+            }
           </s-page>
         </ShopProvider>
       </AppProvider>

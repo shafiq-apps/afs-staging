@@ -39,3 +39,9 @@ system/logs
 
 http_ca.crt
 *.crt
+
+*.pem
+fullchain.pem
+privkey.pem
+
+app\app_subscription_plans.json

@@ -51,6 +51,29 @@ export const shopsSchema = `
     emailVerified: Boolean
   }
 
+  enum LegacyShopStatus {
+    PENDING
+    IN_PROGRESS
+    COMPLETED
+    REJECTED
+  }
+
+  type LegacyShop {
+    shop: String!
+    isUpgradeAllowed: Boolean
+    hasUpgradeRequest: Boolean
+    status: LegacyShopStatus
+    statusMessage: String
+  }
+
+  input LegacyShopInput {
+    shop: String!
+    isUpgradeAllowed: Boolean
+    hasUpgradeRequest: Boolean
+    status: String
+    statusMessage: String
+  }
+
   # Input types for mutations
   # They will be saved to ES but filtered from query responses
   input CreateShopInput {
@@ -137,6 +160,10 @@ export const shopsSchema = `
     duration: Int                       # Duration in milliseconds (null if not completed)
   }
 
+  input ShopFilterInput {
+    shop: String
+  }
+
   # Query operations
   type Query {
     # Get shop by domain
@@ -150,6 +177,7 @@ export const shopsSchema = `
     indexingStatus(shop: String!): IndexingStatus!
 
     isLegacyShop(shop: String!): Boolean
+    legacyShops(where: ShopFilterInput): LegacyShop
   }
 
   # Mutation operations
@@ -167,6 +195,9 @@ export const shopsSchema = `
     # Triggers bulk indexing of products from Shopify to Elasticsearch
     # Returns immediately with success status while indexing runs in background
     reindexProducts(shop: String!): ReindexResult!
+
+    # legacy shop mutations
+    createOrUpdateLegacyShop(input: LegacyShopInput!): LegacyShop
   }
 
   # JSON scalar type for nested objects

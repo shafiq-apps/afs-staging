@@ -11,7 +11,10 @@
     "check": "npm run check:all",
     "storefront": "cd ./storefront && npm run dev",
     "dashboard": "cd ./dashboard && npm run dev",
-    "app": "cd ./app && npm run dev"
+    "app": "cd ./app && npm run dev",
+    "admin": "cd ./admin && npm run dev",
+    "admin:build": "cd ./admin && npm run build",
+    "generate:keys": "cd ./app && npm run generate:keys"
   },
   "repository": {
     "type": "git",

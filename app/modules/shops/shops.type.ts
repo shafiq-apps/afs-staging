@@ -15,6 +15,24 @@ export interface Shop {
   [key: string]: any;
 }
 
+export type LegacyShopStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED';
+
+export interface LegacyShop {
+  shop: string;
+  isUpgradeAllowed?: boolean;
+  hasUpgradeRequest?: boolean;
+  status?: LegacyShopStatus;
+  statusMessage?: string;
+}
+
+export type LegacyShopInput = {
+  shop: string;
+  isUpgradeAllowed?: boolean;
+  hasUpgradeRequest?: boolean;
+  status?: LegacyShopStatus;
+  statusMessage?: string;
+};
+
 export interface CreateShopInput {
   shop: string;
   accessToken: string;

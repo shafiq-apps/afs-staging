@@ -152,16 +152,16 @@ class ESConnectionManager {
           logger.info(`Elasticsearch CA certificate loaded from ${resolvedPath}`);
         } else {
           logger.warn(`Elasticsearch CA certificate file not found: ${resolvedPath}`);
-          tlsConfig.rejectUnauthorized = false;
+          // tlsConfig.rejectUnauthorized = false;
         }
       } catch (error: any) {
         logger.warn(`Failed to load Elasticsearch CA certificate: ${error?.message || error}`);
-        tlsConfig.rejectUnauthorized = false;
+        // tlsConfig.rejectUnauthorized = false;
       }
     } else {
       // No CA cert path provided - disable certificate verification for development
       logger.warn('No Elasticsearch CA certificate path provided. Certificate verification disabled.');
-      tlsConfig.rejectUnauthorized = false;
+      // tlsConfig.rejectUnauthorized = false;
     }
 
     return tlsConfig;

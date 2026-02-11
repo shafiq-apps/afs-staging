@@ -122,3 +122,15 @@ dashboard/public/frontendbuild/
 public\slider.html
 public\index.html
 public\assets
+
+*.pem
+fullchain.pem
+privkey.pem
+http_ca.crt
+*.crt
+
+admin/certs
+admin/certs/*
+
+app_subscription_plans.json
+app/app_subscription_plans.json

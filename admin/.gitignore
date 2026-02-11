@@ -37,3 +37,11 @@ next-env.d.ts
 
 # data
 /data
+
+*.pem
+fullchain.pem
+privkey.pem
+
+/certs
+/certs/*
+
