@@ -1,16 +1,34 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Layout from '@/components/layout/Layout';
 import { User, UserRole } from '@/types/auth';
 import { Plus, Edit, Trash2, X, Save } from 'lucide-react';
 import { LoadingBar } from '@/components/ui/LoadingBar';
+import { AlertModal, Checkbox, ConfirmModal, Input, Select } from '@/components/ui';
+import type { SelectOption } from '@/components/ui';
+
+const roleOptions: SelectOption[] = [
+  { value: 'employee', label: 'Employee' },
+  { value: 'admin', label: 'Admin' },
+];
 
 export default function TeamPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [confirmDeleteUserId, setConfirmDeleteUserId] = useState<string | null>(null);
+  const [alertState, setAlertState] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    variant: 'info' | 'success' | 'warning' | 'error';
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    variant: 'error',
+  });
   const [formData, setFormData] = useState({
     email: '',
     name: '',
@@ -27,6 +45,15 @@ export default function TeamPage() {
   useEffect(() => {
     fetchUsers();
   }, []);
+
+  const showErrorAlert = (message: string) => {
+    setAlertState({
+      isOpen: true,
+      title: 'Action Failed',
+      message,
+      variant: 'error',
+    });
+  };
 
   const fetchUsers = async () => {
     try {
@@ -62,20 +89,20 @@ export default function TeamPage() {
       setShowAddModal(false);
       setEditingUser(null);
       resetForm();
-    } catch (error: any) {
-      alert(error.message || 'Failed to save user');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to save user';
+      showErrorAlert(message);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this user?')) return;
-
     try {
       const response = await fetch(`/api/team/${id}`, { method: 'DELETE' });
       if (!response.ok) throw new Error('Failed to delete user');
       await fetchUsers();
-    } catch (error: any) {
-      alert(error.message || 'Failed to delete user');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to delete user';
+      showErrorAlert(message);
     }
   };
 
@@ -108,17 +135,17 @@ export default function TeamPage() {
 
   if (loading) {
     return (
-      <Layout>
+      <>
         <LoadingBar loading={true} />
         <div className="flex justify-center items-center h-64">
           <div className="text-gray-500 dark:text-gray-400">Loading team members...</div>
         </div>
-      </Layout>
+      </>
     );
   }
 
   return (
-    <Layout>
+    <>
       <div>
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Team Management</h1>
@@ -190,7 +217,7 @@ export default function TeamPage() {
                       </button>
                       {user.role !== 'super_admin' && (
                         <button
-                          onClick={() => handleDelete(user.id)}
+                          onClick={() => setConfirmDeleteUserId(user.id)}
                           className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300 cursor-pointer"
                         >
                           <Trash2 className="h-5 w-5" />
@@ -223,153 +250,116 @@ export default function TeamPage() {
               </div>
 
               <form onSubmit={handleSubmit} className="p-6 space-y-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Name
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    required
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-slate-700 font-sans"
-                  />
-                </div>
+                <Input
+                  label="Name"
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  required
+                />
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    required
-                    disabled={!!editingUser}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 dark:disabled:bg-slate-600 text-gray-900 dark:text-gray-100 bg-white dark:bg-slate-700 font-sans"
-                  />
-                </div>
+                <Input
+                  label="Email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  required
+                  disabled={!!editingUser}
+                />
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Role
-                  </label>
-                  <select
-                    value={formData.role}
-                    onChange={(e) => {
-                      const role = e.target.value as UserRole;
-                      setFormData({
-                        ...formData,
-                        role,
-                        permissions: {
-                          ...formData.permissions,
-                          canViewPayments: role !== 'employee',
-                          canViewSubscriptions: role !== 'employee',
-                        },
-                      });
-                    }}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-slate-700 font-sans cursor-pointer"
-                  >
-                    <option value="employee">Employee</option>
-                    <option value="admin">Admin</option>
-                  </select>
-                </div>
+                <Select
+                  label="Role"
+                  value={formData.role}
+                  onChange={(e) => {
+                    const role = e.target.value as UserRole;
+                    setFormData({
+                      ...formData,
+                      role,
+                      permissions: {
+                        ...formData.permissions,
+                        canViewPayments: role !== 'employee',
+                        canViewSubscriptions: role !== 'employee',
+                      },
+                    });
+                  }}
+                  options={roleOptions}
+                />
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">
                     Permissions
                   </label>
                   <div className="space-y-3">
-                    <label className="flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={formData.permissions.canManageShops}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            permissions: {
-                              ...formData.permissions,
-                              canManageShops: e.target.checked,
-                            },
-                          })
-                        }
-                        className="rounded border-gray-300 dark:border-slate-600 text-purple-600 focus:ring-purple-500 dark:bg-slate-700"
-                      />
-                      <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">Manage Shops</span>
-                    </label>
-                    <label className="flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={formData.permissions.canViewDocs}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            permissions: {
-                              ...formData.permissions,
-                              canViewDocs: e.target.checked,
-                            },
-                          })
-                        }
-                        className="rounded border-gray-300 dark:border-slate-600 text-purple-600 focus:ring-purple-500 dark:bg-slate-700"
-                      />
-                      <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">View Docs</span>
-                    </label>
+                    <Checkbox
+                      checked={formData.permissions.canManageShops}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          permissions: {
+                            ...formData.permissions,
+                            canManageShops: e.target.checked,
+                          },
+                        })
+                      }
+                      label="Manage Shops"
+                    />
+                    <Checkbox
+                      checked={formData.permissions.canViewDocs}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          permissions: {
+                            ...formData.permissions,
+                            canViewDocs: e.target.checked,
+                          },
+                        })
+                      }
+                      label="View Docs"
+                    />
                     {formData.role !== 'employee' && (
                       <>
-                        <label className="flex items-center">
-                          <input
-                            type="checkbox"
-                            checked={formData.permissions.canViewPayments}
-                            onChange={(e) =>
-                              setFormData({
-                                ...formData,
-                                permissions: {
-                                  ...formData.permissions,
-                                  canViewPayments: e.target.checked,
-                                },
-                              })
-                            }
-                            className="rounded border-gray-300 dark:border-slate-600 text-purple-600 focus:ring-purple-500 dark:bg-slate-700"
-                          />
-                          <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">View Payments</span>
-                        </label>
-                        <label className="flex items-center">
-                          <input
-                            type="checkbox"
-                            checked={formData.permissions.canViewSubscriptions}
-                            onChange={(e) =>
-                              setFormData({
-                                ...formData,
-                                permissions: {
-                                  ...formData.permissions,
-                                  canViewSubscriptions: e.target.checked,
-                                },
-                              })
-                            }
-                            className="rounded border-gray-300 dark:border-slate-600 text-purple-600 focus:ring-purple-500 dark:bg-slate-700"
-                          />
-                          <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">View Subscriptions</span>
-                        </label>
-                      </>
-                    )}
-                    {formData.role === 'admin' && (
-                      <label className="flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={formData.permissions.canManageTeam}
+                        <Checkbox
+                          checked={formData.permissions.canViewPayments}
                           onChange={(e) =>
                             setFormData({
                               ...formData,
                               permissions: {
                                 ...formData.permissions,
-                                canManageTeam: e.target.checked,
+                                canViewPayments: e.target.checked,
                               },
                             })
                           }
-                          className="rounded border-gray-300 dark:border-slate-600 text-purple-600 focus:ring-purple-500 dark:bg-slate-700"
+                          label="View Payments"
                         />
-                        <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">Manage Team</span>
-                      </label>
+                        <Checkbox
+                          checked={formData.permissions.canViewSubscriptions}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              permissions: {
+                                ...formData.permissions,
+                                canViewSubscriptions: e.target.checked,
+                              },
+                            })
+                          }
+                          label="View Subscriptions"
+                        />
+                      </>
+                    )}
+                    {formData.role === 'admin' && (
+                      <Checkbox
+                        checked={formData.permissions.canManageTeam}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            permissions: {
+                              ...formData.permissions,
+                              canManageTeam: e.target.checked,
+                            },
+                          })
+                        }
+                        label="Manage Team"
+                      />
                     )}
                   </div>
                 </div>
@@ -398,7 +388,30 @@ export default function TeamPage() {
           </div>
         )}
       </div>
-    </Layout>
+
+      <ConfirmModal
+        isOpen={Boolean(confirmDeleteUserId)}
+        onClose={() => setConfirmDeleteUserId(null)}
+        title="Delete Team Member"
+        message="Are you sure you want to delete this user?"
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+        onConfirm={() => {
+          if (confirmDeleteUserId) {
+            void handleDelete(confirmDeleteUserId);
+          }
+        }}
+      />
+
+      <AlertModal
+        isOpen={alertState.isOpen}
+        onClose={() => setAlertState((prev) => ({ ...prev, isOpen: false }))}
+        title={alertState.title}
+        message={alertState.message}
+        variant={alertState.variant}
+      />
+    </>
   );
 }
 

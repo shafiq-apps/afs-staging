@@ -1,9 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import Layout from '@/components/layout/Layout';
 import { LoadingBar } from '@/components/ui/LoadingBar';
 import {
   ArrowLeft,
@@ -55,17 +54,30 @@ export interface Shop {
   locale?: string;
   collaborator?: boolean;
   emailVerified?: boolean;
+  legacyShop?: {
+    shop: string;
+    isUpgradeAllowed?: boolean;
+    hasUpgradeRequest?: boolean;
+    status?: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED';
+    statusMessage?: string;
+  } | null;
 }
 
 export default function ShopDetailPage() {
   const params = useParams();
-  const router = useRouter();
   const shopDomain = params?.shop as string;
   const [shop, setShop] = useState<Shop | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reindexing, setReindexing] = useState(false);
   const [reindexMessage, setReindexMessage] = useState<string | null>(null);
+  const [legacyForm, setLegacyForm] = useState({
+    isUpgradeAllowed: false,
+    hasUpgradeRequest: false,
+    status: 'PENDING' as 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED',
+    statusMessage: '',
+  });
+  const [savingLegacy, setSavingLegacy] = useState(false);
 
   useEffect(() => {
     if (shopDomain) {
@@ -92,6 +104,25 @@ export default function ShopDetailPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!shop?.legacyShop) {
+      setLegacyForm({
+        isUpgradeAllowed: false,
+        hasUpgradeRequest: false,
+        status: 'PENDING',
+        statusMessage: '',
+      });
+      return;
+    }
+
+    setLegacyForm({
+      isUpgradeAllowed: Boolean(shop.legacyShop.isUpgradeAllowed),
+      hasUpgradeRequest: Boolean(shop.legacyShop.hasUpgradeRequest),
+      status: (shop.legacyShop.status as 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED') || 'PENDING',
+      statusMessage: shop.legacyShop.statusMessage || '',
+    });
+  }, [shop]);
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return '-';
@@ -143,6 +174,37 @@ export default function ShopDetailPage() {
     }
   };
 
+  const saveLegacyShop = async () => {
+    if (!shop) return;
+
+    try {
+      setSavingLegacy(true);
+      const response = await fetch(`/api/legacy-shops/${encodeURIComponent(shop.shop)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(legacyForm),
+      });
+
+      const data = await response.json().catch(() => null);
+      if (!response.ok || !data?.success) {
+        throw new Error(data?.error || 'Failed to update legacy shop');
+      }
+
+      setShop((prev) =>
+        prev
+          ? {
+              ...prev,
+              legacyShop: data.legacyShop,
+            }
+          : prev
+      );
+    } catch (saveError: any) {
+      setReindexMessage(`Error: ${saveError?.message || 'Failed to update legacy shop'}`);
+    } finally {
+      setSavingLegacy(false);
+    }
+  };
+
   const InfoCard = ({ title, children, icon: Icon }: { title: string; children: React.ReactNode; icon?: any }) => (
     <div className="bg-white dark:bg-slate-800 rounded-lg p-6 border border-gray-200 dark:border-slate-700">
       <div className="flex items-center space-x-2 mb-4">
@@ -167,18 +229,18 @@ export default function ShopDetailPage() {
 
   if (loading) {
     return (
-      <Layout>
+      <>
         <LoadingBar loading={true} />
         <div className="flex justify-center items-center h-64">
           <div className="text-gray-500 dark:text-gray-400">Loading shop details...</div>
         </div>
-      </Layout>
+      </>
     );
   }
 
   if (error || !shop) {
     return (
-      <Layout>
+      <>
         <div>
           <Link
             href="/shops"
@@ -197,14 +259,14 @@ export default function ShopDetailPage() {
             </button>
           </div>
         </div>
-      </Layout>
+      </>
     );
   }
 
   const status = getShopStatus(shop);
 
   return (
-    <Layout>
+    <>
       <div>
         {/* Header */}
         <div className="mb-6">
@@ -377,6 +439,73 @@ export default function ShopDetailPage() {
             )}
           </InfoCard>
 
+          {/* Legacy Shop Management */}
+          <InfoCard title="Legacy Shop" icon={Database}>
+            <InfoRow
+              label="Current Status"
+              value={shop.legacyShop?.status || 'PENDING'}
+              icon={Info}
+            />
+            <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+              <input
+                type="checkbox"
+                checked={legacyForm.isUpgradeAllowed}
+                onChange={(event) =>
+                  setLegacyForm((prev) => ({ ...prev, isUpgradeAllowed: event.target.checked }))
+                }
+                className="rounded border-gray-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500 dark:bg-slate-700"
+              />
+              Upgrade Allowed
+            </label>
+            <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+              <input
+                type="checkbox"
+                checked={legacyForm.hasUpgradeRequest}
+                onChange={(event) =>
+                  setLegacyForm((prev) => ({ ...prev, hasUpgradeRequest: event.target.checked }))
+                }
+                className="rounded border-gray-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500 dark:bg-slate-700"
+              />
+              Has Upgrade Request
+            </label>
+            <div>
+              <label className="block text-sm text-gray-700 dark:text-gray-300 mb-2">Legacy Status</label>
+              <select
+                value={legacyForm.status}
+                onChange={(event) =>
+                  setLegacyForm((prev) => ({
+                    ...prev,
+                    status: event.target.value as 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED',
+                  }))
+                }
+                className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-sm text-gray-900 dark:text-gray-100"
+              >
+                <option value="PENDING">PENDING</option>
+                <option value="IN_PROGRESS">IN_PROGRESS</option>
+                <option value="COMPLETED">COMPLETED</option>
+                <option value="REJECTED">REJECTED</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm text-gray-700 dark:text-gray-300 mb-2">Status Message</label>
+              <textarea
+                value={legacyForm.statusMessage}
+                onChange={(event) => setLegacyForm((prev) => ({ ...prev, statusMessage: event.target.value }))}
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-sm text-gray-900 dark:text-gray-100"
+              />
+            </div>
+            <div className="flex justify-end">
+              <button
+                onClick={saveLegacyShop}
+                disabled={savingLegacy}
+                className="px-4 py-2 bg-indigo-500/90 hover:bg-indigo-600 disabled:opacity-60 text-white rounded-lg text-sm cursor-pointer"
+              >
+                {savingLegacy ? 'Saving...' : 'Save Legacy Status'}
+              </button>
+            </div>
+          </InfoCard>
+
           {/* User Information */}
           <InfoCard title="User Information" icon={User}>
             <InfoRow
@@ -505,7 +634,7 @@ export default function ShopDetailPage() {
 
         </div>
       </div>
-    </Layout>
+    </>
   );
 }
 

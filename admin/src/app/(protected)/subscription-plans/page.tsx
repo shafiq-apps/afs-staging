@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Layout from '@/components/layout/Layout';
 import { Plus, Edit, Trash2, X, Save, Eye } from 'lucide-react';
 import { LoadingBar } from '@/components/ui/LoadingBar';
 import Checkbox from '@/components/ui/Checkbox';
+import { AlertModal, ConfirmModal, Input, Select, Textarea } from '@/components/ui';
+import type { SelectOption } from '@/components/ui';
 
 export interface SubscriptionPlan {
   id: string;
@@ -22,6 +23,11 @@ export interface SubscriptionPlan {
   updatedAt?: string;
 }
 
+const intervalOptions: SelectOption[] = [
+  { value: 'EVERY_30_DAYS', label: 'Monthly (30 days)' },
+  { value: 'ANNUAL', label: 'Annual' },
+];
+
 export default function SubscriptionPlansPage() {
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,6 +35,18 @@ export default function SubscriptionPlansPage() {
   const [showViewModal, setShowViewModal] = useState(false);
   const [viewingPlan, setViewingPlan] = useState<SubscriptionPlan | null>(null);
   const [editingPlan, setEditingPlan] = useState<SubscriptionPlan | null>(null);
+  const [confirmDeletePlanId, setConfirmDeletePlanId] = useState<string | null>(null);
+  const [alertState, setAlertState] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    variant: 'info' | 'success' | 'warning' | 'error';
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    variant: 'error',
+  });
   const [formData, setFormData] = useState({
     handle: '',
     name: '',
@@ -42,6 +60,22 @@ export default function SubscriptionPlansPage() {
   useEffect(() => {
     fetchPlans();
   }, []);
+
+  const getErrorMessage = (error: unknown, fallback: string) => {
+    if (error instanceof Error && error.message) {
+      return error.message;
+    }
+    return fallback;
+  };
+
+  const showErrorAlert = (message: string) => {
+    setAlertState({
+      isOpen: true,
+      title: 'Action Failed',
+      message,
+      variant: 'error',
+    });
+  };
 
   const fetchPlans = async () => {
     try {
@@ -91,14 +125,12 @@ export default function SubscriptionPlansPage() {
       setShowAddModal(false);
       setEditingPlan(null);
       resetForm();
-    } catch (error: any) {
-      alert(error.message || 'Failed to save plan');
+    } catch (error: unknown) {
+      showErrorAlert(getErrorMessage(error, 'Failed to save plan'));
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this subscription plan?')) return;
-
     try {
       const response = await fetch(`/api/subscription-plans/${id}`, { method: 'DELETE' });
       if (!response.ok) {
@@ -106,8 +138,8 @@ export default function SubscriptionPlansPage() {
         throw new Error(data.error || 'Failed to delete plan');
       }
       await fetchPlans();
-    } catch (error: any) {
-      alert(error.message || 'Failed to delete plan');
+    } catch (error: unknown) {
+      showErrorAlert(getErrorMessage(error, 'Failed to delete plan'));
     }
   };
 
@@ -162,17 +194,17 @@ export default function SubscriptionPlansPage() {
 
   if (loading) {
     return (
-      <Layout>
+      <>
         <LoadingBar loading={true} />
         <div className="flex justify-center items-center h-64">
           <div className="text-gray-500 dark:text-gray-400">Loading subscription plans...</div>
         </div>
-      </Layout>
+      </>
     );
   }
 
   return (
-    <Layout>
+    <>
       <div>
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Subscription Plans</h1>
@@ -233,9 +265,6 @@ export default function SubscriptionPlansPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900 dark:text-gray-100">{plan.name}</div>
-                      {plan.description && (
-                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{plan.description}</div>
-                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900 dark:text-gray-100">{formatPrice(plan)}</div>
@@ -281,7 +310,7 @@ export default function SubscriptionPlansPage() {
                           <span>Edit</span>
                         </button>
                         <button
-                          onClick={() => handleDelete(plan.id)}
+                          onClick={() => setConfirmDeletePlanId(plan.id)}
                           className="inline-flex items-center space-x-1 px-3 py-1.5 bg-red-500/90 hover:bg-red-600 text-white rounded-lg transition-colors duration-200 shadow-md shadow-red-500/20 hover:shadow-red-500/30 cursor-pointer text-xs"
                           title="Delete"
                         >
@@ -317,96 +346,69 @@ export default function SubscriptionPlansPage() {
 
               <form onSubmit={handleSubmit} className="p-6 space-y-6">
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Handle *
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.handle}
-                      onChange={(e) => setFormData({ ...formData, handle: e.target.value.toLowerCase().replace(/\s+/g, '-') })}
-                      required
-                      placeholder="e.g., starter, pro, enterprise"
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-slate-700 placeholder-gray-400 dark:placeholder-gray-500 font-sans"
-                    />
-                  </div>
+                  <Input
+                    label="Handle"
+                    type="text"
+                    value={formData.handle}
+                    onChange={(e) =>
+                      setFormData({ ...formData, handle: e.target.value.toLowerCase().replace(/\s+/g, '-') })
+                    }
+                    required
+                    placeholder="e.g., starter, pro, enterprise"
+                  />
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Name *
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      required
-                      placeholder="Plan name"
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-slate-700 placeholder-gray-400 dark:placeholder-gray-500 font-sans"
-                    />
-                  </div>
+                  <Input
+                    label="Name"
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    required
+                    placeholder="Plan name"
+                  />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Description
-                  </label>
-                  <textarea
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    rows={3}
-                    placeholder="Plan description (optional)"
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-slate-700 placeholder-gray-400 dark:placeholder-gray-500 font-sans resize-none"
+                <Textarea
+                  label="Description"
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  rows={3}
+                  placeholder="Plan description (optional)"
+                  resize="none"
+                />
+
+                <div className="grid grid-cols-2 gap-4">
+                  <Input
+                    label="Price Amount (USD)"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.priceAmount}
+                    onChange={(e) => setFormData({ ...formData, priceAmount: parseFloat(e.target.value) || 0 })}
+                    required
+                    placeholder="0.00"
+                  />
+
+                  <Select
+                    label="Interval"
+                    value={formData.interval}
+                    onChange={(e) =>
+                      setFormData({ ...formData, interval: e.target.value as 'EVERY_30_DAYS' | 'ANNUAL' })
+                    }
+                    required
+                    options={intervalOptions}
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Price Amount (USD) *
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={formData.priceAmount}
-                      onChange={(e) => setFormData({ ...formData, priceAmount: parseFloat(e.target.value) || 0 })}
-                      required
-                      placeholder="0.00"
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-slate-700 placeholder-gray-400 dark:placeholder-gray-500 font-sans"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Interval *
-                    </label>
-                    <select
-                      value={formData.interval}
-                      onChange={(e) => setFormData({ ...formData, interval: e.target.value as 'EVERY_30_DAYS' | 'ANNUAL' })}
-                      required
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-slate-700 font-sans cursor-pointer"
-                    >
-                      <option value="EVERY_30_DAYS">Monthly (30 days)</option>
-                      <option value="ANNUAL">Annual</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Product Limit *
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={formData.productLimit}
-                      onChange={(e) => setFormData({ ...formData, productLimit: parseInt(e.target.value) || 0 })}
-                      required
-                      placeholder="0"
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-slate-700 placeholder-gray-400 dark:placeholder-gray-500 font-sans"
-                    />
-                  </div>
+                  <Input
+                    label="Product Limit"
+                    type="number"
+                    min="0"
+                    value={formData.productLimit}
+                    onChange={(e) => setFormData({ ...formData, productLimit: parseInt(e.target.value, 10) || 0 })}
+                    required
+                    placeholder="0"
+                  />
 
                   <div className="flex items-end">
                     <Checkbox
@@ -480,17 +482,6 @@ export default function SubscriptionPlansPage() {
                     </div>
                   </div>
                 </div>
-
-                {viewingPlan.description && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
-                      Description
-                    </label>
-                    <div className="text-sm text-gray-900 dark:text-gray-100">
-                      {viewingPlan.description}
-                    </div>
-                  </div>
-                )}
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -588,7 +579,30 @@ export default function SubscriptionPlansPage() {
           </div>
         )}
       </div>
-    </Layout>
+
+      <ConfirmModal
+        isOpen={Boolean(confirmDeletePlanId)}
+        onClose={() => setConfirmDeletePlanId(null)}
+        title="Delete Subscription Plan"
+        message="Are you sure you want to delete this subscription plan?"
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+        onConfirm={() => {
+          if (confirmDeletePlanId) {
+            void handleDelete(confirmDeletePlanId);
+          }
+        }}
+      />
+
+      <AlertModal
+        isOpen={alertState.isOpen}
+        onClose={() => setAlertState((prev) => ({ ...prev, isOpen: false }))}
+        title={alertState.title}
+        message={alertState.message}
+        variant={alertState.variant}
+      />
+    </>
   );
 }
 

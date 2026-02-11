@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { User, LogOut, Menu, X } from 'lucide-react';
+import { LogOut, Menu, X } from 'lucide-react';
 import Image from 'next/image';
 import { images } from '@/lib/images';
 import { User as UserType } from '@/types/auth';
@@ -17,6 +17,8 @@ export default function Navbar({ user }: NavbarProps) {
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
+  const userName = user?.name?.trim() || '';
+  const userInitial = userName ? userName.charAt(0).toUpperCase() : '';
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
@@ -28,7 +30,7 @@ export default function Navbar({ user }: NavbarProps) {
     { href: '/dashboard', label: 'Dashboard' },
     { href: '/team', label: 'Team', requiresPermission: 'canManageTeam' },
     { href: '/shops', label: 'Shops', requiresPermission: 'canManageShops' },
-    { href: '/payments', label: 'Payments', requiresPermission: 'canViewPayments' },
+    { href: '/legacy-shops', label: 'Legacy Shops', requiresPermission: 'canManageShops' },
     { href: '/subscriptions', label: 'Subscriptions', requiresPermission: 'canViewSubscriptions' },
     { href: '/subscription-plans', label: 'Subscription Plans', requiresPermission: 'canViewSubscriptions' },
   ];
@@ -72,12 +74,12 @@ export default function Navbar({ user }: NavbarProps) {
               <div className="relative">
                 <button
                   onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-                  className="flex items-center space-x-2 text-sm text-gray-700 hover:text-gray-900 focus:outline-none cursor-pointer"
+                  className="flex items-center space-x-2 text-sm text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 focus:outline-none cursor-pointer"
                 >
                   <div className="h-8 w-8 rounded-full bg-gradient-to-br from-purple-600 to-indigo-600 flex items-center justify-center text-white font-medium shadow-md shadow-purple-500/50">
-                    {user?.name.charAt(0).toUpperCase() || 'U'}
+                    {userInitial}
                   </div>
-                  <span className="hidden md:block text-gray-700 dark:text-gray-300">{user?.name || 'User'}</span>
+                  {userName && <span className="hidden md:block text-gray-700 dark:text-gray-300">{userName}</span>}
                 </button>
 
                 {profileMenuOpen && (
