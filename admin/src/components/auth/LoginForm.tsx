@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 
 interface LoginFormProps {
   onOTPSent: (email: string) => void;
@@ -32,8 +31,9 @@ export default function LoginForm({ onOTPSent }: LoginFormProps) {
       }
 
       onOTPSent(email);
-    } catch (err: any) {
-      setError(err.message || 'Something went wrong');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Something went wrong';
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -54,7 +54,7 @@ export default function LoginForm({ onOTPSent }: LoginFormProps) {
             onFocus={() => setFocused(true)}
             onBlur={() => setFocused(false)}
             required
-            className="login-input w-full px-4 pt-7 pb-3 bg-slate-800/20 backdrop-blur-md border border-slate-700/30 rounded-lg text-slate-100 placeholder-transparent focus:outline-none focus:border-slate-600/40 focus:ring-0 transition-all duration-300 font-medium text-sm"
+            className="login-input w-full px-4 pt-7 pb-3 bg-slate-800/20 backdrop-blur-md border border-slate-700/30 rounded-lg text-slate-100 placeholder-transparent focus:outline-none focus:border-slate-600/40 focus:ring-0 transition-all duration-300 font-medium text-sm dark:[color-scheme:dark]"
             placeholder=" "
             disabled={loading}
           />

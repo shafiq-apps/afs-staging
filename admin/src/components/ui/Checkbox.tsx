@@ -62,7 +62,7 @@ const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
           </div>
           {label && (
             <div className="ml-3 flex-1">
-              <span className={`text-sm font-medium ${props.disabled ? 'opacity-50' : ''} text-gray-700 dark:text-gray-200`}>
+              <span className={`text-sm font-medium ${props.disabled ? 'opacity-50' : ''} text-white dark:text-gray-200`}>
                 {label}
               </span>
               {helperText && !error && (

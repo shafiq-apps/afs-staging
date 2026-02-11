@@ -232,8 +232,8 @@ export default function TeamPage() {
         </div>
 
         {showAddModal && (
-          <div className="fixed inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-slate-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-200 dark:border-slate-700">
+          <div className="fixed inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm flex items-start sm:items-center justify-center overflow-y-auto z-[1000] p-4 sm:py-8">
+            <div className="bg-white dark:bg-slate-800 rounded-lg max-w-2xl w-full border border-gray-200 dark:border-slate-700">
               <div className="flex justify-between items-center p-6 border-b dark:border-slate-700">
                 <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
                   {editingUser ? 'Edit Team Member' : 'Add Team Member'}
@@ -286,7 +286,7 @@ export default function TeamPage() {
                 />
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">
+                  <label className="block text-sm font-medium text-white dark:text-gray-300 mb-4">
                     Permissions
                   </label>
                   <div className="space-y-3">
@@ -371,7 +371,7 @@ export default function TeamPage() {
                       setShowAddModal(false);
                       resetForm();
                     }}
-                    className="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700"
+                    className="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg text-white dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700"
                   >
                     Cancel
                   </button>

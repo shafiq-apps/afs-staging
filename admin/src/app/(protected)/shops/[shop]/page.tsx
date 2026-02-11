@@ -1,9 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import type { ComponentType, ReactNode } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { LoadingBar } from '@/components/ui/LoadingBar';
+import { Checkbox, Select, Textarea } from '@/components/ui';
+import type { SelectOption } from '@/components/ui';
 import {
   ArrowLeft,
   ExternalLink,
@@ -21,6 +24,13 @@ import {
   RefreshCw,
   Database,
 } from 'lucide-react';
+
+const legacyStatusOptions: SelectOption[] = [
+  { value: 'PENDING', label: 'PENDING' },
+  { value: 'IN_PROGRESS', label: 'IN_PROGRESS' },
+  { value: 'COMPLETED', label: 'COMPLETED' },
+  { value: 'REJECTED', label: 'REJECTED' },
+];
 
 export interface Shop {
   shop: string;
@@ -79,13 +89,14 @@ export default function ShopDetailPage() {
   });
   const [savingLegacy, setSavingLegacy] = useState(false);
 
-  useEffect(() => {
-    if (shopDomain) {
-      fetchShop();
+  const getErrorMessage = (error: unknown, fallback: string) => {
+    if (error instanceof Error && error.message) {
+      return error.message;
     }
-  }, [shopDomain]);
+    return fallback;
+  };
 
-  const fetchShop = async () => {
+  const fetchShop = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -97,13 +108,19 @@ export default function ShopDetailPage() {
       }
       const data = await response.json();
       setShop(data.shop);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error fetching shop:', err);
-      setError(err.message || 'Failed to fetch shop');
+      setError(getErrorMessage(err, 'Failed to fetch shop'));
     } finally {
       setLoading(false);
     }
-  };
+  }, [shopDomain]);
+
+  useEffect(() => {
+    if (shopDomain) {
+      void fetchShop();
+    }
+  }, [shopDomain, fetchShop]);
 
   useEffect(() => {
     if (!shop?.legacyShop) {
@@ -166,9 +183,9 @@ export default function ShopDetailPage() {
       }
 
       setReindexMessage(data.message || 'Indexing started successfully');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error reindexing shop:', err);
-      setReindexMessage(`Error: ${err.message || 'Failed to start reindexing'}`);
+      setReindexMessage(`Error: ${getErrorMessage(err, 'Failed to start reindexing')}`);
     } finally {
       setReindexing(false);
     }
@@ -193,19 +210,27 @@ export default function ShopDetailPage() {
       setShop((prev) =>
         prev
           ? {
-              ...prev,
-              legacyShop: data.legacyShop,
-            }
+            ...prev,
+            legacyShop: data.legacyShop,
+          }
           : prev
       );
-    } catch (saveError: any) {
-      setReindexMessage(`Error: ${saveError?.message || 'Failed to update legacy shop'}`);
+    } catch (saveError: unknown) {
+      setReindexMessage(`Error: ${getErrorMessage(saveError, 'Failed to update legacy shop')}`);
     } finally {
       setSavingLegacy(false);
     }
   };
 
-  const InfoCard = ({ title, children, icon: Icon }: { title: string; children: React.ReactNode; icon?: any }) => (
+  const InfoCard = ({
+    title,
+    children,
+    icon: Icon,
+  }: {
+    title: string;
+    children: ReactNode;
+    icon?: ComponentType<{ className?: string }>;
+  }) => (
     <div className="bg-white dark:bg-slate-800 rounded-lg p-6 border border-gray-200 dark:border-slate-700">
       <div className="flex items-center space-x-2 mb-4">
         {Icon && <Icon className="h-5 w-5 text-purple-500 dark:text-purple-400" />}
@@ -215,7 +240,15 @@ export default function ShopDetailPage() {
     </div>
   );
 
-  const InfoRow = ({ label, value, icon: Icon }: { label: string; value: React.ReactNode; icon?: any }) => (
+  const InfoRow = ({
+    label,
+    value,
+    icon: Icon,
+  }: {
+    label: string;
+    value: ReactNode;
+    icon?: ComponentType<{ className?: string }>;
+  }) => (
     <div className="flex items-start justify-between py-2 border-b border-gray-100 dark:border-slate-700 last:border-0">
       <div className="flex items-center space-x-2 flex-1">
         {Icon && <Icon className="h-4 w-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />}
@@ -283,13 +316,12 @@ export default function ShopDetailPage() {
                 <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">{shop.shop}</h1>
                 <div className="flex items-center space-x-3 mt-2">
                   <span
-                    className={`inline-flex items-center space-x-1 px-3 py-1 rounded-full text-xs font-semibold ${
-                      status.color === 'green'
+                    className={`inline-flex items-center space-x-1 px-3 py-1 rounded-full text-xs font-semibold ${status.color === 'green'
                         ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
                         : status.color === 'red'
-                        ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
-                        : 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300'
-                    }`}
+                          ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+                          : 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300'
+                      }`}
                   >
                     <status.icon className="h-3 w-3" />
                     <span>{status.label}</span>
@@ -337,11 +369,10 @@ export default function ShopDetailPage() {
         {/* Reindex Message */}
         {reindexMessage && (
           <div
-            className={`mb-6 p-4 rounded-lg border ${
-              reindexMessage.startsWith('Error')
+            className={`mb-6 p-4 rounded-lg border ${reindexMessage.startsWith('Error')
                 ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-800 dark:text-red-300'
                 : 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-800 dark:text-green-300'
-            }`}
+              }`}
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
@@ -439,72 +470,60 @@ export default function ShopDetailPage() {
             )}
           </InfoCard>
 
+
           {/* Legacy Shop Management */}
-          <InfoCard title="Legacy Shop" icon={Database}>
-            <InfoRow
-              label="Current Status"
-              value={shop.legacyShop?.status || 'PENDING'}
-              icon={Info}
-            />
-            <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-              <input
-                type="checkbox"
-                checked={legacyForm.isUpgradeAllowed}
-                onChange={(event) =>
-                  setLegacyForm((prev) => ({ ...prev, isUpgradeAllowed: event.target.checked }))
-                }
-                className="rounded border-gray-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500 dark:bg-slate-700"
-              />
-              Upgrade Allowed
-            </label>
-            <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-              <input
-                type="checkbox"
-                checked={legacyForm.hasUpgradeRequest}
-                onChange={(event) =>
-                  setLegacyForm((prev) => ({ ...prev, hasUpgradeRequest: event.target.checked }))
-                }
-                className="rounded border-gray-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500 dark:bg-slate-700"
-              />
-              Has Upgrade Request
-            </label>
-            <div>
-              <label className="block text-sm text-gray-700 dark:text-gray-300 mb-2">Legacy Status</label>
-              <select
-                value={legacyForm.status}
-                onChange={(event) =>
-                  setLegacyForm((prev) => ({
-                    ...prev,
-                    status: event.target.value as 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED',
-                  }))
-                }
-                className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-sm text-gray-900 dark:text-gray-100"
-              >
-                <option value="PENDING">PENDING</option>
-                <option value="IN_PROGRESS">IN_PROGRESS</option>
-                <option value="COMPLETED">COMPLETED</option>
-                <option value="REJECTED">REJECTED</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm text-gray-700 dark:text-gray-300 mb-2">Status Message</label>
-              <textarea
-                value={legacyForm.statusMessage}
-                onChange={(event) => setLegacyForm((prev) => ({ ...prev, statusMessage: event.target.value }))}
-                rows={3}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-sm text-gray-900 dark:text-gray-100"
-              />
-            </div>
-            <div className="flex justify-end">
-              <button
-                onClick={saveLegacyShop}
-                disabled={savingLegacy}
-                className="px-4 py-2 bg-indigo-500/90 hover:bg-indigo-600 disabled:opacity-60 text-white rounded-lg text-sm cursor-pointer"
-              >
-                {savingLegacy ? 'Saving...' : 'Save Legacy Status'}
-              </button>
-            </div>
-          </InfoCard>
+          {
+            shop.legacyShop && (
+              <InfoCard title="Legacy Shop" icon={Database}>
+                <InfoRow
+                  label="Current Status"
+                  value={shop.legacyShop?.status || 'PENDING'}
+                  icon={Info}
+                />
+                <Checkbox
+                  checked={legacyForm.isUpgradeAllowed}
+                  onChange={(event) =>
+                    setLegacyForm((prev) => ({ ...prev, isUpgradeAllowed: event.target.checked }))
+                  }
+                  label="Upgrade Allowed"
+                />
+                <Checkbox
+                  checked={legacyForm.hasUpgradeRequest}
+                  onChange={(event) =>
+                    setLegacyForm((prev) => ({ ...prev, hasUpgradeRequest: event.target.checked }))
+                  }
+                  label="Has Upgrade Request"
+                />
+                <Select
+                  label="Legacy Status"
+                  value={legacyForm.status}
+                  onChange={(event) =>
+                    setLegacyForm((prev) => ({
+                      ...prev,
+                      status: event.target.value as 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED',
+                    }))
+                  }
+                  options={legacyStatusOptions}
+                />
+                <Textarea
+                  label="Status Message"
+                  value={legacyForm.statusMessage}
+                  onChange={(event) => setLegacyForm((prev) => ({ ...prev, statusMessage: event.target.value }))}
+                  rows={3}
+                  resize="none"
+                />
+                <div className="flex justify-end">
+                  <button
+                    onClick={saveLegacyShop}
+                    disabled={savingLegacy}
+                    className="px-4 py-2 bg-indigo-500/90 hover:bg-indigo-600 disabled:opacity-60 text-white rounded-lg text-sm cursor-pointer"
+                  >
+                    {savingLegacy ? 'Saving...' : 'Save Legacy Status'}
+                  </button>
+                </div>
+              </InfoCard>
+            )
+          }
 
           {/* User Information */}
           <InfoCard title="User Information" icon={User}>

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, X, Save, Eye } from 'lucide-react';
 import { LoadingBar } from '@/components/ui/LoadingBar';
 import Checkbox from '@/components/ui/Checkbox';
-import { AlertModal, ConfirmModal, Input, Select, Textarea } from '@/components/ui';
+import { AlertModal, ConfirmModal, Input, Modal, Select, Textarea } from '@/components/ui';
 import type { SelectOption } from '@/components/ui';
 
 export interface SubscriptionPlan {
@@ -91,8 +91,10 @@ export default function SubscriptionPlansPage() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e: any) => {
+    if (e) {
+      e.preventDefault();
+    }
     try {
       const url = editingPlan ? `/api/subscription-plans/${editingPlan.id}` : '/api/subscription-plans';
       const method = editingPlan ? 'PATCH' : 'POST';
@@ -279,11 +281,10 @@ export default function SubscriptionPlansPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span
-                        className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          plan.test
-                            ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
-                            : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-                        }`}
+                        className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${plan.test
+                          ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
+                          : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                          }`}
                       >
                         {plan.test ? 'Test' : 'Live'}
                       </span>
@@ -326,26 +327,43 @@ export default function SubscriptionPlansPage() {
           </table>
         </div>
 
-        {showAddModal && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
-            <div className="bg-white dark:bg-slate-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-200 dark:border-slate-700">
-              <div className="flex justify-between items-center p-6 border-b border-gray-200 dark:border-slate-700">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-                  {editingPlan ? 'Edit Subscription Plan' : 'Add Subscription Plan'}
-                </h2>
-                <button
-                  onClick={() => {
-                    setShowAddModal(false);
-                    resetForm();
-                  }}
-                  className="text-gray-400 hover:text-gray-600 dark:text-gray-300 dark:hover:text-gray-100 cursor-pointer"
-                >
-                  <X className="h-6 w-6" />
-                </button>
-              </div>
-
-              <form onSubmit={handleSubmit} className="p-6 space-y-6">
-                <div className="grid grid-cols-2 gap-4">
+        <Modal
+          isOpen={showAddModal}
+          onClose={() => {
+            setShowAddModal(false);
+          }}
+          title={editingPlan ? 'Edit Subscription Plan' : 'Add Subscription Plan'}
+          size='lg'
+          showCloseButton
+          actions={[
+            {
+              label: "Cancel",
+              onClick: () => {
+                setShowAddModal(false);
+                resetForm();
+              },
+              variant: 'outline',
+            },
+            {
+              label: editingPlan ? 'Update' : 'Create',
+              variant: 'primary',
+              type: 'submit',
+              onClick: handleSubmit,
+            },
+          ]}
+        >
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            <div className={`grid grid-cols-${Boolean(editingPlan) ? 1 : 2} gap-4`}>
+              <Input
+                label="Name"
+                type="text"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                required
+                placeholder="Plan name"
+              />
+              {
+                !Boolean(editingPlan) && (
                   <Input
                     label="Handle"
                     type="text"
@@ -355,113 +373,91 @@ export default function SubscriptionPlansPage() {
                     }
                     required
                     placeholder="e.g., starter, pro, enterprise"
+                    disabled={Boolean(editingPlan)}
                   />
-
-                  <Input
-                    label="Name"
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    required
-                    placeholder="Plan name"
-                  />
-                </div>
-
-                <Textarea
-                  label="Description"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  rows={3}
-                  placeholder="Plan description (optional)"
-                  resize="none"
-                />
-
-                <div className="grid grid-cols-2 gap-4">
-                  <Input
-                    label="Price Amount (USD)"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={formData.priceAmount}
-                    onChange={(e) => setFormData({ ...formData, priceAmount: parseFloat(e.target.value) || 0 })}
-                    required
-                    placeholder="0.00"
-                  />
-
-                  <Select
-                    label="Interval"
-                    value={formData.interval}
-                    onChange={(e) =>
-                      setFormData({ ...formData, interval: e.target.value as 'EVERY_30_DAYS' | 'ANNUAL' })
-                    }
-                    required
-                    options={intervalOptions}
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <Input
-                    label="Product Limit"
-                    type="number"
-                    min="0"
-                    value={formData.productLimit}
-                    onChange={(e) => setFormData({ ...formData, productLimit: parseInt(e.target.value, 10) || 0 })}
-                    required
-                    placeholder="0"
-                  />
-
-                  <div className="flex items-end">
-                    <Checkbox
-                      checked={formData.test}
-                      onChange={(e) => setFormData({ ...formData, test: e.target.checked })}
-                      label="Test Plan"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200 dark:border-slate-700">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowAddModal(false);
-                      resetForm();
-                    }}
-                    className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:border-slate-600 dark:hover:bg-slate-700 cursor-pointer"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="flex items-center space-x-2 bg-purple-500/90 hover:bg-purple-600 text-white px-4 py-2 rounded-lg transition-colors duration-200 shadow-md shadow-purple-500/20 hover:shadow-purple-500/30 cursor-pointer"
-                  >
-                    <Save className="h-5 w-5" />
-                    <span>{editingPlan ? 'Update' : 'Create'}</span>
-                  </button>
-                </div>
-              </form>
+                )
+              }
             </div>
-          </div>
-        )}
 
-        {/* View Modal */}
-        {showViewModal && viewingPlan && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
-            <div className="bg-white dark:bg-slate-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-200 dark:border-slate-700">
-              <div className="flex justify-between items-center p-6 border-b border-gray-200 dark:border-slate-700">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-                  Subscription Plan Details
-                </h2>
-                <button
-                  onClick={() => {
-                    setShowViewModal(false);
-                    setViewingPlan(null);
-                  }}
-                  className="text-gray-400 hover:text-gray-600 dark:text-gray-300 dark:hover:text-gray-100 cursor-pointer"
-                >
-                  <X className="h-6 w-6" />
-                </button>
+            <Textarea
+              label="Description"
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              rows={4}
+              placeholder="Plan description (optional)"
+              resize="none"
+            />
+
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                label="Price Amount (USD)"
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.priceAmount}
+                onChange={(e) => setFormData({ ...formData, priceAmount: parseFloat(e.target.value) || 0 })}
+                required
+                placeholder="0.00"
+              />
+
+              <Select
+                label="Interval"
+                value={formData.interval}
+                onChange={(e) =>
+                  setFormData({ ...formData, interval: e.target.value as 'EVERY_30_DAYS' | 'ANNUAL' })
+                }
+                required
+                options={intervalOptions}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                label="Product Limit"
+                type="number"
+                min="0"
+                value={formData.productLimit}
+                onChange={(e) => setFormData({ ...formData, productLimit: parseInt(e.target.value, 10) || 0 })}
+                required
+                placeholder="0"
+              />
+
+              <div className="flex items-end">
+                <Checkbox
+                  checked={formData.test}
+                  onChange={(e) => setFormData({ ...formData, test: e.target.checked })}
+                  label="Test Plan"
+                />
               </div>
+            </div>
+          </form>
+        </Modal>
 
+        <Modal
+          title="Subscription Plan Details"
+          isOpen={showViewModal}
+          onClose={() => {
+            setShowViewModal(false);
+            setViewingPlan(null);
+          }}
+          size='lg'
+          showCloseButton
+          actions={[
+            {
+              label: "Edit Plan",
+              variant: 'primary',
+              type: 'button',
+              onClick: (e) => {
+                setShowViewModal(false);
+                if (viewingPlan) {
+                  handleEdit(viewingPlan);
+                }
+              }
+            }
+          ]}
+        >
+          {
+            viewingPlan && (
               <div className="p-6 space-y-6">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -518,11 +514,10 @@ export default function SubscriptionPlansPage() {
                       Status
                     </label>
                     <span
-                      className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        viewingPlan.test
-                          ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
-                          : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-                      }`}
+                      className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${viewingPlan.test
+                        ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
+                        : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                        }`}
                     >
                       {viewingPlan.test ? 'Test Plan' : 'Live Plan'}
                     </span>
@@ -550,34 +545,11 @@ export default function SubscriptionPlansPage() {
                     </div>
                   )}
                 </div>
-
-                <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200 dark:border-slate-700">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowViewModal(false);
-                      setViewingPlan(null);
-                    }}
-                    className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:border-slate-600 dark:hover:bg-slate-700 cursor-pointer"
-                  >
-                    Close
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowViewModal(false);
-                      handleEdit(viewingPlan);
-                    }}
-                    className="flex items-center space-x-2 bg-purple-500/90 hover:bg-purple-600 text-white px-4 py-2 rounded-lg transition-colors duration-200 shadow-md shadow-purple-500/20 hover:shadow-purple-500/30 cursor-pointer"
-                  >
-                    <Edit className="h-4 w-4" />
-                    <span>Edit Plan</span>
-                  </button>
-                </div>
               </div>
-            </div>
-          </div>
-        )}
+            )
+          }
+        </Modal>
+
       </div>
 
       <ConfirmModal

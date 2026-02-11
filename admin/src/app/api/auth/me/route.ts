@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/jwt.utils';
-import { getUserById, getDefaultPermissions } from '@/lib/user.storage';
+import { getUserById, getUserByEmail, getOrCreateUserByEmail, getDefaultPermissions } from '@/lib/user.storage';
 
 export async function GET(request: NextRequest) {
   try {
@@ -22,6 +22,17 @@ export async function GET(request: NextRequest) {
     }
 
     let user = await getUserById(session.userId);
+
+    // In development/fallback mode the user ID in token can become stale.
+    if (!user && session.email) {
+      user = await getUserByEmail(session.email);
+    }
+
+    // Final fallback: recreate by email so existing login session continues to work.
+    if (!user && session.email) {
+      user = await getOrCreateUserByEmail(session.email);
+    }
+
     if (!user || !user.isActive) {
       return NextResponse.json(
         { error: 'User not found or inactive' },

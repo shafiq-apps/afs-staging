@@ -88,8 +88,9 @@ export default function OTPForm({ email, onRequiresPin }: OTPFormProps) {
         router.push('/dashboard');
         router.refresh();
       }
-    } catch (err: any) {
-      setError(err.message || 'Invalid code. Please try again.');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Invalid code. Please try again.';
+      setError(message);
       setCode(['', '', '', '', '', '']);
       inputRefs.current[0]?.focus();
     } finally {
@@ -116,8 +117,9 @@ export default function OTPForm({ email, onRequiresPin }: OTPFormProps) {
       }
 
       setResendCooldown(60); // 60 second cooldown
-    } catch (err: any) {
-      setError(err.message || 'Failed to resend code');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to resend code';
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -143,7 +145,7 @@ export default function OTPForm({ email, onRequiresPin }: OTPFormProps) {
               onChange={(e) => handleChange(index, e.target.value)}
               onKeyDown={(e) => handleKeyDown(index, e)}
               onPaste={handlePaste}
-              className="otp-input w-14 h-16 text-center text-2xl font-semibold border border-slate-700/30 rounded-lg bg-slate-800/20 backdrop-blur-md text-slate-100 focus:outline-none focus:border-slate-600/40 focus:ring-0 transition-all duration-300 disabled:opacity-50"
+              className="otp-input w-14 h-16 text-center text-2xl font-semibold border border-slate-700/30 rounded-lg bg-slate-800/20 backdrop-blur-md text-slate-100 focus:outline-none focus:border-slate-600/40 focus:ring-0 transition-all duration-300 disabled:opacity-50 dark:[color-scheme:dark]"
               disabled={loading}
             />
           ))}

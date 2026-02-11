@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { LoadingBar } from '@/components/ui/LoadingBar';
 import { Plus, Save, X } from 'lucide-react';
+import { Checkbox, Input, Select, Textarea } from '@/components/ui';
+import type { SelectOption } from '@/components/ui';
 
 type LegacyShopStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED';
 
@@ -21,6 +23,13 @@ const DEFAULT_FORM = {
   status: 'PENDING' as LegacyShopStatus,
   statusMessage: '',
 };
+
+const legacyStatusOptions: SelectOption[] = [
+  { value: 'PENDING', label: 'PENDING' },
+  { value: 'IN_PROGRESS', label: 'IN_PROGRESS' },
+  { value: 'COMPLETED', label: 'COMPLETED' },
+  { value: 'REJECTED', label: 'REJECTED' },
+];
 
 export default function LegacyShopsPage() {
   const [legacyShops, setLegacyShops] = useState<LegacyShopRecord[]>([]);
@@ -212,10 +221,10 @@ export default function LegacyShopsPage() {
                           {record.status || 'PENDING'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-white dark:text-gray-300">
                         {record.isUpgradeAllowed ? 'Yes' : 'No'}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-white dark:text-gray-300">
                         {record.hasUpgradeRequest ? 'Yes' : 'No'}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
@@ -239,7 +248,7 @@ export default function LegacyShopsPage() {
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm flex items-start sm:items-center justify-center overflow-y-auto z-[1000] p-4 sm:py-8">
           <div className="bg-white dark:bg-slate-800 rounded-lg max-w-lg w-full border border-gray-200 dark:border-slate-700">
             <div className="flex justify-between items-center p-6 border-b border-gray-200 dark:border-slate-700">
               <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
@@ -254,73 +263,53 @@ export default function LegacyShopsPage() {
             </div>
 
             <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Shop Domain</label>
-                <input
-                  type="text"
-                  value={formData.shop}
-                  onChange={(event) => setFormData((prev) => ({ ...prev, shop: event.target.value }))}
-                  disabled={Boolean(editingShop)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 disabled:opacity-60"
-                  placeholder="example.myshopify.com"
-                />
-              </div>
+              <Input
+                label="Shop Domain"
+                type="text"
+                value={formData.shop}
+                onChange={(event) => setFormData((prev) => ({ ...prev, shop: event.target.value }))}
+                disabled={Boolean(editingShop)}
+                placeholder="example.myshopify.com"
+              />
 
-              <label className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  checked={formData.isUpgradeAllowed}
-                  onChange={(event) =>
-                    setFormData((prev) => ({ ...prev, isUpgradeAllowed: event.target.checked }))
-                  }
-                  className="rounded border-gray-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500 dark:bg-slate-700"
-                />
-                <span className="text-sm text-gray-700 dark:text-gray-300">Upgrade Allowed</span>
-              </label>
+              <Checkbox
+                checked={formData.isUpgradeAllowed}
+                onChange={(event) =>
+                  setFormData((prev) => ({ ...prev, isUpgradeAllowed: event.target.checked }))
+                }
+                label="Upgrade Allowed"
+              />
 
-              <label className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  checked={formData.hasUpgradeRequest}
-                  onChange={(event) =>
-                    setFormData((prev) => ({ ...prev, hasUpgradeRequest: event.target.checked }))
-                  }
-                  className="rounded border-gray-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500 dark:bg-slate-700"
-                />
-                <span className="text-sm text-gray-700 dark:text-gray-300">Has Upgrade Request</span>
-              </label>
+              <Checkbox
+                checked={formData.hasUpgradeRequest}
+                onChange={(event) =>
+                  setFormData((prev) => ({ ...prev, hasUpgradeRequest: event.target.checked }))
+                }
+                label="Has Upgrade Request"
+              />
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Status</label>
-                <select
-                  value={formData.status}
-                  onChange={(event) =>
-                    setFormData((prev) => ({ ...prev, status: event.target.value as LegacyShopStatus }))
-                  }
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
-                >
-                  <option value="PENDING">PENDING</option>
-                  <option value="IN_PROGRESS">IN_PROGRESS</option>
-                  <option value="COMPLETED">COMPLETED</option>
-                  <option value="REJECTED">REJECTED</option>
-                </select>
-              </div>
+              <Select
+                label="Status"
+                value={formData.status}
+                onChange={(event) =>
+                  setFormData((prev) => ({ ...prev, status: event.target.value as LegacyShopStatus }))
+                }
+                options={legacyStatusOptions}
+              />
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Status Message</label>
-                <textarea
-                  value={formData.statusMessage}
-                  onChange={(event) => setFormData((prev) => ({ ...prev, statusMessage: event.target.value }))}
-                  rows={3}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
-                />
-              </div>
+              <Textarea
+                label="Status Message"
+                value={formData.statusMessage}
+                onChange={(event) => setFormData((prev) => ({ ...prev, statusMessage: event.target.value }))}
+                rows={3}
+                resize="none"
+              />
             </div>
 
             <div className="px-6 py-4 border-t border-gray-200 dark:border-slate-700 flex justify-end gap-3">
               <button
                 onClick={closeModal}
-                className="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer"
+                className="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg text-white dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer"
               >
                 Cancel
               </button>

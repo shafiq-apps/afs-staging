@@ -1,17 +1,31 @@
 'use client';
 
 import { ReactNode, useEffect } from 'react';
-import { X } from 'lucide-react';
-import Button from './Button';
+import { createPortal } from 'react-dom';
+import { LucideIcon, X } from 'lucide-react';
+import Button, { ButtonProps, ButtonSize, ButtonVariant } from './Button';
+
+export interface ModalAction {
+  label: string;
+  onClick?: (e: any) => void;
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  icon?: LucideIcon;
+  iconPosition?: 'left' | 'right';
+  loading?: boolean;
+  disabled?: boolean;
+  type?: "button" | "submit" | "reset";
+}
 
 export interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
   title?: string;
   children: ReactNode;
-  size?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
+  size?: "sm" | "md" | "lg" | "xl" | "full";
   showCloseButton?: boolean;
   footer?: ReactNode;
+  actions?: ModalAction[];
 }
 
 const sizeStyles = {
@@ -30,6 +44,7 @@ export default function Modal({
   size = 'md',
   showCloseButton = true,
   footer,
+  actions = [],
 }: ModalProps) {
   useEffect(() => {
     if (isOpen) {
@@ -42,20 +57,21 @@ export default function Modal({
     };
   }, [isOpen]);
 
-  if (!isOpen) return null;
+  const portalTarget = typeof document !== 'undefined' ? document.body : null;
+  if (!isOpen || !portalTarget) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
+  const modalContent = (
+    <div className="fixed inset-0 z-[2147483000] overflow-y-auto isolate">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
+        className="fixed inset-0 z-0 bg-black/50 backdrop-blur-sm transition-opacity"
         onClick={onClose}
       />
 
       {/* Modal */}
-      <div className="flex min-h-full items-center justify-center p-4">
+      <div className="relative z-10 flex min-h-full items-start sm:items-center justify-center p-4 sm:py-8">
         <div
-          className={`relative bg-white dark:bg-slate-800 rounded-lg shadow-xl ${sizeStyles[size]} w-full max-h-[90vh] overflow-hidden flex flex-col`}
+          className={`relative bg-white dark:bg-slate-800 rounded-lg shadow-xl ${sizeStyles[size]} w-full flex flex-col`}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
@@ -77,7 +93,7 @@ export default function Modal({
           )}
 
           {/* Content */}
-          <div className="px-6 py-4 overflow-y-auto flex-1 text-gray-900 dark:text-gray-100">{children}</div>
+          <div className="px-6 py-4 text-gray-900 dark:text-gray-100">{children}</div>
 
           {/* Footer */}
           {footer && (
@@ -85,10 +101,31 @@ export default function Modal({
               {footer}
             </div>
           )}
+
+          {/* Actions */}
+          {
+            !footer && actions.length > 0 && (
+              <div className="px-6 py-4 border-t border-gray-200 dark:border-slate-700 flex items-center justify-end space-x-3">
+                {actions.map((action, index) => (
+                  <Button
+                    key={index}
+                    {...action}
+                    size={action.size || 'md'}
+                    variant={action.variant || 'outline'}
+                  >
+                    {action.label}
+                  </Button>
+                ))}
+              </div>
+            )
+          }
+
         </div>
       </div>
     </div>
   );
+
+  return createPortal(modalContent, portalTarget);
 }
 
 // Alert Modal Component
@@ -119,7 +156,7 @@ export function AlertModal({
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={title} size="sm">
       <div className="py-4">
-        <p className="text-gray-700 dark:text-gray-300">{message}</p>
+        <p className="text-white dark:text-gray-300">{message}</p>
       </div>
       <div className="flex justify-end">
         <Button onClick={handleConfirm} variant={variant === 'error' ? 'danger' : 'primary'}>
@@ -160,7 +197,7 @@ export function ConfirmModal({
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={title} size="sm">
       <div className="py-4">
-        <p className="text-gray-700 dark:text-gray-300">{message}</p>
+        <p className="text-white dark:text-gray-300">{message}</p>
       </div>
       <div className="flex justify-end space-x-3">
         <Button onClick={onClose} variant="outline">

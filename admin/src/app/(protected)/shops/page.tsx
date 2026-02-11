@@ -305,8 +305,16 @@ export default function ShopsPage() {
       <div>
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Shops</h1>
-          <div className="text-sm text-gray-500 dark:text-gray-400">
-            Showing {filteredShops.length} of {shops.length} {shops.length === 1 ? 'shop' : 'shops'}
+          <div className="flex items-center gap-3">
+            <div className="text-sm text-gray-500 dark:text-gray-400">
+              Showing {filteredShops.length} of {shops.length} {shops.length === 1 ? 'shop' : 'shops'}
+            </div>
+            <Link
+              href="/legacy-shops"
+              className="inline-flex items-center px-3 py-1.5 rounded-lg bg-indigo-500/90 hover:bg-indigo-600 text-white text-sm font-medium cursor-pointer"
+            >
+              Legacy Shops
+            </Link>
           </div>
         </div>
 
@@ -425,7 +433,7 @@ export default function ShopsPage() {
                                     {shop.legacyShop.status || 'PENDING'}
                                   </span>
                                 ) : (
-                                  <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300">
+                                  <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-white dark:bg-gray-900/30 dark:text-gray-300">
                                     Not Legacy
                                   </span>
                                 )}
@@ -467,7 +475,7 @@ export default function ShopsPage() {
       </div>
 
       {showLegacyModal && selectedShop && (
-        <div className="fixed inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm flex items-start sm:items-center justify-center overflow-y-auto z-[1000] p-4 sm:py-8">
           <div className="bg-white dark:bg-slate-800 rounded-lg max-w-lg w-full border border-gray-200 dark:border-slate-700">
             <div className="flex justify-between items-center p-6 border-b border-gray-200 dark:border-slate-700">
               <div>
@@ -524,7 +532,7 @@ export default function ShopsPage() {
             <div className="px-6 py-4 border-t border-gray-200 dark:border-slate-700 flex justify-end gap-3">
               <button
                 onClick={closeLegacyModal}
-                className="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer"
+                className="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg text-white dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer"
               >
                 Cancel
               </button>

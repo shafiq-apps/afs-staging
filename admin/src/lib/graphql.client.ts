@@ -27,6 +27,30 @@ export interface GraphQLClientOptions {
   apiKey: string;
   apiSecret: string;
   endpoint?: string;
+  shopDomain?: string;
+}
+
+function normalizeEndpoint(input?: string): string | null {
+  if (!input) return null;
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+
+  // If URL already points to GraphQL, keep it.
+  if (trimmed.endsWith('/graphql')) {
+    return trimmed;
+  }
+
+  // If it has a path/query, trust caller; otherwise append /graphql.
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.pathname === '/' || parsed.pathname === '') {
+      parsed.pathname = '/graphql';
+      return parsed.toString();
+    }
+    return trimmed;
+  } catch {
+    return trimmed;
+  }
 }
 
 /**
@@ -78,11 +102,30 @@ export class GraphQLClient {
   private apiKey: string;
   private apiSecret: string;
   private endpoint: string;
+  private shopDomain: string;
 
   constructor(options: GraphQLClientOptions) {
+    const appServerEndpoint =
+      normalizeEndpoint(process.env.NEXT_PUBLIC_APP_SERVER_URL) ||
+      normalizeEndpoint(process.env.APP_SERVER_URL);
+    const explicitGraphQLEndpoint =
+      normalizeEndpoint(process.env.NEXT_PUBLIC_GRAPHQL_ENDPOINT) ||
+      normalizeEndpoint(process.env.GRAPHQL_ENDPOINT);
+
     this.apiKey = options.apiKey;
     this.apiSecret = options.apiSecret;
-    this.endpoint = options.endpoint || process.env.NEXT_PUBLIC_GRAPHQL_ENDPOINT || 'http://localhost:3000/graphql';
+    this.endpoint =
+      normalizeEndpoint(options.endpoint) ||
+      appServerEndpoint ||
+      explicitGraphQLEndpoint ||
+      'http://localhost:3554/graphql';
+    this.shopDomain =
+      options.shopDomain?.trim().toLowerCase() ||
+      process.env.NEXT_PUBLIC_ADMIN_SHOP_DOMAIN ||
+      process.env.ADMIN_SHOP_DOMAIN ||
+      process.env.NEXT_PUBLIC_SHOP_DOMAIN ||
+      process.env.SHOP_DOMAIN ||
+      'digitalcoo.myshopify.com';
   }
 
   /**
@@ -90,10 +133,15 @@ export class GraphQLClient {
    */
   async request<T = any>(request: GraphQLRequest): Promise<GraphQLResponse<T>> {
     const method = 'POST';
-    const path = '/graphql';
+    const endpointUrl = new URL(this.endpoint);
+    if (this.shopDomain && !endpointUrl.searchParams.has('shop')) {
+      endpointUrl.searchParams.set('shop', this.shopDomain);
+    }
+
+    const path = endpointUrl.pathname;
     const timestamp = Date.now().toString();
     const nonce = generateNonce();
-    const queryString = buildQueryString({});
+    const queryString = buildQueryString(Object.fromEntries(endpointUrl.searchParams.entries()));
     const bodyHash = hashRequestBody(request);
 
     // Generate signature
@@ -112,7 +160,7 @@ export class GraphQLClient {
     const authHeader = `Admin ${this.apiKey}:${timestamp}:${nonce}:${signature}`;
 
     try {
-      const response = await fetch(this.endpoint, {
+      const response = await fetch(endpointUrl.toString(), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -120,13 +168,18 @@ export class GraphQLClient {
           'X-Admin-Request': 'true',
           'X-Admin-Api-Key': this.apiKey,
           'X-Admin-Api-Secret': this.apiSecret,
+          'X-Shopify-Shop-Domain': this.shopDomain,
+          'X-Shop-Domain': this.shopDomain,
         },
         body: JSON.stringify(request),
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`GraphQL request failed: ${response.status} ${errorText}`);
+        const snippet = errorText.replace(/\s+/g, ' ').slice(0, 240);
+        throw new Error(
+          `GraphQL request failed: ${response.status} ${response.statusText} at ${endpointUrl.toString()} :: ${snippet}`
+        );
       }
 
       const result: GraphQLResponse<T> = await response.json();
@@ -171,8 +224,18 @@ export class GraphQLClient {
  */
 export function createGraphQLClient(): GraphQLClient | null {
   // Try to get from environment variables first (for server-side)
-  const apiKey = process.env.NEXT_PUBLIC_ADMIN_API_KEY || process.env.ADMIN_API_KEY;
-  const apiSecret = process.env.ADMIN_API_SECRET;
+  const apiKey =
+    process.env.NEXT_PUBLIC_API_KEY ||
+    process.env.API_KEY;
+  const apiSecret =
+    process.env.NEXT_PUBLIC_API_SECRET ||
+    process.env.API_SECRET;
+  const shopDomain =
+    process.env.NEXT_PUBLIC_ADMIN_SHOP_DOMAIN ||
+    process.env.ADMIN_SHOP_DOMAIN ||
+    process.env.NEXT_PUBLIC_SHOP_DOMAIN ||
+    process.env.SHOP_DOMAIN ||
+    'digitalcoo.myshopify.com';
 
   if (!apiKey || !apiSecret) {
     // Try to get from session storage (for client-side)
@@ -184,6 +247,7 @@ export function createGraphQLClient(): GraphQLClient | null {
         return new GraphQLClient({
           apiKey: storedApiKey,
           apiSecret: storedApiSecret,
+          shopDomain,
         });
       }
     }
@@ -195,6 +259,7 @@ export function createGraphQLClient(): GraphQLClient | null {
   return new GraphQLClient({
     apiKey,
     apiSecret,
+    shopDomain,
   });
 }
 

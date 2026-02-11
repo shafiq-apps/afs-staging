@@ -138,7 +138,7 @@ export default function Layout({ children }: LayoutProps) {
         <div className="min-h-screen bg-gray-50 dark:bg-slate-950 relative transition-colors duration-200">
           <AnimatedBackground />
           <Navbar user={user} />
-          <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10">
+          <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative">
             <div className="flex justify-center items-center h-64">
               <div className="text-gray-500 dark:text-gray-400">Loading...</div>
             </div>
@@ -157,7 +157,7 @@ export default function Layout({ children }: LayoutProps) {
       <div className="min-h-screen bg-gray-50 dark:bg-slate-950 relative transition-colors duration-200">
         <AnimatedBackground />
         <Navbar user={user} />
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10">
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative">
           {children}
         </main>
       </div>
