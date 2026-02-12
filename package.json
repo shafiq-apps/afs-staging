@@ -14,7 +14,8 @@
     "app": "cd ./app && npm run dev",
     "admin": "cd ./admin && npm run dev",
     "admin:build": "cd ./admin && npm run build",
-    "generate:keys": "cd ./app && npm run generate:keys"
+    "generate:keys": "cd ./app && npm run generate:keys",
+    "zip": "cd ./app && npm run zip"
   },
   "repository": {
     "type": "git",
@@ -27,12 +28,14 @@
   },
   "homepage": "https://github.com/shafiq-apps/afs-staging#readme",
   "dependencies": {
-    "dotenv": "^17.2.3"
+    "dotenv": "^17.2.3",
+    "ignore": "^7.0.5",
+    "tar": "^7.5.7"
   },
   "devDependencies": {
     "concurrently": "^9.2.1"
   },
   "engines": {
-		"node": ">=22.21.0 <23"
-	}
+    "node": ">=22.21.0 <23"
+  }
 }
