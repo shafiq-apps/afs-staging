@@ -12,4 +12,8 @@ target_dir="../"
 # Create tar.gz in the target directory
 tar -czvf "${target_dir}afsv-$datetime.tar.gz" $files
 
+echo "";
+echo "***************************************************************";
 echo "Created ${target_dir}afsv-$datetime.tar.gz"
+echo "***************************************************************";
+echo "";
