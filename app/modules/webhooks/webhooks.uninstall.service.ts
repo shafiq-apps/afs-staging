@@ -6,12 +6,12 @@
 
 import { Client } from '@elastic/elasticsearch';
 import { createModuleLogger } from '@shared/utils/logger.util';
-import { ShopsRepository } from '@modules/shops/shops.repository';
 import { FiltersRepository } from '@modules/filters/filters.repository';
 import { IndexingLockService } from '@modules/indexing/indexing.lock.service';
-import { SHOPS_INDEX_NAME, CHECKPOINT_INDEX_NAME, LOCK_INDEX_NAME } from '@shared/constants/es.constant';
+import { CHECKPOINT_INDEX_NAME, LOCK_INDEX_NAME } from '@shared/constants/es.constant';
 import { PRODUCT_INDEX_NAME } from '@shared/constants/products.constants';
 import { ShopifyShopName } from '@shared/utils/shopify-shop.util';
+import { ON_UNINSTALLED_APP_DELETE_DATA_BY_ID_FROM_INDEXES } from '@core/elasticsearch/es.index.config';
 
 const logger = createModuleLogger('webhooks-uninstall');
 
@@ -36,21 +36,11 @@ export async function performUninstallCleanup(
     locksCleaned: false,
   };
 
-  const shopsRepository = new ShopsRepository(esClient, SHOPS_INDEX_NAME);
-  
-  // Get existing shop to preserve data
-  const existingShop = await shopsRepository.getShop(shop);
-  
-  if (!existingShop) {
-    logger.warn(`Shop not found for uninstall: ${shop}`);
-    // Still perform cleanup even if shop not found
-  }
-
   // 1. Delete Elasticsearch product index for this shop
   try {
     const productIndexName = PRODUCT_INDEX_NAME(shop);
     const indexExists = await esClient.indices.exists({ index: productIndexName });
-    
+
     if (indexExists) {
       await esClient.indices.delete({ index: productIndexName });
       cleanupResults.shopIndexDeleted = true;
@@ -87,7 +77,7 @@ export async function performUninstallCleanup(
       index: CHECKPOINT_INDEX_NAME,
       id: checkpointId,
     });
-    
+
     if (checkpointExists) {
       await esClient.delete({
         index: CHECKPOINT_INDEX_NAME,
@@ -114,7 +104,7 @@ export async function performUninstallCleanup(
       index: LOCK_INDEX_NAME,
       id: lockId,
     });
-    
+
     if (lockExists) {
       await lockService.releaseLock(shop);
       cleanupResults.locksCleaned = true;
@@ -129,34 +119,26 @@ export async function performUninstallCleanup(
     // Continue with other cleanup steps
   }
 
-  // 5. Update shop status to track uninstallation
-  if (existingShop) {
-    try {
-      const updateData = {
-        ...existingShop,
-        uninstalledAt: new Date().toISOString(),
-        lastAccessed: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
+  const results = await Promise.allSettled(
+    ON_UNINSTALLED_APP_DELETE_DATA_BY_ID_FROM_INDEXES.map((index) =>
+      esClient.delete({
+        index,
+        id: shop,
+        refresh: false,
+      })
+    )
+  );
 
-      const updatedShop = await shopsRepository.saveShop(updateData);
-      
-      if (!updatedShop) {
-        logger.warn(`Failed to update shop status for uninstall: ${shop}`);
-      } else {
-        logger.info(`Shop status updated for uninstall: ${shop}`, {
-          uninstalledAt: updatedShop.uninstalledAt,
-        });
-      }
-    } catch (error: any) {
-      logger.error(`Error updating shop status for uninstall: ${shop}`, {
-        error: error?.message || error,
-      });
-      // Don't fail cleanup if status update fails
+  results.forEach((res, i) => {
+    const index = ON_UNINSTALLED_APP_DELETE_DATA_BY_ID_FROM_INDEXES[i];
+
+    if (res.status === "fulfilled") {
+      logger.info(`Deleted document for shop: ${shop} from index: ${index}`);
+    } else {
+      logger.error(`Failed to delete documnt for _id: ${shop} from index: ${index}`, res.reason);
     }
-  }
+  });
 
   logger.info(`Uninstallation cleanup completed for shop: ${shop}`, cleanupResults);
   return cleanupResults;
 }
-

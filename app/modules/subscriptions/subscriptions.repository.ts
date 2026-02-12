@@ -97,7 +97,7 @@ export class SubscriptionsRepository {
  * Create or update subscription by fetching latest data from Shopify
  * This prevents client-side tampering.
  */
-  async createOrUpdateSubscription(shop: string, shopifySubscriptionId: string): Promise<StoredSubscription> {
+  async createOrUpdateSubscription(shop: string, shopifySubscriptionId: string): Promise<StoredSubscription | null> {
     try {
       const index = SUBSCRIPTIONS_INDEX_NAME;
       const shopifyRes = await this.post<{
@@ -122,7 +122,30 @@ export class SubscriptionsRepository {
           shopifySubscriptionId: shopifySubscriptionId,
           errors: shopifyRes.errors,
         });
-        throw new Error('Failed to fetch subscription from Shopify');
+        const updated: any = {
+          status: "INACTIVE",
+          updatedAt: new Date().toISOString(),
+          shopifySubscriptionId: null
+        };
+
+        await this.esClient.update({
+          index,
+          id: shop,
+          doc: updated,
+          refresh: true,
+        });
+
+        const response = await this.esClient.get({
+          index,
+          id: shop,
+        });
+
+        if (response.found && response._source) {
+          return response._source as StoredSubscription;
+        }
+
+        return null;
+
       }
 
       const remote = shopifyRes.data?.node;
@@ -143,10 +166,11 @@ export class SubscriptionsRepository {
         lineItems: remote.lineItems || [],
       };
 
-      await this.esClient.index({
+      await this.esClient.update({
         index,
         id: shop,
-        document: updated
+        doc: updated,
+        doc_as_upsert: true
       });
 
       logger.info('Subscription status synced from Shopify', {
@@ -164,7 +188,7 @@ export class SubscriptionsRepository {
         error: error?.message || error,
         stack: error?.stack,
       });
-      throw error;
+      return null;
     }
   }
 

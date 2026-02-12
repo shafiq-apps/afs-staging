@@ -89,6 +89,14 @@ export const subscriptionsResolvers = {
         const plansRepo = new SubscriptionPlansRepository(context.req.esClient);
         const plan = await plansRepo.get(planId);
 
+        // Fetch trusted plan from your ES repository
+        const shopRepo = new ShopsRepository(context.req.esClient);
+        const shopData = await shopRepo.getShopDetails(shop, ['shop', 'installedAt']);
+
+        if (!shopData) {
+          throw new Error(`Shop not found: ${shop}`);
+        }
+
         if (!plan) {
           throw new Error(`Subscription plan not found: ${planId}`);
         }
@@ -102,11 +110,31 @@ export const subscriptionsResolvers = {
                   amount: plan.price.amount,
                   currencyCode: plan.price.currencyCode,
                 },
-                interval: plan.interval, // EVERY_30_DAYS | ANNUAL
-              },
-            },
-          },
+                interval: plan.interval // EVERY_30_DAYS | ANNUAL
+              }
+            }
+          }
         ];
+
+        const trialDays: number = parseInt(process.env.SHOPIFY_APP_SUBSCRIPTIONS_TRIAL_DAYS, 10) ?? 21;
+        let trialDaysRemaining: number = trialDays;
+
+        try {
+          const installedAt = new Date(shopData.installedAt);
+          const now = new Date();
+          const daysSinceInstall = Math.ceil((now.getTime() - installedAt.getTime()) / (1000 * 60 * 60 * 24));
+
+          if (daysSinceInstall >= trialDays) {
+            trialDaysRemaining = 0;
+          }
+          else {
+            trialDaysRemaining = trialDays - daysSinceInstall;
+          }
+
+          trialDaysRemaining = trialDaysRemaining > 0 ? trialDaysRemaining : 0;
+        } catch (error) {
+          
+        }
 
         const repo = getSubscriptionsRepository(context);
 
@@ -118,8 +146,8 @@ export const subscriptionsResolvers = {
           name: plan.name,
           lineItems,
           returnUrl,
-          trialDays: parseInt(process.env.SHOPIFY_APP_SUBSCRIPTIONS_TRIAL_DAYS, 10)??21,
-          test: process.env.SHOPIFY_APP_SUBSCRIPTIONS_TEST_MODE === 'true',
+          trialDays: trialDaysRemaining,
+          test: process.env.NODE_ENV !== 'production', // Only create test subscriptions in non-production environments
         };
 
         const payload = await repo.post<{

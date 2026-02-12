@@ -5,6 +5,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { LoadingBar } from '@/components/ui/LoadingBar';
 import Input from '@/components/ui/Input';
 import { RefreshCw, Search } from 'lucide-react';
+import { Banner, Button } from '@/components/ui';
+import { formatDate, normalizeShopifyId } from '@/lib/string.utils';
 
 interface SubscriptionLineItem {
   id: string;
@@ -135,13 +137,13 @@ export default function SubscriptionsPage() {
             </p>
           </div>
 
-          <button
+          <Button
+            title='Refresh'
             onClick={() => void fetchSubscriptions()}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-500/90 hover:bg-purple-600 text-white transition-colors duration-200 shadow-md shadow-purple-500/20 hover:shadow-purple-500/30 cursor-pointer"
+            icon={RefreshCw}
           >
-            <RefreshCw className="h-4 w-4" />
             Refresh
-          </button>
+          </Button>
         </div>
 
         <div className="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 p-4">
@@ -178,13 +180,13 @@ export default function SubscriptionsPage() {
                     Name
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    Plan
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                     Status
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Shopify Subscription ID
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Updated
+                    Shopify ID
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                     Actions
@@ -209,11 +211,38 @@ export default function SubscriptionsPage() {
                           href={`/shops/${encodeURIComponent(subscription.shop)}`}
                           className="text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300"
                         >
-                          {subscription.shop}
+                          <div>{subscription.shop}</div>
+                          <div className="text-xs font-sm text-gray-500 dark:text-gray-400 gap-2 flex flex-columns">
+                            <span className='inline-block'>Created: {formatDate(subscription.createdAt)}</span>
+                            {
+                              subscription.updatedAt && (
+                                <span className='inline-block'>|</span>
+                              )
+                            }
+                            {
+                              subscription.updatedAt && (
+                                <span className='inline-block'>
+                                  Updated {formatDate(subscription.updatedAt)}
+                                </span>
+                              )
+                            }
+                          </div>
                         </Link>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                         {subscription.name || '-'}
+                        {
+                          subscription.shopifySubscriptionId && (
+                            <div className="text-xs font-sm text-gray-500 dark:text-gray-400">Shopify ID: {normalizeShopifyId(subscription.shopifySubscriptionId)}</div>
+                          )
+                        }
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                        <span
+                          className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${subscription.test ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'}`}
+                        >
+                          {subscription.test ? 'TEST PLAN' : 'PAID'}
+                        </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
@@ -221,29 +250,22 @@ export default function SubscriptionsPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-xs text-gray-500 dark:text-gray-400 break-all">
-                        {subscription.shopifySubscriptionId || '-'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        {formatDateTime(subscription.updatedAt || subscription.createdAt)}
+                        <div>
+                          {normalizeShopifyId(subscription.shopifySubscriptionId) || '-'}
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <button
+                        <Button
+                          variant='secondary'
                           onClick={() => void syncSubscriptionStatus(subscription)}
                           disabled={syncingShop === subscription.shop}
-                          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-indigo-500/90 hover:bg-indigo-600 disabled:opacity-60 text-white text-xs font-medium cursor-pointer"
+                          icon={RefreshCw}
+                          loading={syncingShop === subscription.shop}
                         >
-                          {syncingShop === subscription.shop ? (
-                            <>
-                              <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                              Syncing...
-                            </>
-                          ) : (
-                            <>
-                              <RefreshCw className="h-3.5 w-3.5" />
-                              Sync Status
-                            </>
-                          )}
-                        </button>
+                          {
+                            syncingShop === subscription.shop ? "Checking..." : "Check Status"
+                          }
+                        </Button>
                       </td>
                     </tr>
                   ))

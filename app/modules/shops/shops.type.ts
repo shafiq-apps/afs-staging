@@ -3,19 +3,26 @@
  * Types for shop data structures
  */
 
+export type LegacyShopStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED';
+export type ShopStatus = 'ACTIVE' | 'UNINSTALLED';
+
 export interface Shop {
-  shop: string;
-  accessToken: string;
-  installedAt?: string;
+  shop?: string;
+  accessToken?: string;
+  installedAt?: Date;
   scopes?: string[];
   refreshToken?: string;
   metadata?: Record<string, any>;
   locals?: Record<string, any>;
-  lastAccessed?: string;
+  lastAccessed?: Date;
+  uninstalledAt?: Date;
+  updatedAt?: Date,
+  sessionId?: string,
+  scope?: string,
+  isDeleted?: boolean,
+  state?: ShopStatus;
   [key: string]: any;
 }
-
-export type LegacyShopStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED';
 
 export interface LegacyShop {
   shop: string;
@@ -33,20 +40,6 @@ export type LegacyShopInput = {
   statusMessage?: string;
 };
 
-export interface CreateShopInput {
-  shop: string;
-  accessToken: string;
-  scopes?: string[];
-  refreshToken?: string;
-  metadata?: Record<string, any>;
-}
+export interface CreateShopInput extends Shop { }
 
-export interface UpdateShopInput {
-  accessToken?: string;
-  scopes?: string[];
-  refreshToken?: string;
-  metadata?: Record<string, any>;
-  locals?: Record<string, any>;
-  lastAccessed?: string;
-}
-
+export interface UpdateShopInput extends Shop { }

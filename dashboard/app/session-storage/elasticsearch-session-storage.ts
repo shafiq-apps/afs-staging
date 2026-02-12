@@ -22,9 +22,11 @@ function sessionToShopDocument(session: Session): any {
     scopes: session.scope ? session.scope.split(',') : [],
     lastAccessed: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+    uninstalledAt: null,
+    isDeleted: false,
+    state: "ACTIVE",
     // Session fields
     sessionId: session.id,
-    state: session.state,
     isOnline: session.isOnline || false,
     scope: session.scope,
     expires: session.expires ? session.expires.toISOString() : null,

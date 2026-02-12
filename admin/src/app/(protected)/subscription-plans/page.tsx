@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, X, Save, Eye } from 'lucide-react';
 import { LoadingBar } from '@/components/ui/LoadingBar';
 import Checkbox from '@/components/ui/Checkbox';
-import { AlertModal, ConfirmModal, Input, Modal, Select, Textarea } from '@/components/ui';
+import { AlertModal, Button, ConfirmModal, Input, Modal, Select, Textarea } from '@/components/ui';
 import type { SelectOption } from '@/components/ui';
 
 export interface SubscriptionPlan {
@@ -191,7 +191,7 @@ export default function SubscriptionPlansPage() {
   };
 
   const formatPrice = (plan: SubscriptionPlan) => {
-    return `${plan.price.currencyCode} ${plan.price.amount.toFixed(2)}`;
+    return `${plan.price.amount.toFixed(2)} ${plan.price.currencyCode}`;
   };
 
   if (loading) {
@@ -210,25 +210,22 @@ export default function SubscriptionPlansPage() {
       <div>
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Subscription Plans</h1>
-          <button
+          <Button
+            icon={Plus}
+            title='Add Plan'
             onClick={() => {
               resetForm();
               setShowAddModal(true);
             }}
-            className="flex items-center space-x-2 bg-purple-500/90 hover:bg-purple-600 text-white px-4 py-2 rounded-lg transition-colors duration-200 shadow-md shadow-purple-500/20 hover:shadow-purple-500/30 cursor-pointer"
           >
-            <Plus className="h-5 w-5" />
-            <span>Add Plan</span>
-          </button>
+            Add Plan
+          </Button>
         </div>
 
         <div className="bg-white dark:bg-slate-800 rounded-lg overflow-hidden border border-gray-200 dark:border-slate-700">
           <table className="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
             <thead className="bg-gray-50 dark:bg-slate-700">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Handle
-                </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   Name
                 </th>
@@ -240,9 +237,6 @@ export default function SubscriptionPlansPage() {
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   Product Limit
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Test
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   Created
@@ -263,10 +257,8 @@ export default function SubscriptionPlansPage() {
                 plans.map((plan) => (
                   <tr key={plan.id} className="hover:bg-gray-50 dark:hover:bg-slate-700/50">
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{plan.handle}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900 dark:text-gray-100">{plan.name}</div>
+                      <div className="text-xs font-sm text-gray-500 dark:text-gray-400">{plan.handle}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900 dark:text-gray-100">{formatPrice(plan)}</div>
@@ -277,47 +269,37 @@ export default function SubscriptionPlansPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900 dark:text-gray-100">{plan.productLimit}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span
-                        className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${plan.test
-                          ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
-                          : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-                          }`}
-                      >
-                        {plan.test ? 'Test' : 'Live'}
-                      </span>
+                      <div className="text-sm text-gray-900 dark:text-gray-100">{Number(plan.productLimit).toLocaleString()}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-500 dark:text-gray-400">{formatDate(plan.createdAt)}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex items-center space-x-2">
-                        <button
-                          onClick={() => handleView(plan)}
-                          className="inline-flex items-center space-x-1 px-3 py-1.5 bg-blue-500/90 hover:bg-blue-600 text-white rounded-lg transition-colors duration-200 shadow-md shadow-blue-500/20 hover:shadow-blue-500/30 cursor-pointer text-xs"
+                        <Button
                           title="View"
+                          onClick={() => handleView(plan)}
+                          variant='outline'
+                          size='sm'
                         >
-                          <Eye className="h-4 w-4" />
-                          <span>View</span>
-                        </button>
-                        <button
-                          onClick={() => handleEdit(plan)}
-                          className="inline-flex items-center space-x-1 px-3 py-1.5 bg-purple-500/90 hover:bg-purple-600 text-white rounded-lg transition-colors duration-200 shadow-md shadow-purple-500/20 hover:shadow-purple-500/30 cursor-pointer text-xs"
+                          View
+                        </Button>
+                        <Button
                           title="Edit"
+                          onClick={() => handleEdit(plan)}
+                          variant='outline'
+                          size='sm'
                         >
-                          <Edit className="h-4 w-4" />
-                          <span>Edit</span>
-                        </button>
-                        <button
-                          onClick={() => setConfirmDeletePlanId(plan.id)}
-                          className="inline-flex items-center space-x-1 px-3 py-1.5 bg-red-500/90 hover:bg-red-600 text-white rounded-lg transition-colors duration-200 shadow-md shadow-red-500/20 hover:shadow-red-500/30 cursor-pointer text-xs"
+                          Edit
+                        </Button>
+                        <Button
                           title="Delete"
+                          onClick={() => setConfirmDeletePlanId(plan.id)}
+                          variant='outline'
+                          size='sm'
                         >
-                          <Trash2 className="h-4 w-4" />
-                          <span>Delete</span>
-                        </button>
+                          Delete
+                        </Button>
                       </div>
                     </td>
                   </tr>

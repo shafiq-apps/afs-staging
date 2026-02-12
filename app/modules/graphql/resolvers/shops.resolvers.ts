@@ -40,7 +40,7 @@ function getShopsRepository(context: GraphQLContext): ShopsRepository {
   if (!esClient) {
     throw new Error('ES client not available in context');
   }
-  
+
   if (!shopsRepo) {
     shopsRepo = new ShopsRepository(esClient, SHOPS_INDEX_NAME);
   }
@@ -62,7 +62,7 @@ export const shopsResolvers = {
         logger.info('Getting shop by domain', { domain });
 
         const repo = getShopsRepository(context);
-        
+
         // Get shop directly from ES to include accessToken (not filtered)
         const esClient = getESClient(context);
         try {
@@ -89,7 +89,7 @@ export const shopsResolvers = {
             throw esError;
           }
         }
-        
+
         logger.warn('Shop not found', { domain });
         return null;
       } catch (error: any) {
@@ -115,11 +115,11 @@ export const shopsResolvers = {
         logger.info('Checking if shop exists', { domain });
 
         const repo = getShopsRepository(context);
-        
+
         // Check if shop exists by trying to get it
         const shop = await repo.getShop(domain);
         const exists = !!shop;
-        
+
         logger.info('Shop exists check result', { domain, exists });
         return exists;
       } catch (error: any) {
@@ -189,7 +189,7 @@ export const shopsResolvers = {
         throw error;
       }
     },
-    
+
     /**
      * Get indexing status for a shop
      */
@@ -203,11 +203,11 @@ export const shopsResolvers = {
         logger.info('Checking if shop exists', { shop });
 
         const repo = getShopsRepository(context);
-        
+
         // Check if shop exists by trying to get it
         const isLegacy = await repo.getLegacyShop(shop);
         const exists = !!isLegacy;
-        
+
         logger.info('Shop exists check result', { shop, exists });
         return exists;
       } catch (error: any) {
@@ -230,10 +230,10 @@ export const shopsResolvers = {
         logger.info('Checking if shop exists', { shop });
 
         const repo = getShopsRepository(context);
-        
+
         // Check if shop exists by trying to get it
         const legacyShops = await repo.getLegacyShop(shop);
-        
+
         return legacyShops;
       } catch (error: any) {
         logger.error('Error in legacyShops resolver', {
@@ -260,7 +260,7 @@ export const shopsResolvers = {
         logger.info('Creating shop', { shop: input.shop });
 
         const repo = getShopsRepository(context);
-        
+
         // ShopsRepository.saveShop handles creation
         const shop = await repo.saveShop(input);
         logger.info('Shop created', { shop: shop?.shop });
@@ -288,10 +288,10 @@ export const shopsResolvers = {
         logger.info('Updating shop', { domain });
 
         const repo = getShopsRepository(context);
-        
+
         // ShopsRepository.updateShop handles updates
         const shop = await repo.updateShop(domain, input);
-        
+
         logger.info('Shop updated', { domain, found: !!shop });
         return shop;
       } catch (error: any) {
@@ -304,7 +304,9 @@ export const shopsResolvers = {
     },
 
     /**
-     * Delete shop
+     * Delete shop, 
+     * This method will update details instead of deleting complete document.
+     * Because we retains some of the information for marketing purpose only.
      */
     async deleteShop(parent: any, args: { domain: string }, context: GraphQLContext): Promise<boolean> {
       try {
@@ -320,22 +322,17 @@ export const shopsResolvers = {
           throw new Error('ES client not available in context');
         }
 
-        // Delete directly from ES (ShopsRepository doesn't have delete method)
-        try {
-          await esClient.delete({
-            index: SHOPS_INDEX_NAME,
-            id: domain,
-            refresh: true,
-          });
-          logger.info('Shop deleted', { domain });
-          return true;
-        } catch (error: any) {
-          if (error.statusCode === 404) {
-            logger.warn('Shop not found for deletion', { domain });
-            return false;
-          }
-          throw error;
-        }
+        const repo = getShopsRepository(context);
+        await repo.updateShop(domain, {
+          uninstalledAt: new Date(),
+          updatedAt: new Date(),
+          accessToken: "",
+          sessionId: "",
+          scope: "",
+          state: "UNINSTALLED",
+          isDeleted: true,
+        });
+        return true;
       } catch (error: any) {
         logger.error('Error in deleteShop resolver', {
           error: error?.message || error,
@@ -360,11 +357,11 @@ export const shopsResolvers = {
         logger.info('Reindex products request received', { shop });
 
         const repo = getShopsRepository(context);
-        
+
         // Verify shop exists and has access token
         logger.info(`Looking up shop in ES: ${shop}`);
         const shopData = await repo.getShop(shop);
-        
+
         if (!shopData) {
           logger.error(`Shop not found in ES: ${shop}`);
           return {
@@ -443,13 +440,13 @@ export const shopsResolvers = {
               shop: shopData.shop,
               hasToken: !!shopData.accessToken,
             });
-            
+
             const globalESClient = getGlobalESClient(); // Use global ES client like REST endpoint
             const productMapping = getProductMapping();
-            
+
             // Set status to in_progress immediately in checkpoint before starting indexer
             const checkpointService = new IndexerCheckpointService(globalESClient, shop, 2000);
-            
+
             // Initialize checkpoint with in_progress status immediately
             checkpointService.updateCheckpoint({
               status: 'in_progress',
@@ -460,9 +457,9 @@ export const shopsResolvers = {
             });
             // Force save immediately to make status visible
             await checkpointService.forceSave();
-            
+
             logger.info(`Indexing status set to in_progress for shop=${shop}`);
-            
+
             const deps: BulkIndexerDependencies = {
               esClient: globalESClient,
               shopsRepository: repo,
@@ -475,10 +472,10 @@ export const shopsResolvers = {
 
             logger.info('Creating ProductBulkIndexer instance...');
             const indexer = new ProductBulkIndexer(opts, deps);
-            
+
             logger.info('Starting indexer.run()...');
             await indexer.run();
-            
+
             logger.info(`Background reindex finished successfully for shop=${shop}`);
           } catch (err: any) {
             logger.error(`Background reindex error for shop=${shop}`, {

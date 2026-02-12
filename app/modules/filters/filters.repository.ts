@@ -506,6 +506,7 @@ export class FiltersRepository {
       await this.esClient.delete({
         index,
         id,
+        refresh: false
       });
 
       // Invalidate cache when filter is deleted (always invalidate to be safe)
