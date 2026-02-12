@@ -29,7 +29,7 @@ export function ThemeToggle() {
       icon={CurrentIcon}
       onClick={handleClick}
       title={`Current theme: ${currentTheme.label}. Click to switch.`}
-      className="text-gray-700 dark:text-gray-300"
+      className="text-white dark:text-gray-300"
     >
       <span className="hidden sm:inline">{currentTheme.label}</span>
     </Button>
@@ -56,7 +56,7 @@ export function ThemeSelector() {
             ${
               theme === mode
                 ? 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300'
-                : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800'
+                : 'text-white hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800'
             }
             cursor-pointer
           `}

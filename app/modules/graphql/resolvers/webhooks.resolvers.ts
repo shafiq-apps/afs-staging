@@ -146,7 +146,7 @@ export const webhooksResolvers = {
         }
 
         // Use shared uninstall cleanup service
-        const cleanupResults = await performUninstallCleanup(esClient, shop);
+        await performUninstallCleanup(esClient, shop);
         
         const processedAt = new Date().toISOString();
 

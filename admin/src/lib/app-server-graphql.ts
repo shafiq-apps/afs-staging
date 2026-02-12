@@ -22,6 +22,10 @@ export interface GraphQLResponse<T = any> {
   }>;
 }
 
+export interface GraphQLRequestOptions {
+  shop?: string;
+}
+
 /**
  * Generate a cryptographically secure random nonce
  */
@@ -148,7 +152,8 @@ function createAuthHeader(
  */
 export async function authenticatedGraphQLRequest<T = any>(
   query: string,
-  variables?: Record<string, any>
+  variables?: Record<string, any>,
+  options?: GraphQLRequestOptions
 ): Promise<GraphQLResponse<T>> {
   const apiKey = process.env.API_KEY;
   const apiSecret = process.env.API_SECRET;
@@ -161,14 +166,22 @@ export async function authenticatedGraphQLRequest<T = any>(
   // Build endpoint URL with shop query parameter if present (matching Remix app behavior)
   const baseUrl = `${appServerUrl}/graphql`;
   const url = new URL(baseUrl);
-  
-  // Extract shop from variables and add as query parameter (matching buildGraphQLEndpoint behavior)
-  if (variables?.shop) {
-    url.searchParams.set('shop', variables.shop);
+
+  const shopQueryParam = options?.shop || (typeof variables?.shop === 'string' ? variables.shop : undefined);
+
+  // Extract shop and add as query parameter (matching buildGraphQLEndpoint behavior)
+  if (shopQueryParam) {
+    url.searchParams.set('shop', shopQueryParam);
   }
-  
+
+  const sanitizedVariables = { ...(variables || {}) };
+  // Avoid sending "shop" variable unless caller explicitly keeps it in GraphQL variables.
+  if (options?.shop && Object.prototype.hasOwnProperty.call(sanitizedVariables, 'shop')) {
+    delete sanitizedVariables.shop;
+  }
+
   const endpoint = url.toString();
-  const requestBodyObj = { query, variables };
+  const requestBodyObj = { query, variables: sanitizedVariables };
   const requestBody = JSON.stringify(requestBodyObj);
 
   const authHeader = createAuthHeader('POST', endpoint, requestBodyObj, apiKey, apiSecret);

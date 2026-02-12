@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 
 interface PINFormProps {
@@ -13,28 +13,11 @@ export default function PINForm({ email }: PINFormProps) {
   const [error, setError] = useState('');
   const [pinSent, setPinSent] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
+  const hasAutoSentRef = useRef(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const router = useRouter();
 
-  useEffect(() => {
-    // Auto-send PIN on mount
-    sendPIN();
-  }, []);
-
-  useEffect(() => {
-    if (resendCooldown > 0) {
-      const timer = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [resendCooldown]);
-
-  useEffect(() => {
-    if (pinSent) {
-      inputRefs.current[0]?.focus();
-    }
-  }, [pinSent]);
-
-  const sendPIN = async () => {
+  const sendPIN = useCallback(async () => {
     setLoading(true);
     setError('');
 
@@ -52,12 +35,33 @@ export default function PINForm({ email }: PINFormProps) {
 
       setPinSent(true);
       setResendCooldown(60);
-    } catch (err: any) {
-      setError(err.message || 'Failed to send PIN code');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to send PIN code';
+      setError(message);
     } finally {
       setLoading(false);
     }
-  };
+  }, [email]);
+
+  useEffect(() => {
+    // Guard against Strict Mode double-effect in dev.
+    if (hasAutoSentRef.current) return;
+    hasAutoSentRef.current = true;
+    void sendPIN();
+  }, [sendPIN]);
+
+  useEffect(() => {
+    if (resendCooldown > 0) {
+      const timer = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [resendCooldown]);
+
+  useEffect(() => {
+    if (pinSent) {
+      inputRefs.current[0]?.focus();
+    }
+  }, [pinSent]);
 
   const handleChange = (index: number, value: string) => {
     if (!/^\d*$/.test(value)) return;
@@ -114,8 +118,9 @@ export default function PINForm({ email }: PINFormProps) {
 
       router.push('/dashboard');
       router.refresh();
-    } catch (err: any) {
-      setError(err.message || 'Invalid PIN. Please try again.');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Invalid PIN. Please try again.';
+      setError(message);
       setPin(['', '', '', '', '', '']);
       inputRefs.current[0]?.focus();
     } finally {
@@ -168,7 +173,7 @@ export default function PINForm({ email }: PINFormProps) {
               onChange={(e) => handleChange(index, e.target.value)}
               onKeyDown={(e) => handleKeyDown(index, e)}
               onPaste={handlePaste}
-              className="pin-input w-14 h-16 text-center text-2xl font-semibold border border-amber-900/30 rounded-lg bg-slate-800/20 backdrop-blur-md text-slate-100 focus:outline-none focus:border-amber-800/50 focus:ring-0 transition-all duration-300 disabled:opacity-50"
+              className="pin-input w-14 h-16 text-center text-2xl font-semibold border border-amber-900/30 rounded-lg bg-slate-800/20 backdrop-blur-md text-slate-100 focus:outline-none focus:border-amber-800/50 focus:ring-0 transition-all duration-300 disabled:opacity-50 dark:[color-scheme:dark]"
               disabled={loading}
             />
           ))}

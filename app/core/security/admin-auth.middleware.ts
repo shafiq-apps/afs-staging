@@ -7,6 +7,7 @@
 import { HttpRequest, HttpResponse, HttpNextFunction } from '@core/http/http.types';
 import { createModuleLogger } from '@shared/utils/logger.util';
 import * as crypto from 'crypto';
+import { getApiKey, getApiSecret } from './api-keys.helper';
 
 const logger = createModuleLogger('admin-auth-middleware');
 
@@ -89,6 +90,21 @@ function generateSignature(
   return crypto.createHmac('sha256', secret).update(message).digest('hex');
 }
 
+function secretsMatch(provided: string, expected: string): boolean {
+  const providedBuffer = Buffer.from(provided);
+  const expectedBuffer = Buffer.from(expected);
+
+  if (providedBuffer.length !== expectedBuffer.length) {
+    return false;
+  }
+
+  return crypto.timingSafeEqual(providedBuffer, expectedBuffer);
+}
+
+function signaturesMatch(provided: string, expected: string): boolean {
+  return secretsMatch(provided, expected);
+}
+
 /**
  * Admin authentication middleware
  * Validates API credentials for admin GraphQL requests
@@ -167,25 +183,16 @@ export function adminAuthenticate() {
         return;
       }
 
-      // Get admin users service from request (injected by bootstrap)
-      const adminUsersService = (req as any).adminUsersService;
-      if (!adminUsersService) {
-        logger.error('AdminUsersService not available in request');
-        res.status(500).json({
-          success: false,
-          error: {
-            message: 'Internal server error',
-            extensions: {
-              code: 'INTERNAL_ERROR',
-            },
-          },
-        });
-        return;
-      }
+      // Hash request body
+      const bodyHash = hashRequestBody(req.body);
 
-      // Get admin user by API key
-      const adminUser = await adminUsersService.getUserByApiKey(apiKey);
-      if (!adminUser || !adminUser.isActive) {
+      // Build query string
+      const queryString = buildQueryString(req.query as Record<string, any>);
+
+      const configuredSecret = getApiSecret(apiKey);
+      const apiKeyConfig = getApiKey(apiKey);
+
+      if (!configuredSecret || !apiKeyConfig) {
         logger.warn('Invalid admin API key', {
           path: req.path,
           method: req.method,
@@ -201,67 +208,43 @@ export function adminAuthenticate() {
           },
         });
         return;
-      }
+      } else {
+        const expectedSignature = generateSignature(
+          req.method,
+          req.path,
+          queryString,
+          bodyHash,
+          String(timestamp),
+          nonce,
+          configuredSecret
+        );
 
-      // Hash request body
-      const bodyHash = hashRequestBody(req.body);
-
-      // Build query string
-      const queryString = buildQueryString(req.query as Record<string, any>);
-
-      // Generate expected signature
-      // Note: We need the plain secret, but it's stored hashed
-      // For now, we'll validate using the validateApiCredentials method
-      // which compares the provided secret with the stored hash
-      const bodyString = req.body?.query || JSON.stringify(req.body || {});
-      const message = `${req.method}\n${req.path}\n${queryString}\n${bodyHash}\n${timestamp}\n${nonce}`;
-      
-      // Extract secret from signature (this is a simplified approach)
-      // In production, the client should send the secret separately or we use a different auth method
-      // For now, we'll validate by checking if the signature matches what we'd generate
-      // But we need the plain secret to generate the signature...
-      
-      // Actually, for HMAC-SHA256, the client needs to send the secret somehow
-      // Let's use a simpler approach: validate API key + secret from headers
-      // Format: X-Admin-Api-Key and X-Admin-Api-Secret headers
-      const apiSecret = req.headers['x-admin-api-secret'] as string;
-      
-      if (!apiSecret) {
-        logger.warn('Admin request missing API secret', {
-          path: req.path,
-          method: req.method,
-        });
-        res.status(401).json({
-          success: false,
-          error: {
-            message: 'API secret required',
-            extensions: {
-              code: 'UNAUTHORIZED',
+        if (!signaturesMatch(providedSignature, expectedSignature)) {
+          logger.warn('Invalid admin signature', {
+            path: req.path,
+            method: req.method,
+            apiKey: apiKey.substring(0, 8) + '...',
+          });
+          res.status(401).json({
+            success: false,
+            error: {
+              message: 'Invalid API credentials',
+              extensions: {
+                code: 'UNAUTHORIZED',
+              },
             },
-          },
-        });
-        return;
+          });
+          return;
+        }
       }
 
-      // Validate API credentials
-      const isValid = await adminUsersService.validateApiCredentials(apiKey, apiSecret);
-      if (!isValid) {
-        logger.warn('Invalid admin API credentials', {
-          path: req.path,
-          method: req.method,
-          apiKey: apiKey.substring(0, 8) + '...',
-        });
-        res.status(401).json({
-          success: false,
-          error: {
-            message: 'Invalid API credentials',
-            extensions: {
-              code: 'UNAUTHORIZED',
-            },
-          },
-        });
-        return;
-      }
+      const adminUser = {
+        id: `env:${apiKey.substring(0, 8)}`,
+        email: 'env-admin@local',
+        name: apiKeyConfig.name || 'Env Admin',
+        role: 'super_admin',
+        isActive: true,
+      };
 
       // Set admin user in request
       (req as any).adminUser = adminUser;

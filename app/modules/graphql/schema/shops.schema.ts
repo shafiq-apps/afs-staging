@@ -99,6 +99,8 @@ export const shopsSchema = `
     locale: String
     collaborator: Boolean
     emailVerified: Boolean
+    isDeleted: Boolean
+    uninstalledAt: Boolean
   }
 
   input UpdateShopInput {

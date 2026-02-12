@@ -83,14 +83,14 @@ export const subscriptionSchema = `
   }
 
   type StoredSubscription {
-    id: ID!
-    shopifySubscriptionId: ID!
-    name: String!
-    status: String!
+    id: ID
+    shopifySubscriptionId: ID
+    name: String
+    status: String
     confirmationUrl: URL
-    test: Boolean!
-    lineItems: [StoredSubscriptionLineItem!]!
-    createdAt: String!
+    test: Boolean
+    lineItems: [StoredSubscriptionLineItem]
+    createdAt: String
     updatedAt: String
   }
 

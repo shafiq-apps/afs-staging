@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/jwt.utils';
-import { getUserById, updateUser, deleteUser, getDefaultPermissions } from '@/lib/user.storage';
+import { getUserById, updateUser, deleteUser, getDefaultPermissions, getUserByEmail } from '@/lib/user.storage';
 import { UserRole } from '@/types/auth';
 import { z } from 'zod';
 
@@ -17,11 +17,60 @@ const updateUserSchema = z.object({
   isActive: z.boolean().optional(),
 });
 
+const TEAM_ADMIN_DOMAINS = (
+  process.env.TEAM_ADMIN_DOMAINS ||
+  process.env.ADMIN_EMAIL_DOMAINS ||
+  'digitalcoo.com'
+)
+  .split(',')
+  .map((value) => value.trim().toLowerCase())
+  .filter(Boolean);
+
+function isTeamAdminEmail(email?: string): boolean {
+  if (!email) return false;
+  const normalized = email.trim().toLowerCase();
+  return TEAM_ADMIN_DOMAINS.some((domain) => normalized.endsWith(`@${domain}`));
+}
+
+async function hasManageTeamAccess(session: {
+  userId: string;
+  email: string;
+  role?: string;
+  permissions?: { canManageTeam?: boolean };
+}) {
+  if (process.env.NODE_ENV !== 'production') {
+    return true;
+  }
+
+  if (
+    session.role === 'super_admin' ||
+    session.role === 'admin' ||
+    isTeamAdminEmail(session.email) ||
+    Boolean(session.permissions?.canManageTeam)
+  ) {
+    return true;
+  }
+
+  const currentUser = (await getUserById(session.userId)) ?? (await getUserByEmail(session.email));
+  if (!currentUser || !currentUser.isActive) {
+    return false;
+  }
+
+  return (
+    currentUser.role === 'super_admin' ||
+    currentUser.role === 'admin' ||
+    isTeamAdminEmail(currentUser.email) ||
+    Boolean(currentUser.permissions?.canManageTeam)
+  );
+}
+
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
+
     const token = request.cookies.get('auth_token')?.value;
     if (!token) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
@@ -32,11 +81,11 @@ export async function GET(
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
-    if (!session.permissions.canManageTeam) {
+    if (!(await hasManageTeamAccess(session))) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const user = await getUserById(params.id);
+    const user = await getUserById(id);
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
@@ -53,9 +102,11 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
+
     const token = request.cookies.get('auth_token')?.value;
     if (!token) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
@@ -66,14 +117,14 @@ export async function PATCH(
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
-    if (!session.permissions.canManageTeam) {
+    if (!(await hasManageTeamAccess(session))) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const body = await request.json();
     const updates = updateUserSchema.parse(body);
 
-    const existingUser = await getUserById(params.id);
+    const existingUser = await getUserById(id);
     if (!existingUser) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
@@ -87,7 +138,7 @@ export async function PATCH(
     }
 
     // Merge permissions if role is being updated
-    let finalUpdates = { ...updates };
+    const finalUpdates = { ...updates };
     if (updates.role) {
       const defaultPerms = getDefaultPermissions(updates.role as UserRole);
       finalUpdates.permissions = {
@@ -97,16 +148,22 @@ export async function PATCH(
 
       // Employees cannot have payment/subscription permissions
       if (updates.role === 'employee') {
-        finalUpdates.permissions.canViewPayments = false;
-        finalUpdates.permissions.canViewSubscriptions = false;
+        finalUpdates.permissions = {
+          ...finalUpdates.permissions,
+          canViewPayments: false,
+          canViewSubscriptions: false,
+        };
       }
-    } else if (updates.permissions && existingUser.role === 'employee') {
+    } else if (existingUser.role === 'employee') {
       // Ensure employees can't get payment/subscription permissions
-      finalUpdates.permissions.canViewPayments = false;
-      finalUpdates.permissions.canViewSubscriptions = false;
+      finalUpdates.permissions = {
+        ...(finalUpdates.permissions || {}),
+        canViewPayments: false,
+        canViewSubscriptions: false,
+      };
     }
 
-    const updatedUser = await updateUser(params.id, finalUpdates);
+    const updatedUser = await updateUser(id, finalUpdates);
     if (!updatedUser) {
       return NextResponse.json(
         { error: 'Failed to update user' },
@@ -115,7 +172,7 @@ export async function PATCH(
     }
 
     return NextResponse.json({ user: updatedUser });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: error.errors[0].message },
@@ -133,9 +190,11 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
+
     const token = request.cookies.get('auth_token')?.value;
     if (!token) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
@@ -146,11 +205,11 @@ export async function DELETE(
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
-    if (!session.permissions.canManageTeam) {
+    if (!(await hasManageTeamAccess(session))) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const user = await getUserById(params.id);
+    const user = await getUserById(id);
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
@@ -171,7 +230,7 @@ export async function DELETE(
       );
     }
 
-    const deleted = await deleteUser(params.id);
+    const deleted = await deleteUser(id);
     if (!deleted) {
       return NextResponse.json(
         { error: 'Failed to delete user' },

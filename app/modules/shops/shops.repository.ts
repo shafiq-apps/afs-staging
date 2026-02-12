@@ -62,6 +62,21 @@ export class ShopsRepository {
     }
   }
 
+  async getShopDetails(shop: string, fields: string[]): Promise<Shop | null> {
+    const response = await this.esClient.get({
+      index: this.index,
+      id: shop,
+      _source_includes: fields,
+    });
+
+    if(response.found && response._source) {
+      return response._source as Shop;
+    }
+
+    return null;
+  }
+
+
   /**
    * Get shop by domain
    * @param shop Shop domain (e.g., example.myshopify.com)
@@ -145,11 +160,12 @@ export class ShopsRepository {
       ...(input as any),
     };
 
-    await this.esClient.index({
+    await this.esClient.update({
       index: this.index,
       id: input.shop,
-      document,
+      doc: document,
       refresh: true,
+      doc_as_upsert: true
     });
 
     logger.info(`Shop saved: ${input.shop}`);
@@ -163,23 +179,16 @@ export class ShopsRepository {
    */
   async updateShop(shop: string, updates: UpdateShopInput): Promise<Shop | null> {
     try {
-      const existing = await this.getShop(shop);
-      if (!existing) {
-        return null;
-      }
 
       const document = {
-        ...existing,
         ...updates,
-        // Preserve installedAt if not updating
-        installedAt: existing.installedAt,
-        updatedAt: new Date().toISOString(),
+        updatedAt: new Date()
       };
 
-      await this.esClient.index({
+      await this.esClient.update({
         index: this.index,
         id: shop,
-        document,
+        doc: document,
         refresh: true,
       });
 
@@ -196,7 +205,7 @@ export class ShopsRepository {
    * @param shop Shop domain
    */
   async uninstallShop(shop: string): Promise<void> {
-    await this.updateShop(shop, { accessToken: null });
+    await this.updateShop(shop, { accessToken: "" });
     logger.info(`Shop uninstalled: ${shop}`);
   }
 
@@ -205,7 +214,7 @@ export class ShopsRepository {
    * @param shop Shop domain
    */
   async recordShopAccess(shop: string): Promise<void> {
-    await this.updateShop(shop, { lastAccessed: new Date().toISOString() });
+    await this.updateShop(shop, { lastAccessed: new Date() });
   }
 }
 

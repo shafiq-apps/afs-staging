@@ -1,151 +1,98 @@
-/**
- * User Storage with GraphQL Integration
- * Uses GraphQL to fetch users from Node.js server, with in-memory fallback
- */
+import crypto from 'crypto';
+import { ADMIN_USERS_INDEX_NAME } from '@/lib/es.constants';
+import { getESClient, initializeES } from '@/lib/elasticsearch';
+import { User, UserPermissions, UserRole } from '@/types/auth';
 
-import { User, UserRole, UserPermissions } from '@/types/auth';
-import { createGraphQLClient, GraphQLClient } from '@/lib/graphql.client';
+type AdminUserDocument = {
+  id: string;
+  email: string;
+  name: string;
+  role: UserRole;
+  permissions?: Partial<UserPermissions>;
+  isActive?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+};
 
-// In-memory fallback storage
-const usersStore = new Map<string, User>();
+const SUPER_ADMIN_EMAILS = new Set(
+  (process.env.SUPER_ADMIN_EMAILS || 'admin@digitalcoo.com')
+    .split(',')
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean)
+);
 
-// GraphQL queries and mutations
-const GET_ALL_USERS_QUERY = `
-  query GetAllAdminUsers {
-    adminUsers {
-      id
-      email
-      name
-      role
-      permissions {
-        canViewPayments
-        canViewSubscriptions
-        canManageShops
-        canManageTeam
-        canViewDocs
-      }
-      isActive
-      createdAt
-      updatedAt
-    }
-  }
-`;
+let ensureIndexPromise: Promise<void> | null = null;
 
-const GET_USER_BY_ID_QUERY = `
-  query GetAdminUser($id: ID!) {
-    adminUser(id: $id) {
-      id
-      email
-      name
-      role
-      permissions {
-        canViewPayments
-        canViewSubscriptions
-        canManageShops
-        canManageTeam
-        canViewDocs
-      }
-      isActive
-      createdAt
-      updatedAt
-    }
-  }
-`;
-
-const GET_USER_BY_EMAIL_QUERY = `
-  query GetAdminUserByEmail($email: String!) {
-    adminUserByEmail(email: $email) {
-      id
-      email
-      name
-      role
-      permissions {
-        canViewPayments
-        canViewSubscriptions
-        canManageShops
-        canManageTeam
-        canViewDocs
-      }
-      isActive
-      createdAt
-      updatedAt
-    }
-  }
-`;
-
-const CREATE_USER_MUTATION = `
-  mutation CreateAdminUser($input: CreateAdminUserInput!) {
-    createAdminUser(input: $input) {
-      user {
-        id
-        email
-        name
-        role
-        permissions {
-          canViewPayments
-          canViewSubscriptions
-          canManageShops
-          canManageTeam
-          canViewDocs
-        }
-        isActive
-        createdAt
-        updatedAt
-      }
-      apiKey
-      apiSecret
-    }
-  }
-`;
-
-const UPDATE_USER_MUTATION = `
-  mutation UpdateAdminUser($id: ID!, $input: UpdateAdminUserInput!) {
-    updateAdminUser(id: $id, input: $input) {
-      id
-      email
-      name
-      role
-      permissions {
-        canViewPayments
-        canViewSubscriptions
-        canManageShops
-        canManageTeam
-        canViewDocs
-      }
-      isActive
-      createdAt
-      updatedAt
-    }
-  }
-`;
-
-const DELETE_USER_MUTATION = `
-  mutation DeleteAdminUser($id: ID!) {
-    deleteAdminUser(id: $id)
-  }
-`;
-
-/**
- * Convert GraphQL AdminUser to User type
- */
-function graphQLUserToUser(gqlUser: any): User {
-  return {
-    id: gqlUser.id,
-    email: gqlUser.email,
-    name: gqlUser.name,
-    role: gqlUser.role,
-    permissions: gqlUser.permissions,
-    isActive: gqlUser.isActive,
-    createdAt: gqlUser.createdAt,
-    updatedAt: gqlUser.updatedAt,
-  };
+async function getClient() {
+  await initializeES();
+  await ensureAdminUsersIndex();
+  return getESClient();
 }
 
-/**
- * Get GraphQL client if available
- */
-function getGraphQLClient(): GraphQLClient | null {
-  return createGraphQLClient();
+async function ensureAdminUsersIndex(): Promise<void> {
+  if (ensureIndexPromise) {
+    await ensureIndexPromise;
+    return;
+  }
+
+  ensureIndexPromise = (async () => {
+    const client = getESClient();
+    const existsResponse = await client.indices.exists({ index: ADMIN_USERS_INDEX_NAME });
+    const exists =
+      typeof existsResponse === 'boolean'
+        ? existsResponse
+        : Boolean((existsResponse as { body?: boolean }).body);
+
+    if (exists) {
+      return;
+    }
+
+    await client.indices.create({
+      index: ADMIN_USERS_INDEX_NAME,
+      mappings: {
+        properties: {
+          id: { type: 'keyword' },
+          email: { type: 'keyword' },
+          name: { type: 'text' },
+          role: { type: 'keyword' },
+          permissions: {
+            type: 'object',
+            properties: {
+              canViewPayments: { type: 'boolean' },
+              canViewSubscriptions: { type: 'boolean' },
+              canManageShops: { type: 'boolean' },
+              canManageTeam: { type: 'boolean' },
+              canViewDocs: { type: 'boolean' },
+            },
+          },
+          isActive: { type: 'boolean' },
+          createdAt: { type: 'date' },
+          updatedAt: { type: 'date' },
+        },
+      },
+      settings: {
+        number_of_shards: 1,
+        number_of_replicas: 0,
+      },
+    });
+  })();
+
+  try {
+    await ensureIndexPromise;
+  } finally {
+    ensureIndexPromise = null;
+  }
+}
+
+function isUserRole(value: unknown): value is UserRole {
+  return value === 'super_admin' || value === 'admin' || value === 'employee';
+}
+
+function toDisplayNameFromEmail(email: string): string {
+  return email
+    .split('@')[0]
+    .replace(/[._-]+/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 // Default permissions based on role
@@ -186,225 +133,252 @@ export function getDefaultPermissions(role: UserRole): UserPermissions {
   }
 }
 
-// Determine role based on email
 function determineRoleFromEmail(email: string): UserRole {
-  const emailLower = email.toLowerCase();
-  if (emailLower === 'admin@digitalcoo.com') {
+  const normalizedEmail = email.trim().toLowerCase();
+  if (SUPER_ADMIN_EMAILS.has(normalizedEmail)) {
     return 'super_admin';
   }
   return 'employee';
 }
 
-// Get or create user by email (uses GraphQL if available, falls back to in-memory)
-export async function getOrCreateUserByEmail(email: string): Promise<User> {
-  const emailLower = email.toLowerCase();
-  
-  // Try GraphQL first
-  const client = getGraphQLClient();
-  if (client) {
-    try {
-      const result = await client.query(GET_USER_BY_EMAIL_QUERY, { email });
-      if (result?.adminUserByEmail) {
-        const user = graphQLUserToUser(result.adminUserByEmail);
-        // Cache in memory
-        usersStore.set(emailLower, user);
-        return user;
-      }
-    } catch (error: any) {
-      console.warn('GraphQL query failed, using fallback:', error?.message || error);
+function toUser(source: Partial<AdminUserDocument>, fallbackId: string): User {
+  const role = isUserRole(source.role) ? source.role : 'employee';
+  const email = (source.email || '').trim().toLowerCase();
+  const permissions = {
+    ...getDefaultPermissions(role),
+    ...(source.permissions || {}),
+  };
+  const nowIso = new Date().toISOString();
+
+  return {
+    id: source.id || fallbackId,
+    email,
+    name: source.name || toDisplayNameFromEmail(email),
+    role,
+    permissions,
+    isActive: source.isActive ?? true,
+    createdAt: source.createdAt || nowIso,
+    updatedAt: source.updatedAt || nowIso,
+  };
+}
+
+async function resolveUserDocumentById(
+  userId: string
+): Promise<{ docId: string; user: User } | null> {
+  const client = await getClient();
+
+  try {
+    const direct = await client.get<AdminUserDocument>({
+      index: ADMIN_USERS_INDEX_NAME,
+      id: userId,
+    });
+
+    if (direct.found && direct._source) {
+      return {
+        docId: direct._id,
+        user: toUser(direct._source, direct._id),
+      };
+    }
+  } catch (error: unknown) {
+    const typedError = error as { meta?: { statusCode?: number } };
+    if (typedError?.meta?.statusCode !== 404) {
+      throw error;
     }
   }
 
-  // Fallback to in-memory
-  let user = usersStore.get(emailLower);
-  if (!user) {
-    const role = determineRoleFromEmail(email);
-    const name = email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-    
-    user = {
-      id: Date.now().toString(),
-      email: email,
-      name: name,
-      role: role,
-      permissions: getDefaultPermissions(role),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      isActive: true,
-    };
-    
-    usersStore.set(emailLower, user);
-    console.log(`Created new user in memory: ${email} with role: ${role}`);
+  const searchResponse = await client.search<AdminUserDocument>({
+    index: ADMIN_USERS_INDEX_NAME,
+    body: {
+      query: {
+        term: {
+          id: userId,
+        },
+      },
+      size: 1,
+    },
+  });
+
+  const hit = searchResponse.hits.hits[0];
+  if (!hit?._source) {
+    return null;
   }
 
-  return user;
+  return {
+    docId: hit._id ?? hit._source.id,
+    user: toUser(hit._source, hit._id ?? hit._source.id),
+  };
 }
 
 export async function getUserByEmail(email: string): Promise<User | null> {
-  const emailLower = email.toLowerCase();
-  
-  // Try GraphQL first
-  const client = getGraphQLClient();
-  if (client) {
-    try {
-      const result = await client.query(GET_USER_BY_EMAIL_QUERY, { email });
-      if (result?.adminUserByEmail) {
-        return graphQLUserToUser(result.adminUserByEmail);
-      }
-      return null;
-    } catch (error: any) {
-      console.warn('GraphQL query failed, using fallback:', error?.message || error);
-    }
+  const normalizedEmail = email.trim().toLowerCase();
+  const client = await getClient();
+
+  const response = await client.search<AdminUserDocument>({
+    index: ADMIN_USERS_INDEX_NAME,
+    body: {
+      query: {
+        term: {
+          email: normalizedEmail,
+        },
+      },
+      size: 1,
+    },
+  });
+
+  const hit = response.hits.hits[0];
+  if (!hit?._source) {
+    return null;
   }
 
-  // Fallback to in-memory
-  return usersStore.get(emailLower) || null;
+  return toUser(hit._source, hit._id ?? hit._source.id);
 }
 
 export async function getUserById(id: string): Promise<User | null> {
-  // Try GraphQL first
-  const client = getGraphQLClient();
-  if (client) {
-    try {
-      const result = await client.query(GET_USER_BY_ID_QUERY, { id });
-      if (result?.adminUser) {
-        return graphQLUserToUser(result.adminUser);
-      }
-      return null;
-    } catch (error: any) {
-      console.warn('GraphQL query failed, using fallback:', error?.message || error);
-    }
+  const record = await resolveUserDocumentById(id);
+  return record?.user ?? null;
+}
+
+export async function getOrCreateUserByEmail(email: string): Promise<User> {
+  const normalizedEmail = email.trim().toLowerCase();
+  const existingUser = await getUserByEmail(normalizedEmail);
+  if (existingUser) {
+    return existingUser;
   }
 
-  // Fallback to in-memory
-  for (const user of usersStore.values()) {
-    if (user.id === id) {
-      return user;
-    }
-  }
-  return null;
+  const role = determineRoleFromEmail(normalizedEmail);
+  const nowIso = new Date().toISOString();
+  const newUser: User = {
+    id: crypto.randomUUID(),
+    email: normalizedEmail,
+    name: toDisplayNameFromEmail(normalizedEmail),
+    role,
+    permissions: getDefaultPermissions(role),
+    isActive: true,
+    createdAt: nowIso,
+    updatedAt: nowIso,
+  };
+
+  const client = await getClient();
+  await client.index({
+    index: ADMIN_USERS_INDEX_NAME,
+    id: newUser.id,
+    document: newUser,
+    refresh: 'wait_for',
+  });
+
+  return newUser;
 }
 
 export async function getAllUsers(): Promise<User[]> {
-  // Try GraphQL first
-  const client = getGraphQLClient();
-  if (client) {
-    try {
-      const result = await client.query(GET_ALL_USERS_QUERY);
-      if (result?.adminUsers) {
-        return result.adminUsers.map(graphQLUserToUser);
-      }
-      return [];
-    } catch (error: any) {
-      console.warn('GraphQL query failed, using fallback:', error?.message || error);
-    }
-  }
+  const client = await getClient();
+  const response = await client.search<AdminUserDocument>({
+    index: ADMIN_USERS_INDEX_NAME,
+    body: {
+      query: { match_all: {} },
+      size: 1000,
+      sort: [
+        {
+          createdAt: {
+            order: 'desc',
+            unmapped_type: 'date',
+          },
+        },
+        {
+          email: {
+            order: 'asc',
+            unmapped_type: 'keyword',
+          },
+        },
+      ],
+    },
+  });
 
-  // Fallback to in-memory
-  return Array.from(usersStore.values());
+  return response.hits.hits
+    .map((hit) => {
+      if (!hit._source) return null;
+      return toUser(hit._source, hit._id ?? hit._source.id);
+    })
+    .filter((user): user is User => Boolean(user));
 }
 
-export async function createUser(userData: Omit<User, 'id' | 'createdAt' | 'updatedAt'>): Promise<User> {
-  // Try GraphQL first
-  const client = getGraphQLClient();
-  if (client) {
-    try {
-      const result = await client.mutate(CREATE_USER_MUTATION, {
-        input: {
-          email: userData.email,
-          name: userData.name,
-          role: userData.role,
-          permissions: userData.permissions,
-          isActive: userData.isActive,
-        },
-      });
-      
-      if (result?.createAdminUser?.user) {
-        return graphQLUserToUser(result.createAdminUser.user);
-      }
-    } catch (error: any) {
-      console.warn('GraphQL mutation failed, using fallback:', error?.message || error);
-    }
+export async function createUser(
+  userData: Omit<User, 'id' | 'createdAt' | 'updatedAt'>
+): Promise<User> {
+  const normalizedEmail = userData.email.trim().toLowerCase();
+  const existingUser = await getUserByEmail(normalizedEmail);
+  if (existingUser) {
+    throw new Error(`User with email ${normalizedEmail} already exists`);
   }
 
-  // Fallback to in-memory
-  const emailLower = userData.email.toLowerCase();
+  const nowIso = new Date().toISOString();
   const newUser: User = {
     ...userData,
-    id: Date.now().toString(),
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    id: crypto.randomUUID(),
+    email: normalizedEmail,
+    createdAt: nowIso,
+    updatedAt: nowIso,
   };
-  usersStore.set(emailLower, newUser);
+
+  const client = await getClient();
+  await client.index({
+    index: ADMIN_USERS_INDEX_NAME,
+    id: newUser.id,
+    document: newUser,
+    refresh: 'wait_for',
+  });
+
   return newUser;
 }
 
 export async function updateUser(id: string, updates: Partial<User>): Promise<User | null> {
-  // Try GraphQL first
-  const client = getGraphQLClient();
-  if (client) {
-    try {
-      const input: any = {};
-      if (updates.name !== undefined) input.name = updates.name;
-      if (updates.role !== undefined) input.role = updates.role;
-      if (updates.permissions !== undefined) input.permissions = updates.permissions;
-      if (updates.isActive !== undefined) input.isActive = updates.isActive;
-
-      const result = await client.mutate(UPDATE_USER_MUTATION, {
-        id,
-        input,
-      });
-      
-      if (result?.updateAdminUser) {
-        return graphQLUserToUser(result.updateAdminUser);
-      }
-    } catch (error: any) {
-      console.warn('GraphQL mutation failed, using fallback:', error?.message || error);
-    }
+  const record = await resolveUserDocumentById(id);
+  if (!record) {
+    return null;
   }
 
-  // Fallback to in-memory
-  for (const [email, user] of usersStore.entries()) {
-    if (user.id === id) {
-      const updatedUser: User = {
-        ...user,
-        ...updates,
-        updatedAt: new Date().toISOString(),
-      };
-      usersStore.set(email, updatedUser);
-      return updatedUser;
-    }
-  }
-  return null;
+  const current = record.user;
+  const role = updates.role ?? current.role;
+  const normalizedEmail = (updates.email ?? current.email).trim().toLowerCase();
+  const mergedPermissions = {
+    ...getDefaultPermissions(role),
+    ...current.permissions,
+    ...(updates.permissions || {}),
+  };
+
+  const updatedUser: User = {
+    ...current,
+    ...updates,
+    id: current.id,
+    email: normalizedEmail,
+    role,
+    permissions: mergedPermissions,
+    updatedAt: new Date().toISOString(),
+  };
+
+  const client = await getClient();
+  await client.index({
+    index: ADMIN_USERS_INDEX_NAME,
+    id: record.docId,
+    document: updatedUser,
+    refresh: 'wait_for',
+  });
+
+  return updatedUser;
 }
 
 export async function deleteUser(id: string): Promise<boolean> {
-  // Try GraphQL first
-  const client = getGraphQLClient();
-  if (client) {
-    try {
-      const result = await client.mutate(DELETE_USER_MUTATION, { id });
-      if (result?.deleteAdminUser === true) {
-        // Remove from cache
-        for (const [email, user] of usersStore.entries()) {
-          if (user.id === id) {
-            usersStore.delete(email);
-            break;
-          }
-        }
-        return true;
-      }
-      return false;
-    } catch (error: any) {
-      console.warn('GraphQL mutation failed, using fallback:', error?.message || error);
-    }
+  const record = await resolveUserDocumentById(id);
+  if (!record) {
+    return false;
   }
 
-  // Fallback to in-memory
-  for (const [email, user] of usersStore.entries()) {
-    if (user.id === id) {
-      usersStore.delete(email);
-      return true;
-    }
-  }
-  return false;
+  const client = await getClient();
+  await client.delete({
+    index: ADMIN_USERS_INDEX_NAME,
+    id: record.docId,
+    refresh: 'wait_for',
+  });
+
+  return true;
 }
+

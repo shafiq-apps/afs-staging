@@ -30,26 +30,89 @@ body {
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-/* Ensure input text is visible */
+/* Dark mode fallback: prevent black/near-black text when a component misses dark:text classes */
+.dark .text-black,
+.dark .text-gray-900,
+.dark .text-gray-800,
+.dark .text-gray-700 {
+  color: #f1f5f9 !important;
+}
+
+/* Base form control typography */
 input[type="text"],
 input[type="email"],
 input[type="password"],
 input[type="number"],
+input[type="search"],
+input[type="url"],
+input[type="tel"],
+input[type="date"],
+input[type="datetime-local"],
+input[type="time"],
+input[type="month"],
+input[type="week"],
 textarea,
 select {
   color: #111827 !important;
+  -webkit-text-fill-color: #111827 !important;
+  caret-color: #111827 !important;
   font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif !important;
   font-size: 16px !important;
 }
 
+/* Force white-ish text for all form controls in dark mode */
 .dark input[type="text"],
 .dark input[type="email"],
 .dark input[type="password"],
 .dark input[type="number"],
+.dark input[type="search"],
+.dark input[type="url"],
+.dark input[type="tel"],
+.dark input[type="date"],
+.dark input[type="datetime-local"],
+.dark input[type="time"],
+.dark input[type="month"],
+.dark input[type="week"],
 .dark textarea,
 .dark select {
-  color: #f1f5f9 !important;
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+  caret-color: #f8fafc !important;
   background-color: #1e293b !important;
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #94a3b8 !important;
+  -webkit-text-fill-color: #94a3b8 !important;
+  opacity: 1 !important;
+}
+
+.dark select option,
+.dark select optgroup {
+  color: #f8fafc !important;
+  background-color: #1e293b !important;
+}
+
+.dark label,
+.dark legend {
+  color: #e2e8f0 !important;
+}
+
+.dark input:disabled,
+.dark textarea:disabled,
+.dark select:disabled {
+  color: #cbd5e1 !important;
+  -webkit-text-fill-color: #cbd5e1 !important;
+  opacity: 1 !important;
+}
+
+.dark input:-webkit-autofill,
+.dark textarea:-webkit-autofill,
+.dark select:-webkit-autofill {
+  -webkit-text-fill-color: #f8fafc !important;
+  caret-color: #f8fafc !important;
+  box-shadow: 0 0 0 1000px #1e293b inset !important;
 }
 
 /* Override for login form inputs - ensure text is visible on dark background */

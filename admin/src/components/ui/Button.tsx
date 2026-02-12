@@ -18,8 +18,8 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 const variantStyles: Record<ButtonVariant, string> = {
   primary: 'bg-purple-500/90 hover:bg-purple-600 text-white transition-colors duration-200 shadow-md shadow-purple-500/20 hover:shadow-purple-500/30 border-transparent',
   secondary: 'bg-slate-800/60 dark:bg-slate-700/60 text-slate-100 dark:text-slate-200 hover:bg-slate-800/80 dark:hover:bg-slate-700/80 border-slate-700/30 dark:border-slate-600/30',
-  outline: 'bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700',
-  ghost: 'bg-transparent text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 border-transparent',
+  outline: 'bg-white dark:bg-slate-800 text-white dark:text-gray-200 border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700',
+  ghost: 'bg-transparent text-white dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 border-transparent',
   danger: 'bg-red-500/90 hover:bg-red-600 text-white transition-colors duration-200 shadow-md shadow-red-500/20 hover:shadow-red-500/30 border-transparent',
 };
 

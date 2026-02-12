@@ -425,3 +425,10 @@ export const STATIC_INDEX_CONFIGS: StaticIndexConfig[] = [
   },
 ];
 
+// Only data with `_id={shop domain}` will be delete from these indexes
+export const ON_UNINSTALLED_APP_DELETE_DATA_BY_ID_FROM_INDEXES = [
+  SUBSCRIPTIONS_INDEX_NAME,
+  SEARCH_INDEX_NAME,
+  SETTINGS_INDEX_NAME,
+  SHOPS_INDEX_NAME
+];

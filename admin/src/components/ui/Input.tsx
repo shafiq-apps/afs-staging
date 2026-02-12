@@ -28,14 +28,12 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
     ref
   ) => {
     const [showPassword, setShowPassword] = useState(false);
-    const [focused, setFocused] = useState(false);
     const inputType = showPasswordToggle && type === 'password' ? (showPassword ? 'text' : 'password') : type;
-    const hasValue = props.value !== undefined && props.value !== '';
 
     return (
       <div className="w-full">
         {label && (
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          <label className="block text-sm font-medium text-white dark:text-gray-300 mb-2">
             {label}
             {props.required && <span className="text-red-500 ml-1">*</span>}
           </label>
@@ -56,12 +54,12 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
               ${error ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-slate-600 focus:border-purple-500 focus:ring-purple-500'}
               focus:outline-none focus:ring-2 focus:ring-offset-0
               text-gray-900 dark:text-gray-100 bg-white dark:bg-slate-800
+              placeholder-gray-500 dark:placeholder-gray-400
+              dark:[color-scheme:dark]
               disabled:bg-gray-100 dark:disabled:bg-slate-700 disabled:cursor-not-allowed
               transition-colors duration-200
               ${className}
             `}
-            onFocus={() => setFocused(true)}
-            onBlur={() => setFocused(false)}
             {...props}
           />
           {showPasswordToggle && type === 'password' && (

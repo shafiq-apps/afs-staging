@@ -233,7 +233,7 @@ export default function DataTable<T extends Record<string, any>>({
       {pagination && totalPages > 1 && (
         <div className="px-6 py-4 border-t border-gray-200 dark:border-slate-700">
           <Stack direction="row" spacing="md" align="center" justify="between">
-            <div className="text-sm text-gray-700 dark:text-gray-300">
+            <div className="text-sm text-white dark:text-gray-300">
               Showing {(currentPage - 1) * pageSize + 1} to{' '}
               {Math.min(currentPage * pageSize, sortedData.length)} of {sortedData.length} results
             </div>
@@ -254,7 +254,7 @@ export default function DataTable<T extends Record<string, any>>({
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <span className="text-sm text-gray-700 dark:text-gray-300 px-2">
+              <span className="text-sm text-white dark:text-gray-300 px-2">
                 Page {currentPage} of {totalPages}
               </span>
               <Button

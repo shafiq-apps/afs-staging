@@ -1,9 +1,8 @@
 import ESMonitoring from '@/components/ESMonitoring';
-import Layout from '@/components/layout/Layout';
 
 export default function DashboardPage() {
   return (
-    <Layout>
+    <>
       <div>
         <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-6">Dashboard</h1>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -28,7 +27,7 @@ export default function DashboardPage() {
       <div className='font-bold text-gray-900 dark:text-gray-100 mb-6'>
         <ESMonitoring />
       </div>
-    </Layout>
+    </>
   );
 }
 

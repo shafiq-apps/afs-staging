@@ -1,9 +1,25 @@
 import crypto from 'crypto';
 import { OTPCode, PINCode } from '@/types/auth';
 
+type AuthStores = {
+  otpStore: Map<string, OTPCode>;
+  pinStore: Map<string, PINCode>;
+};
+
+const globalAuth = globalThis as typeof globalThis & {
+  __adminAuthStores__?: AuthStores;
+};
+
 // OTP and PIN storage (in-memory, should be moved to Redis in production)
-const otpStore = new Map<string, OTPCode>();
-const pinStore = new Map<string, PINCode>();
+const stores =
+  globalAuth.__adminAuthStores__ ?? {
+    otpStore: new Map<string, OTPCode>(),
+    pinStore: new Map<string, PINCode>(),
+  };
+
+globalAuth.__adminAuthStores__ = stores;
+
+const { otpStore, pinStore } = stores;
 
 const OTP_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
 const PIN_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
@@ -22,21 +38,41 @@ function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
+function cleanupIfExpired<T extends { expiresAt: number }>(
+  store: Map<string, T>,
+  key: string,
+  expiresAt: number,
+  ttlMs: number
+): void {
+  setTimeout(() => {
+    const current = store.get(key);
+
+    // Do not delete if a newer code replaced the old one.
+    if (!current || current.expiresAt !== expiresAt) {
+      return;
+    }
+
+    if (Date.now() >= current.expiresAt) {
+      store.delete(key);
+    }
+  }, ttlMs + 1000);
+}
+
 export function storeOTP(email: string, code: string, isSuperAdmin: boolean = false): void {
   const normalizedEmail = normalizeEmail(email);
   const key = `otp:${normalizedEmail}`;
-  otpStore.set(key, {
+  const record: OTPCode = {
     code,
     email: normalizedEmail,
     expiresAt: Date.now() + OTP_EXPIRY_MS,
     attempts: 0,
     isSuperAdmin,
-  });
+  };
 
-  // Clean up expired OTPs
-  setTimeout(() => {
-    otpStore.delete(key);
-  }, OTP_EXPIRY_MS);
+  otpStore.set(key, record);
+
+  // Clean up expired OTPs safely
+  cleanupIfExpired(otpStore, key, record.expiresAt, OTP_EXPIRY_MS);
   
   // Debug logging
   console.log(`[OTP Store] Stored OTP for: ${normalizedEmail}, Code: ${code}, Key: ${key}`);
@@ -87,17 +123,17 @@ export function verifyOTP(email: string, code: string): { valid: boolean; isSupe
 export function storePIN(email: string, code: string): void {
   const normalizedEmail = normalizeEmail(email);
   const key = `pin:${normalizedEmail}`;
-  pinStore.set(key, {
+  const record: PINCode = {
     code,
     email: normalizedEmail,
     expiresAt: Date.now() + PIN_EXPIRY_MS,
     attempts: 0,
-  });
+  };
 
-  // Clean up expired PINs
-  setTimeout(() => {
-    pinStore.delete(key);
-  }, PIN_EXPIRY_MS);
+  pinStore.set(key, record);
+
+  // Clean up expired PINs safely
+  cleanupIfExpired(pinStore, key, record.expiresAt, PIN_EXPIRY_MS);
   
   // Debug logging
   console.log(`[PIN Store] Stored PIN for: ${normalizedEmail}, Code: ${code}, Key: ${key}`);

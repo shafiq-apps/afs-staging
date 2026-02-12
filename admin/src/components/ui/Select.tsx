@@ -32,7 +32,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
     return (
       <div className="w-full">
         {label && (
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          <label className="block text-sm font-medium text-white dark:text-gray-300 mb-2">
             {label}
             {props.required && <span className="text-red-500 ml-1">*</span>}
           </label>
@@ -44,6 +44,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
             ${error ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-slate-600 focus:border-purple-500 focus:ring-purple-500'}
             focus:outline-none focus:ring-2 focus:ring-offset-0
             text-gray-900 dark:text-gray-100 bg-white dark:bg-slate-800
+            dark:[color-scheme:dark]
             disabled:bg-gray-100 dark:disabled:bg-slate-700 disabled:cursor-not-allowed
             transition-colors duration-200
             cursor-pointer
