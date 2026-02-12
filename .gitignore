@@ -134,3 +134,6 @@ admin/certs/*
 
 app_subscription_plans.json
 app/app_subscription_plans.json
+
+.tar.gz
+*.tar.gz

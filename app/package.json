@@ -21,7 +21,8 @@
         "deploy": "bash system/cli/deploy.sh",
         "gitpush": "bash system/cli/gitpush.sh",
         "setup:env": "node system/cli/setup-env.js",
-        "generate:keys": "bash system/cli/keys.sh"
+        "generate:keys": "bash system/cli/keys.sh",
+        "zip": "bash system/cli/zip-targz.sh"
     },
     "dependencies": {
         "@elastic/elasticsearch": "^8.19.1",
