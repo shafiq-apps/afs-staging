@@ -1,5 +1,5 @@
 Path: Root-level/app => /app/var/www/afsv/app 
-Update file [.env]
+Update file [.env] or Compare file with .example.env file
 
 ******************************************************
 Path: Root level => /var/www/afsv
@@ -14,9 +14,10 @@ note: Legacy app url is old app's domain name without any pathname. exact value 
     - enter 0
 
 => Note: check pm2 log files for any error.
+If no error log is generated, then deployment has been completed.
 
 
-
+DEBUG ERRORS
 ******************************************************
 NPM COMMANDS
 ******************************************************
