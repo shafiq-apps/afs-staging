@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { ComponentType, ReactNode } from 'react';
 import { useParams } from 'next/navigation';
-import Link from 'next/link';
 import { LoadingBar } from '@/components/ui/LoadingBar';
 import { Banner, Button, Checkbox, Select, Textarea } from '@/components/ui';
 import type { SelectOption } from '@/components/ui';
@@ -25,6 +24,7 @@ import {
   Database,
 } from 'lucide-react';
 import Page from '@/components/ui/Page';
+import { Href } from '@/components/ui/Link';
 
 const legacyStatusOptions: SelectOption[] = [
   { value: 'PENDING', label: 'PENDING' },
@@ -425,15 +425,12 @@ export default function ShopDetailPage() {
             <InfoRow
               label="Shop Domain"
               value={
-                <a
+                <Href
+                  label={shop.shop}
                   href={`https://${shop.shop}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-purple-600 dark:text-purple-400 hover:underline flex items-center space-x-1 cursor-pointer"
-                >
-                  <span>{shop.shop}</span>
-                  <ExternalLink className="h-3 w-3" />
-                </a>
+                  external
+                  color='white'
+                />
               }
               icon={Globe}
             />

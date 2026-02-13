@@ -1,12 +1,12 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { LoadingBar } from '@/components/ui/LoadingBar';
-import { ExternalLink, Calendar, Eye, Save, Search, X, Edit } from 'lucide-react';
+import { ExternalLink, Calendar, Search, Edit } from 'lucide-react';
 import { AlertModal, Button, Checkbox, Input, Modal, Select, Textarea } from '@/components/ui';
 import type { SelectOption } from '@/components/ui';
 import Page from '@/components/ui/Page';
+import { Href } from '@/components/ui/Link';
 
 type LegacyShopStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED';
 type ShopStatusFilter =
@@ -373,13 +373,10 @@ export default function ShopsPage() {
                           <tr key={shop.shop} className="hover:bg-gray-50 dark:hover:bg-slate-700/50">
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="flex items-center space-x-2">
-                                <Button
+                                <Href
                                   href={`/shops/${encodeURIComponent(shop.shop)}`}
-                                  variant='ghost'
-                                  size='xs'
-                                >
-                                  {shop.shop}
-                                </Button>
+                                  label={shop.shop}
+                                />
                                 <Button
                                   iconOnly
                                   icon={ExternalLink}
