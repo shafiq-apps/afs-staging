@@ -3,10 +3,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { LoadingBar } from '@/components/ui/LoadingBar';
 import { ExternalLink, Calendar, Search, Edit } from 'lucide-react';
-import { AlertModal, Button, Checkbox, Input, Modal, Select, Textarea } from '@/components/ui';
+import { AlertModal, Button, Checkbox, DataTable, Input, Modal, Select, Stack, Textarea } from '@/components/ui';
 import type { SelectOption } from '@/components/ui';
 import Page from '@/components/ui/Page';
 import { Href } from '@/components/ui/LinkComponent';
+import Badge from '@/components/ui/Badge';
 
 type LegacyShopStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED';
 type ShopStatusFilter =
@@ -271,17 +272,6 @@ export default function ShopsPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <>
-        <LoadingBar loading={true} />
-        <div className="flex justify-center items-center h-64">
-          <div className="text-gray-500 dark:text-gray-400">Loading shops...</div>
-        </div>
-      </>
-    );
-  }
-
   if (error) {
     return (
       <>
@@ -301,6 +291,24 @@ export default function ShopsPage() {
     );
   }
 
+  const StatusRender = (item: Shop) => {
+    return <Badge variant={item.state === "ACTIVE" ? "success" : "info"}>{item.state || "UNKNOWN"}</Badge>
+  }
+
+  const InstalledAtRender = (item: Shop) => formatDate(item.installedAt)
+
+  const ScopesRender = (item: Shop) => {
+    if (!item.scopes) {
+      return null;
+    }
+
+    return (
+      <span className="inline-block max-w-xs truncate" title={item.scopes.join(', ')}>
+        {item.scopes.length} {item.scopes.length === 1 ? 'scope' : 'scopes'}
+      </span>
+    )
+  }
+
   return (
     <Page
       title='Shops'
@@ -312,157 +320,26 @@ export default function ShopsPage() {
         }
       ]}
     >
-      <div>
-
-        {shops.length === 0 ? (
-          <div className="bg-white dark:bg-slate-800 rounded-lg p-6 border border-gray-200 dark:border-slate-700">
-            <p className="text-gray-600 dark:text-gray-300 text-center">No shops found.</p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <Input
-                type="text"
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
-                placeholder="Search by shop, email, shop ID, user, locale..."
-                leftIcon={<Search className="h-4 w-4" />}
-              />
-              <Select
-                value={statusFilter}
-                onChange={(event) => setStatusFilter(event.target.value as ShopStatusFilter)}
-                options={shopStatusFilterOptions}
-              />
-            </div>
-
-            <div>
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
-                  <thead className="bg-gray-50 dark:bg-slate-700">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        Shop Domain
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        Status
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        Installed
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        Legacy Status
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        Email
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        Scopes
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white dark:bg-slate-800 divide-y divide-gray-200 dark:divide-slate-700">
-                    {filteredShops.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} className="px-6 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
-                          No shops match your current search or filters.
-                        </td>
-                      </tr>
-                    ) : (
-                      filteredShops.map((shop) => {
-                        const status = getShopStatus(shop);
-                        return (
-                          <tr key={shop.shop} className="hover:bg-gray-50 dark:hover:bg-slate-700/50">
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="flex items-center space-x-2">
-                                <Href
-                                  href={`/shops/${encodeURIComponent(shop.shop)}`}
-                                  label={shop.shop}
-                                />
-                                <Button
-                                  iconOnly
-                                  icon={ExternalLink}
-                                  external
-                                  href={`https://${shop.shop}`}
-                                  variant='ghost'
-                                />
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span
-                                className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${status.color === 'green'
-                                  ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-                                  : status.color === 'red'
-                                    ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
-                                    : 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300'
-                                  }`}
-                              >
-                                {status.label}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
-                                <Calendar className="h-4 w-4 mr-1" />
-                                {formatDate(shop.installedAt)}
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="flex items-center gap-2">
-                                {
-                                  shop.legacyShop && (
-                                    <Button
-                                      onClick={() => openLegacyModal(shop)}
-                                      size='xs'
-                                      icon={Edit}
-                                      variant='ghost'
-                                      iconOnly
-                                    />
-                                  )
-                                }
-                                {shop.legacyShop ? (
-                                  <span
-                                    className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${shop.legacyShop.status === 'COMPLETED'
-                                      ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-                                      : shop.legacyShop.status === 'REJECTED'
-                                        ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
-                                        : shop.legacyShop.status === 'IN_PROGRESS'
-                                          ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
-                                          : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
-                                      }`}
-                                  >
-                                    {shop.legacyShop.status || 'PENDING'}
-                                  </span>
-                                ) : (
-                                  <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-white dark:bg-gray-900/30 dark:text-gray-300">
-                                    Not Legacy
-                                  </span>
-                                )}
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-500 dark:text-gray-400">
-                                {shop.email || shop.metadata?.email || '-'}
-                              </div>
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="text-sm text-gray-500 dark:text-gray-400">
-                                {shop.scopes && shop.scopes.length > 0 ? (
-                                  <span className="inline-block max-w-xs truncate" title={shop.scopes.join(', ')}>
-                                    {shop.scopes.length} {shop.scopes.length === 1 ? 'scope' : 'scopes'}
-                                  </span>
-                                ) : (
-                                  '-'
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
-          </div>
-        )}
-      </div>
+      <DataTable
+        loading={loading}
+        columns={[
+          { header: "Shop Domain", key: "shop" },
+          { header: "Status", key: "status", render: StatusRender },
+          { header: "Installed", key: "installedAt", render: InstalledAtRender },
+          { header: "Scopes", key: "scopes", render: ScopesRender },
+        ]}
+        data={filteredShops}
+        keyExtractor={(item) => item.shop}
+        emptyMessage='No shops match your current search or filters.'
+        actions={(selectedItems) => {
+          console.log("selectedItems", selectedItems);
+          return (
+            <>
+              <Button>test</Button>
+            </>
+          )
+        }}
+      />
 
       <Modal
         title='Manage Legacy Shop'

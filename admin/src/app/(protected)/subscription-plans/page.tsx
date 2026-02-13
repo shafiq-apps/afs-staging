@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, X, Save, Eye } from 'lucide-react';
 import { LoadingBar } from '@/components/ui/LoadingBar';
 import Checkbox from '@/components/ui/Checkbox';
-import { AlertModal, Button, ButtonGroup, ConfirmModal, Input, Modal, Select, Textarea } from '@/components/ui';
+import { AlertModal, Button, ButtonGroup, ConfirmModal, DataTable, Input, Modal, Select, Textarea } from '@/components/ui';
 import type { SelectOption } from '@/components/ui';
 import Page from '@/components/ui/Page';
 
@@ -209,6 +209,7 @@ export default function SubscriptionPlansPage() {
   return (
     <Page
       title='Subscription Plans'
+      description='Manage subscription plans stored in `app_subscriptions_plans`'
       actions={[
         {
           label: "Add Plan",
@@ -220,93 +221,49 @@ export default function SubscriptionPlansPage() {
         }
       ]}
     >
+      <DataTable
+        columns={[
+          { header: "Name", key: "name", },
+          { header: "Price", key: "Price", render: (item) => formatPrice(item) },
+          { header: "Interval", key: "Interval", render: (item) => item.test ? "Test Plan" : "Paid Plan" },
+          { header: "Product Limit", key: "productLimit" },
+          { header: "Created", key: "createdAt", render: (item) => formatDate(item.createdAt) },
+          {
+            header: "Actions", key: "id", render: (item) => (
+              <ButtonGroup>
+                <Button
+                  title="View"
+                  onClick={() => handleView(item)}
+                  variant='outline'
+                  size='sm'
+                >
+                  View
+                </Button>
+                <Button
+                  title="Edit"
+                  onClick={() => handleEdit(item)}
+                  variant='outline'
+                  size='sm'
+                >
+                  Edit
+                </Button>
+                <Button
+                  title="Delete"
+                  onClick={() => setConfirmDeletePlanId(item.id)}
+                  variant='outline'
+                  size='sm'
+                >
+                  Delete
+                </Button>
+              </ButtonGroup>
+            )
+          }
+        ]}
+        data={plans}
+        emptyMessage='No subscription plans found.'
+        keyExtractor={(item) => item.id + item.handle + item.name}
+      />
       <div>
-        <div className="bg-white dark:bg-slate-800 rounded-lg overflow-hidden border border-gray-200 dark:border-slate-700">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
-            <thead className="bg-gray-50 dark:bg-slate-700">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Name
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Price
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Interval
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Product Limit
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Created
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white dark:bg-slate-800 divide-y divide-gray-200 dark:divide-slate-700">
-              {plans.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
-                    No subscription plans found.
-                  </td>
-                </tr>
-              ) : (
-                plans.map((plan) => (
-                  <tr key={plan.id} className="hover:bg-gray-50 dark:hover:bg-slate-700/50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900 dark:text-gray-100">{plan.name}</div>
-                      <div className="text-xs font-sm text-gray-500 dark:text-gray-400">{plan.handle}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900 dark:text-gray-100">{formatPrice(plan)}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300">
-                        {plan.interval === 'ANNUAL' ? 'Annual' : 'Monthly'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900 dark:text-gray-100">{Number(plan.productLimit).toLocaleString()}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-500 dark:text-gray-400">{formatDate(plan.createdAt)}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <ButtonGroup>
-                        <Button
-                          title="View"
-                          onClick={() => handleView(plan)}
-                          variant='outline'
-                          size='sm'
-                        >
-                          View
-                        </Button>
-                        <Button
-                          title="Edit"
-                          onClick={() => handleEdit(plan)}
-                          variant='outline'
-                          size='sm'
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          title="Delete"
-                          onClick={() => setConfirmDeletePlanId(plan.id)}
-                          variant='outline'
-                          size='sm'
-                        >
-                          Delete
-                        </Button>
-                      </ButtonGroup>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
 
         <Modal
           isOpen={showAddModal}

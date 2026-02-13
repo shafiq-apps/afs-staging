@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { LoadingBar } from '@/components/ui/LoadingBar';
-import { Plus, Save, X } from 'lucide-react';
-import { Button, Checkbox, Input, Modal, Select, Textarea } from '@/components/ui';
+import { Button, Checkbox, DataTable, Input, Modal, Select, Textarea } from '@/components/ui';
 import type { SelectOption } from '@/components/ui';
 import Page from '@/components/ui/Page';
 
@@ -143,17 +142,6 @@ export default function LegacyShopsPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <>
-        <LoadingBar loading={true} />
-        <div className="flex justify-center items-center h-64">
-          <div className="text-gray-500 dark:text-gray-400">Loading legacy shops...</div>
-        </div>
-      </>
-    );
-  }
-
   return (
     <Page
       title="Legacy Shops"
@@ -170,80 +158,36 @@ export default function LegacyShopsPage() {
       ]}
     >
       <div className="space-y-6">
-        
+
         {error && (
           <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 text-red-700 dark:text-red-300">
             {error}
           </div>
         )}
 
-        <div className="bg-white dark:bg-slate-800 rounded-lg overflow-hidden border border-gray-200 dark:border-slate-700">
-          <div>
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
-              <thead className="bg-gray-50 dark:bg-slate-700">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Shop
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Upgrade Allowed
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Has Upgrade Request
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Message
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white dark:bg-slate-800 divide-y divide-gray-200 dark:divide-slate-700">
-                {legacyShops.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-6 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
-                      No legacy shop records found.
-                    </td>
-                  </tr>
-                ) : (
-                  legacyShops.map((record) => (
-                    <tr key={record.shop}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                        {record.shop}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="px-2 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
-                          {record.status || 'PENDING'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-white dark:text-gray-300">
-                        {record.isUpgradeAllowed ? 'Yes' : 'No'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-white dark:text-gray-300">
-                        {record.hasUpgradeRequest ? 'Yes' : 'No'}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
-                        {record.statusMessage || '-'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <Button
-                          onClick={() => openEditModal(record)}
-                          size='sm'
-                        >
-                          Edit
-                        </Button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <DataTable
+          loading={loading}
+          emptyMessage='No legacy shop records found.'
+          data={legacyShops}
+          columns={[
+            { header: "Shop", key: "shop" },
+            { header: "Status", key: "status" },
+            { header: "Upgrade Allowed", key: "isUpgradeAllowed", render: (item) => item.isUpgradeAllowed?"Yes":"No" },
+            { header: "Has Upgrade Request", key: "hasUpgradeRequest", render: (item) => item.hasUpgradeRequest?"Yes":"No" },
+            { header: "Message", key: "statusMessage" },
+            {
+              header: "Actions", key: "id", render: (item) => (
+                <Button
+                  onClick={() => openEditModal(item)}
+                  size='sm'
+                >
+                  Edit
+                </Button>
+              )
+            },
+          ]}
+          keyExtractor={(item) => item.shop}
+        />
       </div>
 
       <Modal
