@@ -24,7 +24,7 @@ import {
   Database,
 } from 'lucide-react';
 import Page from '@/components/ui/Page';
-import { Href } from '@/components/ui/Link';
+import { Href } from '@/components/ui/LinkComponent';
 
 const legacyStatusOptions: SelectOption[] = [
   { value: 'PENDING', label: 'PENDING' },

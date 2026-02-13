@@ -6,7 +6,7 @@ import { ExternalLink, Calendar, Search, Edit } from 'lucide-react';
 import { AlertModal, Button, Checkbox, Input, Modal, Select, Textarea } from '@/components/ui';
 import type { SelectOption } from '@/components/ui';
 import Page from '@/components/ui/Page';
-import { Href } from '@/components/ui/Link';
+import { Href } from '@/components/ui/LinkComponent';
 
 type LegacyShopStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED';
 type ShopStatusFilter =
