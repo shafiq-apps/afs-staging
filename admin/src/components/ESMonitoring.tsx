@@ -610,7 +610,7 @@ export default function ESMonitoring() {
                         <p>Waiting for node data...</p>
                     </div>
                 ) : (
-                    <div className="overflow-x-auto overflow-y-auto max-h-96">
+                    <div className="max-h-96">
                         <table className="w-full text-sm">
                             <thead className="bg-gray-900 border-b border-gray-700">
                                 <tr>
@@ -696,7 +696,7 @@ export default function ESMonitoring() {
                         <p>No alerts yet. All metrics within normal range.</p>
                     </div>
                 ) : (
-                    <div className="overflow-x-auto overflow-y-auto max-h-96">
+                    <div className="max-h-96">
                         <table className="w-full text-sm">
                             <thead className="bg-gray-900 border-b border-gray-700">
                                 <tr>

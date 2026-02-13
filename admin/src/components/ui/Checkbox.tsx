@@ -66,7 +66,7 @@ const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
                 {label}
               </span>
               {helperText && !error && (
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{helperText}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{helperText}</p>
               )}
               {error && (
                 <p className="text-sm text-red-600 dark:text-red-400 mt-1">{error}</p>

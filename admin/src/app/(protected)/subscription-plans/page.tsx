@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, X, Save, Eye } from 'lucide-react';
 import { LoadingBar } from '@/components/ui/LoadingBar';
 import Checkbox from '@/components/ui/Checkbox';
-import { AlertModal, Button, ConfirmModal, Input, Modal, Select, Textarea } from '@/components/ui';
+import { AlertModal, Button, ButtonGroup, ConfirmModal, Input, Modal, Select, Textarea } from '@/components/ui';
 import type { SelectOption } from '@/components/ui';
+import Page from '@/components/ui/Page';
 
 export interface SubscriptionPlan {
   id: string;
@@ -206,22 +207,20 @@ export default function SubscriptionPlansPage() {
   }
 
   return (
-    <>
+    <Page
+      title='Subscription Plans'
+      actions={[
+        {
+          label: "Add Plan",
+          onClick: () => {
+            resetForm();
+            setShowAddModal(true);
+          },
+          variant: 'primary'
+        }
+      ]}
+    >
       <div>
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Subscription Plans</h1>
-          <Button
-            icon={Plus}
-            title='Add Plan'
-            onClick={() => {
-              resetForm();
-              setShowAddModal(true);
-            }}
-          >
-            Add Plan
-          </Button>
-        </div>
-
         <div className="bg-white dark:bg-slate-800 rounded-lg overflow-hidden border border-gray-200 dark:border-slate-700">
           <table className="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
             <thead className="bg-gray-50 dark:bg-slate-700">
@@ -275,7 +274,7 @@ export default function SubscriptionPlansPage() {
                       <div className="text-sm text-gray-500 dark:text-gray-400">{formatDate(plan.createdAt)}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex items-center space-x-2">
+                      <ButtonGroup>
                         <Button
                           title="View"
                           onClick={() => handleView(plan)}
@@ -300,7 +299,7 @@ export default function SubscriptionPlansPage() {
                         >
                           Delete
                         </Button>
-                      </div>
+                      </ButtonGroup>
                     </td>
                   </tr>
                 ))
@@ -316,7 +315,6 @@ export default function SubscriptionPlansPage() {
           }}
           title={editingPlan ? 'Edit Subscription Plan' : 'Add Subscription Plan'}
           size='lg'
-          showCloseButton
           actions={[
             {
               label: "Cancel",
@@ -324,14 +322,13 @@ export default function SubscriptionPlansPage() {
                 setShowAddModal(false);
                 resetForm();
               },
-              variant: 'outline',
+              variant: 'outline'
             },
             {
               label: editingPlan ? 'Update' : 'Create',
               variant: 'primary',
-              type: 'submit',
-              onClick: handleSubmit,
-            },
+              onClick: handleSubmit
+            }
           ]}
         >
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -393,7 +390,7 @@ export default function SubscriptionPlansPage() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4">
               <Input
                 label="Product Limit"
                 type="number"
@@ -423,7 +420,6 @@ export default function SubscriptionPlansPage() {
             setViewingPlan(null);
           }}
           size='lg'
-          showCloseButton
           actions={[
             {
               label: "Edit Plan",
@@ -556,7 +552,7 @@ export default function SubscriptionPlansPage() {
         message={alertState.message}
         variant={alertState.variant}
       />
-    </>
-  );
+    </Page>
+  )
 }
 

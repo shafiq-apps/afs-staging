@@ -3,9 +3,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { LoadingBar } from '@/components/ui/LoadingBar';
-import { ExternalLink, Calendar, Eye, Save, Search, X } from 'lucide-react';
-import { AlertModal, Checkbox, Input, Select, Textarea } from '@/components/ui';
+import { ExternalLink, Calendar, Eye, Save, Search, X, Edit } from 'lucide-react';
+import { AlertModal, Button, Checkbox, Input, Modal, Select, Textarea } from '@/components/ui';
 import type { SelectOption } from '@/components/ui';
+import Page from '@/components/ui/Page';
 
 type LegacyShopStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED';
 type ShopStatusFilter =
@@ -253,10 +254,10 @@ export default function ShopsPage() {
         prev.map((shop) =>
           shop.shop === selectedShop.shop
             ? {
-                ...shop,
-                legacyShop,
-                isLegacyShop: true,
-              }
+              ...shop,
+              legacyShop,
+              isLegacyShop: true,
+            }
             : shop
         )
       );
@@ -301,22 +302,17 @@ export default function ShopsPage() {
   }
 
   return (
-    <>
+    <Page
+      title='Shops'
+      description='Manage Shops stored in `shops`'
+      actions={[
+        {
+          label: "Legacy Shops",
+          href: "/legacy-shops"
+        }
+      ]}
+    >
       <div>
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Shops</h1>
-          <div className="flex items-center gap-3">
-            <div className="text-sm text-gray-500 dark:text-gray-400">
-              Showing {filteredShops.length} of {shops.length} {shops.length === 1 ? 'shop' : 'shops'}
-            </div>
-            <Link
-              href="/legacy-shops"
-              className="inline-flex items-center px-3 py-1.5 rounded-lg bg-indigo-500/90 hover:bg-indigo-600 text-white text-sm font-medium cursor-pointer"
-            >
-              Legacy Shops
-            </Link>
-          </div>
-        </div>
 
         {shops.length === 0 ? (
           <div className="bg-white dark:bg-slate-800 rounded-lg p-6 border border-gray-200 dark:border-slate-700">
@@ -332,7 +328,6 @@ export default function ShopsPage() {
                 placeholder="Search by shop, email, shop ID, user, locale..."
                 leftIcon={<Search className="h-4 w-4" />}
               />
-
               <Select
                 value={statusFilter}
                 onChange={(event) => setStatusFilter(event.target.value as ShopStatusFilter)}
@@ -340,8 +335,7 @@ export default function ShopsPage() {
               />
             </div>
 
-            <div className="bg-white dark:bg-slate-800 rounded-lg overflow-hidden border border-gray-200 dark:border-slate-700">
-              <div className="overflow-x-auto">
+            <div>
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
                   <thead className="bg-gray-50 dark:bg-slate-700">
                     <tr>
@@ -379,33 +373,30 @@ export default function ShopsPage() {
                           <tr key={shop.shop} className="hover:bg-gray-50 dark:hover:bg-slate-700/50">
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="flex items-center space-x-2">
-                                <Link
+                                <Button
                                   href={`/shops/${encodeURIComponent(shop.shop)}`}
-                                  className="text-sm font-medium text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-300 flex items-center space-x-1 cursor-pointer"
+                                  variant='ghost'
+                                  size='xs'
                                 >
-                                  <span>{shop.shop}</span>
-                                  <Eye className="h-3 w-3" />
-                                </Link>
-                                <a
+                                  {shop.shop}
+                                </Button>
+                                <Button
+                                  iconOnly
+                                  icon={ExternalLink}
+                                  external
                                   href={`https://${shop.shop}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <ExternalLink className="h-3 w-3" />
-                                </a>
+                                  variant='ghost'
+                                />
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <span
-                                className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                  status.color === 'green'
-                                    ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-                                    : status.color === 'red'
+                                className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${status.color === 'green'
+                                  ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                                  : status.color === 'red'
                                     ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
                                     : 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300'
-                                }`}
+                                  }`}
                               >
                                 {status.label}
                               </span>
@@ -418,17 +409,27 @@ export default function ShopsPage() {
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="flex items-center gap-2">
+                                {
+                                  shop.legacyShop && (
+                                    <Button
+                                      onClick={() => openLegacyModal(shop)}
+                                      size='xs'
+                                      icon={Edit}
+                                      variant='ghost'
+                                      iconOnly
+                                    />
+                                  )
+                                }
                                 {shop.legacyShop ? (
                                   <span
-                                    className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                      shop.legacyShop.status === 'COMPLETED'
-                                        ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-                                        : shop.legacyShop.status === 'REJECTED'
-                                          ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
-                                          : shop.legacyShop.status === 'IN_PROGRESS'
-                                            ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
-                                            : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
-                                    }`}
+                                    className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${shop.legacyShop.status === 'COMPLETED'
+                                      ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                                      : shop.legacyShop.status === 'REJECTED'
+                                        ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+                                        : shop.legacyShop.status === 'IN_PROGRESS'
+                                          ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+                                          : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
+                                      }`}
                                   >
                                     {shop.legacyShop.status || 'PENDING'}
                                   </span>
@@ -437,13 +438,6 @@ export default function ShopsPage() {
                                     Not Legacy
                                   </span>
                                 )}
-
-                                <button
-                                  onClick={() => openLegacyModal(shop)}
-                                  className="text-xs px-2 py-1 rounded bg-indigo-500/90 hover:bg-indigo-600 text-white cursor-pointer"
-                                >
-                                  Manage
-                                </button>
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
@@ -469,85 +463,68 @@ export default function ShopsPage() {
                   </tbody>
                 </table>
               </div>
-            </div>
           </div>
         )}
       </div>
 
-      {showLegacyModal && selectedShop && (
-        <div className="fixed inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm flex items-start sm:items-center justify-center overflow-y-auto z-[1000] p-4 sm:py-8">
-          <div className="bg-white dark:bg-slate-800 rounded-lg max-w-lg w-full border border-gray-200 dark:border-slate-700">
-            <div className="flex justify-between items-center p-6 border-b border-gray-200 dark:border-slate-700">
-              <div>
-                <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Manage Legacy Shop</h2>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{selectedShop.shop}</p>
-              </div>
-              <button
-                onClick={closeLegacyModal}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer"
-              >
-                <X className="h-6 w-6" />
-              </button>
-            </div>
+      <Modal
+        title='Manage Legacy Shop'
+        isOpen={(showLegacyModal && selectedShop) ? true : false}
+        onClose={closeLegacyModal}
+        actions={[
+          {
+            label: "Close",
+            onClick: closeLegacyModal,
+            disabled: savingLegacy
+          },
+          {
+            label: savingLegacy ? 'Saving...' : 'Save',
+            onClick: saveLegacyShop,
+            disabled: savingLegacy,
+            variant: 'primary'
+          }
+        ]}
+      >
+        <div className="space-y-4">
+          <Checkbox
+            checked={legacyForm.isUpgradeAllowed}
+            onChange={(event) =>
+              setLegacyForm((prev) => ({ ...prev, isUpgradeAllowed: event.target.checked }))
+            }
+            label="Upgrade Allowed"
+          />
 
-            <div className="p-6 space-y-4">
-              <Checkbox
-                checked={legacyForm.isUpgradeAllowed}
-                onChange={(event) =>
-                  setLegacyForm((prev) => ({ ...prev, isUpgradeAllowed: event.target.checked }))
-                }
-                label="Upgrade Allowed"
-              />
+          <Checkbox
+            checked={legacyForm.hasUpgradeRequest}
+            onChange={(event) =>
+              setLegacyForm((prev) => ({ ...prev, hasUpgradeRequest: event.target.checked }))
+            }
+            label="Has Upgrade Request"
+            disabled
+          />
 
-              <Checkbox
-                checked={legacyForm.hasUpgradeRequest}
-                onChange={(event) =>
-                  setLegacyForm((prev) => ({ ...prev, hasUpgradeRequest: event.target.checked }))
-                }
-                label="Has Upgrade Request"
-              />
+          <Select
+            label="Status"
+            value={legacyForm.status}
+            onChange={(event) =>
+              setLegacyForm((prev) => ({
+                ...prev,
+                status: event.target.value as LegacyShopStatus,
+              }))
+            }
+            options={legacyStatusOptions}
+          />
 
-              <Select
-                label="Status"
-                value={legacyForm.status}
-                onChange={(event) =>
-                  setLegacyForm((prev) => ({
-                    ...prev,
-                    status: event.target.value as LegacyShopStatus,
-                  }))
-                }
-                options={legacyStatusOptions}
-              />
-
-              <Textarea
-                label="Status Message"
-                value={legacyForm.statusMessage}
-                onChange={(event) => setLegacyForm((prev) => ({ ...prev, statusMessage: event.target.value }))}
-                rows={3}
-                placeholder="Optional message for current legacy status..."
-                resize="none"
-              />
-            </div>
-
-            <div className="px-6 py-4 border-t border-gray-200 dark:border-slate-700 flex justify-end gap-3">
-              <button
-                onClick={closeLegacyModal}
-                className="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg text-white dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={saveLegacyShop}
-                disabled={savingLegacy}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-500/90 hover:bg-indigo-600 disabled:opacity-60 text-white rounded-lg cursor-pointer"
-              >
-                <Save className="h-4 w-4" />
-                {savingLegacy ? 'Saving...' : 'Save Legacy'}
-              </button>
-            </div>
-          </div>
+          <Textarea
+            label="Status Message"
+            value={legacyForm.statusMessage}
+            onChange={(event) => setLegacyForm((prev) => ({ ...prev, statusMessage: event.target.value }))}
+            rows={3}
+            placeholder="Optional message for current legacy status..."
+            resize="none"
+          />
         </div>
-      )}
+      </Modal>
 
       <AlertModal
         isOpen={alertState.isOpen}
@@ -556,6 +533,6 @@ export default function ShopsPage() {
         message={alertState.message}
         variant={alertState.variant}
       />
-    </>
+    </Page>
   );
 }

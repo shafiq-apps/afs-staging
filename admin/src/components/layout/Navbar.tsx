@@ -28,7 +28,7 @@ export default function Navbar({ user }: NavbarProps) {
 
   const navItems = [
     { href: '/dashboard', label: 'Dashboard' },
-    { href: '/team', label: 'Team', requiresPermission: 'canManageTeam' },
+    // { href: '/team', label: 'Team', requiresPermission: 'canManageTeam' },
     { href: '/shops', label: 'Shops', requiresPermission: 'canManageShops' },
     { href: '/subscriptions', label: 'Subscriptions', requiresPermission: 'canViewSubscriptions' },
     { href: '/subscription-plans', label: 'Subscription Plans', requiresPermission: 'canViewSubscriptions' },
@@ -40,28 +40,30 @@ export default function Navbar({ user }: NavbarProps) {
   return (
     <nav className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-gray-200/50 dark:border-slate-700/50 sticky top-0 z-50 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16">
+        <div className="flex justify-between h-14">
           <div className="flex">
             <div className="flex-shrink-0 flex items-center space-x-3">
-              <Image
-                src={images.logo}
-                alt="DigitalCoo Logo"
-                width={40}
-                height={40}
-                className="w-10 h-10"
-              />
-              <span className="text-2xl font-bold bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">DigitalCoo</span>
+              <Link
+                href={"/dashboard"}
+              >
+                <Image
+                  src={images.logo}
+                  alt="DigitalCoo Logo"
+                  width={32}
+                  height={32}
+                  className="w-7 h-7"
+                />
+              </Link>
             </div>
             <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
               {filteredNavItems.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium cursor-pointer ${
-                    pathname === item.href
+                  className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium cursor-pointer ${pathname === item.href
                       ? 'border-purple-500 text-gray-900 dark:text-gray-100'
                       : 'border-transparent text-gray-500 dark:text-gray-400 hover:border-purple-300 dark:hover:border-purple-600 hover:text-white dark:hover:text-gray-200'
-                  }`}
+                    }`}
                 >
                   {item.label}
                 </Link>
@@ -131,11 +133,10 @@ export default function Navbar({ user }: NavbarProps) {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium cursor-pointer ${
-                  pathname === item.href
+                className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium cursor-pointer ${pathname === item.href
                     ? 'bg-purple-50 dark:bg-purple-900/30 border-purple-500 dark:border-purple-600 text-purple-700 dark:text-purple-300'
                     : 'border-transparent text-gray-600 dark:text-gray-300 hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:border-purple-300 dark:hover:border-purple-600 hover:text-gray-800 dark:hover:text-gray-200'
-                }`}
+                  }`}
                 onClick={() => setMobileMenuOpen(false)}
               >
                 {item.label}

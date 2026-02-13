@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react';
 import { LoadingBar } from '@/components/ui/LoadingBar';
 import { Plus, Save, X } from 'lucide-react';
-import { Checkbox, Input, Select, Textarea } from '@/components/ui';
+import { Button, Checkbox, Input, Modal, Select, Textarea } from '@/components/ui';
 import type { SelectOption } from '@/components/ui';
+import Page from '@/components/ui/Page';
 
 type LegacyShopStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED';
 
@@ -154,24 +155,22 @@ export default function LegacyShopsPage() {
   }
 
   return (
-    <>
+    <Page
+      title="Legacy Shops"
+      backButton={{
+        label: "Shops",
+        href: "/shops"
+      }}
+      description="Manage records from the `legacy_shops` model"
+      actions={[
+        {
+          label: "Add legacy shop",
+          onClick: openCreateModal
+        }
+      ]}
+    >
       <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Legacy Shops</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-              Manage records from the `legacy_shops` model
-            </p>
-          </div>
-          <button
-            onClick={openCreateModal}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-500/90 hover:bg-indigo-600 text-white cursor-pointer"
-          >
-            <Plus className="h-4 w-4" />
-            Add Legacy Shop
-          </button>
-        </div>
-
+        
         {error && (
           <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 text-red-700 dark:text-red-300">
             {error}
@@ -179,7 +178,7 @@ export default function LegacyShopsPage() {
         )}
 
         <div className="bg-white dark:bg-slate-800 rounded-lg overflow-hidden border border-gray-200 dark:border-slate-700">
-          <div className="overflow-x-auto">
+          <div>
             <table className="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
               <thead className="bg-gray-50 dark:bg-slate-700">
                 <tr>
@@ -231,12 +230,12 @@ export default function LegacyShopsPage() {
                         {record.statusMessage || '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <button
+                        <Button
                           onClick={() => openEditModal(record)}
-                          className="px-3 py-1.5 rounded-lg bg-indigo-500/90 hover:bg-indigo-600 text-white text-xs font-medium cursor-pointer"
+                          size='sm'
                         >
                           Edit
-                        </button>
+                        </Button>
                       </td>
                     </tr>
                   ))
@@ -247,84 +246,69 @@ export default function LegacyShopsPage() {
         </div>
       </div>
 
-      {showModal && (
-        <div className="fixed inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm flex items-start sm:items-center justify-center overflow-y-auto z-[1000] p-4 sm:py-8">
-          <div className="bg-white dark:bg-slate-800 rounded-lg max-w-lg w-full border border-gray-200 dark:border-slate-700">
-            <div className="flex justify-between items-center p-6 border-b border-gray-200 dark:border-slate-700">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-                {editingShop ? 'Edit Legacy Shop' : 'Add Legacy Shop'}
-              </h2>
-              <button
-                onClick={closeModal}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer"
-              >
-                <X className="h-6 w-6" />
-              </button>
-            </div>
+      <Modal
+        title={editingShop ? 'Edit Legacy Shop' : 'Add Legacy Shop'}
+        isOpen={showModal}
+        onClose={closeModal}
+        actions={[
+          {
+            label: 'Close',
+            onClick: closeModal,
+            disabled: saving
+          },
+          {
+            label: saving ? 'Saving...' : 'Save',
+            onClick: () => void saveLegacyShop(),
+            loading: saving,
+            variant: 'primary'
+          },
+        ]}
+      >
+        <div className="space-y-4">
+          <Input
+            label="Shop domain"
+            type="text"
+            value={formData.shop}
+            onChange={(event) => setFormData((prev) => ({ ...prev, shop: event.target.value }))}
+            disabled={Boolean(editingShop)}
+            placeholder="example.myshopify.com"
+          />
 
-            <div className="p-6 space-y-4">
-              <Input
-                label="Shop Domain"
-                type="text"
-                value={formData.shop}
-                onChange={(event) => setFormData((prev) => ({ ...prev, shop: event.target.value }))}
-                disabled={Boolean(editingShop)}
-                placeholder="example.myshopify.com"
-              />
+          <Checkbox
+            checked={formData.isUpgradeAllowed}
+            onChange={(event) =>
+              setFormData((prev) => ({ ...prev, isUpgradeAllowed: event.target.checked }))
+            }
+            label="Upgrade allowed"
+          />
 
-              <Checkbox
-                checked={formData.isUpgradeAllowed}
-                onChange={(event) =>
-                  setFormData((prev) => ({ ...prev, isUpgradeAllowed: event.target.checked }))
-                }
-                label="Upgrade Allowed"
-              />
+          <Checkbox
+            checked={formData.hasUpgradeRequest}
+            onChange={(event) =>
+              setFormData((prev) => ({ ...prev, hasUpgradeRequest: event.target.checked }))
+            }
+            label="Has upgrade request"
+            disabled
+          />
 
-              <Checkbox
-                checked={formData.hasUpgradeRequest}
-                onChange={(event) =>
-                  setFormData((prev) => ({ ...prev, hasUpgradeRequest: event.target.checked }))
-                }
-                label="Has Upgrade Request"
-              />
+          <Select
+            label="Status"
+            value={formData.status}
+            onChange={(event) =>
+              setFormData((prev) => ({ ...prev, status: event.target.value as LegacyShopStatus }))
+            }
+            options={legacyStatusOptions}
+          />
 
-              <Select
-                label="Status"
-                value={formData.status}
-                onChange={(event) =>
-                  setFormData((prev) => ({ ...prev, status: event.target.value as LegacyShopStatus }))
-                }
-                options={legacyStatusOptions}
-              />
-
-              <Textarea
-                label="Status Message"
-                value={formData.statusMessage}
-                onChange={(event) => setFormData((prev) => ({ ...prev, statusMessage: event.target.value }))}
-                rows={3}
-                resize="none"
-              />
-            </div>
-
-            <div className="px-6 py-4 border-t border-gray-200 dark:border-slate-700 flex justify-end gap-3">
-              <button
-                onClick={closeModal}
-                className="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg text-white dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => void saveLegacyShop()}
-                disabled={saving}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-500/90 hover:bg-indigo-600 disabled:opacity-60 text-white rounded-lg cursor-pointer"
-              >
-                <Save className="h-4 w-4" />
-                {saving ? 'Saving...' : 'Save'}
-              </button>
-            </div>
-          </div>
+          <Textarea
+            label="Status message"
+            value={formData.statusMessage}
+            onChange={(event) => setFormData((prev) => ({ ...prev, statusMessage: event.target.value }))}
+            rows={3}
+            resize="none"
+          />
         </div>
-      )}
-    </>
+      </Modal>
+    </Page>
   );
 }

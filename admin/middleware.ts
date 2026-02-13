@@ -9,7 +9,8 @@ function verifyToken(token: string): SessionData | null {
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as SessionData;
     return decoded;
-  } catch (error) {
+  } catch (error: any) {
+    console.log(error);
     return null;
   }
 }
