@@ -291,24 +291,6 @@ export default function ShopsPage() {
     );
   }
 
-  const StatusRender = (item: Shop) => {
-    return <Badge variant={item.state === "ACTIVE" ? "success" : "info"}>{item.state || "UNKNOWN"}</Badge>
-  }
-
-  const InstalledAtRender = (item: Shop) => formatDate(item.installedAt)
-
-  const ScopesRender = (item: Shop) => {
-    if (!item.scopes) {
-      return null;
-    }
-
-    return (
-      <span className="inline-block max-w-xs truncate" title={item.scopes.join(', ')}>
-        {item.scopes.length} {item.scopes.length === 1 ? 'scope' : 'scopes'}
-      </span>
-    )
-  }
-
   return (
     <Page
       title='Shops'
@@ -324,21 +306,21 @@ export default function ShopsPage() {
         loading={loading}
         columns={[
           { header: "Shop Domain", key: "shop" },
-          { header: "Status", key: "status", render: StatusRender },
-          { header: "Installed", key: "installedAt", render: InstalledAtRender },
-          { header: "Scopes", key: "scopes", render: ScopesRender },
+          { header: "Status", key: "status", render: (item) => <Badge variant={item.state === "ACTIVE" ? "success" : "info"}>{item.state || "UNKNOWN"}</Badge> },
+          { header: "Installed", key: "installedAt", render: (item: Shop) => formatDate(item.installedAt) },
+          { header: "UnInstalled", key: "uninstalledAt", render: (item: Shop) => formatDate(item.uninstalledAt) },
+          {
+            header: "Actions", key: "id", render: (item) => (
+              <Button
+                href={`/shops/${item.shop}`}
+                size='sm'
+              >Edit</Button>
+            )
+          },
         ]}
         data={filteredShops}
         keyExtractor={(item) => item.shop}
         emptyMessage='No shops match your current search or filters.'
-        actions={(selectedItems) => {
-          console.log("selectedItems", selectedItems);
-          return (
-            <>
-              <Button>test</Button>
-            </>
-          )
-        }}
       />
 
       <Modal
