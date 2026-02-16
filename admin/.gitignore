@@ -45,3 +45,5 @@ privkey.pem
 /certs
 /certs/*
 
+
+logs/*
