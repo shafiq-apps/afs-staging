@@ -137,41 +137,45 @@ export async function PATCH(
       );
     }
 
-    // Merge permissions if role is being updated
-    const finalUpdates = { ...updates };
-    if (updates.role) {
-      const defaultPerms = getDefaultPermissions(updates.role as UserRole);
-      finalUpdates.permissions = {
-        ...defaultPerms,
-        ...(updates.permissions || {}),
-      };
-
-      // Employees cannot have payment/subscription permissions
-      if (updates.role === 'employee') {
+    if (updates) {
+      // Merge permissions if role is being updated
+      const finalUpdates = { ...updates };
+      if (updates.role) {
+        const defaultPerms = getDefaultPermissions(updates.role as UserRole);
         finalUpdates.permissions = {
-          ...finalUpdates.permissions,
+          ...defaultPerms,
+          ...(updates.permissions || {}),
+        };
+
+        // Employees cannot have payment/subscription permissions
+        if (updates.role === 'employee') {
+          finalUpdates.permissions = {
+            ...finalUpdates.permissions,
+            canViewPayments: false,
+            canViewSubscriptions: false,
+          };
+        }
+      } else if (existingUser.role === 'employee') {
+        // Ensure employees can't get payment/subscription permissions
+        finalUpdates.permissions = {
+          ...(finalUpdates.permissions || {}),
           canViewPayments: false,
           canViewSubscriptions: false,
         };
       }
-    } else if (existingUser.role === 'employee') {
-      // Ensure employees can't get payment/subscription permissions
-      finalUpdates.permissions = {
-        ...(finalUpdates.permissions || {}),
-        canViewPayments: false,
-        canViewSubscriptions: false,
-      };
-    }
 
-    const updatedUser = await updateUser(id, finalUpdates);
-    if (!updatedUser) {
-      return NextResponse.json(
-        { error: 'Failed to update user' },
-        { status: 500 }
-      );
-    }
+      const updatedUser = await updateUser(id, finalUpdates as any);
+      if (!updatedUser) {
+        return NextResponse.json(
+          { error: 'Failed to update user' },
+          { status: 500 }
+        );
+      }
 
-    return NextResponse.json({ user: updatedUser });
+      return NextResponse.json({ user: updatedUser });
+    } else {
+      throw new Error("No data found");
+    }
   } catch (error: unknown) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

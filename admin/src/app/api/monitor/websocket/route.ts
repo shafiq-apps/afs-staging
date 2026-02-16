@@ -72,7 +72,7 @@ async function startMonitoring(): Promise<void> {
 
     console.log('[ESMonitor WebSocket] ES monitoring started');
   } catch (error) {
-    console.error('[ESMonitor WebSocket] Error starting monitoring:', error?.message);
+    console.error('[ESMonitor WebSocket] Error starting monitoring:', (error as any)?.message);
     monitoringStarted = false;
     broadcastMessage({
       type: 'error',
@@ -97,7 +97,7 @@ function broadcastMessage(message: MonitorMessage): void {
         deadConnections.push(ws);
       }
     } catch (error) {
-      console.error('[ESMonitor WebSocket] Error broadcasting:', error?.message);
+      console.error('[ESMonitor WebSocket] Error broadcasting:', (error as any)?.message);
       deadConnections.push(ws);
     }
   }
@@ -146,7 +146,7 @@ export async function GET(request: Request, context: any) {
 
     return response;
   } catch (error) {
-    console.error('[ESMonitor WebSocket] Error:', error?.message);
+    console.error('[ESMonitor WebSocket] Error:', (error as any)?.message);
     return new Response('WebSocket upgrade failed', { status: 500 });
   }
 }
@@ -179,9 +179,9 @@ export async function POST(request: Request) {
       { status: 400 }
     );
   } catch (error: any) {
-    console.error('[ESMonitor REST] Error:', error?.message);
+    console.error('[ESMonitor REST] Error:', (error as any)?.message);
     return Response.json(
-      { success: false, error: error?.message || 'Failed to process request' },
+      { success: false, error: (error as any)?.message || 'Failed to process request' },
       { status: 500 }
     );
   }

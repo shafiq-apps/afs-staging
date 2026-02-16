@@ -120,7 +120,7 @@ async function resolveSubscriptionPlanDocument(
   }
 
   return {
-    documentId: hit._id,
+    documentId: hit._id as string,
     source: hit._source as Record<string, unknown>,
   };
 }
