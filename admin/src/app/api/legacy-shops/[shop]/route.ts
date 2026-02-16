@@ -49,6 +49,12 @@ const UPSERT_LEGACY_SHOP_MUTATION = `
   }
 `;
 
+const DELETE_LEGACY_SHOP_MUTATION = `
+  mutation DeleteLegacyShop($domain: String!) {
+    deleteLegacyShop(domain: $domain)
+  }
+`;
+
 function normalizeStatus(value?: string): LegacyShopStatus | undefined {
   if (!value) return undefined;
   const normalized = value.toUpperCase();
@@ -152,7 +158,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     try {
       const gqlResponse = await authenticatedGraphQLRequest<UpsertLegacyShopMutationResult>(
         UPSERT_LEGACY_SHOP_MUTATION,
-        { input }
+        { input, shop }
       );
 
       if (gqlResponse.data?.createOrUpdateLegacyShop) {
@@ -187,6 +193,59 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         ...(updated._source as LegacyShop),
         shop: shopDomain,
       },
+    });
+  } catch (error: unknown) {
+    console.error('Error updating legacy shop:', error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to update legacy shop',
+      },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request: NextRequest, { params }: RouteParams) {
+  try {
+    const { shop } = await params;
+    const shopDomain = decodeURIComponent(shop);
+
+    const input = {
+      shop: shopDomain,
+      domain: shopDomain
+    };
+
+    try {
+      const gqlResponse = await authenticatedGraphQLRequest<Boolean>(
+        DELETE_LEGACY_SHOP_MUTATION,
+        { domain: shopDomain, shop }
+      );
+
+      console.log("gqlResponse.data", gqlResponse.data);
+
+      if (gqlResponse.data) {
+        return NextResponse.json({
+          success: true,
+          source: 'graphql',
+          legacyShop: gqlResponse.data,
+        });
+      }
+    } catch (gqlError) {
+      console.warn('[legacy-shops/:shop][DELETE] GraphQL failed, falling back to ES:', gqlError);
+    }
+
+    const esClient = getESClient();
+    const response = await esClient.delete({
+      index: LEGACY_SHOPS_INDEX_NAME,
+      id: shopDomain,
+      refresh: true,
+    });
+
+    return NextResponse.json({
+      success: true,
+      source: 'es',
+      legacyShop: response._id,
     });
   } catch (error: unknown) {
     console.error('Error updating legacy shop:', error);

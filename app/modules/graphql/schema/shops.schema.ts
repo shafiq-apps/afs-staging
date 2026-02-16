@@ -200,6 +200,9 @@ export const shopsSchema = `
 
     # legacy shop mutations
     createOrUpdateLegacyShop(input: LegacyShopInput!): LegacyShop
+
+    # legacy shop mutations
+    deleteLegacyShop(domain: String!): Boolean
   }
 
   # JSON scalar type for nested objects

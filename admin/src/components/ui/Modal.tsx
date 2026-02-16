@@ -2,19 +2,13 @@
 
 import { ReactNode, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { LucideIcon, X } from 'lucide-react';
-import Button, { ButtonProps, ButtonSize, ButtonVariant } from './Button';
+import { X } from 'lucide-react';
+import Button, { ButtonProps } from './Button';
 
-export interface ModalAction {
-  label: string;
+export interface ModalAction extends ButtonProps {
   onClick?: (e: any) => void;
-  variant?: ButtonVariant;
-  size?: ButtonSize;
-  icon?: LucideIcon;
-  iconPosition?: 'left' | 'right';
-  loading?: boolean;
-  disabled?: boolean;
   type?: "button" | "submit" | "reset";
+  href?: string;
 }
 
 export interface ModalProps {
@@ -23,7 +17,6 @@ export interface ModalProps {
   title?: string;
   children: ReactNode;
   size?: "sm" | "md" | "lg" | "xl" | "full";
-  showCloseButton?: boolean;
   footer?: ReactNode;
   actions?: ModalAction[];
 }
@@ -42,7 +35,6 @@ export default function Modal({
   title,
   children,
   size = 'md',
-  showCloseButton = true,
   footer,
   actions = [],
 }: ModalProps) {
@@ -75,20 +67,18 @@ export default function Modal({
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          {(title || showCloseButton) && (
+          {title && (
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-slate-700">
               {title && (
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{title}</h3>
               )}
-              {showCloseButton && (
-                <button
-                  onClick={onClose}
-                  className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer"
-                  aria-label="Close"
-                >
-                  <X className="h-6 w-6" />
-                </button>
-              )}
+              <button
+                onClick={onClose}
+                className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer"
+                aria-label="Close"
+              >
+                <X className="h-6 w-6" />
+              </button>
             </div>
           )}
 
@@ -108,10 +98,8 @@ export default function Modal({
               <div className="px-6 py-4 border-t border-gray-200 dark:border-slate-700 flex items-center justify-end space-x-3">
                 {actions.map((action, index) => (
                   <Button
-                    key={index}
+                    key={'modal-butto-' + index}
                     {...action}
-                    size={action.size || 'md'}
-                    variant={action.variant || 'outline'}
                   >
                     {action.label}
                   </Button>
@@ -137,6 +125,7 @@ export interface AlertModalProps {
   variant?: 'info' | 'success' | 'warning' | 'error';
   confirmText?: string;
   onConfirm?: () => void;
+  loading?: boolean;
 }
 
 export function AlertModal({
@@ -147,6 +136,7 @@ export function AlertModal({
   variant = 'info',
   confirmText = 'OK',
   onConfirm,
+  loading = false,
 }: AlertModalProps) {
   const handleConfirm = () => {
     onConfirm?.();
@@ -159,7 +149,11 @@ export function AlertModal({
         <p className="text-white dark:text-gray-300">{message}</p>
       </div>
       <div className="flex justify-end">
-        <Button onClick={handleConfirm} variant={variant === 'error' ? 'danger' : 'primary'}>
+        <Button
+          loading={loading}
+          onClick={handleConfirm}
+          variant={variant === 'error' ? 'danger' : 'primary'}
+        >
           {confirmText}
         </Button>
       </div>

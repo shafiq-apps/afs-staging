@@ -154,7 +154,7 @@ export default function TeamPage() {
               resetForm();
               setShowAddModal(true);
             }}
-            className="flex items-center space-x-2 bg-purple-500/90 hover:bg-purple-600 text-white px-4 py-2 rounded-lg transition-colors duration-200 shadow-md shadow-purple-500/20 hover:shadow-purple-500/30 cursor-pointer"
+            className="flex items-center space-x-2 bg-blue-500/90 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors duration-200 shadow-md shadow-blue-500/20 hover:shadow-blue-500/30 cursor-pointer"
           >
             <Plus className="h-5 w-5" />
             <span>Add Member</span>
@@ -192,7 +192,7 @@ export default function TeamPage() {
                     <div className="text-sm text-gray-500 dark:text-gray-400">{user.email}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300">
+                    <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300">
                       {user.role.replace('_', ' ').toUpperCase()}
                     </span>
                   </td>
@@ -201,7 +201,7 @@ export default function TeamPage() {
                       className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                         user.isActive
                           ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
-                          : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300'
+                          : 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300'
                       }`}
                     >
                       {user.isActive ? 'Active' : 'Inactive'}
@@ -211,14 +211,14 @@ export default function TeamPage() {
                     <div className="flex space-x-2">
                       <button
                         onClick={() => handleEdit(user)}
-                        className="text-purple-600 dark:text-purple-400 hover:text-purple-900 dark:hover:text-purple-300 cursor-pointer"
+                        className="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 cursor-pointer"
                       >
                         <Edit className="h-5 w-5" />
                       </button>
                       {user.role !== 'super_admin' && (
                         <button
                           onClick={() => setConfirmDeleteUserId(user.id)}
-                          className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300 cursor-pointer"
+                          className="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 cursor-pointer"
                         >
                           <Trash2 className="h-5 w-5" />
                         </button>
@@ -377,7 +377,7 @@ export default function TeamPage() {
                   </button>
                   <button
                     type="submit"
-                    className="flex items-center space-x-2 px-4 py-2 bg-purple-500/90 hover:bg-purple-600 text-white rounded-lg transition-colors duration-200 shadow-md shadow-purple-500/20 hover:shadow-purple-500/30 cursor-pointer"
+                    className="flex items-center space-x-2 px-4 py-2 bg-blue-500/90 hover:bg-blue-600 text-white rounded-lg transition-colors duration-200 shadow-md shadow-blue-500/20 hover:shadow-blue-500/30 cursor-pointer"
                   >
                     <Save className="h-5 w-5" />
                     <span>{editingUser ? 'Update' : 'Create'}</span>

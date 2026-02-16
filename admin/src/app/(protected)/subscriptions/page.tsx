@@ -5,8 +5,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { LoadingBar } from '@/components/ui/LoadingBar';
 import Input from '@/components/ui/Input';
 import { RefreshCw, Search } from 'lucide-react';
-import { Banner, Button } from '@/components/ui';
+import { Banner, Button, DataTable } from '@/components/ui';
 import { formatDate, normalizeShopifyId } from '@/lib/string.utils';
+import Page from '@/components/ui/Page';
 
 interface SubscriptionLineItem {
   id: string;
@@ -52,7 +53,7 @@ export default function SubscriptionsPage() {
     return subscriptions.filter((subscription) => subscription.shop.toLowerCase().includes(value));
   }, [filterShop, subscriptions]);
 
-  const fetchSubscriptions = async (): Promise<void> => {
+  const fetchSubscriptions = async (initial: boolean = false): Promise<void> => {
     try {
       setLoading(true);
       setError(null);
@@ -115,167 +116,120 @@ export default function SubscriptionsPage() {
     void fetchSubscriptions();
   }, []);
 
-  if (loading) {
-    return (
-      <>
-        <LoadingBar loading={true} />
-        <div className="flex justify-center items-center h-64">
-          <div className="text-gray-500 dark:text-gray-400">Loading subscriptions...</div>
-        </div>
-      </>
-    );
-  }
-
   return (
-    <>
-      <div className="space-y-6">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Subscriptions</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-              Manage Shopify app subscriptions stored in `app_subscriptions`
-            </p>
-          </div>
+    <Page
+      title='Subscriptions'
+      description='Manage Shopify app subscriptions stored in `app_subscriptions`'
+      actions={[
+        {
+          label: "Refresh",
+          onClick: () => void fetchSubscriptions(),
+          icon: RefreshCw,
+          loading
+        }
+      ]}
+    >
+      {
+        error && (
+          <Banner variant='error'>{error}</Banner>
+        )
+      }
 
-          <Button
-            title='Refresh'
-            onClick={() => void fetchSubscriptions()}
-            icon={RefreshCw}
-          >
-            Refresh
-          </Button>
-        </div>
+      <DataTable
+        loading={loading}
+        columns={[
+          { header: "Shop", key: "shop", },
+          { header: "Name", key: "name" },
+          { header: "Plan", key: "test", render: (item) => item.test ? "Test Plan" : "Paid Plan" },
+          { header: "Status", key: "status" },
+          { header: "Shopify ID", key: "shopifySubscriptionId", render: (item) => normalizeShopifyId(item.shopifySubscriptionId) },
+          {
+            header: "Actions", key: "id", render: (item) => (
+              <Button
+                variant='secondary'
+                onClick={() => void syncSubscriptionStatus(item)}
+                disabled={syncingShop === item.shop}
+                icon={RefreshCw}
+                loading={syncingShop === item.shop}
+              >
+                {
+                  syncingShop === item.shop ? "Checking..." : "Check Status"
+                }
+              </Button>
+            )
+          }
+        ]}
+        data={filteredSubscriptions}
+        keyExtractor={(item) => item.id + item.shop}
+        emptyMessage='No subscriptions found'
+      />
 
-        <div className="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 p-4">
-          <Input
-            type="text"
-            value={filterShop}
-            onChange={(event) => setFilterShop(event.target.value)}
-            placeholder="Filter by shop domain..."
-            leftIcon={<Search className="h-4 w-4" />}
-          />
-        </div>
-
-        {error && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 text-red-700 dark:text-red-300">
-            {error}
-          </div>
-        )}
-
-        <div className="bg-white dark:bg-slate-800 rounded-lg overflow-hidden border border-gray-200 dark:border-slate-700">
-          <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
-            <p className="text-sm text-gray-600 dark:text-gray-300">
-              Showing {filteredSubscriptions.length} subscription{filteredSubscriptions.length === 1 ? '' : 's'}
-            </p>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
-              <thead className="bg-gray-50 dark:bg-slate-700">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Shop
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Name
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Plan
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Shopify ID
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white dark:bg-slate-800 divide-y divide-gray-200 dark:divide-slate-700">
-                {filteredSubscriptions.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={6}
-                      className="px-6 py-12 text-center text-sm text-gray-500 dark:text-gray-400"
-                    >
-                      No subscriptions found.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredSubscriptions.map((subscription) => (
-                    <tr key={`${subscription.shop}-${subscription.shopifySubscriptionId}`}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <Link
-                          href={`/shops/${encodeURIComponent(subscription.shop)}`}
-                          className="text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300"
-                        >
-                          <div>{subscription.shop}</div>
-                          <div className="text-xs font-sm text-gray-500 dark:text-gray-400 gap-2 flex flex-columns">
-                            <span className='inline-block'>Created: {formatDate(subscription.createdAt)}</span>
-                            {
-                              subscription.updatedAt && (
-                                <span className='inline-block'>|</span>
-                              )
-                            }
-                            {
-                              subscription.updatedAt && (
-                                <span className='inline-block'>
-                                  Updated {formatDate(subscription.updatedAt)}
-                                </span>
-                              )
-                            }
-                          </div>
-                        </Link>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                        {subscription.name || '-'}
-                        {
-                          subscription.shopifySubscriptionId && (
-                            <div className="text-xs font-sm text-gray-500 dark:text-gray-400">Shopify ID: {normalizeShopifyId(subscription.shopifySubscriptionId)}</div>
-                          )
-                        }
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                        <span
-                          className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${subscription.test ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'}`}
-                        >
-                          {subscription.test ? 'TEST PLAN' : 'PAID'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
-                          {subscription.status || 'UNKNOWN'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-xs text-gray-500 dark:text-gray-400 break-all">
-                        <div>
-                          {normalizeShopifyId(subscription.shopifySubscriptionId) || '-'}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <Button
-                          variant='secondary'
-                          onClick={() => void syncSubscriptionStatus(subscription)}
-                          disabled={syncingShop === subscription.shop}
-                          icon={RefreshCw}
-                          loading={syncingShop === subscription.shop}
-                        >
-                          {
-                            syncingShop === subscription.shop ? "Checking..." : "Check Status"
-                          }
-                        </Button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </>
-  );
+      {/* <div className="bg-white dark:bg-slate-800 rounded-lg overflow-hidden border border-gray-200 dark:border-slate-700">
+        <tr key={`${subscription.shop}-${subscription.shopifySubscriptionId}`}>
+          <td className="px-6 py-4 whitespace-nowrap text-sm">
+            <Link
+              href={`/shops/${encodeURIComponent(subscription.shop)}`}
+              className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
+            >
+              <div>{subscription.shop}</div>
+              <div className="text-xs font-sm text-gray-500 dark:text-gray-400 gap-2 flex flex-columns">
+                <span className='inline-block'>Created: {formatDate(subscription.createdAt)}</span>
+                {
+                  subscription.updatedAt && (
+                    <span className='inline-block'>|</span>
+                  )
+                }
+                {
+                  subscription.updatedAt && (
+                    <span className='inline-block'>
+                      Updated {formatDate(subscription.updatedAt)}
+                    </span>
+                  )
+                }
+              </div>
+            </Link>
+          </td>
+          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+            {subscription.name || '-'}
+            {
+              subscription.shopifySubscriptionId && (
+                <div className="text-xs font-sm text-gray-500 dark:text-gray-400">Shopify ID: {normalizeShopifyId(subscription.shopifySubscriptionId)}</div>
+              )
+            }
+          </td>
+          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+            <span
+              className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${subscription.test ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'}`}
+            >
+              {subscription.test ? 'TEST PLAN' : 'PAID'}
+            </span>
+          </td>
+          <td className="px-6 py-4 whitespace-nowrap">
+            <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+              {subscription.status || 'UNKNOWN'}
+            </span>
+          </td>
+          <td className="px-6 py-4 text-xs text-gray-500 dark:text-gray-400 break-all">
+            <div>
+              {normalizeShopifyId(subscription.shopifySubscriptionId) || '-'}
+            </div>
+          </td>
+          <td className="px-6 py-4 whitespace-nowrap">
+            <Button
+              variant='secondary'
+              onClick={() => void syncSubscriptionStatus(subscription)}
+              disabled={syncingShop === subscription.shop}
+              icon={RefreshCw}
+              loading={syncingShop === subscription.shop}
+            >
+              {
+                syncingShop === subscription.shop ? "Checking..." : "Check Status"
+              }
+            </Button>
+          </td>
+        </tr>
+      </div> */}
+    </Page>
+  )
 }
 

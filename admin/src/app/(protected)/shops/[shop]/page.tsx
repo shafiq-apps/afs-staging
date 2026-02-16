@@ -3,9 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { ComponentType, ReactNode } from 'react';
 import { useParams } from 'next/navigation';
-import Link from 'next/link';
 import { LoadingBar } from '@/components/ui/LoadingBar';
-import { Checkbox, Select, Textarea } from '@/components/ui';
+import { Banner, Button, Checkbox, Select, Textarea } from '@/components/ui';
 import type { SelectOption } from '@/components/ui';
 import {
   ArrowLeft,
@@ -24,6 +23,8 @@ import {
   RefreshCw,
   Database,
 } from 'lucide-react';
+import Page from '@/components/ui/Page';
+import { Href } from '@/components/ui/LinkComponent';
 
 const legacyStatusOptions: SelectOption[] = [
   { value: 'PENDING', label: 'PENDING' },
@@ -233,7 +234,7 @@ export default function ShopDetailPage() {
   }) => (
     <div className="bg-white dark:bg-slate-800 rounded-lg p-6 border border-gray-200 dark:border-slate-700">
       <div className="flex items-center space-x-2 mb-4">
-        {Icon && <Icon className="h-5 w-5 text-purple-500 dark:text-purple-400" />}
+        {Icon && <Icon className="h-5 w-5 text-blue-500 dark:text-blue-400" />}
         <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{title}</h3>
       </div>
       <div className="space-y-3">{children}</div>
@@ -262,136 +263,93 @@ export default function ShopDetailPage() {
 
   if (loading) {
     return (
-      <>
+      <Page title=''>
         <LoadingBar loading={true} />
         <div className="flex justify-center items-center h-64">
           <div className="text-gray-500 dark:text-gray-400">Loading shop details...</div>
         </div>
-      </>
+      </Page>
     );
   }
 
   if (error || !shop) {
     return (
-      <>
+      <Page
+        title=''
+        backButton={{
+          label: "Back to Shops",
+          href: "/shops"
+        }}
+      >
         <div>
-          <Link
-            href="/shops"
-            className="inline-flex items-center space-x-2 text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-300 mb-6 cursor-pointer"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            <span>Back to Shops</span>
-          </Link>
-          <div className="bg-white dark:bg-slate-800 rounded-lg p-6 border border-red-200 dark:border-red-800">
-            <p className="text-red-600 dark:text-red-400">Error: {error || 'Shop not found'}</p>
-            <button
-              onClick={fetchShop}
-              className="mt-4 px-4 py-2 bg-purple-500/90 hover:bg-purple-600 text-white rounded-lg transition-colors duration-200 shadow-md shadow-purple-500/20 hover:shadow-purple-500/30 cursor-pointer"
-            >
-              Retry
-            </button>
-          </div>
+          <Banner variant='error'>
+            <div className="space-y-4">
+              <p className="text-blue-600 dark:text-blue-400">{error || 'Shop not found'}</p>
+              <Button onClick={fetchShop} variant='danger'>
+                Retry
+              </Button>
+            </div>
+          </Banner>
         </div>
-      </>
+      </Page>
     );
   }
 
   const status = getShopStatus(shop);
 
   return (
-    <>
-      <div>
-        {/* Header */}
-        <div className="mb-6">
-          <Link
-            href="/shops"
-            className="inline-flex items-center space-x-2 text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-300 mb-4 cursor-pointer"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            <span>Back to Shops</span>
-          </Link>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">{shop.shop}</h1>
-                <div className="flex items-center space-x-3 mt-2">
-                  <span
-                    className={`inline-flex items-center space-x-1 px-3 py-1 rounded-full text-xs font-semibold ${status.color === 'green'
-                        ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-                        : status.color === 'red'
-                          ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
-                          : 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300'
-                      }`}
-                  >
-                    <status.icon className="h-3 w-3" />
-                    <span>{status.label}</span>
-                  </span>
-                  {shop.isOnline && (
-                    <span className="inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
-                      <div className="h-2 w-2 bg-blue-500 rounded-full animate-pulse"></div>
-                      <span>Online</span>
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={handleReindex}
-                disabled={reindexing || !shop.installedAt || !!shop.uninstalledAt}
-                className="inline-flex items-center space-x-2 px-4 py-2 bg-indigo-500/90 hover:bg-indigo-600 text-white rounded-lg transition-colors duration-200 shadow-md shadow-indigo-500/20 hover:shadow-indigo-500/30 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {reindexing ? (
-                  <>
-                    <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    <span>Reindexing...</span>
-                  </>
-                ) : (
-                  <>
-                    <Database className="h-4 w-4" />
-                    <span>Reindex Products</span>
-                  </>
-                )}
-              </button>
-              <a
-                href={`https://${shop.shop}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center space-x-2 px-4 py-2 bg-purple-500/90 hover:bg-purple-600 text-white rounded-lg transition-colors duration-200 shadow-md shadow-purple-500/20 hover:shadow-purple-500/30 cursor-pointer"
-              >
-                <ExternalLink className="h-4 w-4" />
-                <span>Visit Shop</span>
-              </a>
-            </div>
-          </div>
-        </div>
-
-        {/* Reindex Message */}
-        {reindexMessage && (
-          <div
-            className={`mb-6 p-4 rounded-lg border ${reindexMessage.startsWith('Error')
-                ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-800 dark:text-red-300'
-                : 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-800 dark:text-green-300'
+    <Page
+      title={shop.shop}
+      backButton={{
+        label: 'Shops',
+        href: '/shops'
+      }}
+      actions={[
+        {
+          label: "Reindex products",
+          icon: Database,
+          loading: reindexing,
+          onClick: handleReindex,
+          disabled: (reindexing || !shop.installedAt || !!shop.uninstalledAt) ? true : false
+        },
+        {
+          label: "Visit shop",
+          href: `https://${shop.shop}`,
+          icon: ExternalLink,
+          onClick: handleReindex,
+          external: true
+        }
+      ]}
+      description={
+        <div className="flex items-center space-x-3 mt-2">
+          <span
+            className={`inline-flex items-center space-x-1 px-3 py-1 rounded-full text-xs font-semibold ${status.color === 'green'
+              ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+              : status.color === 'red'
+                ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+                : 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300'
               }`}
           >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                {reindexMessage.startsWith('Error') ? (
-                  <AlertCircle className="h-5 w-5" />
-                ) : (
-                  <CheckCircle className="h-5 w-5" />
-                )}
-                <span className="font-medium">{reindexMessage}</span>
-              </div>
-              <button
-                onClick={() => setReindexMessage(null)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
-              >
-                <XCircle className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-        )}
+            <status.icon className="h-3 w-3" />
+            <span>{status.label}</span>
+          </span>
+          {shop.isOnline && (
+            <span className="inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+              <div className="h-2 w-2 bg-blue-500 rounded-full animate-pulse"></div>
+              <span>Online</span>
+            </span>
+          )}
+        </div>
+      }
+    >
+      <div>
+
+        {/* Reindex Message */}
+        {
+          reindexMessage && (
+            <Banner className='mb-6' variant={reindexMessage.startsWith('Error') ? 'error' : 'success'}>{reindexMessage}</Banner>
+          )
+        }
 
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -447,15 +405,12 @@ export default function ShopDetailPage() {
             <InfoRow
               label="Shop Domain"
               value={
-                <a
+                <Href
+                  label={shop.shop}
                   href={`https://${shop.shop}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-purple-600 dark:text-purple-400 hover:underline flex items-center space-x-1 cursor-pointer"
-                >
-                  <span>{shop.shop}</span>
-                  <ExternalLink className="h-3 w-3" />
-                </a>
+                  external
+                  color='white'
+                />
               }
               icon={Globe}
             />
@@ -493,6 +448,7 @@ export default function ShopDetailPage() {
                     setLegacyForm((prev) => ({ ...prev, hasUpgradeRequest: event.target.checked }))
                   }
                   label="Has Upgrade Request"
+                  disabled
                 />
                 <Select
                   label="Legacy Status"
@@ -513,13 +469,14 @@ export default function ShopDetailPage() {
                   resize="none"
                 />
                 <div className="flex justify-end">
-                  <button
+                  <Button
                     onClick={saveLegacyShop}
                     disabled={savingLegacy}
-                    className="px-4 py-2 bg-indigo-500/90 hover:bg-indigo-600 disabled:opacity-60 text-white rounded-lg text-sm cursor-pointer"
+                    variant='primary'
+                    loading={savingLegacy}
                   >
-                    {savingLegacy ? 'Saving...' : 'Save Legacy Status'}
-                  </button>
+                    {savingLegacy ? 'Updating...' : 'Update'}
+                  </Button>
                 </div>
               </InfoCard>
             )
@@ -533,7 +490,7 @@ export default function ShopDetailPage() {
                 shop.email || shop.metadata?.email ? (
                   <a
                     href={`mailto:${shop.email || shop.metadata?.email}`}
-                    className="text-purple-600 dark:text-purple-400 hover:underline cursor-pointer"
+                    className="text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
                   >
                     {shop.email || shop.metadata?.email}
                   </a>
@@ -597,7 +554,7 @@ export default function ShopDetailPage() {
                   {shop.scopes.map((scope, index) => (
                     <span
                       key={index}
-                      className="px-3 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 rounded-full text-xs font-medium"
+                      className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 rounded-full text-xs font-medium"
                     >
                       {scope}
                     </span>
@@ -653,7 +610,7 @@ export default function ShopDetailPage() {
 
         </div>
       </div>
-    </>
+    </Page>
   );
 }
 

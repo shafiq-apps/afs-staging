@@ -1,10 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { LoadingBar } from '@/components/ui/LoadingBar';
-import { Plus, Save, X } from 'lucide-react';
-import { Checkbox, Input, Select, Textarea } from '@/components/ui';
+import { AlertModal, Banner, Button, ButtonGroup, Checkbox, DataTable, Input, Modal, Select, Textarea } from '@/components/ui';
 import type { SelectOption } from '@/components/ui';
+import Page from '@/components/ui/Page';
 
 type LegacyShopStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED';
 
@@ -39,6 +38,8 @@ export default function LegacyShopsPage() {
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState(DEFAULT_FORM);
   const [editingShop, setEditingShop] = useState<string | null>(null);
+  const [deletingShop, setDeleteShop] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchLegacyShops = async (): Promise<void> => {
     try {
@@ -142,189 +143,194 @@ export default function LegacyShopsPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <>
-        <LoadingBar loading={true} />
-        <div className="flex justify-center items-center h-64">
-          <div className="text-gray-500 dark:text-gray-400">Loading legacy shops...</div>
-        </div>
-      </>
-    );
-  }
+  const deleteLegacyShop = async () => {
+    try {
+      
+      const shop = String(deletingShop).trim();
+
+      if (!shop) {
+        throw new Error('Shop domain is required');
+      }
+
+      setDeleting(true);
+      setError(null);
+
+      const payload = {
+        shop: shop
+      };
+
+      const response = await fetch(`/api/legacy-shops/${encodeURIComponent(shop)}`, {
+        method: "DELETE",
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json().catch(() => null);
+      
+      if (!response.ok || !data?.success) {
+        throw new Error(data?.error || 'Failed to delete legacy shop');
+      }
+
+      const legacyShop = data.legacyShop as LegacyShopRecord;
+      setLegacyShops((prev) => {
+        const exists = prev.some((item) => item.shop === legacyShop.shop);
+        if (exists) {
+          return prev.map((item) => (item.shop === legacyShop.shop ? legacyShop : item));
+        }
+        return [legacyShop, ...prev];
+      });
+
+      closeModal();
+    } catch (saveError) {
+      const message = saveError instanceof Error ? saveError.message : 'Failed to save legacy shop';
+      setError(message);
+    } finally {
+      setDeleting(false);
+      void fetchLegacyShops();
+    }
+  };
 
   return (
-    <>
+    <Page
+      title="Legacy Shops"
+      backButton={{
+        label: "Shops",
+        href: "/shops"
+      }}
+      description="Manage records from the `legacy_shops` model"
+      actions={[
+        {
+          label: "Add legacy shop",
+          onClick: openCreateModal
+        }
+      ]}
+    >
       <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Legacy Shops</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-              Manage records from the `legacy_shops` model
-            </p>
-          </div>
-          <button
-            onClick={openCreateModal}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-500/90 hover:bg-indigo-600 text-white cursor-pointer"
-          >
-            <Plus className="h-4 w-4" />
-            Add Legacy Shop
-          </button>
-        </div>
+        {
+          error && (<Banner variant='error'>{error}</Banner>)
+        }
 
-        {error && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 text-red-700 dark:text-red-300">
-            {error}
-          </div>
-        )}
-
-        <div className="bg-white dark:bg-slate-800 rounded-lg overflow-hidden border border-gray-200 dark:border-slate-700">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
-              <thead className="bg-gray-50 dark:bg-slate-700">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Shop
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Upgrade Allowed
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Has Upgrade Request
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Message
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white dark:bg-slate-800 divide-y divide-gray-200 dark:divide-slate-700">
-                {legacyShops.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-6 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
-                      No legacy shop records found.
-                    </td>
-                  </tr>
-                ) : (
-                  legacyShops.map((record) => (
-                    <tr key={record.shop}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                        {record.shop}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="px-2 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
-                          {record.status || 'PENDING'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-white dark:text-gray-300">
-                        {record.isUpgradeAllowed ? 'Yes' : 'No'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-white dark:text-gray-300">
-                        {record.hasUpgradeRequest ? 'Yes' : 'No'}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
-                        {record.statusMessage || '-'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <button
-                          onClick={() => openEditModal(record)}
-                          className="px-3 py-1.5 rounded-lg bg-indigo-500/90 hover:bg-indigo-600 text-white text-xs font-medium cursor-pointer"
-                        >
-                          Edit
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <DataTable
+          loading={loading}
+          emptyMessage='No legacy shop records found.'
+          data={legacyShops}
+          columns={[
+            { header: "Shop", key: "shop" },
+            { header: "Status", key: "status" },
+            { header: "Upgrade Allowed", key: "isUpgradeAllowed", render: (item) => item.isUpgradeAllowed ? "Yes" : "No" },
+            { header: "Has Upgrade Request", key: "hasUpgradeRequest", render: (item) => item.hasUpgradeRequest ? "Yes" : "No" },
+            { header: "Message", key: "statusMessage" },
+            {
+              header: "Actions", key: "id", render: (item) => (
+                <ButtonGroup>
+                  <Button
+                    onClick={() => openEditModal(item)}
+                    size='sm'
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    onClick={() => setDeleteShop(item.shop)}
+                    size='sm'
+                  >
+                    Delete
+                  </Button>
+                </ButtonGroup>
+              )
+            },
+          ]}
+          keyExtractor={(item) => item.shop}
+        />
       </div>
 
-      {showModal && (
-        <div className="fixed inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm flex items-start sm:items-center justify-center overflow-y-auto z-[1000] p-4 sm:py-8">
-          <div className="bg-white dark:bg-slate-800 rounded-lg max-w-lg w-full border border-gray-200 dark:border-slate-700">
-            <div className="flex justify-between items-center p-6 border-b border-gray-200 dark:border-slate-700">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-                {editingShop ? 'Edit Legacy Shop' : 'Add Legacy Shop'}
-              </h2>
-              <button
-                onClick={closeModal}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer"
-              >
-                <X className="h-6 w-6" />
-              </button>
-            </div>
+      <AlertModal
+        isOpen={Boolean(deletingShop) || Boolean(deleting)}
+        onClose={() => setDeleteShop(editingShop)}
+        onConfirm={deleteLegacyShop}
+        title='Delete legacy shop?'
+        message={`By doing so, '${deletingShop}' will immediately gain access to the new version of the app.`}
+        confirmText={'Yes, proceed'}
+        loading={deleting}
+        variant='error'
+        key={`Delete-legacy-shop-${deletingShop}`}
+      />
 
-            <div className="p-6 space-y-4">
-              <Input
-                label="Shop Domain"
-                type="text"
-                value={formData.shop}
-                onChange={(event) => setFormData((prev) => ({ ...prev, shop: event.target.value }))}
-                disabled={Boolean(editingShop)}
-                placeholder="example.myshopify.com"
-              />
+      <Modal
+        title={editingShop ? 'Edit Legacy Shop' : 'Add Legacy Shop'}
+        isOpen={showModal}
+        onClose={closeModal}
+        actions={[
+          ...(Boolean(editingShop) ? [
+            {
+              label: 'Delete',
+              onClick: () => { setDeleteShop(editingShop), closeModal() },
+              disabled: saving,
+              variant: 'danger' as any
+            }
+          ] : []),
+          {
+            label: 'Close',
+            onClick: closeModal,
+            disabled: saving
+          },
+          {
+            label: saving ? 'Saving...' : 'Save',
+            onClick: () => void saveLegacyShop(),
+            loading: saving,
+            variant: 'primary',
+            disabled: !String(formData.shop).trim() || !/\.myshopify\.com$/.test(String(formData.shop).trim())
+          }
+        ]}
+      >
+        <div className="space-y-4">
+          <Input
+            label="Shop domain"
+            type="text"
+            value={formData.shop}
+            onChange={(event) => setFormData((prev) => ({ ...prev, shop: event.target.value }))}
+            disabled={Boolean(editingShop)}
+            placeholder="example.myshopify.com"
+            required
+            aria-required="true"
+          />
 
-              <Checkbox
-                checked={formData.isUpgradeAllowed}
-                onChange={(event) =>
-                  setFormData((prev) => ({ ...prev, isUpgradeAllowed: event.target.checked }))
-                }
-                label="Upgrade Allowed"
-              />
+          <Checkbox
+            checked={formData.isUpgradeAllowed}
+            onChange={(event) =>
+              setFormData((prev) => ({ ...prev, isUpgradeAllowed: event.target.checked }))
+            }
+            label="Upgrade allowed"
+          />
 
-              <Checkbox
-                checked={formData.hasUpgradeRequest}
-                onChange={(event) =>
-                  setFormData((prev) => ({ ...prev, hasUpgradeRequest: event.target.checked }))
-                }
-                label="Has Upgrade Request"
-              />
+          <Checkbox
+            checked={formData.hasUpgradeRequest}
+            onChange={(event) =>
+              setFormData((prev) => ({ ...prev, hasUpgradeRequest: event.target.checked }))
+            }
+            label="Has upgrade request"
+            disabled
+          />
 
-              <Select
-                label="Status"
-                value={formData.status}
-                onChange={(event) =>
-                  setFormData((prev) => ({ ...prev, status: event.target.value as LegacyShopStatus }))
-                }
-                options={legacyStatusOptions}
-              />
+          <Select
+            label="Status"
+            value={formData.status}
+            onChange={(event) =>
+              setFormData((prev) => ({ ...prev, status: event.target.value as LegacyShopStatus }))
+            }
+            options={legacyStatusOptions}
+          />
 
-              <Textarea
-                label="Status Message"
-                value={formData.statusMessage}
-                onChange={(event) => setFormData((prev) => ({ ...prev, statusMessage: event.target.value }))}
-                rows={3}
-                resize="none"
-              />
-            </div>
-
-            <div className="px-6 py-4 border-t border-gray-200 dark:border-slate-700 flex justify-end gap-3">
-              <button
-                onClick={closeModal}
-                className="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg text-white dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => void saveLegacyShop()}
-                disabled={saving}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-500/90 hover:bg-indigo-600 disabled:opacity-60 text-white rounded-lg cursor-pointer"
-              >
-                <Save className="h-4 w-4" />
-                {saving ? 'Saving...' : 'Save'}
-              </button>
-            </div>
-          </div>
+          <Textarea
+            label="Status message"
+            value={formData.statusMessage}
+            onChange={(event) => setFormData((prev) => ({ ...prev, statusMessage: event.target.value }))}
+            rows={3}
+            resize="none"
+          />
         </div>
-      )}
-    </>
+      </Modal>
+    </Page>
   );
 }

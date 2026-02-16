@@ -139,7 +139,7 @@ export default function PINForm({ email }: PINFormProps) {
         <div className="animate-spin rounded-full h-8 w-8 border-2 border-slate-500/50 border-t-slate-400/80 mx-auto mb-4"></div>
         <p className="text-slate-400 font-medium text-sm">Sending PIN code to your email...</p>
         {error && (
-          <div className="mt-4 bg-red-950/30 border border-red-900/40 text-red-300 px-4 py-3 rounded-lg text-sm font-medium backdrop-blur-sm">
+          <div className="mt-4 bg-red-950/30 border border-blue-900/40 text-blue-300 px-4 py-3 rounded-lg text-sm font-medium backdrop-blur-sm">
             {error}
           </div>
         )}
@@ -149,8 +149,8 @@ export default function PINForm({ email }: PINFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="bg-amber-950/20 border border-amber-900/30 rounded-lg p-4 mb-4 backdrop-blur-sm">
-        <p className="text-sm text-amber-200/90 font-medium">
+      <div className="bg-blue-950/20 border border-blue-900/30 rounded-lg p-4 mb-4 backdrop-blur-sm">
+        <p className="text-sm text-blue-200/90 font-medium">
           <strong className="font-semibold">Super Admin Access:</strong> A PIN code has been sent to your email. This code expires in 5 minutes.
         </p>
       </div>
@@ -173,7 +173,7 @@ export default function PINForm({ email }: PINFormProps) {
               onChange={(e) => handleChange(index, e.target.value)}
               onKeyDown={(e) => handleKeyDown(index, e)}
               onPaste={handlePaste}
-              className="pin-input w-14 h-16 text-center text-2xl font-semibold border border-amber-900/30 rounded-lg bg-slate-800/20 backdrop-blur-md text-slate-100 focus:outline-none focus:border-amber-800/50 focus:ring-0 transition-all duration-300 disabled:opacity-50 dark:[color-scheme:dark]"
+              className="pin-input w-14 h-16 text-center text-2xl font-semibold border border-blue-900/30 rounded-lg bg-slate-800/20 backdrop-blur-md text-slate-100 focus:outline-none focus:border-blue-800/50 focus:ring-0 transition-all duration-300 disabled:opacity-50 dark:[color-scheme:dark]"
               disabled={loading}
             />
           ))}
@@ -181,7 +181,7 @@ export default function PINForm({ email }: PINFormProps) {
       </div>
 
       {error && (
-        <div className="bg-red-950/30 border border-red-900/40 text-red-300 px-4 py-3 rounded-lg text-sm font-medium backdrop-blur-sm">
+        <div className="bg-red-950/30 border border-blue-900/40 text-blue-300 px-4 py-3 rounded-lg text-sm font-medium backdrop-blur-sm">
           {error}
         </div>
       )}

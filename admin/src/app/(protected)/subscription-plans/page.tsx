@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, X, Save, Eye } from 'lucide-react';
 import { LoadingBar } from '@/components/ui/LoadingBar';
 import Checkbox from '@/components/ui/Checkbox';
-import { AlertModal, Button, ConfirmModal, Input, Modal, Select, Textarea } from '@/components/ui';
+import { AlertModal, Button, ButtonGroup, ConfirmModal, DataTable, Input, Modal, Select, Textarea } from '@/components/ui';
 import type { SelectOption } from '@/components/ui';
+import Page from '@/components/ui/Page';
 
 export interface SubscriptionPlan {
   id: string;
@@ -206,108 +207,63 @@ export default function SubscriptionPlansPage() {
   }
 
   return (
-    <>
+    <Page
+      title='Subscription Plans'
+      description='Manage subscription plans stored in `app_subscriptions_plans`'
+      actions={[
+        {
+          label: "Add Plan",
+          onClick: () => {
+            resetForm();
+            setShowAddModal(true);
+          },
+          variant: 'primary'
+        }
+      ]}
+    >
+      <DataTable
+        columns={[
+          { header: "Name", key: "name", },
+          { header: "Price", key: "Price", render: (item) => formatPrice(item) },
+          { header: "Interval", key: "Interval", render: (item) => item.test ? "Test Plan" : "Paid Plan" },
+          { header: "Product Limit", key: "productLimit" },
+          { header: "Created", key: "createdAt", render: (item) => formatDate(item.createdAt) },
+          {
+            header: "Actions", key: "id", render: (item) => (
+              <ButtonGroup>
+                <Button
+                  title="View"
+                  onClick={() => handleView(item)}
+                  variant='outline'
+                  size='sm'
+                >
+                  View
+                </Button>
+                <Button
+                  title="Edit"
+                  onClick={() => handleEdit(item)}
+                  variant='outline'
+                  size='sm'
+                >
+                  Edit
+                </Button>
+                <Button
+                  title="Delete"
+                  onClick={() => setConfirmDeletePlanId(item.id)}
+                  variant='outline'
+                  size='sm'
+                >
+                  Delete
+                </Button>
+              </ButtonGroup>
+            )
+          }
+        ]}
+        data={plans}
+        emptyMessage='No subscription plans found.'
+        keyExtractor={(item) => item.id + item.handle + item.name}
+      />
       <div>
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Subscription Plans</h1>
-          <Button
-            icon={Plus}
-            title='Add Plan'
-            onClick={() => {
-              resetForm();
-              setShowAddModal(true);
-            }}
-          >
-            Add Plan
-          </Button>
-        </div>
-
-        <div className="bg-white dark:bg-slate-800 rounded-lg overflow-hidden border border-gray-200 dark:border-slate-700">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
-            <thead className="bg-gray-50 dark:bg-slate-700">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Name
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Price
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Interval
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Product Limit
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Created
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white dark:bg-slate-800 divide-y divide-gray-200 dark:divide-slate-700">
-              {plans.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
-                    No subscription plans found.
-                  </td>
-                </tr>
-              ) : (
-                plans.map((plan) => (
-                  <tr key={plan.id} className="hover:bg-gray-50 dark:hover:bg-slate-700/50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900 dark:text-gray-100">{plan.name}</div>
-                      <div className="text-xs font-sm text-gray-500 dark:text-gray-400">{plan.handle}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900 dark:text-gray-100">{formatPrice(plan)}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300">
-                        {plan.interval === 'ANNUAL' ? 'Annual' : 'Monthly'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900 dark:text-gray-100">{Number(plan.productLimit).toLocaleString()}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-500 dark:text-gray-400">{formatDate(plan.createdAt)}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex items-center space-x-2">
-                        <Button
-                          title="View"
-                          onClick={() => handleView(plan)}
-                          variant='outline'
-                          size='sm'
-                        >
-                          View
-                        </Button>
-                        <Button
-                          title="Edit"
-                          onClick={() => handleEdit(plan)}
-                          variant='outline'
-                          size='sm'
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          title="Delete"
-                          onClick={() => setConfirmDeletePlanId(plan.id)}
-                          variant='outline'
-                          size='sm'
-                        >
-                          Delete
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
 
         <Modal
           isOpen={showAddModal}
@@ -316,7 +272,6 @@ export default function SubscriptionPlansPage() {
           }}
           title={editingPlan ? 'Edit Subscription Plan' : 'Add Subscription Plan'}
           size='lg'
-          showCloseButton
           actions={[
             {
               label: "Cancel",
@@ -324,14 +279,13 @@ export default function SubscriptionPlansPage() {
                 setShowAddModal(false);
                 resetForm();
               },
-              variant: 'outline',
+              variant: 'outline'
             },
             {
               label: editingPlan ? 'Update' : 'Create',
               variant: 'primary',
-              type: 'submit',
-              onClick: handleSubmit,
-            },
+              onClick: handleSubmit
+            }
           ]}
         >
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -393,7 +347,7 @@ export default function SubscriptionPlansPage() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4">
               <Input
                 label="Product Limit"
                 type="number"
@@ -423,7 +377,6 @@ export default function SubscriptionPlansPage() {
             setViewingPlan(null);
           }}
           size='lg'
-          showCloseButton
           actions={[
             {
               label: "Edit Plan",
@@ -475,7 +428,7 @@ export default function SubscriptionPlansPage() {
                     <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
                       Interval
                     </label>
-                    <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300">
+                    <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
                       {viewingPlan.interval === 'ANNUAL' ? 'Annual' : 'Monthly (30 days)'}
                     </span>
                   </div>
@@ -556,7 +509,7 @@ export default function SubscriptionPlansPage() {
         message={alertState.message}
         variant={alertState.variant}
       />
-    </>
-  );
+    </Page>
+  )
 }
 

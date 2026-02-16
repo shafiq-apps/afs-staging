@@ -7,10 +7,10 @@ datetime=$(date +"%d-%m-%H%M%S")
 files=$(git ls-files)
 
 # Set target directory (one level up)
-target_dir="../zip/"
+target_dir="./zip/"
 
 # Create tar.gz in the target directory
-tar -czvf "${target_dir}afsv-app-$datetime.tar.gz" $files
+tar -czvf "${target_dir}afsv-$datetime.tar.gz" $files
 
 echo "";
 echo "***************************************************************";

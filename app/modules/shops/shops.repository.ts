@@ -69,7 +69,7 @@ export class ShopsRepository {
       _source_includes: fields,
     });
 
-    if(response.found && response._source) {
+    if (response.found && response._source) {
       return response._source as Shop;
     }
 
@@ -140,6 +140,16 @@ export class ShopsRepository {
     });
 
     return this.getLegacyShop(input.shop) as Promise<LegacyShop>;
+  }
+
+  async deleteLegacyShop(shop: string): Promise<Boolean> {
+    const deleted = await this.esClient.delete({
+      index: LEGACY_SHOPS_INDEX_NAME,
+      id: shop,
+      refresh: false
+    });
+    logger.info(`Legacy shop deleted: ${shop}`, deleted);
+    return deleted ? true : false;
   }
 
 

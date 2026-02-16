@@ -38,10 +38,10 @@ const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
                 flex items-center justify-center
                 ${
                   props.checked
-                    ? 'bg-purple-500 border-purple-500 dark:bg-purple-600 dark:border-purple-600'
-                    : 'bg-white border-gray-300 dark:bg-slate-700 dark:border-slate-600 group-hover:border-purple-400 dark:group-hover:border-purple-500'
+                    ? 'bg-blue-500 border-blue-500 dark:bg-blue-600 dark:border-blue-600'
+                    : 'bg-white border-gray-300 dark:bg-slate-700 dark:border-slate-600 group-hover:border-blue-400 dark:group-hover:border-blue-500'
                 }
-                ${error ? 'border-red-500 dark:border-red-500' : ''}
+                ${error ? 'border-blue-500 dark:border-blue-500' : ''}
                 ${props.disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
               `}
             >
@@ -66,10 +66,10 @@ const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
                 {label}
               </span>
               {helperText && !error && (
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{helperText}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{helperText}</p>
               )}
               {error && (
-                <p className="text-sm text-red-600 dark:text-red-400 mt-1">{error}</p>
+                <p className="text-sm text-blue-600 dark:text-blue-400 mt-1">{error}</p>
               )}
             </div>
           )}

@@ -531,7 +531,35 @@ export const shopsResolvers = {
         });
         return null as any;
       }
-    }
+    },
+
+    async deleteLegacyShop(parent: any, args: { domain: string }, context: GraphQLContext): Promise<boolean> {
+      try {
+        const { domain } = args;
+        if (!domain) {
+          throw new Error('Domain is required');
+        }
+
+        logger.info('Deleting legacy shop', { domain });
+
+        const esClient = getESClient(context);
+        if (!esClient) {
+          throw new Error('ES client not available in context');
+        }
+
+        const repo = getShopsRepository(context);
+        const deleted = await repo.deleteLegacyShop(domain);
+        return deleted ? true : false;
+      } catch (error: any) {
+        logger.error('Error in deleteShop resolver', {
+          error: error?.message || error,
+          stack: error?.stack,
+        });
+        return false;
+      }
+    },
+
+
   },
 };
 
