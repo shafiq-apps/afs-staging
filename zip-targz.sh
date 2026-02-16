@@ -10,7 +10,7 @@ files=$(git ls-files)
 target_dir="../zip/"
 
 # Create tar.gz in the target directory
-tar -czvf "${target_dir}afsv-app-$datetime.tar.gz" $files
+tar -czvf "${target_dir}afsv-$datetime.tar.gz" $files
 
 echo "";
 echo "***************************************************************";
