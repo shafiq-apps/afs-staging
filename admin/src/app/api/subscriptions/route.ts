@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
       const source = (hit._source || {}) as StoredSubscription;
       return {
         ...source,
-        shop: hit._id,
+        shop: hit._id as string,
       };
     });
 

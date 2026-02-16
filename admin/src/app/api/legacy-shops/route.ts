@@ -100,8 +100,7 @@ export async function GET(request: NextRequest) {
     const legacyShops: LegacyShop[] = response.hits.hits.map((hit) => {
       const source = (hit._source || {}) as LegacyShop;
       return {
-        ...source,
-        shop: source.shop || hit._id,
+        ...source
       };
     });
 

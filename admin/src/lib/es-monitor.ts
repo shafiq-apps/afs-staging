@@ -5,6 +5,7 @@
 
 import { getESClient } from './elasticsearch';
 import { logAlertBatch } from './alert-logger';
+import Error from 'next/error';
 
 export interface NodeStats {
   nodeId: string;
@@ -130,7 +131,7 @@ class ESMonitor {
         // Log alerts to disk
         try {
           logAlertBatch(newAlerts);
-        } catch (error) {
+        } catch (error: any) {
           console.error('[ESMonitor] Error logging alerts:', error?.message);
         }
       }

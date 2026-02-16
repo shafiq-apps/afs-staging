@@ -8,7 +8,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "ws-server": "node wss-server.js"
+    "ws-server": "node wss-server.js",
+    "check": "tsc --noEmit"
   },
   "dependencies": {
     "@elastic/elasticsearch": "^8.19.1",

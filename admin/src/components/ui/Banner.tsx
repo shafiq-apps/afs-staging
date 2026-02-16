@@ -3,6 +3,7 @@
 import { ReactNode, HTMLAttributes } from 'react';
 import { AlertCircle, CheckCircle, Info, AlertTriangle, X } from 'lucide-react';
 import { useState } from 'react';
+import { LucideIcon } from "lucide-react";
 
 export type BannerVariant = 'info' | 'success' | 'warning' | 'error' | 'default';
 
@@ -11,7 +12,7 @@ export interface BannerProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
   dismissible?: boolean;
   onDismiss?: () => void;
-  icon?: ReactNode;
+  icon?: LucideIcon;
 }
 
 const variantStyles: Record<BannerVariant, { bg: string; border: string; text: string; icon: typeof Info }> = {

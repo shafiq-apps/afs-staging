@@ -161,7 +161,7 @@ class AlertLogger {
         .map((line) => {
           try {
             return JSON.parse(line);
-          } catch (error) {
+          } catch (error: any) {
             console.error('[AlertLogger] Error parsing line:', error?.message);
             return null;
           }
