@@ -43,7 +43,7 @@ const getMetricStatus = (value: number, threshold: number): 'normal' | 'warning'
 const getStatusColor = (status: 'normal' | 'warning' | 'critical'): string => {
     switch (status) {
         case 'critical':
-            return 'bg-red-700 text-red-100';
+            return 'bg-blue-700 text-blue-100';
         case 'warning':
             return 'bg-yellow-700 text-yellow-100';
         default:
@@ -550,7 +550,7 @@ export default function ESMonitoring() {
                         className={`flex items-center gap-2 px-3 py-2 rounded-lg font-medium ${isConnected
                             ? 'bg-green-800 text-green-100'
                             : error
-                                ? 'bg-red-800 text-red-100'
+                                ? 'bg-blue-800 text-blue-100'
                                 : 'bg-yellow-800 text-yellow-100'
                             }`}
                     >
@@ -576,7 +576,7 @@ export default function ESMonitoring() {
                     <button
                         onClick={() => (isConnected ? disconnect() : connect())}
                         className={`px-4 py-2 rounded-lg font-medium transition-colors ${isConnected
-                            ? 'bg-red-600 text-white hover:bg-red-700'
+                            ? 'bg-blue-600 text-white hover:bg-blue-700'
                             : 'bg-blue-600 text-white hover:bg-blue-700'
                             }`}
                     >
@@ -714,11 +714,11 @@ export default function ESMonitoring() {
                                     <tr key={`${alert.nodeId}-${alert.timestamp}-${index}`} className="border-b border-gray-700 hover:bg-gray-800">
                                         <td className="px-6 py-4 font-medium text-gray-100">{alert.nodeName}</td>
                                         <td className="px-6 py-4">
-                                            <span className="inline-block px-2 py-1 rounded bg-red-700 text-red-100 font-semibold text-xs">
+                                            <span className="inline-block px-2 py-1 rounded bg-blue-700 text-blue-100 font-semibold text-xs">
                                                 {alert.alertType.toUpperCase()}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 font-mono text-red-300 font-semibold">{alert.value.toFixed(2)}%</td>
+                                        <td className="px-6 py-4 font-mono text-blue-300 font-semibold">{alert.value.toFixed(2)}%</td>
                                         <td className="px-6 py-4 text-gray-300">{alert.threshold}%</td>
                                         <td className="px-6 py-4 text-gray-400 text-xs">{formatTime(alert.timestamp)}</td>
                                     </tr>
@@ -741,7 +741,7 @@ export default function ESMonitoring() {
                         <p className="font-medium text-gray-100">Warning</p>
                         <p className="text-sm text-gray-300">Within 5% of threshold</p>
                     </div>
-                    <div className="border-l-4 border-red-400 pl-4">
+                    <div className="border-l-4 border-blue-400 pl-4">
                         <p className="font-medium text-gray-100">Critical</p>
                         <p className="text-sm text-gray-300">Exceeds threshold</p>
                     </div>

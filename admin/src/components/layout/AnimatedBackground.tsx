@@ -15,7 +15,7 @@ export default function AnimatedBackground() {
         <div className="absolute top-1/2 right-0 w-[600px] h-[600px] bg-violet-500/6 rounded-full blur-[100px] animate-glow-drift-2"></div>
         
         {/* Bottom-left blue-violet glow */}
-        <div className="absolute bottom-0 left-1/4 w-[700px] h-[700px] bg-indigo-500/7 rounded-full blur-[110px] animate-glow-drift-3"></div>
+        <div className="absolute bottom-0 left-1/4 w-[700px] h-[700px] bg-blue-500/7 rounded-full blur-[110px] animate-glow-drift-3"></div>
         
         {/* Subtle overlay for depth */}
         <div className="absolute inset-0 bg-gradient-to-t from-transparent via-slate-900/10 to-transparent"></div>

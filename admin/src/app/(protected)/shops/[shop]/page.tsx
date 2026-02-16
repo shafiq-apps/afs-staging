@@ -234,7 +234,7 @@ export default function ShopDetailPage() {
   }) => (
     <div className="bg-white dark:bg-slate-800 rounded-lg p-6 border border-gray-200 dark:border-slate-700">
       <div className="flex items-center space-x-2 mb-4">
-        {Icon && <Icon className="h-5 w-5 text-purple-500 dark:text-purple-400" />}
+        {Icon && <Icon className="h-5 w-5 text-blue-500 dark:text-blue-400" />}
         <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{title}</h3>
       </div>
       <div className="space-y-3">{children}</div>
@@ -284,7 +284,7 @@ export default function ShopDetailPage() {
         <div>
           <Banner variant='error'>
             <div className="space-y-4">
-              <p className="text-red-600 dark:text-red-400">{error || 'Shop not found'}</p>
+              <p className="text-blue-600 dark:text-blue-400">{error || 'Shop not found'}</p>
               <Button onClick={fetchShop} variant='danger'>
                 Retry
               </Button>
@@ -326,7 +326,7 @@ export default function ShopDetailPage() {
             className={`inline-flex items-center space-x-1 px-3 py-1 rounded-full text-xs font-semibold ${status.color === 'green'
               ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
               : status.color === 'red'
-                ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+                ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
                 : 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300'
               }`}
           >
@@ -345,31 +345,11 @@ export default function ShopDetailPage() {
       <div>
 
         {/* Reindex Message */}
-        {reindexMessage && (
-          <div
-            className={`mb-6 p-4 rounded-lg border ${reindexMessage.startsWith('Error')
-              ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-800 dark:text-red-300'
-              : 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-800 dark:text-green-300'
-              }`}
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                {reindexMessage.startsWith('Error') ? (
-                  <AlertCircle className="h-5 w-5" />
-                ) : (
-                  <CheckCircle className="h-5 w-5" />
-                )}
-                <span className="font-medium">{reindexMessage}</span>
-              </div>
-              <button
-                onClick={() => setReindexMessage(null)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
-              >
-                <XCircle className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-        )}
+        {
+          reindexMessage && (
+            <Banner className='mb-6' variant={reindexMessage.startsWith('Error') ? 'error' : 'success'}>{reindexMessage}</Banner>
+          )
+        }
 
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -510,7 +490,7 @@ export default function ShopDetailPage() {
                 shop.email || shop.metadata?.email ? (
                   <a
                     href={`mailto:${shop.email || shop.metadata?.email}`}
-                    className="text-purple-600 dark:text-purple-400 hover:underline cursor-pointer"
+                    className="text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
                   >
                     {shop.email || shop.metadata?.email}
                   </a>
@@ -574,7 +554,7 @@ export default function ShopDetailPage() {
                   {shop.scopes.map((scope, index) => (
                     <span
                       key={index}
-                      className="px-3 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 rounded-full text-xs font-medium"
+                      className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 rounded-full text-xs font-medium"
                     >
                       {scope}
                     </span>

@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { LoadingBar } from '@/components/ui/LoadingBar';
 import Input from '@/components/ui/Input';
 import { RefreshCw, Search } from 'lucide-react';
-import { Button, DataTable } from '@/components/ui';
+import { Banner, Button, DataTable } from '@/components/ui';
 import { formatDate, normalizeShopifyId } from '@/lib/string.utils';
 import Page from '@/components/ui/Page';
 
@@ -129,11 +129,11 @@ export default function SubscriptionsPage() {
         }
       ]}
     >
-      {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 text-red-700 dark:text-red-300">
-          {error}
-        </div>
-      )}
+      {
+        error && (
+          <Banner variant='error'>{error}</Banner>
+        )
+      }
 
       <DataTable
         loading={loading}
@@ -169,7 +169,7 @@ export default function SubscriptionsPage() {
           <td className="px-6 py-4 whitespace-nowrap text-sm">
             <Link
               href={`/shops/${encodeURIComponent(subscription.shop)}`}
-              className="text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300"
+              className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
             >
               <div>{subscription.shop}</div>
               <div className="text-xs font-sm text-gray-500 dark:text-gray-400 gap-2 flex flex-columns">
@@ -199,7 +199,7 @@ export default function SubscriptionsPage() {
           </td>
           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
             <span
-              className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${subscription.test ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'}`}
+              className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${subscription.test ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'}`}
             >
               {subscription.test ? 'TEST PLAN' : 'PAID'}
             </span>

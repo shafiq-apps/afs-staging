@@ -27,7 +27,7 @@ export type CommonButtonProps =
   | (ButtonProps & AnchorHTMLAttributes<HTMLAnchorElement> & { href?: string });
 
 const variantStyles: Record<ButtonVariant, string> = {
-  primary: 'bg-purple-500/90 hover:bg-purple-600 text-white transition-colors duration-200 shadow-md shadow-purple-500/20 hover:shadow-purple-500/30 border-transparent',
+  primary: 'bg-blue-500/90 hover:bg-blue-600 text-white transition-colors duration-200 shadow-md shadow-blue-500/20 hover:shadow-blue-500/30 border-transparent',
   secondary: 'bg-slate-800/60 dark:bg-slate-700/60 text-slate-100 dark:text-slate-200 hover:bg-slate-800/80 dark:hover:bg-slate-700/80 border-slate-700/30 dark:border-slate-600/30',
   outline: 'bg-white dark:bg-slate-800 text-white dark:text-gray-200 border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700',
   ghost: 'bg-transparent text-white dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 border-transparent',
@@ -71,7 +71,7 @@ export default function Button({
   const variantStyle = variantStyles[variant];
   const sizeStyle = sizeStyles[size];
   const sizeHeight = iconOnlySizeStyles[size];
-  const focusRingColor = variant === 'danger' ? 'focus:ring-red-500' : 'focus:ring-purple-500';
+  const focusRingColor = variant === 'danger' ? 'focus:ring-blue-500' : 'focus:ring-blue-500';
 
   const content = (
     <>

@@ -73,11 +73,11 @@ export default function LoginPage() {
         {/* Violet glow - center right */}
         <div className="absolute w-[600px] h-[600px] bg-violet-500/6 rounded-full blur-[110px] animate-glow-drift-2"></div>
         {/* Indigo glow - bottom center */}
-        <div className="absolute w-[550px] h-[550px] bg-indigo-500/7 rounded-full blur-[100px] animate-glow-drift-3"></div>
+        <div className="absolute w-[550px] h-[550px] bg-blue-500/7 rounded-full blur-[100px] animate-glow-drift-3"></div>
         {/* Cyan accent glow - top right */}
         <div className="absolute w-[450px] h-[450px] bg-cyan-500/5 rounded-full blur-[95px] animate-glow-drift-1" style={{ animationDelay: '2s' }}></div>
         {/* Purple accent glow - bottom left */}
-        <div className="absolute w-[500px] h-[500px] bg-purple-500/5 rounded-full blur-[105px] animate-glow-drift-2" style={{ animationDelay: '4s' }}></div>
+        <div className="absolute w-[500px] h-[500px] bg-blue-500/5 rounded-full blur-[105px] animate-glow-drift-2" style={{ animationDelay: '4s' }}></div>
       </div>
 
       <div className="w-full max-w-md relative z-10 animate-login-entrance">

@@ -61,8 +61,8 @@ export default function Navbar({ user }: NavbarProps) {
                   key={item.href}
                   href={item.href}
                   className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium cursor-pointer ${pathname === item.href
-                      ? 'border-purple-500 text-gray-900 dark:text-gray-100'
-                      : 'border-transparent text-gray-500 dark:text-gray-400 hover:border-purple-300 dark:hover:border-purple-600 hover:text-white dark:hover:text-gray-200'
+                      ? 'border-blue-500 text-gray-900 dark:text-gray-100'
+                      : 'border-transparent text-gray-500 dark:text-gray-400 hover:border-blue-300 dark:hover:border-blue-600 hover:text-white dark:hover:text-gray-200'
                     }`}
                 >
                   {item.label}
@@ -77,7 +77,7 @@ export default function Navbar({ user }: NavbarProps) {
                   onClick={() => setProfileMenuOpen(!profileMenuOpen)}
                   className="flex items-center space-x-2 text-sm text-white dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 focus:outline-none cursor-pointer"
                 >
-                  <div className="h-8 w-8 rounded-full bg-gradient-to-br from-purple-600 to-indigo-600 flex items-center justify-center text-white font-medium shadow-md shadow-purple-500/50">
+                  <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-600 to-blue-600 flex items-center justify-center text-white font-medium shadow-md shadow-blue-500/50">
                     {userInitial}
                   </div>
                   {userName && <span className="hidden md:block text-white dark:text-gray-300">{userName}</span>}
@@ -134,8 +134,8 @@ export default function Navbar({ user }: NavbarProps) {
                 key={item.href}
                 href={item.href}
                 className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium cursor-pointer ${pathname === item.href
-                    ? 'bg-purple-50 dark:bg-purple-900/30 border-purple-500 dark:border-purple-600 text-purple-700 dark:text-purple-300'
-                    : 'border-transparent text-gray-600 dark:text-gray-300 hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:border-purple-300 dark:hover:border-purple-600 hover:text-gray-800 dark:hover:text-gray-200'
+                    ? 'bg-purple-50 dark:bg-blue-900/30 border-blue-500 dark:border-blue-600 text-blue-700 dark:text-blue-300'
+                    : 'border-transparent text-gray-600 dark:text-gray-300 hover:bg-purple-50 dark:hover:bg-blue-900/20 hover:border-blue-300 dark:hover:border-blue-600 hover:text-gray-800 dark:hover:text-gray-200'
                   }`}
                 onClick={() => setMobileMenuOpen(false)}
               >

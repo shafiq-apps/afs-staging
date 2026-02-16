@@ -16,7 +16,7 @@ export default function LinkComponent({ children, href, label, external, color, 
     return (
         <Link
             href={href}
-            className={`${color?`text-${color}`:"text-purple-600 dark:text-purple-400"} hover:underline flex items-center space-x-1 cursor-pointer`}
+            className={`${color?`text-${color}`:"text-blue-600 dark:text-blue-400"} hover:underline flex items-center space-x-1 cursor-pointer`}
             {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
             {...props}
         >

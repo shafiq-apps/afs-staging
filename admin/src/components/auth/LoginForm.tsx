@@ -72,7 +72,7 @@ export default function LoginForm({ onOTPSent }: LoginFormProps) {
       </div>
 
       {error && (
-        <div className="bg-red-950/30 border border-red-900/40 text-red-300 px-4 py-3 rounded-lg text-sm font-medium backdrop-blur-sm">
+        <div className="bg-red-950/30 border border-blue-900/40 text-blue-300 px-4 py-3 rounded-lg text-sm font-medium backdrop-blur-sm">
           {error}
         </div>
       )}

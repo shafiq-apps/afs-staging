@@ -125,6 +125,7 @@ export interface AlertModalProps {
   variant?: 'info' | 'success' | 'warning' | 'error';
   confirmText?: string;
   onConfirm?: () => void;
+  loading?: boolean;
 }
 
 export function AlertModal({
@@ -135,6 +136,7 @@ export function AlertModal({
   variant = 'info',
   confirmText = 'OK',
   onConfirm,
+  loading = false,
 }: AlertModalProps) {
   const handleConfirm = () => {
     onConfirm?.();
@@ -147,7 +149,11 @@ export function AlertModal({
         <p className="text-white dark:text-gray-300">{message}</p>
       </div>
       <div className="flex justify-end">
-        <Button onClick={handleConfirm} variant={variant === 'error' ? 'danger' : 'primary'}>
+        <Button
+          loading={loading}
+          onClick={handleConfirm}
+          variant={variant === 'error' ? 'danger' : 'primary'}
+        >
           {confirmText}
         </Button>
       </div>

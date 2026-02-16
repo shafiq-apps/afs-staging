@@ -125,7 +125,7 @@ export default function DataTable<T extends Record<string, any>>({
     return (
       <Card>
         <div className="flex justify-center items-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
         </div>
       </Card>
     );
@@ -180,7 +180,7 @@ export default function DataTable<T extends Record<string, any>>({
                   <div className="flex items-center space-x-1">
                     <span>{col.header}</span>
                     {col.sortable && sortConfig?.key === col.key && (
-                      <span className="text-purple-600 dark:text-purple-400">
+                      <span className="text-blue-600 dark:text-blue-400">
                         {sortConfig.direction === 'asc' ? '↑' : '↓'}
                       </span>
                     )}
@@ -206,7 +206,7 @@ export default function DataTable<T extends Record<string, any>>({
                 return (
                   <tr
                     key={key}
-                    className={isSelected ? 'bg-purple-50 dark:bg-purple-900/30' : 'hover:bg-gray-50 dark:hover:bg-slate-800'}
+                    className={isSelected ? 'bg-purple-50 dark:bg-blue-900/30' : 'hover:bg-gray-50 dark:hover:bg-slate-800'}
                   >
                     {selectable && (
                       <td className="px-6 py-4">

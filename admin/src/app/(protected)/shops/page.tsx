@@ -277,11 +277,11 @@ export default function ShopsPage() {
       <>
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-6">Shops</h1>
-          <div className="bg-white dark:bg-slate-800 rounded-lg p-6 border border-red-200 dark:border-red-800">
-            <p className="text-red-600 dark:text-red-400">Error: {error}</p>
+          <div className="bg-white dark:bg-slate-800 rounded-lg p-6 border border-blue-200 dark:border-blue-800">
+            <p className="text-blue-600 dark:text-blue-400">Error: {error}</p>
             <button
               onClick={fetchShops}
-              className="mt-4 px-4 py-2 bg-purple-500/90 hover:bg-purple-600 text-white rounded-lg transition-colors duration-200 shadow-md shadow-purple-500/20 hover:shadow-purple-500/30 cursor-pointer"
+              className="mt-4 px-4 py-2 bg-blue-500/90 hover:bg-blue-600 text-white rounded-lg transition-colors duration-200 shadow-md shadow-blue-500/20 hover:shadow-blue-500/30 cursor-pointer"
             >
               Retry
             </button>

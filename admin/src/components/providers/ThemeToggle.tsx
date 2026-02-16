@@ -55,7 +55,7 @@ export function ThemeSelector() {
             flex items-center space-x-3 px-4 py-2 rounded-lg text-sm font-medium transition-colors
             ${
               theme === mode
-                ? 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300'
+                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
                 : 'text-white hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800'
             }
             cursor-pointer
@@ -64,7 +64,7 @@ export function ThemeSelector() {
           <Icon className="h-5 w-5" />
           <span>{label}</span>
           {theme === mode && (
-            <span className="ml-auto text-purple-600 dark:text-purple-400">✓</span>
+            <span className="ml-auto text-blue-600 dark:text-blue-400">✓</span>
           )}
         </button>
       ))}

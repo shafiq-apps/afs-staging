@@ -16,33 +16,33 @@ export interface BannerProps extends HTMLAttributes<HTMLDivElement> {
 
 const variantStyles: Record<BannerVariant, { bg: string; border: string; text: string; icon: typeof Info }> = {
   info: {
-    bg: 'bg-blue-50 dark:bg-blue-900/20',
-    border: 'border-blue-200 dark:border-blue-800',
-    text: 'text-blue-800 dark:text-blue-300',
+    bg: 'bg-blue-50 dark:bg-blue-500/20',
+    border: 'border-blue-200 dark:border-blue-500',
+    text: 'text-blue-700 dark:text-blue-300',
     icon: Info,
   },
   success: {
-    bg: 'bg-green-50 dark:bg-green-900/20',
-    border: 'border-green-200 dark:border-green-800',
-    text: 'text-green-800 dark:text-green-300',
+    bg: 'bg-emerald-50 dark:bg-emerald-500/25',
+    border: 'border-emerald-200 dark:border-emerald-500',
+    text: 'text-emerald-700 dark:text-emerald-300',
     icon: CheckCircle,
   },
   warning: {
-    bg: 'bg-amber-50 dark:bg-amber-900/20',
-    border: 'border-amber-200 dark:border-amber-800',
-    text: 'text-amber-800 dark:text-amber-300',
+    bg: 'bg-amber-50 dark:bg-amber-500/25',
+    border: 'border-amber-200 dark:border-amber-500',
+    text: 'text-amber-700 dark:text-amber-300',
     icon: AlertTriangle,
   },
   error: {
-    bg: 'bg-red-50 dark:bg-red-900/20',
-    border: 'border-red-200 dark:border-red-800',
-    text: 'text-red-800 dark:text-red-300',
+    bg: 'bg-red-50 dark:bg-red-500/25',
+    border: 'border-red-200 dark:border-red-500',
+    text: 'text-red-700 dark:text-red-300',
     icon: AlertCircle,
   },
   default: {
-    bg: 'bg-gray-50 dark:bg-slate-800',
-    border: 'border-gray-200 dark:border-slate-700',
-    text: 'text-gray-800 dark:text-gray-200',
+    bg: 'bg-gray-50 dark:bg-slate-700',
+    border: 'border-gray-200 dark:border-slate-500',
+    text: 'text-gray-700 dark:text-gray-200',
     icon: Info,
   },
 };

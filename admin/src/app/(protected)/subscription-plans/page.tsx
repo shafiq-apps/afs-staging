@@ -428,7 +428,7 @@ export default function SubscriptionPlansPage() {
                     <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
                       Interval
                     </label>
-                    <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300">
+                    <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
                       {viewingPlan.interval === 'ANNUAL' ? 'Annual' : 'Monthly (30 days)'}
                     </span>
                   </div>

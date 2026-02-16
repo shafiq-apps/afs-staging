@@ -1,8 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { LoadingBar } from '@/components/ui/LoadingBar';
-import { Button, Checkbox, DataTable, Input, Modal, Select, Textarea } from '@/components/ui';
+import { AlertModal, Banner, Button, ButtonGroup, Checkbox, DataTable, Input, Modal, Select, Textarea } from '@/components/ui';
 import type { SelectOption } from '@/components/ui';
 import Page from '@/components/ui/Page';
 
@@ -39,6 +38,8 @@ export default function LegacyShopsPage() {
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState(DEFAULT_FORM);
   const [editingShop, setEditingShop] = useState<string | null>(null);
+  const [deletingShop, setDeleteShop] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchLegacyShops = async (): Promise<void> => {
     try {
@@ -142,6 +143,55 @@ export default function LegacyShopsPage() {
     }
   };
 
+  const deleteLegacyShop = async () => {
+    try {
+      
+      const shop = String(deletingShop).trim();
+
+      if (!shop) {
+        throw new Error('Shop domain is required');
+      }
+
+      setDeleting(true);
+      setError(null);
+
+      const payload = {
+        shop: shop
+      };
+
+      const response = await fetch(`/api/legacy-shops/${encodeURIComponent(shop)}`, {
+        method: "DELETE",
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json().catch(() => null);
+      
+      if (!response.ok || !data?.success) {
+        throw new Error(data?.error || 'Failed to delete legacy shop');
+      }
+
+      const legacyShop = data.legacyShop as LegacyShopRecord;
+      setLegacyShops((prev) => {
+        const exists = prev.some((item) => item.shop === legacyShop.shop);
+        if (exists) {
+          return prev.map((item) => (item.shop === legacyShop.shop ? legacyShop : item));
+        }
+        return [legacyShop, ...prev];
+      });
+
+      closeModal();
+    } catch (saveError) {
+      const message = saveError instanceof Error ? saveError.message : 'Failed to save legacy shop';
+      setError(message);
+    } finally {
+      setDeleting(false);
+      void fetchLegacyShops();
+    }
+  };
+
   return (
     <Page
       title="Legacy Shops"
@@ -158,12 +208,9 @@ export default function LegacyShopsPage() {
       ]}
     >
       <div className="space-y-6">
-
-        {error && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 text-red-700 dark:text-red-300">
-            {error}
-          </div>
-        )}
+        {
+          error && (<Banner variant='error'>{error}</Banner>)
+        }
 
         <DataTable
           loading={loading}
@@ -172,17 +219,25 @@ export default function LegacyShopsPage() {
           columns={[
             { header: "Shop", key: "shop" },
             { header: "Status", key: "status" },
-            { header: "Upgrade Allowed", key: "isUpgradeAllowed", render: (item) => item.isUpgradeAllowed?"Yes":"No" },
-            { header: "Has Upgrade Request", key: "hasUpgradeRequest", render: (item) => item.hasUpgradeRequest?"Yes":"No" },
+            { header: "Upgrade Allowed", key: "isUpgradeAllowed", render: (item) => item.isUpgradeAllowed ? "Yes" : "No" },
+            { header: "Has Upgrade Request", key: "hasUpgradeRequest", render: (item) => item.hasUpgradeRequest ? "Yes" : "No" },
             { header: "Message", key: "statusMessage" },
             {
               header: "Actions", key: "id", render: (item) => (
-                <Button
-                  onClick={() => openEditModal(item)}
-                  size='sm'
-                >
-                  Edit
-                </Button>
+                <ButtonGroup>
+                  <Button
+                    onClick={() => openEditModal(item)}
+                    size='sm'
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    onClick={() => setDeleteShop(item.shop)}
+                    size='sm'
+                  >
+                    Delete
+                  </Button>
+                </ButtonGroup>
               )
             },
           ]}
@@ -190,11 +245,31 @@ export default function LegacyShopsPage() {
         />
       </div>
 
+      <AlertModal
+        isOpen={Boolean(deletingShop) || Boolean(deleting)}
+        onClose={() => setDeleteShop(editingShop)}
+        onConfirm={deleteLegacyShop}
+        title='Delete legacy shop?'
+        message={`By doing so, '${deletingShop}' will immediately gain access to the new version of the app.`}
+        confirmText={'Yes, proceed'}
+        loading={deleting}
+        variant='error'
+        key={`Delete-legacy-shop-${deletingShop}`}
+      />
+
       <Modal
         title={editingShop ? 'Edit Legacy Shop' : 'Add Legacy Shop'}
         isOpen={showModal}
         onClose={closeModal}
         actions={[
+          ...(Boolean(editingShop) ? [
+            {
+              label: 'Delete',
+              onClick: () => { setDeleteShop(editingShop), closeModal() },
+              disabled: saving,
+              variant: 'danger' as any
+            }
+          ] : []),
           {
             label: 'Close',
             onClick: closeModal,
@@ -204,8 +279,9 @@ export default function LegacyShopsPage() {
             label: saving ? 'Saving...' : 'Save',
             onClick: () => void saveLegacyShop(),
             loading: saving,
-            variant: 'primary'
-          },
+            variant: 'primary',
+            disabled: !String(formData.shop).trim() || !/\.myshopify\.com$/.test(String(formData.shop).trim())
+          }
         ]}
       >
         <div className="space-y-4">
@@ -216,6 +292,8 @@ export default function LegacyShopsPage() {
             onChange={(event) => setFormData((prev) => ({ ...prev, shop: event.target.value }))}
             disabled={Boolean(editingShop)}
             placeholder="example.myshopify.com"
+            required
+            aria-required="true"
           />
 
           <Checkbox
