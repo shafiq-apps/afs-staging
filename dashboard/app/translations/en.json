@@ -244,7 +244,22 @@
     }
   },
   "pricing": {
-    "pageTitle": "Pricing Plans"
+    "pageTitle": "Pricing Plans",
+    "description": "Choose a plan that fits your business. Upgrade or cancel anytime.",
+    "heading": "Your store currently has [productsCount] products",
+    "bannerText": "You are subscribed to \"[planName]\"",
+    "pricingCard": {
+      "productLimit": "Up to [productLimit] products",
+      "interval": {
+        "month": "per month",
+        "year": "per year"
+      },
+      "buttonLabel": {
+        "unsupported": "This plan is unsupported",
+        "subscribed": "Already subscribed",
+        "subscribe": "Get started with [planName]"
+      }
+    }
   },
   "subscription": {
     "pageTitle": "Subscriptions",

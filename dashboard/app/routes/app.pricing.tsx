@@ -116,7 +116,7 @@ export default function PricingPage() {
     }).format(price.amount);
   };
 
-  const intervalLabel = (interval: string) => interval === "ANNUAL" ? "year" : "month";
+  const intervalLabel = (interval: string) => interval === "ANNUAL" ? t("pricing.pricingCard.interval.year") : t("pricing.pricingCard.interval.month");
 
   const handleSubscribePlan = (planId: string) => {
     setSelectedPlan(planId);
@@ -138,19 +138,29 @@ export default function PricingPage() {
       heading={t("pricing.pageTitle")}
       data-page-id="pricing"
     >
-      <s-section heading={`Your store has ${productsCount.count.toLocaleString()} products`}>
+      <s-section heading={t("pricing.heading").replace("[productsCount]", productsCount.count.toLocaleString())}>
         <s-stack direction="block" gap="large">
-          <s-stack direction="block" gap="small">
-            <s-text tone="auto">
-              Choose a plan that grows with your business. Upgrade or cancel anytime.
-            </s-text>
-          </s-stack>
+          <s-text color="subdued">
+            {t("pricing.description")}
+          </s-text>
 
           {error && (
             <s-banner tone="critical">
               <s-text>{t("common.error")}: {error}</s-text>
             </s-banner>
           )}
+
+          {
+            (activeSubscriptions as ShopifyActiveSubscriptions[])
+              .filter(plan => plan.status === "ACTIVE")
+              .map(plan => (
+                <s-banner key={plan.id} tone="success">
+                  <s-text type="strong">
+                    {t("pricing.bannerText").replace("[planName]", plan.name)}
+                  </s-text>
+                </s-banner>
+              ))
+          }
 
           <s-grid
             gridTemplateColumns="repeat(auto-fit, minmax(280px, 1fr))"
@@ -184,18 +194,16 @@ export default function PricingPage() {
                         </s-stack>
 
                         <s-text tone="auto">
-                          Up to{" "}
-                          <strong>
-                            {plan.productLimit.toLocaleString()}
-                          </strong>{" "}
-                          products
+                          {
+                            t("pricing.pricingCard.productLimit").replace('[productLimit]', plan.productLimit.toLocaleString())
+                          }
                         </s-text>
                       </s-stack>
 
                       {/* Price */}
                       <s-stack direction="block" >
                         <s-text type="strong">
-                          {formatPrice(plan.price)}/<s-text tone="auto">per {intervalLabel(plan.interval)} </s-text>
+                          {formatPrice(plan.price)}/<s-text tone="auto">{intervalLabel(plan.interval)} </s-text>
                         </s-text>
 
                       </s-stack>
@@ -222,11 +230,12 @@ export default function PricingPage() {
 
                       {/* CTA */}
                       <s-button
+                        loading={fetcher.state !== "idle" && selectedplan === plan.id}
                         variant={isPopular ? "primary" : "secondary"}
                         onClick={() => handleSubscribePlan(plan.id)}
                         disabled={fetcher.state !== "idle" || isCurrent || ineligiblePlan}
                       >
-                        {ineligiblePlan ? 'This plan is unsupported' : isCurrent ? 'Already subscribed' : fetcher.state !== "idle" && selectedplan === plan.id ? "Processing..." : `Get started with ${plan.name}`}
+                        {ineligiblePlan ? 'This plan is unsupported' : isCurrent ? 'Already subscribed' : t("pricing.pricingCard.buttonLabel.subscribe").replace("[planName]", plan.name)}
                       </s-button>
                     </s-stack>
                   </s-box>
