@@ -6,7 +6,7 @@ export const CONFIG = {
         name: "Digitalcoo AI Filters & Search",
         version: "2.0.0",
     },
-    emailName:  "Digitalcoo",
+    emailName: "Digitalcoo",
     email: "support@digitalcoo.com",
     phone: null
 }

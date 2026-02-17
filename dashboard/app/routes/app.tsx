@@ -465,7 +465,7 @@ export default function App() {
         {
           !hasActiveShopifySubscription && (
             <s-page>
-              <div style={{marginBottom: 16}}>
+              <div style={{ marginBottom: 16 }}>
                 <s-banner heading="Manage Your Subscription" tone="warning" dismissible>
                   Please keep your subscription plan active to continue using the application.
                   <s-button
