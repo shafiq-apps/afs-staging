@@ -5,6 +5,8 @@ import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import Button, { ButtonProps } from './Button';
 
+export type Size = "sm" | "md" | "lg" | "xl" | "full";
+
 export interface ModalAction extends ButtonProps {
   onClick?: (e: any) => void;
   type?: "button" | "submit" | "reset";
@@ -16,7 +18,7 @@ export interface ModalProps {
   onClose: () => void;
   title?: string;
   children: ReactNode;
-  size?: "sm" | "md" | "lg" | "xl" | "full";
+  size?: Size;
   footer?: ReactNode;
   actions?: ModalAction[];
 }
@@ -170,6 +172,7 @@ export interface ConfirmModalProps {
   confirmText?: string;
   cancelText?: string;
   variant?: 'danger' | 'default';
+  size?: Size,
   onConfirm: () => void;
 }
 
@@ -182,6 +185,7 @@ export function ConfirmModal({
   cancelText = 'Cancel',
   variant = 'default',
   onConfirm,
+  size = 'sm'
 }: ConfirmModalProps) {
   const handleConfirm = () => {
     onConfirm();
@@ -189,7 +193,7 @@ export function ConfirmModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={title} size="sm">
+    <Modal isOpen={isOpen} onClose={onClose} title={title} size={size}>
       <div className="py-4">
         <p className="text-white dark:text-gray-300">{message}</p>
       </div>

@@ -47,7 +47,7 @@ const getStatusColor = (status: 'normal' | 'warning' | 'critical'): string => {
         case 'warning':
             return 'bg-yellow-700 text-yellow-100';
         default:
-            return 'bg-green-700 text-green-100';
+            return 'bg-emerald-700 text-emerald-100';
     }
 };
 
@@ -548,7 +548,7 @@ export default function ESMonitoring() {
                     {/* Connection Status */}
                     <div
                         className={`flex items-center gap-2 px-3 py-2 rounded-lg font-medium ${isConnected
-                            ? 'bg-green-800 text-green-100'
+                            ? 'bg-emerald-800 text-emerald-100'
                             : error
                                 ? 'bg-blue-800 text-blue-100'
                                 : 'bg-yellow-800 text-yellow-100'
@@ -733,7 +733,7 @@ export default function ESMonitoring() {
             <div className="bg-gray-800 rounded-lg border border-gray-700 p-6 mb-6">
                 <h3 className="font-semibold text-white mb-4">Threshold Information</h3>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div className="border-l-4 border-green-400 pl-4">
+                    <div className="border-l-4 border-emerald-400 pl-4">
                         <p className="font-medium text-gray-100">Normal</p>
                         <p className="text-sm text-gray-300">Below threshold</p>
                     </div>

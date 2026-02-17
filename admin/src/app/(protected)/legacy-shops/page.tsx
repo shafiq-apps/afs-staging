@@ -1,9 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { AlertModal, Banner, Button, ButtonGroup, Checkbox, DataTable, Input, Modal, Select, Textarea } from '@/components/ui';
+import { AlertModal, Banner, Button, ButtonGroup, Checkbox, ConfirmModal, DataTable, Input, Modal, Select, Textarea } from '@/components/ui';
 import type { SelectOption } from '@/components/ui';
 import Page from '@/components/ui/Page';
+import LinkComponent from '@/components/ui/LinkComponent';
+import Badge from '@/components/ui/Badge';
 
 type LegacyShopStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED';
 
@@ -145,7 +147,7 @@ export default function LegacyShopsPage() {
 
   const deleteLegacyShop = async () => {
     try {
-      
+
       const shop = String(deletingShop).trim();
 
       if (!shop) {
@@ -168,7 +170,7 @@ export default function LegacyShopsPage() {
       });
 
       const data = await response.json().catch(() => null);
-      
+
       if (!response.ok || !data?.success) {
         throw new Error(data?.error || 'Failed to delete legacy shop');
       }
@@ -213,12 +215,13 @@ export default function LegacyShopsPage() {
         }
 
         <DataTable
+          pageSize={25}
           loading={loading}
           emptyMessage='No legacy shop records found.'
           data={legacyShops}
           columns={[
-            { header: "Shop", key: "shop" },
-            { header: "Status", key: "status" },
+            { header: "Shop", key: "shop", render: (item) => (<LinkComponent href={`/shops/${decodeURIComponent(item.shop)}`}>{item.shop}</LinkComponent>) },
+            { header: "Status", key: "status", render: (item) => (<Badge variant={item.status === "COMPLETED" ? "success" : "default"}>{item.status}</Badge>) },
             { header: "Upgrade Allowed", key: "isUpgradeAllowed", render: (item) => item.isUpgradeAllowed ? "Yes" : "No" },
             { header: "Has Upgrade Request", key: "hasUpgradeRequest", render: (item) => item.hasUpgradeRequest ? "Yes" : "No" },
             { header: "Message", key: "statusMessage" },
@@ -245,16 +248,16 @@ export default function LegacyShopsPage() {
         />
       </div>
 
-      <AlertModal
+      <ConfirmModal
         isOpen={Boolean(deletingShop) || Boolean(deleting)}
         onClose={() => setDeleteShop(editingShop)}
         onConfirm={deleteLegacyShop}
-        title='Delete legacy shop?'
+        title="You’re giving access to the Live dashboard"
         message={`By doing so, '${deletingShop}' will immediately gain access to the new version of the app.`}
         confirmText={'Yes, proceed'}
-        loading={deleting}
-        variant='error'
-        key={`Delete-legacy-shop-${deletingShop}`}
+        key={`Migrate-2-legacy-shop-${deletingShop}`}
+        variant='danger'
+        size='md'
       />
 
       <Modal
@@ -262,6 +265,11 @@ export default function LegacyShopsPage() {
         isOpen={showModal}
         onClose={closeModal}
         actions={[
+          {
+            label: 'Close',
+            onClick: closeModal,
+            disabled: saving
+          },
           ...(Boolean(editingShop) ? [
             {
               label: 'Delete',
@@ -271,12 +279,7 @@ export default function LegacyShopsPage() {
             }
           ] : []),
           {
-            label: 'Close',
-            onClick: closeModal,
-            disabled: saving
-          },
-          {
-            label: saving ? 'Saving...' : 'Save',
+            label: editingShop?'Update':'Save',
             onClick: () => void saveLegacyShop(),
             loading: saving,
             variant: 'primary',

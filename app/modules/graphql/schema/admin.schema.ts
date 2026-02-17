@@ -72,7 +72,7 @@ export const adminSchema = `
   }
 
   type Mutation {
-    createAdminUser(input: CreateAdminUserInput!): AdminUserWithCredentials!
+    createAdminUser(input: CreateAdminUserInput!): AdminUserWithCredentials
     updateAdminUser(id: ID!, input: UpdateAdminUserInput!): AdminUser!
     deleteAdminUser(id: ID!): Boolean!
     regenerateAdminUserApiCredentials(id: ID!): AdminUserWithCredentials!

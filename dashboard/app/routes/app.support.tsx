@@ -91,7 +91,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         error: "Our support system is currently unavailable. Please try again later or email us directly at " + SUPPORT_CONFIG.contact.email,
       } as ActionData;
     }
-    
+
     return {
       success: false,
       error: error.message || SUPPORT_CONFIG.messages.error,
@@ -130,115 +130,98 @@ export default function Support() {
   return (
     <s-page heading={t("support.pageTitle")} data-page-id="support">
       {/* Contact Information */}
-      <s-section>
-        <s-stack direction="block" gap="base">
-          <s-heading>{t("support.contactUs.title")}</s-heading>
+      
+      <div style={{marginBottom: 16}}>
+        <s-stack direction="block" gap="base" accessibilityLabel={t("support.pageTitle")} alignContent="last baseline">
           <s-grid gap="base" gridTemplateColumns="repeat(auto-fit, minmax(280px, 1fr))">
             {/* Phone */}
-            <s-grid-item>
-              <s-box
-                padding="base"
-                borderWidth="base"
-                borderRadius="base"
-                background="base"
-              >
-                <s-stack direction="block" gap="base">
-                  <s-stack direction="inline" gap="small" alignItems="center">
-                    <s-icon type="phone" size="base"/>
-                    <s-heading>{t("support.contactUs.phone.title")}</s-heading>
-                  </s-stack>
-                  <s-stack direction="block" gap="small">
-                    <s-text type="strong" tone="auto">
-                      {supportInfo.phone}
-                    </s-text>
-                    <s-text tone="neutral">
-                      {t("support.contactUs.phone.description")}
-                    </s-text>
-                  </s-stack>
-                </s-stack>
-              </s-box>
-            </s-grid-item>
+            {
+              supportInfo.phone && (
+                <s-grid-item>
+                  <s-box
+                    padding="base"
+                    borderWidth="base"
+                    borderRadius="base"
+                    background="base"
+                  >
+                    <s-stack direction="block" gap="base">
+                      <s-stack direction="inline" gap="small" alignItems="center">
+                        <s-icon type="phone" size="base" />
+                        <s-heading>{t("support.contactUs.phone.title")}</s-heading>
+                      </s-stack>
+                      <s-stack direction="block" gap="small">
+                        <s-text type="strong" tone="auto">
+                          {supportInfo.phone}
+                        </s-text>
+                        <s-text tone="neutral">
+                          {t("support.contactUs.phone.description")}
+                        </s-text>
+                      </s-stack>
+                    </s-stack>
+                  </s-box>
+                </s-grid-item>
+              )
+            }
 
             {/* Email */}
-            <s-grid-item>
-              <s-box
-                padding="base"
-                borderWidth="base"
-                borderRadius="base"
-                background="base"
-              >
-                <s-stack direction="block" gap="base">
-                  <s-stack direction="inline" gap="small" alignItems="center">
-                    <s-icon type="email" size="base"/>
-                    <s-heading>{t("support.contactUs.email.title")}</s-heading>
-                  </s-stack>
-                  <s-stack direction="block" gap="small">
-                    <s-text type="strong" tone="auto">
-                      {supportInfo.email}
-                    </s-text>
-                    <s-text tone="neutral">
-                      {t("support.contactUs.email.description")}
-                    </s-text>
-                  </s-stack>
-                </s-stack>
-              </s-box>
-            </s-grid-item>
+            {
+              supportInfo.email && (
+                <s-grid-item>
+                  <s-box
+                    padding="base"
+                    borderWidth="base"
+                    borderRadius="base"
+                    background="base"
+                  >
+                    <s-stack direction="block" gap="base">
+                      <s-stack direction="inline" gap="small" alignItems="center">
+                        <s-icon type="email" size="base" />
+                        <s-heading>{t("support.contactUs.email.title")}</s-heading>
+                      </s-stack>
+                      <s-stack direction="block" gap="small">
+                        <s-text type="strong" tone="auto">
+                          {supportInfo.email}
+                        </s-text>
+                        <s-text tone="neutral">
+                          {t("support.contactUs.email.description")}
+                        </s-text>
+                      </s-stack>
+                    </s-stack>
+                  </s-box>
+                </s-grid-item>
+              )
+            }
 
             {/* Support Hours */}
-            <s-grid-item>
-              <s-box
-                padding="base"
-                borderWidth="base"
-                borderRadius="base"
-                background="base"
-              >
-                <s-stack direction="block" gap="base">
-                  <s-stack direction="inline" gap="small" alignItems="center">
-                    <s-icon type="clock" size="base"/>
-                    <s-heading>{t("support.contactUs.hours.title")}</s-heading>
-                  </s-stack>
-                  <s-stack direction="block" gap="small">
-                    {supportInfo.hours.map((hour, index) => (
-                      <s-text key={index} tone="auto">
-                        {hour}
-                      </s-text>
-                    ))}
-                  </s-stack>
-                </s-stack>
-              </s-box>
-            </s-grid-item>
+            {
+              supportInfo.hours && supportInfo.hours.length > 0 && (
+                <s-grid-item>
+                  <s-box
+                    padding="base"
+                    borderWidth="base"
+                    borderRadius="base"
+                    background="base"
+                  >
+                    <s-stack direction="block" gap="base">
+                      <s-stack direction="inline" gap="small" alignItems="center">
+                        <s-icon type="clock" size="base" />
+                        <s-heading>{t("support.contactUs.hours.title")}</s-heading>
+                      </s-stack>
+                      <s-stack direction="block" gap="small">
+                        {supportInfo.hours.map((hour, index) => (
+                          <s-text key={index} tone="auto">
+                            {hour}
+                          </s-text>
+                        ))}
+                      </s-stack>
+                    </s-stack>
+                  </s-box>
+                </s-grid-item>
+              )
+            }
           </s-grid>
         </s-stack>
-      </s-section>
-
-      {/* Documentation Links */}
-      <s-section>
-        <s-stack direction="block" gap="base">
-          <s-heading>{t("support.documentation.title")}</s-heading>
-          <s-text tone="neutral">
-            {t("support.documentation.description")}
-          </s-text>
-          <s-grid gap="base" gridTemplateColumns="repeat(auto-fit, minmax(300px, 1fr))">
-            {supportInfo.documentationLinks.map((link, index) => (
-              <s-grid-item key={index}>
-                <s-box
-                  padding="base"
-                  borderWidth="base"
-                  borderRadius="base"
-                  background="base"
-                >
-                  <s-stack direction="block" gap="small">
-                    <s-link href={link.url}>
-                      <s-text type="strong">{link.title}</s-text>
-                    </s-link>
-                    <s-text tone="neutral">{link.description}</s-text>
-                  </s-stack>
-                </s-box>
-              </s-grid-item>
-            ))}
-          </s-grid>
-        </s-stack>
-      </s-section>
+      </div>
 
       {/* Support Form */}
       <s-section>
@@ -260,7 +243,7 @@ export default function Support() {
               <s-text>{actionData.error}</s-text>
             </s-banner>
           )}
-          
+
           <s-box
             padding="base"
             borderWidth="base"
@@ -347,7 +330,7 @@ export default function Support() {
                           ))
                         }
                       </s-select>
-                      
+
                     </s-stack>
                   </s-grid-item>
                 </s-grid>
@@ -368,11 +351,11 @@ export default function Support() {
                     rows={4}
                   />
                   <s-text tone="neutral">
-                    {t("support.form.message.characterCount", { 
-                      current: formData.message.length.toString(), 
-                      max: SUPPORT_CONFIG.form.messageMaxLength.toString() 
+                    {t("support.form.message.characterCount", {
+                      current: formData.message.length.toString(),
+                      max: SUPPORT_CONFIG.form.messageMaxLength.toString()
                     })}
-                    {formData.message.length < SUPPORT_CONFIG.form.messageMinLength && 
+                    {formData.message.length < SUPPORT_CONFIG.form.messageMinLength &&
                       ` (${t("support.form.message.minWarning", { min: SUPPORT_CONFIG.form.messageMinLength.toString() })})`}
                   </s-text>
                 </s-stack>
@@ -399,41 +382,41 @@ export default function Support() {
         </s-stack>
       </s-section>
 
-      {/* Additional Help */}
+      {/* Documentation Links */}
       <s-section>
-        <s-box
-          padding="base"
-          borderWidth="base"
-          borderRadius="base"
-          background="base"
-        >
-          <s-stack direction="block" gap="base">
-            <s-heading>Additional Help</s-heading>
-            <s-stack direction="block" gap="small">
-              <s-text tone="auto">
-                <s-text type="strong">Before submitting a ticket:</s-text>
-              </s-text>
-              <s-unordered-list>
-                <s-list-item>
-                  <s-text tone="auto">
-                    Check our <s-link href="/docs/faqs">FAQs</s-link> for quick answers
-                  </s-text>
-                </s-list-item>
-                <s-list-item>
-                  <s-text tone="auto">
-                    Review our <s-link href="/docs/troubleshooting">Troubleshooting Guide</s-link>
-                  </s-text>
-                </s-list-item>
-                <s-list-item>
-                  <s-text tone="auto">
-                    Watch our <s-link href="/docs/tutorials">Video Tutorials</s-link>
-                  </s-text>
-                </s-list-item>
-              </s-unordered-list>
-            </s-stack>
-          </s-stack>
-        </s-box>
+        <s-stack direction="block" gap="base">
+          <s-heading>{t("support.documentation.title")}</s-heading>
+          <s-text tone="neutral">
+            {t("support.documentation.description")}
+          </s-text>
+          <s-grid gap="base" gridTemplateColumns="repeat(auto-fit, minmax(300px, 1fr))">
+            {supportInfo.documentationLinks.map((link, index) => (
+              <s-grid-item key={index}>
+                <s-link href={link.url} target="_blank">
+                <s-box
+                  padding="base"
+                  borderWidth="base"
+                  borderRadius="base"
+                  background="base"
+                >
+                  <s-stack direction="block" gap="small">
+                    <s-text type="strong">{link.title}</s-text>
+                    <s-text tone="neutral">{link.description}</s-text>
+                  </s-stack>
+                </s-box>
+                </s-link>
+              </s-grid-item>
+            ))}
+          </s-grid>
+        </s-stack>
       </s-section>
+
+      {/* Footer Note */}
+      <s-box background="strong">
+        <s-text tone="caution">
+          {t("support.footer.note")}
+        </s-text>
+      </s-box>
     </s-page>
   );
 }

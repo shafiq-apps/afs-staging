@@ -283,8 +283,8 @@ export async function sendMigrationEmail(ticket: SupportTicket): Promise<string>
   const apiKey = process.env.SENDGRID_API_KEY;
   const fromEmail = process.env.APP_EMAIL_FROM;
   const fromName = process.env.APP_EMAIL_NAME;
-  const supportEmail = process.env.APP_SUPPORT_EMAIL || SUPPORT_CONFIG.contact.email;
-  const supportName = process.env.APP_EMAIL_NAME || CONFIG.app.name;
+  const supportEmail = process.env.APP_SUPPORT_EMAIL || CONFIG.email;
+  const emailName = process.env.APP_EMAIL_NAME || CONFIG.emailName;
 
   logger.info("SendGrid configuration check", {
     hasApiKey: !!apiKey,
@@ -318,7 +318,7 @@ export async function sendMigrationEmail(ticket: SupportTicket): Promise<string>
       to: supportEmail,
       from: {
         email: fromEmail,
-        name: fromName || supportName,
+        name: fromName || emailName,
       },
       subject: `[${ticket.priority.toUpperCase()}] ${ticket.subject}`,
       html: formatSupportEmailHTML(ticket),
@@ -334,7 +334,7 @@ export async function sendMigrationEmail(ticket: SupportTicket): Promise<string>
       to: ticket.email,
       from: {
         email: fromEmail,
-        name: fromName || supportName,
+        name: fromName || emailName,
       },
       replyTo: SUPPORT_CONFIG.contact.email,
       subject: `Migration Request Received - ${ticket.subject}`,

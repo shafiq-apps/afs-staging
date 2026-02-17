@@ -19,7 +19,7 @@ import { sendMigrationEmail } from "app/utils/email.service";
 import { getCachedShopData } from "app/utils/get-cached-shop-data";
 import { setCachedShopData } from "app/utils/set-cached-hop-data";
 import { CONFIG } from "app/config";
-import { g } from "node_modules/@react-router/dev/dist/routes-CZR-bKRt";
+import { AppFooter } from "app/components/AppFooter";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
@@ -259,7 +259,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     await sendMigrationEmail({
       shop: session?.shop || "",
       name: session?.shop || "",
-      email: CONFIG.supportEmail,
+      email: CONFIG.email,
       subject: "Migration Instructions",
       priority: "high",
       message: instructions,
@@ -275,7 +275,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       // Return a specific error message for server downtime
       return {
         success: false,
-        error: "Our support system is currently unavailable. Please try again later or email us directly at " + SUPPORT_CONFIG.contact.email,
+        error: "Our support system is currently unavailable. Please try again later or email us directly at " + CONFIG.email,
       } as ActionData;
     }
 
@@ -298,7 +298,7 @@ export default function App() {
 
   /* ---------------- SUBSCRIPTION HELPERS ---------------- */
   const hasActiveShopifySubscription = activeSubscriptions.some(sub => sub.status === AppSubscriptionStatus.ACTIVE);
-  const isOnPricingPage = location.pathname === "/app/pricing";
+  const isOnPricingOrSupportPage = location.pathname === "/app/pricing" || location.pathname === "/app/support";
 
   /* ---------------- CLIENT-SIDE SHOP DATA CACHE ---------------- */
   useEffect(() => {
@@ -339,12 +339,12 @@ export default function App() {
   /* ---------------- SUBSCRIPTION REDIRECT LOGIC ---------------- */
   useEffect(() => {
     // If Shopify has no active subscription, force pricing page
-    if (!hasActiveShopifySubscription && !isOnPricingPage) {
+    if (!hasActiveShopifySubscription && !isOnPricingOrSupportPage) {
       navigate("/app/pricing?module=subscription&action=choose&force=true", { replace: true });
     }
   }, [
     hasActiveShopifySubscription,
-    isOnPricingPage,
+    isOnPricingOrSupportPage,
     navigate,
   ]);
 
@@ -461,31 +461,34 @@ export default function App() {
         shopData={effectiveShopData}
         isLoading={!effectiveShopData}
       >
-        <AppNavBar hasActiveShopifySubscription />
+        <AppNavBar hasActiveShopifySubscription={hasActiveShopifySubscription} />
         {
           !hasActiveShopifySubscription && (
-            <s-page >
-              <s-banner heading="Manage Your Subscription" tone="warning">
-                Please keep your subscription plan active to continue using the application.
-                <s-button
-                  slot="secondary-actions"
-                  variant="secondary"
-                  href="/app/pricing"
-                >
-                  View pricing
-                </s-button>
-                <s-button
-                  slot="secondary-actions"
-                  variant="secondary"
-                  href="javascript:void(0)"
-                >
-                  Read more
-                </s-button>
-              </s-banner>
+            <s-page>
+              <div style={{ marginBottom: 16 }}>
+                <s-banner heading="Manage Your Subscription" tone="warning" dismissible>
+                  Please keep your subscription plan active to continue using the application.
+                  <s-button
+                    slot="secondary-actions"
+                    variant="secondary"
+                    href="/app/pricing"
+                  >
+                    View pricing
+                  </s-button>
+                  <s-button
+                    slot="secondary-actions"
+                    variant="secondary"
+                    href="javascript:void(0)"
+                  >
+                    Read more
+                  </s-button>
+                </s-banner>
+              </div>
             </s-page>
           )
         }
         <Outlet />
+        <AppFooter />
       </ShopProvider>
     </AppProvider>
   );

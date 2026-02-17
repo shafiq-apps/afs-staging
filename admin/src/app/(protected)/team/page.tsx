@@ -200,7 +200,7 @@ export default function TeamPage() {
                     <span
                       className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                         user.isActive
-                          ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
+                          ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300'
                           : 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300'
                       }`}
                     >

@@ -75,8 +75,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   // This is critical data for the home page
   // If the server is down, we want to show the downtime screen
   // The GraphQLError will be caught by the ErrorBoundary
-  const response = await graphqlRequest(gquery, {shop});
-  
+  const response = await graphqlRequest(gquery, { shop });
+
   const filters = response?.filters?.filters || [];
   const totalFilters = filters?.total || filters.length;
   const publishedFilters = filters.filter((f: Filter) => f.status === "published").length;
@@ -300,130 +300,132 @@ export default function Index() {
       </s-section>
 
       {/* Recent Filters and Indexing Status */}
-      <s-grid gap="base" gridTemplateColumns="repeat(auto-fit, minmax(400px, 1fr))">
-        <s-grid-item>
-          <s-section>
-            <s-stack direction="block" gap="base">
-              <s-heading>{t("home.recentFilters.title")}</s-heading>
-              {filters.length === 0 ? (
-                <s-box
-                  padding="base"
-                  borderWidth="base"
-                  borderRadius="base"
-                  background="subdued"
-                >
-                  <s-stack direction="block" gap="small" alignItems="center">
-                    <s-text tone="auto">{t("home.recentFilters.noFilters")}</s-text>
-                    <s-button
-                      variant="primary"
-                      onClick={() => navigate("/app/filter/create")}
-                      icon="plus"
-                      accessibilityLabel={t("home.recentFilters.createFirst")}
-                    >
-                      {t("home.recentFilters.createFirst")}
-                    </s-button>
-                  </s-stack>
-                </s-box>
-              ) : (
+      <div style={{ marginBottom: 16 }}>
+        <s-grid gap="base" gridTemplateColumns="repeat(auto-fit, minmax(400px, 1fr))">
+          <s-grid-item>
+            <s-section>
+              <s-stack direction="block" gap="base">
+                <s-heading>{t("home.recentFilters.title")}</s-heading>
+                {filters.length === 0 ? (
+                  <s-box
+                    padding="base"
+                    borderWidth="base"
+                    borderRadius="base"
+                    background="subdued"
+                  >
+                    <s-stack direction="block" gap="small" alignItems="center">
+                      <s-text tone="auto">{t("home.recentFilters.noFilters")}</s-text>
+                      <s-button
+                        variant="primary"
+                        onClick={() => navigate("/app/filter/create")}
+                        icon="plus"
+                        accessibilityLabel={t("home.recentFilters.createFirst")}
+                      >
+                        {t("home.recentFilters.createFirst")}
+                      </s-button>
+                    </s-stack>
+                  </s-box>
+                ) : (
+                  <s-box
+                    padding="base"
+                    borderWidth="base"
+                    borderRadius="base"
+                    background="base"
+                  >
+                    <s-stack direction="block" gap="small">
+                      {filters.map((filter) => (
+                        <s-box
+                          key={filter.id}
+                          padding="small"
+                          borderWidth="base"
+                          borderRadius="base"
+                          background="subdued"
+                        >
+                          <s-stack direction="inline" gap="base" alignItems="center">
+                            <s-link href={`/app/filter/${filter.id}`}>
+                              <s-text type="strong">{filter.title}</s-text>
+                            </s-link>
+                            {filter.status && (
+                              <s-badge
+                                tone={
+                                  filter.status === "published"
+                                    ? "success"
+                                    : filter.status === "draft"
+                                      ? "warning"
+                                      : "neutral"
+                                }
+                              >
+                                {filter.status.charAt(0).toUpperCase() + filter.status.slice(1)}
+                              </s-badge>
+                            )}
+                          </s-stack>
+                        </s-box>
+                      ))}
+                      {totalFilters > filters.length && (
+                        <s-button
+                          variant="secondary"
+                          onClick={() => navigate("/app/filters")}
+                        >
+                          {t("home.recentFilters.viewAll", { count: totalFilters.toString() })}
+                        </s-button>
+                      )}
+                    </s-stack>
+                  </s-box>
+                )}
+              </s-stack>
+            </s-section>
+          </s-grid-item>
+
+          <s-grid-item>
+            <s-section>
+              <s-stack direction="block" gap="base">
+                <s-heading>{t("home.syncStatus.title")}</s-heading>
                 <s-box
                   padding="base"
                   borderWidth="base"
                   borderRadius="base"
                   background="base"
                 >
-                  <s-stack direction="block" gap="small">
-                    {filters.map((filter) => (
-                      <s-box
-                        key={filter.id}
-                        padding="small"
-                        borderWidth="base"
-                        borderRadius="base"
-                        background="subdued"
-                      >
-                        <s-stack direction="inline" gap="base" alignItems="center">
-                          <s-link href={`/app/filter/${filter.id}`}>
-                            <s-text type="strong">{filter.title}</s-text>
-                          </s-link>
-                          {filter.status && (
-                            <s-badge
-                              tone={
-                                filter.status === "published"
-                                  ? "success"
-                                  : filter.status === "draft"
-                                  ? "warning"
-                                  : "neutral"
-                              }
-                            >
-                              {filter.status.charAt(0).toUpperCase() + filter.status.slice(1)}
-                            </s-badge>
-                          )}
-                        </s-stack>
-                      </s-box>
-                    ))}
-                    {totalFilters > filters.length && (
-                      <s-button
-                        variant="secondary"
-                        onClick={() => navigate("/app/filters")}
-                      >
-                        {t("home.recentFilters.viewAll", { count: totalFilters.toString() })}
-                      </s-button>
-                    )}
+                  <s-stack direction="block" gap="base">
+                    <s-stack direction="inline" gap="base" alignItems="center">
+                      <s-text type="strong">{t("home.syncStatus.status")}:</s-text>
+                      {getStatusBadge(indexingStatus.status)}
+                    </s-stack>
+                    <s-stack direction="block" gap="small">
+                      <s-text tone="auto">
+                        {t("home.syncStatus.productsIndexed")}: <s-text type="strong">{indexingStatus.totalIndexed.toLocaleString()}</s-text>
+                      </s-text>
+                      {indexingStatus.totalFailed > 0 && (
+                        <s-text tone="critical">
+                          {t("home.syncStatus.failed")}: <s-text type="strong">{indexingStatus.totalFailed}</s-text>
+                        </s-text>
+                      )}
+                      {indexingStatus.status === "in_progress" && (
+                        <s-text tone="auto">
+                          {t("home.syncStatus.progress")}: <s-text type="strong">{indexingStatus.progress}%</s-text>
+                        </s-text>
+                      )}
+                      {indexingStatus.completedAt && (
+                        <s-text tone="auto">
+                          {t("home.syncStatus.lastSync")}: {formatDate(indexingStatus.completedAt)}
+                        </s-text>
+                      )}
+                    </s-stack>
+                    <s-button
+                      variant="secondary"
+                      onClick={() => navigate("/app/indexing")}
+                      icon="arrow-right"
+                      accessibilityLabel={t("home.syncStatus.accessibilityLabel")}
+                    >
+                      {t("home.syncStatus.button")}
+                    </s-button>
                   </s-stack>
                 </s-box>
-              )}
-            </s-stack>
-          </s-section>
-        </s-grid-item>
-
-        <s-grid-item>
-          <s-section>
-            <s-stack direction="block" gap="base">
-              <s-heading>{t("home.syncStatus.title")}</s-heading>
-              <s-box
-                padding="base"
-                borderWidth="base"
-                borderRadius="base"
-                background="base"
-              >
-                <s-stack direction="block" gap="base">
-                  <s-stack direction="inline" gap="base" alignItems="center">
-                    <s-text type="strong">{t("home.syncStatus.status")}:</s-text>
-                    {getStatusBadge(indexingStatus.status)}
-                  </s-stack>
-                  <s-stack direction="block" gap="small">
-                    <s-text tone="auto">
-                      {t("home.syncStatus.productsIndexed")}: <s-text type="strong">{indexingStatus.totalIndexed.toLocaleString()}</s-text>
-                    </s-text>
-                    {indexingStatus.totalFailed > 0 && (
-                      <s-text tone="critical">
-                        {t("home.syncStatus.failed")}: <s-text type="strong">{indexingStatus.totalFailed}</s-text>
-                      </s-text>
-                    )}
-                    {indexingStatus.status === "in_progress" && (
-                      <s-text tone="auto">
-                        {t("home.syncStatus.progress")}: <s-text type="strong">{indexingStatus.progress}%</s-text>
-                      </s-text>
-                    )}
-                    {indexingStatus.completedAt && (
-                      <s-text tone="auto">
-                        {t("home.syncStatus.lastSync")}: {formatDate(indexingStatus.completedAt)}
-                      </s-text>
-                    )}
-                  </s-stack>
-                  <s-button
-                    variant="secondary"
-                    onClick={() => navigate("/app/indexing")}
-                    icon="arrow-right"
-                    accessibilityLabel={t("home.syncStatus.accessibilityLabel")}
-                  >
-                    {t("home.syncStatus.button")}
-                  </s-button>
-                </s-stack>
-              </s-box>
-            </s-stack>
-          </s-section>
-        </s-grid-item>
-      </s-grid>
+              </s-stack>
+            </s-section>
+          </s-grid-item>
+        </s-grid>
+      </div>
 
       {/* Getting Started / Help Section */}
       <s-section>
@@ -516,31 +518,31 @@ export default function Index() {
 
 export function ErrorBoundary() {
   const error = useRouteError();
-  
+
   // Check if it's a Remix route error response (from json() throw)
   if (isRouteErrorResponse(error)) {
-    if (error.data && typeof error.data === "object" && 
-        ("isGraphQLError" in error.data || "code" in error.data || "endpoint" in error.data)) {
+    if (error.data && typeof error.data === "object" &&
+      ("isGraphQLError" in error.data || "code" in error.data || "endpoint" in error.data)) {
       return <GraphQLErrorBoundary />;
     }
   }
-  
+
   // Check if it's a direct GraphQL error
-  const isGraphQLErr = error && 
-    typeof error === "object" && 
+  const isGraphQLErr = error &&
+    typeof error === "object" &&
     (
       "isGraphQLError" in error ||
-      "code" in error || 
-      "isNetworkError" in error || 
+      "code" in error ||
+      "isNetworkError" in error ||
       "isServerError" in error ||
       "endpoint" in error ||
       (error as any).name === "GraphQLError"
     );
-  
+
   if (isGraphQLErr) {
     return <GraphQLErrorBoundary />;
   }
-  
+
   // Fallback to Shopify's error boundary for other errors
   return boundary.error(error);
 }

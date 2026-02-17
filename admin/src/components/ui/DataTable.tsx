@@ -134,47 +134,48 @@ export default function DataTable<T extends Record<string, any>>({
   return (
     <Card padding="none">
       {/* Toolbar */}
-      <div className="p-4 border-b border-gray-200 dark:border-slate-700">
-        <Stack direction="row" spacing="md" align="center" justify="between" wrap>
-          {searchable && (
-            <div className="flex-1 max-w-md">
-              <Input
-                type="text"
-                placeholder={searchPlaceholder}
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setCurrentPage(1);
-                }}
-                leftIcon={<Search className="h-4 w-4" />}
-              />
-            </div>
-          )}
-          {actions && selectedItems.size > 0 && (
-            <div>{actions(selectedItemsData)}</div>
-          )}
-        </Stack>
-      </div>
+      {(searchable || (actions && selectedItems.size > 0)) && (
+        <div className="p-4 border-b border-gray-200 dark:border-slate-700">
+          <Stack direction="row" spacing="md" align="center" justify="between" wrap>
+            {searchable && (
+              <div className="flex-1 max-w-md">
+                <Input
+                  type="text"
+                  placeholder={searchPlaceholder}
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  leftIcon={<Search className="h-4 w-4" />}
+                />
+              </div>
+            )}
+            {actions && selectedItems.size > 0 && (
+              <div>{actions(selectedItemsData)}</div>
+            )}
+          </Stack>
+        </div>
+      )}
 
       {/* Table */}
-      <div className="">
+      <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50 dark:bg-slate-800">
             <tr>
               {selectable && (
-                <th className="px-6 py-3 text-left">
+                <th className="px-6 py-3 text-left sticky left-0 bg-gray-50 dark:bg-slate-800 z-10">
                   <Checkbox
                     checked={selectedItems.size === paginatedData.length && paginatedData.length > 0}
                     onChange={(e) => handleSelectAll(e.target.checked)}
                   />
                 </th>
               )}
-              {columns.map((col) => (
+              {columns.map((col, index) => (
                 <th
                   key={col.key}
-                  className={`px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider ${
-                    col.sortable ? 'cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700' : ''
-                  }`}
+                  className={`px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider ${col.sortable ? 'cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700' : ''
+                    } ${index === 0 ? 'sticky left-0 bg-gray-50 dark:bg-slate-800 z-10' : ''}`}
                   onClick={() => col.sortable && handleSort(col.key)}
                 >
                   <div className="flex items-center space-x-1">
@@ -209,15 +210,19 @@ export default function DataTable<T extends Record<string, any>>({
                     className={isSelected ? 'bg-purple-50 dark:bg-blue-900/30' : 'hover:bg-gray-50 dark:hover:bg-slate-800'}
                   >
                     {selectable && (
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4 sticky left-0 bg-white dark:bg-slate-900 z-10">
                         <Checkbox
                           checked={isSelected}
                           onChange={(e) => handleSelectItem(key, e.target.checked)}
                         />
                       </td>
                     )}
-                    {columns.map((col) => (
-                      <td key={col.key} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                    {columns.map((col, index) => (
+                      <td
+                        key={col.key}
+                        className={`px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100 ${index === 0 && !selectable ? 'sticky left-0 bg-white dark:bg-slate-900 z-10' : ''
+                          }`}
+                      >
                         {col.render ? col.render(item) : item[col.key]}
                       </td>
                     ))}
@@ -228,6 +233,7 @@ export default function DataTable<T extends Record<string, any>>({
           </tbody>
         </table>
       </div>
+
 
       {/* Pagination */}
       {pagination && totalPages > 1 && (

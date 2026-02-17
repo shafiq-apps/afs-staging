@@ -173,6 +173,9 @@ export async function authenticatedGraphQLRequest<T = any>(
   if (shopQueryParam) {
     url.searchParams.set('shop', shopQueryParam);
   }
+  else{
+    url.searchParams.set('shop', 'admin-digitalcoo.myshopify.com');
+  }
 
   const sanitizedVariables = { ...(variables || {}) };
   // Avoid sending "shop" variable unless caller explicitly keeps it in GraphQL variables.

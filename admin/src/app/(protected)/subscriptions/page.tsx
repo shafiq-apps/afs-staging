@@ -1,13 +1,12 @@
 'use client';
 
-import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { LoadingBar } from '@/components/ui/LoadingBar';
-import Input from '@/components/ui/Input';
-import { RefreshCw, Search } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { Banner, Button, DataTable } from '@/components/ui';
-import { formatDate, normalizeShopifyId } from '@/lib/string.utils';
+import { formatDate, maskString, normalizeShopifyId } from '@/lib/string.utils';
 import Page from '@/components/ui/Page';
+import LinkComponent from '@/components/ui/LinkComponent';
+import Badge from '@/components/ui/Badge';
 
 interface SubscriptionLineItem {
   id: string;
@@ -26,19 +25,6 @@ interface SubscriptionRecord {
   createdAt: string;
   updatedAt?: string | null;
 }
-
-const formatDateTime = (value?: string | null): string => {
-  if (!value) return '-';
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return value;
-  return parsed.toLocaleString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-};
 
 export default function SubscriptionsPage() {
   const [subscriptions, setSubscriptions] = useState<SubscriptionRecord[]>([]);
@@ -136,13 +122,16 @@ export default function SubscriptionsPage() {
       }
 
       <DataTable
+        searchable={false}
         loading={loading}
         columns={[
-          { header: "Shop", key: "shop", },
-          { header: "Name", key: "name" },
-          { header: "Plan", key: "test", render: (item) => item.test ? "Test Plan" : "Paid Plan" },
-          { header: "Status", key: "status" },
-          { header: "Shopify ID", key: "shopifySubscriptionId", render: (item) => normalizeShopifyId(item.shopifySubscriptionId) },
+          { header: "Shop", key: "shop", render: (item) => (<LinkComponent href={`/shops/${decodeURIComponent(item.shop)}`}>{item.shop}</LinkComponent>) },
+          { header: "Status", key: "status", render: (item) => (<Badge variant={item.status === "ACTIVE"?"success":"default"}>{item.status}</Badge>) },
+          { header: "Plan Name", key: "name" },
+          { header: "Payment", key: "test", render: (item) => (<Badge variant={item.test?"warning":"success"}>{item.test?"Free":"Paid"}</Badge>) },
+          { header: "Shopify ID", key: "shopifySubscriptionId", render: (item) => maskString(normalizeShopifyId(item.shopifySubscriptionId)??"",3,3) },
+          { header: "Created At", key: "createdAt", render: (item) => formatDate(item.createdAt) },
+          { header: "Updated At", key: "updatedAt", render: (item) => formatDate(item.updatedAt??"") },
           {
             header: "Actions", key: "id", render: (item) => (
               <Button
@@ -162,74 +151,8 @@ export default function SubscriptionsPage() {
         data={filteredSubscriptions}
         keyExtractor={(item) => item.id + item.shop}
         emptyMessage='No subscriptions found'
+        pageSize={10}
       />
-
-      {/* <div className="bg-white dark:bg-slate-800 rounded-lg overflow-hidden border border-gray-200 dark:border-slate-700">
-        <tr key={`${subscription.shop}-${subscription.shopifySubscriptionId}`}>
-          <td className="px-6 py-4 whitespace-nowrap text-sm">
-            <Link
-              href={`/shops/${encodeURIComponent(subscription.shop)}`}
-              className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
-            >
-              <div>{subscription.shop}</div>
-              <div className="text-xs font-sm text-gray-500 dark:text-gray-400 gap-2 flex flex-columns">
-                <span className='inline-block'>Created: {formatDate(subscription.createdAt)}</span>
-                {
-                  subscription.updatedAt && (
-                    <span className='inline-block'>|</span>
-                  )
-                }
-                {
-                  subscription.updatedAt && (
-                    <span className='inline-block'>
-                      Updated {formatDate(subscription.updatedAt)}
-                    </span>
-                  )
-                }
-              </div>
-            </Link>
-          </td>
-          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-            {subscription.name || '-'}
-            {
-              subscription.shopifySubscriptionId && (
-                <div className="text-xs font-sm text-gray-500 dark:text-gray-400">Shopify ID: {normalizeShopifyId(subscription.shopifySubscriptionId)}</div>
-              )
-            }
-          </td>
-          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-            <span
-              className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${subscription.test ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'}`}
-            >
-              {subscription.test ? 'TEST PLAN' : 'PAID'}
-            </span>
-          </td>
-          <td className="px-6 py-4 whitespace-nowrap">
-            <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
-              {subscription.status || 'UNKNOWN'}
-            </span>
-          </td>
-          <td className="px-6 py-4 text-xs text-gray-500 dark:text-gray-400 break-all">
-            <div>
-              {normalizeShopifyId(subscription.shopifySubscriptionId) || '-'}
-            </div>
-          </td>
-          <td className="px-6 py-4 whitespace-nowrap">
-            <Button
-              variant='secondary'
-              onClick={() => void syncSubscriptionStatus(subscription)}
-              disabled={syncingShop === subscription.shop}
-              icon={RefreshCw}
-              loading={syncingShop === subscription.shop}
-            >
-              {
-                syncingShop === subscription.shop ? "Checking..." : "Check Status"
-              }
-            </Button>
-          </td>
-        </tr>
-      </div> */}
     </Page>
   )
 }
-
