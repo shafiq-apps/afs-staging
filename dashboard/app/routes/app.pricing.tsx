@@ -116,7 +116,7 @@ export default function PricingPage() {
     }).format(price.amount);
   };
 
-  const intervalLabel = (interval: string) => interval === "EVERY_30_DAYS" ? "month" : "year";
+  const intervalLabel = (interval: string) => interval === "ANNUAL" ? "year" : "month";
 
   const handleSubscribePlan = (planId: string) => {
     setSelectedPlan(planId);
@@ -213,7 +213,7 @@ export default function PricingPage() {
                               gap="small"
                               alignItems="center"
                             >
-                              <s-icon tone="success" type="check"/>
+                              <s-icon tone="success" type="check" />
                               <s-text tone="auto">{line}</s-text>
                             </s-stack>
                           ))}

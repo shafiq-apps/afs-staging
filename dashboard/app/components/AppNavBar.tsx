@@ -1,4 +1,5 @@
-import { NAVIGATION_CONFIG } from "app/config/navigations.config";
+import { NAVIGATION_CONFIG } from "app/constants/navigations.constants";
+
 
 type AppNavBarProps = {
     hasActiveShopifySubscription: boolean;

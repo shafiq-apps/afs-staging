@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import type { ComponentType, ReactNode } from 'react';
 import { useParams } from 'next/navigation';
 import { LoadingBar } from '@/components/ui/LoadingBar';
-import { Banner, Button, Checkbox, Select, Textarea } from '@/components/ui';
+import { Banner, Button, Checkbox, Select, Stack, Textarea } from '@/components/ui';
 import type { SelectOption } from '@/components/ui';
 import {
   ArrowLeft,
@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import Page from '@/components/ui/Page';
 import { Href } from '@/components/ui/LinkComponent';
-import { formatDate } from '@/lib/string.utils';
+import { formatDate, maskString } from '@/lib/string.utils';
 
 const legacyStatusOptions: SelectOption[] = [
   { value: 'PENDING', label: 'PENDING' },
@@ -318,11 +318,15 @@ export default function ShopDetailPage() {
             <status.icon className="h-3 w-3" />
             <span>{status.label}</span>
           </span>
-          {shop.isOnline && (
+          {shop.isOnline ? (
             <span className="inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
               <div className="h-2 w-2 bg-blue-500 rounded-full animate-pulse"></div>
               <span>Online</span>
             </span>
+          ):(
+            <Stack direction='row'>
+              Last Active: {formatDate(shop.lastAccessed)}
+            </Stack>
           )}
         </div>
       }
@@ -338,20 +342,53 @@ export default function ShopDetailPage() {
 
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+          {/* Shop Information */}
+          <InfoCard title="Shop Information" icon={Globe}>
+            <InfoRow
+              label="Shop domain"
+              value={
+                <Href
+                  label={shop.shop}
+                  href={`https://${shop.shop}`}
+                  external
+                  color='white'
+                />
+              }
+              icon={Globe}
+            />
+            <InfoRow
+              label="Collection page"
+              value={
+                <Href
+                  label={"View collection page"}
+                  href={`https://${shop.shop}/collections/all`}
+                  external
+                  color='white'
+                />
+              }
+              icon={Globe}
+            />
+            {shop.metadata?.shopId && (
+              <InfoRow label="Shop ID" value={shop.metadata.shopId} icon={Key} />
+            )}
+            {shop.metadata?.currencyCode && (
+              <InfoRow label="Currency" value={shop.metadata.currencyCode} icon={Info} />
+            )}
+            {shop.locale && (
+              <InfoRow label="Locale" value={shop.locale} icon={Globe} />
+            )}
+          </InfoCard>
+
           {/* Installation & Status */}
           <InfoCard title="Installation & Status" icon={Info}>
             <InfoRow
-              label="Installed At"
+              label="Installed at"
               value={formatDate(shop.installedAt)}
               icon={Calendar}
             />
             <InfoRow
-              label="Last Accessed"
-              value={formatDate(shop.lastAccessed)}
-              icon={Clock}
-            />
-            <InfoRow
-              label="Updated At"
+              label="Updated at"
               value={formatDate(shop.updatedAt)}
               icon={RefreshCw}
             />
@@ -385,38 +422,13 @@ export default function ShopDetailPage() {
             )}
           </InfoCard>
 
-          {/* Shop Information */}
-          <InfoCard title="Shop Information" icon={Globe}>
-            <InfoRow
-              label="Shop Domain"
-              value={
-                <Href
-                  label={shop.shop}
-                  href={`https://${shop.shop}`}
-                  external
-                  color='white'
-                />
-              }
-              icon={Globe}
-            />
-            {shop.metadata?.shopId && (
-              <InfoRow label="Shop ID" value={shop.metadata.shopId} icon={Key} />
-            )}
-            {shop.metadata?.currencyCode && (
-              <InfoRow label="Currency" value={shop.metadata.currencyCode} icon={Info} />
-            )}
-            {shop.locale && (
-              <InfoRow label="Locale" value={shop.locale} icon={Globe} />
-            )}
-          </InfoCard>
-
 
           {/* Legacy Shop Management */}
           {
             shop.legacyShop && (
-              <InfoCard title="Legacy Shop" icon={Database}>
+              <InfoCard title="Legacy shop" icon={Database}>
                 <InfoRow
-                  label="Current Status"
+                  label="Current status"
                   value={shop.legacyShop?.status || 'PENDING'}
                   icon={Info}
                 />
@@ -425,18 +437,18 @@ export default function ShopDetailPage() {
                   onChange={(event) =>
                     setLegacyForm((prev) => ({ ...prev, isUpgradeAllowed: event.target.checked }))
                   }
-                  label="Upgrade Allowed"
+                  label="Upgrade allowed"
                 />
                 <Checkbox
                   checked={legacyForm.hasUpgradeRequest}
                   onChange={(event) =>
                     setLegacyForm((prev) => ({ ...prev, hasUpgradeRequest: event.target.checked }))
                   }
-                  label="Has Upgrade Request"
+                  label="Has upgrade request"
                   disabled
                 />
                 <Select
-                  label="Legacy Status"
+                  label="Legacy status"
                   value={legacyForm.status}
                   onChange={(event) =>
                     setLegacyForm((prev) => ({
@@ -447,7 +459,7 @@ export default function ShopDetailPage() {
                   options={legacyStatusOptions}
                 />
                 <Textarea
-                  label="Status Message"
+                  label="Status message"
                   value={legacyForm.statusMessage}
                   onChange={(event) => setLegacyForm((prev) => ({ ...prev, statusMessage: event.target.value }))}
                   rows={3}
@@ -497,7 +509,7 @@ export default function ShopDetailPage() {
             )}
             {shop.accountOwner !== undefined && (
               <InfoRow
-                label="Account Owner"
+                label="Account owner"
                 value={
                   <span className={`inline-flex items-center space-x-1 ${shop.accountOwner ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-500 dark:text-gray-400'}`}>
                     {shop.accountOwner ? <CheckCircle className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
@@ -516,7 +528,7 @@ export default function ShopDetailPage() {
             )}
             {shop.emailVerified !== undefined && (
               <InfoRow
-                label="Email Verified"
+                label="Email verified"
                 value={
                   <span className={`inline-flex items-center space-x-1 ${shop.emailVerified ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-500 dark:text-gray-400'}`}>
                     {shop.emailVerified ? <CheckCircle className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}

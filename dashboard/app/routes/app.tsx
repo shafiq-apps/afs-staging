@@ -298,7 +298,7 @@ export default function App() {
 
   /* ---------------- SUBSCRIPTION HELPERS ---------------- */
   const hasActiveShopifySubscription = activeSubscriptions.some(sub => sub.status === AppSubscriptionStatus.ACTIVE);
-  const isOnPricingPage = location.pathname === "/app/pricing";
+  const isOnPricingOrSupportPage = location.pathname === "/app/pricing" || location.pathname === "/app/support";
 
   /* ---------------- CLIENT-SIDE SHOP DATA CACHE ---------------- */
   useEffect(() => {
@@ -339,12 +339,12 @@ export default function App() {
   /* ---------------- SUBSCRIPTION REDIRECT LOGIC ---------------- */
   useEffect(() => {
     // If Shopify has no active subscription, force pricing page
-    if (!hasActiveShopifySubscription && !isOnPricingPage) {
+    if (!hasActiveShopifySubscription && !isOnPricingOrSupportPage) {
       navigate("/app/pricing?module=subscription&action=choose&force=true", { replace: true });
     }
   }, [
     hasActiveShopifySubscription,
-    isOnPricingPage,
+    isOnPricingOrSupportPage,
     navigate,
   ]);
 
@@ -461,27 +461,29 @@ export default function App() {
         shopData={effectiveShopData}
         isLoading={!effectiveShopData}
       >
-        <AppNavBar hasActiveShopifySubscription />
+        <AppNavBar hasActiveShopifySubscription={hasActiveShopifySubscription} />
         {
           !hasActiveShopifySubscription && (
-            <s-page >
-              <s-banner heading="Manage Your Subscription" tone="warning">
-                Please keep your subscription plan active to continue using the application.
-                <s-button
-                  slot="secondary-actions"
-                  variant="secondary"
-                  href="/app/pricing"
-                >
-                  View pricing
-                </s-button>
-                <s-button
-                  slot="secondary-actions"
-                  variant="secondary"
-                  href="javascript:void(0)"
-                >
-                  Read more
-                </s-button>
-              </s-banner>
+            <s-page>
+              <div style={{marginBottom: 16}}>
+                <s-banner heading="Manage Your Subscription" tone="warning" dismissible>
+                  Please keep your subscription plan active to continue using the application.
+                  <s-button
+                    slot="secondary-actions"
+                    variant="secondary"
+                    href="/app/pricing"
+                  >
+                    View pricing
+                  </s-button>
+                  <s-button
+                    slot="secondary-actions"
+                    variant="secondary"
+                    href="javascript:void(0)"
+                  >
+                    Read more
+                  </s-button>
+                </s-banner>
+              </div>
             </s-page>
           )
         }
