@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { LogOut, Menu, X } from 'lucide-react';
@@ -17,8 +17,15 @@ export default function Navbar({ user }: NavbarProps) {
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
-  const userName = user?.name?.trim() || '';
-  const userInitial = userName ? userName.charAt(0).toUpperCase() : '';
+  const [userName, setUserName] = useState<string>('');
+  const [userInitial, setUserInitial] = useState<string>('');
+
+  useEffect(() => {
+    if (user?.name) {
+      setUserName(user?.name?.trim());
+      setUserInitial(user?.name?.trim().charAt(0).toUpperCase());
+    }
+  }, [user, user?.name]);
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' });

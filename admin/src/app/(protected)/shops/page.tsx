@@ -6,8 +6,9 @@ import { ExternalLink, Calendar, Search, Edit } from 'lucide-react';
 import { AlertModal, Button, Checkbox, DataTable, Input, Modal, Select, Stack, Textarea } from '@/components/ui';
 import type { SelectOption } from '@/components/ui';
 import Page from '@/components/ui/Page';
-import { Href } from '@/components/ui/LinkComponent';
+import LinkComponent, { Href } from '@/components/ui/LinkComponent';
 import Badge from '@/components/ui/Badge';
+import { formatDate } from '@/lib/string.utils';
 
 type LegacyShopStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED';
 type ShopStatusFilter =
@@ -145,21 +146,6 @@ export default function ShopsPage() {
       setError(message);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return '-';
-    try {
-      return new Date(dateString).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-    } catch {
-      return dateString;
     }
   };
 
@@ -305,10 +291,10 @@ export default function ShopsPage() {
       <DataTable
         loading={loading}
         columns={[
-          { header: "Shop Domain", key: "shop" },
+          { header: "Shop Domain", key: "shop", render: (item) => (<LinkComponent href={`/shops/${decodeURIComponent(item.shop)}`}>{item.shop}</LinkComponent>) },
           { header: "Status", key: "status", render: (item) => <Badge variant={item.state === "ACTIVE" ? "success" : "info"}>{item.state || "UNKNOWN"}</Badge> },
-          { header: "Installed", key: "installedAt", render: (item: Shop) => formatDate(item.installedAt) },
-          { header: "UnInstalled", key: "uninstalledAt", render: (item: Shop) => formatDate(item.uninstalledAt) },
+          { header: "Installed", key: "installedAt", render: (item: Shop) => formatDate(item.installedAt, { month:"short", day:"numeric", year:"numeric" }) },
+          { header: "UnInstalled", key: "uninstalledAt", render: (item: Shop) => formatDate(item.uninstalledAt, { month:"short", day:"numeric", year:"numeric" }) },
           {
             header: "Actions", key: "id", render: (item) => (
               <Button

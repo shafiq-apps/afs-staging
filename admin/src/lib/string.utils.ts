@@ -28,15 +28,63 @@ export function normalizeShopifyId(gid: string | null | undefined): string | nul
     return gid;
 }
 
-export const formatDate = (dateString?: string) => {
+type FormatDateOptions = {
+    year?: 'numeric' | '2-digit';
+    month?: 'numeric' | '2-digit' | 'short' | 'long' | 'narrow';
+    day?: 'numeric' | '2-digit';
+    hour?: 'numeric' | '2-digit';
+    minute?: 'numeric' | '2-digit';
+    second?: 'numeric' | '2-digit';
+    locale?: string;
+};
+
+export const formatDate = (dateString?: string, options?: FormatDateOptions): string => {
     if (!dateString) return '-';
     try {
-        return new Date(dateString).toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-        });
+        const date = new Date(dateString);
+        return date.toLocaleString(options?.locale || 'en-US', options);
     } catch {
         return dateString;
     }
 };
+
+
+type PriceFormatProps = {
+    price: number;
+    currencyCode?: string;
+    decimals?: number;
+    currencySymbol?: string;
+};
+
+export const formatPrice = ({
+    price,
+    currencyCode = "",
+    decimals = 2,
+    currencySymbol = "",
+}: PriceFormatProps): string | null => {
+    if (price == null || isNaN(price)) return null;
+
+    return `${currencySymbol}${price.toFixed(decimals)} ${currencyCode}`.trim();
+};
+
+
+/**
+ * Mask a string by showing a few characters at the start and end,
+ * hiding the middle with asterisks.
+ * e.g., maskString("1234567890", 3, 2) -> "123****90"
+ */
+export function maskString(
+  str: string,
+  visibleStart = 2,
+  visibleEnd = 2,
+  maskChar = '*'
+): string {
+  if (!str) return '';
+  if (str.length <= visibleStart + visibleEnd) return maskChar.repeat(str.length);
+
+  const start = str.slice(0, visibleStart);
+  const end = str.slice(-visibleEnd);
+  const middle = maskChar.repeat(str.length - visibleStart - visibleEnd);
+
+  return `${start}${middle}${end}`;
+}

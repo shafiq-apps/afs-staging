@@ -1,12 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, X, Save, Eye } from 'lucide-react';
-import { LoadingBar } from '@/components/ui/LoadingBar';
 import Checkbox from '@/components/ui/Checkbox';
 import { AlertModal, Button, ButtonGroup, ConfirmModal, DataTable, Input, Modal, Select, Textarea } from '@/components/ui';
 import type { SelectOption } from '@/components/ui';
 import Page from '@/components/ui/Page';
+import { formatDate, formatPrice } from '@/lib/string.utils';
 
 export interface SubscriptionPlan {
   id: string;
@@ -178,34 +177,6 @@ export default function SubscriptionPlansPage() {
     setEditingPlan(null);
   };
 
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return '-';
-    try {
-      return new Date(dateString).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-      });
-    } catch {
-      return dateString;
-    }
-  };
-
-  const formatPrice = (plan: SubscriptionPlan) => {
-    return `${plan.price.amount.toFixed(2)} ${plan.price.currencyCode}`;
-  };
-
-  if (loading) {
-    return (
-      <>
-        <LoadingBar loading={true} />
-        <div className="flex justify-center items-center h-64">
-          <div className="text-gray-500 dark:text-gray-400">Loading subscription plans...</div>
-        </div>
-      </>
-    );
-  }
-
   return (
     <Page
       title='Subscription Plans'
@@ -222,10 +193,11 @@ export default function SubscriptionPlansPage() {
       ]}
     >
       <DataTable
+        loading={loading}
         columns={[
           { header: "Name", key: "name", },
-          { header: "Price", key: "Price", render: (item) => formatPrice(item) },
-          { header: "Interval", key: "Interval", render: (item) => item.test ? "Test Plan" : "Paid Plan" },
+          { header: "Price", key: "Price", render: (item) => formatPrice({ price: item.price.amount, currencyCode: item.price.currencyCode, decimals: 1 }) },
+          { header: "Interval", key: "interval", render: (item) => String(item.interval).replace(/\_/g, ' ') },
           { header: "Product Limit", key: "productLimit" },
           { header: "Created", key: "createdAt", render: (item) => formatDate(item.createdAt) },
           {
@@ -490,7 +462,7 @@ export default function SubscriptionPlansPage() {
       <ConfirmModal
         isOpen={Boolean(confirmDeletePlanId)}
         onClose={() => setConfirmDeletePlanId(null)}
-        title="Delete Subscription Plan"
+        title="Delete Subscription Plan?"
         message="Are you sure you want to delete this subscription plan?"
         confirmText="Delete"
         cancelText="Cancel"

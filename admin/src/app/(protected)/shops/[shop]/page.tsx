@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import Page from '@/components/ui/Page';
 import { Href } from '@/components/ui/LinkComponent';
+import { formatDate } from '@/lib/string.utils';
 
 const legacyStatusOptions: SelectOption[] = [
   { value: 'PENDING', label: 'PENDING' },
@@ -141,22 +142,6 @@ export default function ShopDetailPage() {
       statusMessage: shop.legacyShop.statusMessage || '',
     });
   }, [shop]);
-
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return '-';
-    try {
-      return new Date(dateString).toLocaleString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-      });
-    } catch {
-      return dateString;
-    }
-  };
 
   const getShopStatus = (shop: Shop) => {
     if (shop.uninstalledAt) return { label: 'Uninstalled', color: 'red', icon: XCircle };
@@ -324,7 +309,7 @@ export default function ShopDetailPage() {
         <div className="flex items-center space-x-3 mt-2">
           <span
             className={`inline-flex items-center space-x-1 px-3 py-1 rounded-full text-xs font-semibold ${status.color === 'green'
-              ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300'
               : status.color === 'red'
                 ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
                 : 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300'
@@ -514,7 +499,7 @@ export default function ShopDetailPage() {
               <InfoRow
                 label="Account Owner"
                 value={
-                  <span className={`inline-flex items-center space-x-1 ${shop.accountOwner ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                  <span className={`inline-flex items-center space-x-1 ${shop.accountOwner ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-500 dark:text-gray-400'}`}>
                     {shop.accountOwner ? <CheckCircle className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
                     <span>{shop.accountOwner ? 'Yes' : 'No'}</span>
                   </span>
@@ -533,7 +518,7 @@ export default function ShopDetailPage() {
               <InfoRow
                 label="Email Verified"
                 value={
-                  <span className={`inline-flex items-center space-x-1 ${shop.emailVerified ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                  <span className={`inline-flex items-center space-x-1 ${shop.emailVerified ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-500 dark:text-gray-400'}`}>
                     {shop.emailVerified ? <CheckCircle className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
                     <span>{shop.emailVerified ? 'Yes' : 'No'}</span>
                   </span>
