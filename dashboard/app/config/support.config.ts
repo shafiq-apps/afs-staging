@@ -5,6 +5,7 @@
  * Update these values to customize the support page content.
  */
 
+import { t } from "app/utils/translations";
 import { CONFIG } from ".";
 
 export const SUPPORT_CONFIG = {
@@ -12,12 +13,12 @@ export const SUPPORT_CONFIG = {
    * Contact Information
    */
   contact: {
-    phone: "+1 (555) 123-4567",
-    email: "shafiq.solutionwin@gmail.com",
+    phone: CONFIG.phone,
+    email: CONFIG.email,
     hours: [
-      "Monday - Friday: 11:00 AM - 8:00 PM EST",
-      "Saturday: 11:00 AM - 7:00 PM EST",
-      "Sunday: Closed",
+      t("support.contactUs.hours.line1"),
+      t("support.contactUs.hours.line2"),
+      t("support.contactUs.hours.line3")
     ],
   },
 
@@ -26,7 +27,7 @@ export const SUPPORT_CONFIG = {
    */
   app: {
     name: CONFIG.app.name,
-    version: CONFIG.app.version
+    version: CONFIG.app.version,
   },
 
   /**
@@ -35,41 +36,36 @@ export const SUPPORT_CONFIG = {
    */
   documentationLinks: [
     {
-      title: "Getting Started Guide",
-      url: "/docs/getting-started",
-      description: "Learn the basics of setting up and using Advanced Filters & Search",
-      icon: "🚀",
+      title: t("support.documentation.links.link1.title"),
+      url: t("support.documentation.links.link1.url"),
+      description: t("support.documentation.links.link1.description"),
+      icon: t("support.documentation.links.link1.icon"),
     },
     {
-      title: "Filter Configuration",
-      url: "/docs/filter-configuration",
-      description: "Detailed guide on creating and customizing filters",
-      icon: "⚙️",
+      title: t("support.documentation.links.link2.title"),
+      url: t("support.documentation.links.link2.url"),
+      description: t("support.documentation.links.link2.description"),
+      icon: t("support.documentation.links.link2.icon"),
     },
     {
-      title: "API Documentation",
-      url: "/docs/api",
-      description: "Technical documentation for developers",
-      icon: "📡",
+      title: t("support.documentation.links.link3.title"),
+      url: t("support.documentation.links.link3.url"),
+      description: t("support.documentation.links.link3.description"),
+      icon: t("support.documentation.links.link3.icon"),
     },
     {
-      title: "Troubleshooting",
-      url: "/docs/troubleshooting",
-      description: "Common issues and their solutions",
-      icon: "🔧",
+      title: t("support.documentation.links.link4.title"),
+      url: t("support.documentation.links.link4.url"),
+      description: t("support.documentation.links.link4.description"),
+      icon: t("support.documentation.links.link4.icon"),
     },
     {
-      title: "Video Tutorials",
-      url: "/docs/tutorials",
-      description: "Step-by-step video guides",
-      icon: "🎥",
-    },
-    {
-      title: "FAQs",
-      url: "/docs/faqs",
-      description: "Frequently asked questions",
-      icon: "❓",
-    },
+      title: t("support.documentation.links.link5.title"),
+      url: t("support.documentation.links.link5.url"),
+      description: t("support.documentation.links.link5.description"),
+      icon: t("support.documentation.links.link5.icon"),
+    }
+    
   ],
 
   /**
@@ -77,10 +73,10 @@ export const SUPPORT_CONFIG = {
    */
   form: {
     priorities: [
-      { value: "low", label: "Low" },
-      { value: "medium", label: "Medium" },
-      { value: "high", label: "High" },
-      { value: "urgent", label: "Urgent" },
+      { value: "low", label: t("support.form.priority.low") },
+      { value: "medium", label: t("support.form.priority.medium") },
+      { value: "high", label: t("support.form.priority.high") },
+      { value: "urgent", label: t("support.form.priority.urgent") },
     ],
     defaultPriority: "medium",
     messageMaxLength: 5000,
@@ -88,22 +84,12 @@ export const SUPPORT_CONFIG = {
   },
 
   /**
-   * Response Times (for display purposes)
-   */
-  responseTimes: {
-    low: "2-3 business days",
-    medium: "24-48 hours",
-    high: "12-24 hours",
-    urgent: "2-4 hours",
-  },
-
-  /**
    * Success/Error Messages
    */
   messages: {
-    success: "Your support request has been submitted successfully. We'll get back to you within 24 hours.",
-    error: "Failed to submit support request. Please try again.",
-    validationError: "Please fill in all required fields correctly.",
+    success: t("support.messages.success"),
+    error: t("support.messages.error"),
+    validationError: t("support.messages.validationError"),
   },
 };
 
@@ -111,6 +97,5 @@ export const SUPPORT_CONFIG = {
  * Type exports for TypeScript
  */
 export type SupportConfig = typeof SUPPORT_CONFIG;
-export type DocumentationLink = typeof SUPPORT_CONFIG.documentationLinks[0];
 export type Priority = typeof SUPPORT_CONFIG.form.priorities[0];
 

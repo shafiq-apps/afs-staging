@@ -19,7 +19,7 @@ import { sendMigrationEmail } from "app/utils/email.service";
 import { getCachedShopData } from "app/utils/get-cached-shop-data";
 import { setCachedShopData } from "app/utils/set-cached-hop-data";
 import { CONFIG } from "app/config";
-import { g } from "node_modules/@react-router/dev/dist/routes-CZR-bKRt";
+import { AppFooter } from "app/components/AppFooter";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
@@ -259,7 +259,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     await sendMigrationEmail({
       shop: session?.shop || "",
       name: session?.shop || "",
-      email: CONFIG.supportEmail,
+      email: CONFIG.email,
       subject: "Migration Instructions",
       priority: "high",
       message: instructions,
@@ -275,7 +275,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       // Return a specific error message for server downtime
       return {
         success: false,
-        error: "Our support system is currently unavailable. Please try again later or email us directly at " + SUPPORT_CONFIG.contact.email,
+        error: "Our support system is currently unavailable. Please try again later or email us directly at " + CONFIG.email,
       } as ActionData;
     }
 
@@ -488,6 +488,7 @@ export default function App() {
           )
         }
         <Outlet />
+        <AppFooter />
       </ShopProvider>
     </AppProvider>
   );

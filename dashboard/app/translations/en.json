@@ -152,12 +152,47 @@
       },
       "hours": {
         "title": "Support Hours",
-        "label": "Hours"
+        "label": "Hours",
+        "line1": "Monday - Friday: 11:00 AM - 8:00 PM EST",
+        "line2": "Saturday: 11:00 AM - 7:00 PM EST",
+        "line3": "Sunday: Closed"
       }
     },
     "documentation": {
       "title": "Documentation & Resources",
-      "description": "Browse our comprehensive documentation to find answers to common questions"
+      "description": "Browse our comprehensive documentation to find answers to common questions",
+      "links": {
+        "link1": {
+          "title": "Getting Started Guide",
+          "url": "https://support.digitalcoo.com/hc/en-us/sections/360007159931-To-Get-Started",
+          "description": "Learn the basics of setting up and using Advanced Filters & Search",
+          "icon": "🚀"
+        },
+        "link2": {
+          "title": "Filter Configuration",
+          "url": "https://support.digitalcoo.com/hc/en-us/sections/360007159931-To-Get-Started",
+          "description": "Detailed guide on creating and customizing filters",
+          "icon": "⚙️"
+        },
+        "link3": {
+          "title": "Troubleshooting",
+          "url": "https://support.digitalcoo.com/hc/en-us/sections/360007159931-To-Get-Started",
+          "description": "Common issues and their solutions",
+          "icon": "🔧"
+        },
+        "link4": {
+          "title": "Video Tutorials",
+          "url": "https://support.digitalcoo.com/hc/en-us/sections/360007159931-To-Get-Started",
+          "description": "Step-by-step video guides",
+          "icon": "🎥"
+        },
+        "link5": {
+          "title": "FAQs",
+          "url": "https://support.digitalcoo.com/hc/en-us/sections/360007159931-To-Get-Started",
+          "description": "Frequently asked questions",
+          "icon": "❓"
+        }
+      }
     },
     "form": {
       "title": "Submit a Support Request",
@@ -204,9 +239,8 @@
       "serverDown": "Our support system is currently unavailable. Please try again later or email us directly at {email}",
       "validationError": "Please fill in all required fields"
     },
-    "appInfo": {
-      "version": "{appName} v{appVersion}",
-      "shop": "Shop: {shop}"
+    "footer": {
+      "note": "If you don't hear back within the expected timeframe, please follow up via email."
     }
   },
   "pricing": {
@@ -488,8 +522,27 @@
       "upgradeRequested": "Your migration request has been received. Our team will review your request and contact you shortly to assist with the migration process.",
       "upgradeRequestedHeading": "Migration Request Received"
     }
-
+  },
+  "footer": {
+    "links": {
+      "link1": {
+        "label": "Filters",
+        "url": "/app/filters"
+      },
+      "link2": {
+        "label": "Support",
+        "url": "/app/support"
+      },
+      "external": {
+        "link1": {
+          "label": "Documentation",
+          "url": "https://support.digitalcoo.com/hc/en-us/categories/360002262151-Advanced-filters-and-search"
+        },
+        "link2": {
+          "label": "Wholesale ‑ All in one",
+          "url": "https://apps.shopify.com/wholesale-all-in-one"
+        }
+      }
+    }
   }
 }
-
-

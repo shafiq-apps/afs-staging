@@ -16,13 +16,13 @@ export interface SupportData {
   appName: string;
   appVersion: string;
   supportInfo: {
-    phone: string;
+    phone?: string | null;
     email: string;
     hours: string[];
     documentationLinks: {
       title: string;
       url: string;
-      description: string;
+      description?: string;
     }[];
   };
 }
