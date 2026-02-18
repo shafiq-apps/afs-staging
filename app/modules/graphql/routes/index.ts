@@ -36,7 +36,9 @@ export const middleware = [
   // Admin authentication (checks for admin requests)
   adminAuthenticate(),
   // Shop authentication (required for non-admin requests)
-  authenticate({ skip: (req) => process.env.NODE_ENV === 'development' }),
+  authenticate({
+    skip: (req) => process.env.NODE_ENV === 'development' || !!(req as any).adminUser
+  }),
   // Shop domain validation (optional - skipped for admin requests)
   async (req: HttpRequest, res: HttpResponse, next: HttpNextFunction) => {
     // Skip shop validation if this is an admin request

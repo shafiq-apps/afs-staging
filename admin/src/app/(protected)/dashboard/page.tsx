@@ -1,6 +1,13 @@
+'use client';
+
 import ESMonitoring from '@/components/ESMonitoring';
+import { useAuth } from '@/components/providers';
+import { hasPermission } from '@/lib/rbac';
 
 export default function DashboardPage() {
+  const { user, isLoading } = useAuth();
+  const canViewMonitoring = hasPermission(user, 'canManageShops');
+
   return (
     <>
       <div>
@@ -24,9 +31,11 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
-      <div className='font-bold text-gray-900 dark:text-gray-100 mb-6'>
-        <ESMonitoring />
-      </div>
+      {isLoading ? null : canViewMonitoring ? (
+        <div className='font-bold text-gray-900 dark:text-gray-100 mb-6'>
+          <ESMonitoring />
+        </div>
+      ) : null}
     </>
   );
 }

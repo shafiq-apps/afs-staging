@@ -26,6 +26,8 @@ import {
 import Page from '@/components/ui/Page';
 import { Href } from '@/components/ui/LinkComponent';
 import { formatDate, maskString } from '@/lib/string.utils';
+import { useAuth } from '@/components/providers';
+import { hasPermission } from '@/lib/rbac';
 
 const legacyStatusOptions: SelectOption[] = [
   { value: 'PENDING', label: 'PENDING' },
@@ -76,6 +78,7 @@ export interface Shop {
 }
 
 export default function ShopDetailPage() {
+  const { user, isLoading: isAuthLoading } = useAuth();
   const params = useParams();
   const shopDomain = params?.shop as string;
   const [shop, setShop] = useState<Shop | null>(null);
@@ -90,6 +93,7 @@ export default function ShopDetailPage() {
     statusMessage: '',
   });
   const [savingLegacy, setSavingLegacy] = useState(false);
+  const canManageShops = hasPermission(user, 'canManageShops');
 
   const getErrorMessage = (error: unknown, fallback: string) => {
     if (error instanceof Error && error.message) {
@@ -253,6 +257,22 @@ export default function ShopDetailPage() {
         <div className="flex justify-center items-center h-64">
           <div className="text-gray-500 dark:text-gray-400">Loading shop details...</div>
         </div>
+      </Page>
+    );
+  }
+
+  if (isAuthLoading) {
+    return (
+      <Page title=''>
+        <LoadingBar loading={true} />
+      </Page>
+    );
+  }
+
+  if (!canManageShops) {
+    return (
+      <Page title='' backButton={{ label: 'Back to Shops', href: '/shops' }}>
+        <Banner variant='warning'>You do not have permission to access shop details.</Banner>
       </Page>
     );
   }

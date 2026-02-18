@@ -5,9 +5,11 @@
 
 import { initEnv } from '@core/config/env.loader';
 import { bootstrap } from '@core/bootstrap/main';
+import { loadApiKeysFromEnv } from '@core/security/api-keys.helper';
 
 // Load environment variables as early as possible
 initEnv();
+loadApiKeysFromEnv();
 
 // Bootstrap and start the application
 bootstrap().catch((error) => {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { authenticatedGraphQLRequest } from '@/lib/app-server-graphql';
+import { requirePermission } from '@/lib/api-auth';
 
 interface RouteParams {
   params: Promise<{ shop: string }>;
@@ -13,6 +14,11 @@ export async function POST(
   { params }: RouteParams
 ) {
   try {
+    const authResult = await requirePermission(request, 'canManageShops');
+    if (authResult instanceof Response) {
+      return authResult;
+    }
+
     const { shop } = await params;
     const shopDomain = decodeURIComponent(shop);
 

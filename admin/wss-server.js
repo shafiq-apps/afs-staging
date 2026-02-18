@@ -57,6 +57,55 @@ let pollInterval;
 let lastNodeStats = new Map();
 let alertLog = [];
 
+function normalizeOrigin(origin) {
+  const value = (origin || '').trim();
+  if (!value) return '';
+
+  try {
+    const url = new URL(value);
+    const protocol = url.protocol.toLowerCase();
+    const hostname = url.hostname.toLowerCase();
+    const port = url.port ? `:${url.port}` : '';
+    return `${protocol}//${hostname}${port}`;
+  } catch {
+    return value.toLowerCase();
+  }
+}
+
+function isLoopbackHost(hostname) {
+  const host = (hostname || '').toLowerCase();
+  return host === 'localhost' || host === '127.0.0.1' || host === '[::1]' || host === '::1';
+}
+
+function isOriginAllowed(origin) {
+  // No allowlist configured -> allow all origins.
+  if (WS_ALLOWED_ORIGINS.length === 0) {
+    return true;
+  }
+
+  const normalizedOrigin = normalizeOrigin(origin);
+  const allowed = WS_ALLOWED_ORIGINS.map(normalizeOrigin);
+
+  if (allowed.includes(normalizedOrigin)) {
+    return true;
+  }
+
+  // In local development, allow loopback origins to reduce flapping caused by
+  // strict port/scheme mismatches across local services.
+  if (NODE_ENV !== 'production') {
+    try {
+      const url = new URL(origin);
+      if (isLoopbackHost(url.hostname)) {
+        return true;
+      }
+    } catch {
+      // Ignore parse errors and fail closed below.
+    }
+  }
+
+  return false;
+}
+
 /**
  * Initialize Elasticsearch client with TLS verification and retries
  */
@@ -218,12 +267,14 @@ async function initWebSocketServer() {
 
   wss.on('connection', (ws, req) => {
     // Optional origin allowlist
-    if (WS_ALLOWED_ORIGINS.length) {
-      const origin = req.headers.origin || '';
-      if (!WS_ALLOWED_ORIGINS.includes(origin)) {
-        ws.close(1008, 'Origin not allowed');
-        return;
-      }
+    const origin = req.headers.origin || '';
+    if (!isOriginAllowed(origin)) {
+      console.warn('[WSS] Origin rejected', {
+        origin,
+        allowedOrigins: WS_ALLOWED_ORIGINS,
+      });
+      ws.close(1008, 'Origin not allowed');
+      return;
     }
 
     // Simple token-based auth (static token or short-lived JWT)
@@ -246,6 +297,11 @@ async function initWebSocketServer() {
     });
 
     if (WS_REQUIRE_AUTH && !hasValidToken) {
+      console.warn('[WSS] WebSocket auth rejected', {
+        origin,
+        hasTokenHeader: !!tokenHeader,
+        tokenCount: tokenList.length,
+      });
       ws.close(1008, 'Unauthorized');
       return;
     }

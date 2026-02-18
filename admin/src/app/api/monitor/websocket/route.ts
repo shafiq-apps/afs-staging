@@ -9,6 +9,8 @@
 
 import { esMonitor } from '@/lib/es-monitor';
 import { createHash } from 'crypto';
+import { resolveAuthenticatedUserFromCookieHeader } from '@/lib/api-auth';
+import { hasPermission } from '@/lib/rbac';
 
 interface MonitorMessage {
   type: 'stats' | 'alerts' | 'error' | 'connected';
@@ -20,6 +22,19 @@ interface MonitorMessage {
 let activeConnections: Set<any> = new Set();
 let monitoringStarted = false;
 let monitoringUnsubscribers: { stats: () => void; alerts: () => void } | null = null;
+
+async function authorizeMonitoringRequest(request: Request): Promise<Response | null> {
+  const user = await resolveAuthenticatedUserFromCookieHeader(request.headers.get('cookie'));
+  if (!user) {
+    return new Response('Not authenticated', { status: 401 });
+  }
+
+  if (!hasPermission(user, 'canManageShops')) {
+    return new Response('Forbidden', { status: 403 });
+  }
+
+  return null;
+}
 
 /**
  * Calculate WebSocket accept header per RFC 6455
@@ -113,6 +128,11 @@ function broadcastMessage(message: MonitorMessage): void {
  */
 export async function GET(request: Request, context: any) {
   try {
+    const authError = await authorizeMonitoringRequest(request);
+    if (authError) {
+      return authError;
+    }
+
     // Check for WebSocket upgrade request
     const upgrade = request.headers.get('upgrade')?.toLowerCase();
     const connection = request.headers.get('connection')?.toLowerCase();
@@ -156,6 +176,11 @@ export async function GET(request: Request, context: any) {
  */
 export async function POST(request: Request) {
   try {
+    const authError = await authorizeMonitoringRequest(request);
+    if (authError) {
+      return authError;
+    }
+
     const body = await request.json();
 
     if (body.action === 'get-stats') {

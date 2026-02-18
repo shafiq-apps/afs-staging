@@ -7,6 +7,8 @@ import { formatDate, maskString, normalizeShopifyId } from '@/lib/string.utils';
 import Page from '@/components/ui/Page';
 import LinkComponent from '@/components/ui/LinkComponent';
 import Badge from '@/components/ui/Badge';
+import { useAuth } from '@/components/providers';
+import { hasPermission } from '@/lib/rbac';
 
 interface SubscriptionLineItem {
   id: string;
@@ -27,11 +29,13 @@ interface SubscriptionRecord {
 }
 
 export default function SubscriptionsPage() {
+  const { user, isLoading: isAuthLoading } = useAuth();
   const [subscriptions, setSubscriptions] = useState<SubscriptionRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncingShop, setSyncingShop] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [filterShop, setFilterShop] = useState('');
+  const canViewSubscriptions = hasPermission(user, 'canViewSubscriptions');
 
   const filteredSubscriptions = useMemo(() => {
     const value = filterShop.trim().toLowerCase();
@@ -101,6 +105,22 @@ export default function SubscriptionsPage() {
   useEffect(() => {
     void fetchSubscriptions();
   }, []);
+
+  if (isAuthLoading) {
+    return (
+      <Page title='Subscriptions'>
+        <div>Loading...</div>
+      </Page>
+    );
+  }
+
+  if (!canViewSubscriptions) {
+    return (
+      <Page title='Subscriptions'>
+        <Banner variant='warning'>You do not have permission to access subscriptions.</Banner>
+      </Page>
+    );
+  }
 
   return (
     <Page

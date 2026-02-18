@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyPIN } from '@/lib/auth.utils';
 import { checkRateLimit } from '@/lib/rate-limit';
-import { getOrCreateUserByEmail } from '@/lib/user.storage';
+import { getUserByEmail } from '@/lib/user.storage';
 import { generateToken } from '@/lib/jwt.utils';
 import { createOrGetAdminUserInES } from '@/lib/admin-user-es';
 import { z } from 'zod';
@@ -46,8 +46,14 @@ export async function POST(request: NextRequest) {
 
     console.log(`[Verify PIN] Verification successful for: ${normalizedEmail}`);
 
-    // Get or create user and verify super admin (await the async function)
-    const user = await getOrCreateUserByEmail(normalizedEmail);
+    // Only allow existing users and verify super admin
+    const user = await getUserByEmail(normalizedEmail);
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Access denied. User account is not provisioned.' },
+        { status: 403 }
+      );
+    }
     if (!user.isActive) {
       return NextResponse.json(
         { error: 'Account is inactive' },

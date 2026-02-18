@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { storePIN, generatePIN } from '@/lib/auth.utils';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { sendEmail, formatPINEmailHTML } from '@/lib/email.service';
-import { getOrCreateUserByEmail } from '@/lib/user.storage';
+import { getUserByEmail } from '@/lib/user.storage';
 import { z } from 'zod';
 
 const emailSchema = z.object({
@@ -18,8 +18,14 @@ export async function POST(request: NextRequest) {
     const normalizedEmail = email.trim().toLowerCase();
     console.log(`[Send PIN] Original email: ${email}, Normalized: ${normalizedEmail}`);
 
-    // Get or create user and verify super admin (use normalized email)
-    const user = await getOrCreateUserByEmail(normalizedEmail);
+    // Only allow existing users and verify super admin
+    const user = await getUserByEmail(normalizedEmail);
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Access denied. User account is not provisioned.' },
+        { status: 403 }
+      );
+    }
     if (user.role !== 'super_admin') {
       return NextResponse.json(
         { error: 'Unauthorized - Super admin access required' },

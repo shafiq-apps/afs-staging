@@ -113,7 +113,7 @@ function isUnsupportedCreateAdminUserMutation(error: unknown): boolean {
 /**
  * Create or get admin user in ES
  * Returns API credentials if user was created
- * Note: This requires bootstrap API credentials for the first user
+ * Note: This requires API credentials for the first user
  */
 export async function createOrGetAdminUserInES(
   userInput: AdminUserInput,
@@ -121,7 +121,7 @@ export async function createOrGetAdminUserInES(
   existingApiSecret?: string
 ): Promise<{ user: AdminUserRecord | null; apiKey?: string; apiSecret?: string }> {
   // Create GraphQL client with existing credentials if available
-  // Otherwise, use bootstrap credentials from env
+  // Otherwise, use API credentials from env
   let client: GraphQLClient | null = null;
   
   if (existingApiKey && existingApiSecret) {
@@ -130,14 +130,14 @@ export async function createOrGetAdminUserInES(
       apiSecret: existingApiSecret,
     });
   } else {
-    // Try to use bootstrap credentials from env
-    const bootstrapKey = process.env.BOOTSTRAP_API_KEY;
-    const bootstrapSecret = process.env.BOOTSTRAP_API_SECRET;
+    // Try to use API credentials from env
+    const apiKeyFromEnv = process.env.API_KEY;
+    const apiSecretFromEnv = process.env.API_SECRET;
     
-    if (bootstrapKey && bootstrapSecret) {
+    if (apiKeyFromEnv && apiSecretFromEnv) {
       client = new GraphQLClient({
-        apiKey: bootstrapKey,
-        apiSecret: bootstrapSecret,
+        apiKey: apiKeyFromEnv,
+        apiSecret: apiSecretFromEnv,
       });
     } else {
       // Fallback: try to create client (might fail, but we'll handle it)

@@ -2,10 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import Checkbox from '@/components/ui/Checkbox';
-import { AlertModal, Button, ButtonGroup, ConfirmModal, DataTable, Input, Modal, Select, Textarea } from '@/components/ui';
+import { AlertModal, Banner, Button, ButtonGroup, ConfirmModal, DataTable, Input, Modal, Select, Textarea } from '@/components/ui';
 import type { SelectOption } from '@/components/ui';
 import Page from '@/components/ui/Page';
 import { formatDate, formatPrice } from '@/lib/string.utils';
+import { useAuth } from '@/components/providers';
+import { hasPermission } from '@/lib/rbac';
 
 export interface SubscriptionPlan {
   id: string;
@@ -29,6 +31,7 @@ const intervalOptions: SelectOption[] = [
 ];
 
 export default function SubscriptionPlansPage() {
+  const { user, isLoading: isAuthLoading } = useAuth();
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -56,6 +59,7 @@ export default function SubscriptionPlansPage() {
     interval: 'EVERY_30_DAYS' as 'EVERY_30_DAYS' | 'ANNUAL',
     test: false,
   });
+  const canViewSubscriptions = hasPermission(user, 'canViewSubscriptions');
 
   useEffect(() => {
     fetchPlans();
@@ -176,6 +180,22 @@ export default function SubscriptionPlansPage() {
     });
     setEditingPlan(null);
   };
+
+  if (isAuthLoading) {
+    return (
+      <Page title='Subscription Plans'>
+        <div>Loading...</div>
+      </Page>
+    );
+  }
+
+  if (!canViewSubscriptions) {
+    return (
+      <Page title='Subscription Plans'>
+        <Banner variant='warning'>You do not have permission to access subscription plans.</Banner>
+      </Page>
+    );
+  }
 
   return (
     <Page

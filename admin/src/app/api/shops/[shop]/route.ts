@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getESClient } from '@/lib/elasticsearch';
 import { LEGACY_SHOPS_INDEX_NAME, SHOPS_INDEX_NAME } from '@/lib/es.constants';
 import { authenticatedGraphQLRequest } from '@/lib/app-server-graphql';
+import { requirePermission } from '@/lib/api-auth';
 
 interface RouteParams {
   params: Promise<{ shop: string }>;
@@ -72,6 +73,11 @@ export async function GET(
   { params }: RouteParams
 ) {
   try {
+    const authResult = await requirePermission(request, 'canManageShops');
+    if (authResult instanceof Response) {
+      return authResult;
+    }
+
     const { shop } = await params;
     const esClient = getESClient();
 
@@ -155,6 +161,11 @@ export async function PATCH(
   { params }: RouteParams
 ) {
   try {
+    const authResult = await requirePermission(request, 'canManageShops');
+    if (authResult instanceof Response) {
+      return authResult;
+    }
+
     const { shop } = await params;
     const esClient = getESClient();
     const shopDomain = decodeURIComponent(shop);

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getESClient } from '@/lib/elasticsearch';
 import { LEGACY_SHOPS_INDEX_NAME } from '@/lib/es.constants';
 import { authenticatedGraphQLRequest } from '@/lib/app-server-graphql';
+import { requirePermission } from '@/lib/api-auth';
 
 type LegacyShopStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED';
 
@@ -48,6 +49,11 @@ function normalizeStatus(value?: string): LegacyShopStatus | undefined {
 
 export async function GET(request: NextRequest) {
   try {
+    const authResult = await requirePermission(request, 'canManageShops');
+    if (authResult instanceof Response) {
+      return authResult;
+    }
+
     const esClient = getESClient();
 
     const searchParams = request.nextUrl.searchParams;
@@ -124,6 +130,11 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const authResult = await requirePermission(request, 'canManageShops');
+    if (authResult instanceof Response) {
+      return authResult;
+    }
+
     const body = (await request.json()) as UpsertLegacyShopInput;
     const shop = body?.shop?.trim();
 

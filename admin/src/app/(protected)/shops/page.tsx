@@ -3,12 +3,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { LoadingBar } from '@/components/ui/LoadingBar';
 import { ExternalLink, Calendar, Search, Edit } from 'lucide-react';
-import { AlertModal, Button, Checkbox, DataTable, Input, Modal, Select, Stack, Textarea } from '@/components/ui';
+import { AlertModal, Banner, Button, Checkbox, DataTable, Input, Modal, Select, Stack, Textarea } from '@/components/ui';
 import type { SelectOption } from '@/components/ui';
 import Page from '@/components/ui/Page';
 import LinkComponent, { Href } from '@/components/ui/LinkComponent';
 import Badge from '@/components/ui/Badge';
 import { formatDate } from '@/lib/string.utils';
+import { useAuth } from '@/components/providers';
+import { hasPermission } from '@/lib/rbac';
 
 type LegacyShopStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED';
 type ShopStatusFilter =
@@ -90,6 +92,7 @@ export interface Shop {
 }
 
 export default function ShopsPage() {
+  const { user, isLoading: isAuthLoading } = useAuth();
   const [shops, setShops] = useState<Shop[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -119,6 +122,8 @@ export default function ShopsPage() {
   useEffect(() => {
     fetchShops();
   }, []);
+
+  const canManageShops = hasPermission(user, 'canManageShops');
 
   const showErrorAlert = (message: string) => {
     setAlertState({
@@ -274,6 +279,22 @@ export default function ShopsPage() {
           </div>
         </div>
       </>
+    );
+  }
+
+  if (isAuthLoading) {
+    return (
+      <Page title='Shops'>
+        <LoadingBar loading={true} />
+      </Page>
+    );
+  }
+
+  if (!canManageShops) {
+    return (
+      <Page title='Shops'>
+        <Banner variant='warning'>You do not have permission to access shops.</Banner>
+      </Page>
     );
   }
 

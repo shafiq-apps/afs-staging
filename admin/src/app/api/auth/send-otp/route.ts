@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { generateOTP, storeOTP } from '@/lib/auth.utils';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { sendEmail, formatOTPEmailHTML } from '@/lib/email.service';
-import { getOrCreateUserByEmail } from '@/lib/user.storage';
+import { getUserByEmail } from '@/lib/user.storage';
 import { z } from 'zod';
 
 const emailSchema = z.object({
@@ -39,8 +39,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get or create user automatically (use normalized email)
-    const user = await getOrCreateUserByEmail(normalizedEmail);
+    // Only allow existing users created by team management / provisioning
+    const user = await getUserByEmail(normalizedEmail);
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Access denied. User account is not provisioned.' },
+        { status: 403 }
+      );
+    }
     console.log(`User: ${user.email}, Role: ${user.role}, Active: ${user.isActive}`);
 
     if (!user.isActive) {

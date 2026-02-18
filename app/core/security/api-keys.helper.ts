@@ -222,6 +222,7 @@ export function enableApiKey(apiKey: string): boolean {
   return true;
 }
 
-// Initialize API keys from environment on module load
-loadApiKeysFromEnv();
+// NOTE:
+// Do not auto-load on module import because env files are initialized in index.ts.
+// The application entrypoint should call loadApiKeysFromEnv() after initEnv().
 

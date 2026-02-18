@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/jwt.utils';
-import { getAllUsers, createUser, getUserByEmail, getDefaultPermissions, getUserById } from '@/lib/user.storage';
+import { createUser, getAllUsers, getDefaultPermissions, getUserByEmail } from '@/lib/user.storage';
 import { UserRole } from '@/types/auth';
+import { requireTeamManagementAccess } from '@/lib/api-auth';
+import { isSuperAdmin } from '@/lib/rbac';
 import { z } from 'zod';
 
 const createUserSchema = z.object({
@@ -17,71 +18,19 @@ const createUserSchema = z.object({
   }).optional(),
 });
 
-const TEAM_ADMIN_DOMAINS = (
-  process.env.TEAM_ADMIN_DOMAINS ||
-  process.env.ADMIN_EMAIL_DOMAINS ||
-  'digitalcoo.com'
-)
-  .split(',')
-  .map((value) => value.trim().toLowerCase())
-  .filter(Boolean);
-
-function isTeamAdminEmail(email?: string): boolean {
-  if (!email) return false;
-  const normalized = email.trim().toLowerCase();
-  return TEAM_ADMIN_DOMAINS.some((domain) => normalized.endsWith(`@${domain}`));
-}
-
-async function hasManageTeamAccess(session: {
-  userId: string;
-  email: string;
-  role?: string;
-  permissions?: { canManageTeam?: boolean };
-}) {
-  if (process.env.NODE_ENV !== 'production') {
-    return true;
-  }
-
-  if (
-    session.role === 'super_admin' ||
-    session.role === 'admin' ||
-    isTeamAdminEmail(session.email) ||
-    Boolean(session.permissions?.canManageTeam)
-  ) {
-    return true;
-  }
-
-  const currentUser = (await getUserById(session.userId)) ?? (await getUserByEmail(session.email));
-  if (!currentUser || !currentUser.isActive) {
-    return false;
-  }
-
-  return (
-    currentUser.role === 'super_admin' ||
-    currentUser.role === 'admin' ||
-    isTeamAdminEmail(currentUser.email) ||
-    Boolean(currentUser.permissions?.canManageTeam)
-  );
-}
-
 export async function GET(request: NextRequest) {
   try {
-    const token = request.cookies.get('auth_token')?.value;
-    if (!token) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-    }
-
-    const session = verifyToken(token);
-    if (!session) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
-    }
-
-    if (!(await hasManageTeamAccess(session))) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    const authResult = await requireTeamManagementAccess(request);
+    if (authResult instanceof Response) {
+      return authResult;
     }
 
     const users = await getAllUsers();
-    return NextResponse.json({ users });
+    const visibleUsers = isSuperAdmin(authResult.user)
+      ? users
+      : users.filter((user) => user.role !== 'super_admin');
+
+    return NextResponse.json({ users: visibleUsers });
   } catch (error) {
     console.error('Error fetching users:', error);
     return NextResponse.json(
@@ -93,22 +42,27 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const token = request.cookies.get('auth_token')?.value;
-    if (!token) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-    }
-
-    const session = verifyToken(token);
-    if (!session) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
-    }
-
-    if (!(await hasManageTeamAccess(session))) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    const authResult = await requireTeamManagementAccess(request);
+    if (authResult instanceof Response) {
+      return authResult;
     }
 
     const body = await request.json();
     const { email, name, role, permissions } = createUserSchema.parse(body);
+
+    if (!isSuperAdmin(authResult.user) && role !== 'employee') {
+      return NextResponse.json(
+        { error: 'Only super admin can create admin users' },
+        { status: 403 }
+      );
+    }
+
+    if (!isSuperAdmin(authResult.user) && permissions?.canManageTeam) {
+      return NextResponse.json(
+        { error: 'Only super admin can grant team management access' },
+        { status: 403 }
+      );
+    }
 
     // Check if user already exists
     const existingUser = await getUserByEmail(email);
@@ -130,6 +84,7 @@ export async function POST(request: NextRequest) {
     if (role === 'employee') {
       finalPermissions.canViewPayments = false;
       finalPermissions.canViewSubscriptions = false;
+      finalPermissions.canManageTeam = false;
     }
 
     const user = await createUser({

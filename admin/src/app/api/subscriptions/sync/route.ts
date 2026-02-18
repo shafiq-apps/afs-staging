@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { authenticatedGraphQLRequest } from '@/lib/app-server-graphql';
+import { requirePermission } from '@/lib/api-auth';
 
 interface SyncSubscriptionRequest {
   shop: string;
@@ -44,6 +45,11 @@ const SYNC_SUBSCRIPTION_MUTATION = `
 
 export async function POST(request: NextRequest) {
   try {
+    const authResult = await requirePermission(request, 'canViewSubscriptions');
+    if (authResult instanceof Response) {
+      return authResult;
+    }
+
     const body = (await request.json()) as SyncSubscriptionRequest;
     const shop = body?.shop?.trim();
     const shopifySubscriptionId = body?.shopifySubscriptionId?.trim();

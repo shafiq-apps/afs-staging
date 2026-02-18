@@ -3,16 +3,15 @@
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { LogOut, Menu, X } from 'lucide-react';
+import { LogOut, Menu, User, X } from 'lucide-react';
 import Image from 'next/image';
 import { images } from '@/lib/images';
-import { User as UserType } from '@/types/auth';
+import LinkComponent from '../ui/LinkComponent';
+import { useAuth } from '@/components/providers';
+import { canAccessTeamManagement, hasPermission, type AppPermission } from '@/lib/rbac';
 
-interface NavbarProps {
-  user: UserType | null;
-}
-
-export default function Navbar({ user }: NavbarProps) {
+export default function Navbar() {
+  const { user, setUser } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const router = useRouter();
@@ -29,20 +28,22 @@ export default function Navbar({ user }: NavbarProps) {
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
+    setUser(null);
     router.push('/login');
     router.refresh();
   };
 
-  const navItems = [
+  const navItems: Array<{ href: string; label: string; requiresPermission?: AppPermission }> = [
     { href: '/dashboard', label: 'Dashboard' },
-    // { href: '/team', label: 'Team', requiresPermission: 'canManageTeam' },
     { href: '/shops', label: 'Shops', requiresPermission: 'canManageShops' },
     { href: '/subscriptions', label: 'Subscriptions', requiresPermission: 'canViewSubscriptions' },
     { href: '/subscription-plans', label: 'Subscription Plans', requiresPermission: 'canViewSubscriptions' },
   ];
 
-  // Show all navigation items - permission checks happen at page level
-  const filteredNavItems = navItems;
+  const filteredNavItems = navItems.filter((item) =>
+    item.requiresPermission ? hasPermission(user, item.requiresPermission) : true
+  );
+  const canViewTeamPage = canAccessTeamManagement(user);
 
   return (
     <nav className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-gray-200/50 dark:border-slate-700/50 sticky top-0 z-50 shadow-sm">
@@ -104,6 +105,15 @@ export default function Navbar({ user }: NavbarProps) {
                           {user?.role.replace('_', ' ').toUpperCase()}
                         </p>
                       </div>
+                      {canViewTeamPage && (
+                        <LinkComponent
+                          href='/team'
+                          className="w-full text-left px-4 py-2 text-sm text-white dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center space-x-2 cursor-pointer"
+                        >
+                          <User className="h-4 w-4" />
+                          <span>Team</span>
+                        </LinkComponent>
+                      )}
                       <button
                         onClick={handleLogout}
                         className="w-full text-left px-4 py-2 text-sm text-white dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center space-x-2 cursor-pointer"
@@ -160,6 +170,14 @@ export default function Navbar({ user }: NavbarProps) {
               >
                 Sign out
               </button>
+              {canViewTeamPage && (
+                <LinkComponent
+                  href='/team'
+                  className="block w-full text-left px-4 py-2 text-base font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700 hover:text-gray-800 dark:hover:text-gray-200 cursor-pointer"
+                >
+                  Team
+                </LinkComponent>
+              )}
             </div>
           </div>
         </div>
