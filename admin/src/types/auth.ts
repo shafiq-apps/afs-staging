@@ -1,11 +1,11 @@
 export type UserRole = 'super_admin' | 'admin' | 'employee';
 
 export interface UserPermissions {
-  canViewPayments: boolean;
   canViewSubscriptions: boolean;
+  canManageSubscriptionPlans: boolean;
   canManageShops: boolean;
+  canViewMonitoring: boolean;
   canManageTeam: boolean;
-  canViewDocs: boolean;
 }
 
 export interface User {
@@ -16,6 +16,7 @@ export interface User {
   permissions: UserPermissions;
   createdAt: string;
   updatedAt: string;
+  lastActiveAt?: string;
   isActive: boolean;
 }
 

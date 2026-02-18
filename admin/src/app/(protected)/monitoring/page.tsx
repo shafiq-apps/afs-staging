@@ -8,7 +8,7 @@ import { hasPermission } from '@/lib/rbac';
 
 export default function MonitoringPage() {
     const { user, isLoading } = useAuth();
-    const canViewMonitoring = hasPermission(user, 'canManageShops');
+    const canViewMonitoring = hasPermission(user, 'canViewMonitoring');
 
     if (isLoading) {
         return (

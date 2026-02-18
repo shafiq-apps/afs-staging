@@ -46,6 +46,7 @@ const legacyStatusOptions: SelectOption[] = [
   { value: 'COMPLETED', label: 'COMPLETED' },
   { value: 'REJECTED', label: 'REJECTED' },
 ] as const;
+const SHOP_ONLINE_WINDOW_MS = 2 * 60 * 1000;
 
 export interface LegacyShop {
   shop: string;
@@ -159,6 +160,23 @@ export default function ShopsPage() {
     if (shop.isDeleted) return { label: 'Deleted', color: 'red' };
     if (shop.installedAt) return { label: 'Active', color: 'green' };
     return { label: 'Unknown', color: 'gray' };
+  };
+
+  const getShopActivity = (shop: Shop): { isOnline: boolean; label: string } => {
+    const lastAccessedMs = shop.lastAccessed ? Date.parse(shop.lastAccessed) : Number.NaN;
+    const isRecentlyActive =
+      Number.isFinite(lastAccessedMs) &&
+      Date.now() - lastAccessedMs <= SHOP_ONLINE_WINDOW_MS;
+
+    if (shop.isOnline || isRecentlyActive) {
+      return { isOnline: true, label: 'Online' };
+    }
+
+    if (shop.lastAccessed) {
+      return { isOnline: false, label: formatDate(shop.lastAccessed) };
+    }
+
+    return { isOnline: false, label: 'Never active' };
   };
 
   const filteredShops = useMemo(() => {
@@ -314,6 +332,17 @@ export default function ShopsPage() {
         columns={[
           { header: "Shop Domain", key: "shop", render: (item) => (<LinkComponent href={`/shops/${decodeURIComponent(item.shop)}`}>{item.shop}</LinkComponent>) },
           { header: "Status", key: "status", render: (item) => <Badge variant={item.state === "ACTIVE" ? "success" : "info"}>{item.state || "UNKNOWN"}</Badge> },
+          {
+            header: "Activity",
+            key: "lastAccessed",
+            render: (item: Shop) => {
+              const activity = getShopActivity(item);
+              if (activity.isOnline) {
+                return <Badge variant='success'>ONLINE</Badge>;
+              }
+              return <span className="text-sm text-gray-600 dark:text-gray-300">{activity.label}</span>;
+            }
+          },
           { header: "Installed", key: "installedAt", render: (item: Shop) => formatDate(item.installedAt, { month:"short", day:"numeric", year:"numeric" }) },
           { header: "UnInstalled", key: "uninstalledAt", render: (item: Shop) => formatDate(item.uninstalledAt, { month:"short", day:"numeric", year:"numeric" }) },
           {

@@ -59,7 +59,7 @@ export default function SubscriptionPlansPage() {
     interval: 'EVERY_30_DAYS' as 'EVERY_30_DAYS' | 'ANNUAL',
     test: false,
   });
-  const canViewSubscriptions = hasPermission(user, 'canViewSubscriptions');
+  const canManageSubscriptionPlans = hasPermission(user, 'canManageSubscriptionPlans');
 
   useEffect(() => {
     fetchPlans();
@@ -189,7 +189,7 @@ export default function SubscriptionPlansPage() {
     );
   }
 
-  if (!canViewSubscriptions) {
+  if (!canManageSubscriptionPlans) {
     return (
       <Page title='Subscription Plans'>
         <Banner variant='warning'>You do not have permission to access subscription plans.</Banner>

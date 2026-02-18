@@ -35,6 +35,7 @@ const legacyStatusOptions: SelectOption[] = [
   { value: 'COMPLETED', label: 'COMPLETED' },
   { value: 'REJECTED', label: 'REJECTED' },
 ];
+const SHOP_ONLINE_WINDOW_MS = 2 * 60 * 1000;
 
 export interface Shop {
   shop: string;
@@ -301,6 +302,9 @@ export default function ShopDetailPage() {
   }
 
   const status = getShopStatus(shop);
+  const lastAccessedMs = shop.lastAccessed ? Date.parse(shop.lastAccessed) : Number.NaN;
+  const isRecentlyActive = Number.isFinite(lastAccessedMs) && Date.now() - lastAccessedMs <= SHOP_ONLINE_WINDOW_MS;
+  const isShopOnline = Boolean(shop.isOnline) || isRecentlyActive;
 
   return (
     <Page
@@ -338,7 +342,7 @@ export default function ShopDetailPage() {
             <status.icon className="h-3 w-3" />
             <span>{status.label}</span>
           </span>
-          {shop.isOnline ? (
+          {isShopOnline ? (
             <span className="inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
               <div className="h-2 w-2 bg-blue-500 rounded-full animate-pulse"></div>
               <span>Online</span>

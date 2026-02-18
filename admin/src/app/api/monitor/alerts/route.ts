@@ -15,7 +15,7 @@ import { requirePermission } from '@/lib/api-auth';
 
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await requirePermission(request, 'canManageShops');
+    const authResult = await requirePermission(request, 'canViewMonitoring');
     if (authResult instanceof Response) {
       return authResult;
     }

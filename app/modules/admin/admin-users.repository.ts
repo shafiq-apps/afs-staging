@@ -13,11 +13,11 @@ const logger = createModuleLogger('admin-users-repository');
 export type AdminUserRole = 'super_admin' | 'admin' | 'employee';
 
 export interface AdminUserPermissions {
-  canViewPayments: boolean;
   canViewSubscriptions: boolean;
+  canManageSubscriptionPlans: boolean;
   canManageShops: boolean;
+  canViewMonitoring: boolean;
   canManageTeam: boolean;
-  canViewDocs: boolean;
 }
 
 export interface AdminUser {
@@ -70,28 +70,28 @@ function getDefaultPermissions(role: AdminUserRole): AdminUserPermissions {
   switch (role) {
     case 'super_admin':
       return {
-        canViewPayments: true,
         canViewSubscriptions: true,
+        canManageSubscriptionPlans: true,
         canManageShops: true,
+        canViewMonitoring: true,
         canManageTeam: true,
-        canViewDocs: true,
       };
     case 'admin':
       return {
-        canViewPayments: true,
         canViewSubscriptions: true,
+        canManageSubscriptionPlans: true,
         canManageShops: true,
+        canViewMonitoring: true,
         canManageTeam: false,
-        canViewDocs: true,
       };
     case 'employee':
     default:
       return {
-        canViewPayments: false,
         canViewSubscriptions: false,
+        canManageSubscriptionPlans: false,
         canManageShops: true,
+        canViewMonitoring: false,
         canManageTeam: false,
-        canViewDocs: true,
       };
   }
 }
@@ -106,8 +106,10 @@ function applyRolePermissionConstraints(
 
   return {
     ...permissions,
-    canViewPayments: false,
     canViewSubscriptions: false,
+    canManageSubscriptionPlans: false,
+    canViewMonitoring: false,
+    canManageTeam: false,
   };
 }
 
@@ -142,6 +144,7 @@ export class AdminUsersRepository {
       ...getDefaultPermissions(role),
       ...(permissions || {}),
     };
+
     return applyRolePermissionConstraints(role, merged);
   }
 
@@ -404,4 +407,3 @@ export class AdminUsersRepository {
     };
   }
 }
-

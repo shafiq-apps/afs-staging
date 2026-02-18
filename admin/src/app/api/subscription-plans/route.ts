@@ -61,7 +61,7 @@ const SUBSCRIPTION_PLAN_FIELDS = `
 // GET - List all subscription plans
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await requirePermission(request, 'canViewSubscriptions');
+    const authResult = await requirePermission(request, 'canManageSubscriptionPlans');
     if (authResult instanceof Response) {
       return authResult;
     }
@@ -135,7 +135,7 @@ export async function GET(request: NextRequest) {
 // POST - Create a new subscription plan
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await requirePermission(request, 'canViewSubscriptions');
+    const authResult = await requirePermission(request, 'canManageSubscriptionPlans');
     if (authResult instanceof Response) {
       return authResult;
     }

@@ -132,7 +132,7 @@ export async function GET(
   { params }: RouteParams
 ) {
   try {
-    const authResult = await requirePermission(request, 'canViewSubscriptions');
+    const authResult = await requirePermission(request, 'canManageSubscriptionPlans');
     if (authResult instanceof Response) {
       return authResult;
     }
@@ -211,7 +211,7 @@ export async function PATCH(
   { params }: RouteParams
 ) {
   try {
-    const authResult = await requirePermission(request, 'canViewSubscriptions');
+    const authResult = await requirePermission(request, 'canManageSubscriptionPlans');
     if (authResult instanceof Response) {
       return authResult;
     }
@@ -378,7 +378,7 @@ export async function DELETE(
   { params }: RouteParams
 ) {
   try {
-    const authResult = await requirePermission(request, 'canViewSubscriptions');
+    const authResult = await requirePermission(request, 'canManageSubscriptionPlans');
     if (authResult instanceof Response) {
       return authResult;
     }

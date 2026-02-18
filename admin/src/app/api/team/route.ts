@@ -10,11 +10,11 @@ const createUserSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
   role: z.enum(['admin', 'employee']),
   permissions: z.object({
-    canViewPayments: z.boolean().optional(),
     canViewSubscriptions: z.boolean().optional(),
+    canManageSubscriptionPlans: z.boolean().optional(),
     canManageShops: z.boolean().optional(),
+    canViewMonitoring: z.boolean().optional(),
     canManageTeam: z.boolean().optional(),
-    canViewDocs: z.boolean().optional(),
   }).optional(),
 });
 
@@ -80,10 +80,11 @@ export async function POST(request: NextRequest) {
       ...(permissions || {}),
     };
 
-    // Employees cannot have payment/subscription permissions
+    // Employees cannot have privileged permissions
     if (role === 'employee') {
-      finalPermissions.canViewPayments = false;
       finalPermissions.canViewSubscriptions = false;
+      finalPermissions.canManageSubscriptionPlans = false;
+      finalPermissions.canViewMonitoring = false;
       finalPermissions.canManageTeam = false;
     }
 

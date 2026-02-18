@@ -29,7 +29,7 @@ async function authorizeMonitoringRequest(request: Request): Promise<Response | 
     return new Response('Not authenticated', { status: 401 });
   }
 
-  if (!hasPermission(user, 'canManageShops')) {
+  if (!hasPermission(user, 'canViewMonitoring')) {
     return new Response('Forbidden', { status: 403 });
   }
 

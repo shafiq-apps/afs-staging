@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyOTP } from '@/lib/auth.utils';
 import { checkRateLimit } from '@/lib/rate-limit';
-import { getUserByEmail } from '@/lib/user.storage';
+import { getUserByEmail, touchUserActivity } from '@/lib/user.storage';
 import { generateToken } from '@/lib/jwt.utils';
 import { createOrGetAdminUserInES } from '@/lib/admin-user-es';
 import { z } from 'zod';
@@ -68,15 +68,21 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    const activeUser = (await touchUserActivity({
+      userId: user.id,
+      email: user.email,
+      force: true,
+    })) ?? user;
+
     // Try to create/update user in ES and get API credentials
     let apiCredentials = null;
     try {
       const esResult = await createOrGetAdminUserInES({
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        permissions: user.permissions,
-        isActive: user.isActive,
+        email: activeUser.email,
+        name: activeUser.name,
+        role: activeUser.role,
+        permissions: activeUser.permissions,
+        isActive: activeUser.isActive,
       });
       
       if (esResult.apiKey && esResult.apiSecret) {
@@ -92,21 +98,22 @@ export async function POST(request: NextRequest) {
 
     // Generate token
     const token = generateToken({
-      userId: user.id,
-      email: user.email,
-      role: user.role,
-      permissions: user.permissions,
+      userId: activeUser.id,
+      email: activeUser.email,
+      role: activeUser.role,
+      permissions: activeUser.permissions,
     });
 
     // Set cookie
     const response = NextResponse.json({
       success: true,
       user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        permissions: user.permissions,
+        id: activeUser.id,
+        email: activeUser.email,
+        name: activeUser.name,
+        role: activeUser.role,
+        permissions: activeUser.permissions,
+        lastActiveAt: activeUser.lastActiveAt,
       },
       ...(apiCredentials && { apiCredentials }),
     });

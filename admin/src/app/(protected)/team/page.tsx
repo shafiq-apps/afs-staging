@@ -14,6 +14,37 @@ const roleOptions: SelectOption[] = [
   { value: 'employee', label: 'Employee' },
   { value: 'admin', label: 'Admin' },
 ];
+const ONLINE_WINDOW_MS = 2 * 60 * 1000;
+
+function getActivityState(lastActiveAt?: string): { isOnline: boolean; label: string } {
+  if (!lastActiveAt) {
+    return { isOnline: false, label: 'Never active' };
+  }
+
+  const lastSeenAt = Date.parse(lastActiveAt);
+  if (!Number.isFinite(lastSeenAt)) {
+    return { isOnline: false, label: 'Unknown' };
+  }
+
+  const now = Date.now();
+  const diffMs = now - lastSeenAt;
+  if (diffMs <= ONLINE_WINDOW_MS) {
+    return { isOnline: true, label: 'Online' };
+  }
+
+  const diffMinutes = Math.floor(diffMs / 60_000);
+  if (diffMinutes < 60) {
+    return { isOnline: false, label: `${diffMinutes}m ago` };
+  }
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) {
+    return { isOnline: false, label: `${diffHours}h ago` };
+  }
+
+  const diffDays = Math.floor(diffHours / 24);
+  return { isOnline: false, label: `${diffDays}d ago` };
+}
 
 export default function TeamPage() {
   const { user: currentUser, isLoading: isAuthLoading } = useAuth();
@@ -38,11 +69,11 @@ export default function TeamPage() {
     name: '',
     role: 'employee' as UserRole,
     permissions: {
-      canViewPayments: false,
       canViewSubscriptions: false,
+      canManageSubscriptionPlans: false,
       canManageShops: true,
+      canViewMonitoring: false,
       canManageTeam: false,
-      canViewDocs: true,
     },
   });
   const canManageTeam = canAccessTeamManagement(currentUser);
@@ -52,7 +83,12 @@ export default function TeamPage() {
     : roleOptions.filter((option) => option.value === 'employee');
 
   useEffect(() => {
-    fetchUsers();
+    void fetchUsers();
+    const intervalId = setInterval(() => {
+      void fetchUsers();
+    }, 30_000);
+
+    return () => clearInterval(intervalId);
   }, []);
 
   const showErrorAlert = (message: string) => {
@@ -132,11 +168,11 @@ export default function TeamPage() {
       name: '',
       role: 'employee',
       permissions: {
-        canViewPayments: false,
         canViewSubscriptions: false,
+        canManageSubscriptionPlans: false,
         canManageShops: true,
+        canViewMonitoring: false,
         canManageTeam: false,
-        canViewDocs: true,
       },
     });
     setEditingUser(null);
@@ -192,6 +228,22 @@ export default function TeamPage() {
             },
             {
               header: "Status", key: "status", render: (item) => item.isActive ? <Badge variant='success'>ACTIVE</Badge> : <Badge variant='warning'>DISABLED</Badge>
+            },
+            {
+              header: "Activity", key: "lastActiveAt", render: (item) => {
+                const { isOnline, label } = getActivityState(item.lastActiveAt);
+                if (isOnline) {
+                  return <Badge variant='success'>ONLINE</Badge>;
+                }
+                if (label === 'Never active') {
+                  return <Badge variant='default'>NEVER</Badge>;
+                }
+                return (
+                  <span className="text-sm text-gray-600 dark:text-gray-300">
+                    {label}
+                  </span>
+                );
+              }
             },
             {
               header: "Actions", key: "id", render: (item) => (
@@ -278,8 +330,9 @@ export default function TeamPage() {
                       role,
                       permissions: {
                         ...formData.permissions,
-                        canViewPayments: role !== 'employee',
                         canViewSubscriptions: role !== 'employee',
+                        canManageSubscriptionPlans: role !== 'employee',
+                        canViewMonitoring: role !== 'employee',
                       },
                     });
                   }}
@@ -308,34 +361,8 @@ export default function TeamPage() {
                       }
                       label="Manage Shops"
                     />
-                    <Checkbox
-                      checked={formData.permissions.canViewDocs}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          permissions: {
-                            ...formData.permissions,
-                            canViewDocs: e.target.checked,
-                          },
-                        })
-                      }
-                      label="View Docs"
-                    />
                     {formData.role !== 'employee' && (
                       <>
-                        <Checkbox
-                          checked={formData.permissions.canViewPayments}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              permissions: {
-                                ...formData.permissions,
-                                canViewPayments: e.target.checked,
-                              },
-                            })
-                          }
-                          label="View Payments"
-                        />
                         <Checkbox
                           checked={formData.permissions.canViewSubscriptions}
                           onChange={(e) =>
@@ -348,6 +375,32 @@ export default function TeamPage() {
                             })
                           }
                           label="View Subscriptions"
+                        />
+                        <Checkbox
+                          checked={formData.permissions.canManageSubscriptionPlans}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              permissions: {
+                                ...formData.permissions,
+                                canManageSubscriptionPlans: e.target.checked,
+                              },
+                            })
+                          }
+                          label="Manage Subscription Plans"
+                        />
+                        <Checkbox
+                          checked={formData.permissions.canViewMonitoring}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              permissions: {
+                                ...formData.permissions,
+                                canViewMonitoring: e.target.checked,
+                              },
+                            })
+                          }
+                          label="View Monitoring"
                         />
                       </>
                     )}

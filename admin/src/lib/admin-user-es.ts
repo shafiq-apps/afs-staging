@@ -14,11 +14,11 @@ const CREATE_ADMIN_USER_MUTATION = `
         name
         role
         permissions {
-          canViewPayments
           canViewSubscriptions
+          canManageSubscriptionPlans
           canManageShops
+          canViewMonitoring
           canManageTeam
-          canViewDocs
         }
         isActive
         createdAt
@@ -38,11 +38,11 @@ const GET_ADMIN_USER_BY_EMAIL_QUERY = `
       name
       role
       permissions {
-        canViewPayments
         canViewSubscriptions
+        canManageSubscriptionPlans
         canManageShops
+        canViewMonitoring
         canManageTeam
-        canViewDocs
       }
       isActive
       createdAt
@@ -56,11 +56,11 @@ export interface AdminUserInput {
   name: string;
   role: 'super_admin' | 'admin' | 'employee';
   permissions?: {
-    canViewPayments?: boolean;
     canViewSubscriptions?: boolean;
+    canManageSubscriptionPlans?: boolean;
     canManageShops?: boolean;
+    canViewMonitoring?: boolean;
     canManageTeam?: boolean;
-    canViewDocs?: boolean;
   };
   isActive?: boolean;
 }
@@ -71,11 +71,11 @@ type AdminUserRecord = {
   name: string;
   role: 'super_admin' | 'admin' | 'employee';
   permissions?: {
-    canViewPayments?: boolean;
     canViewSubscriptions?: boolean;
+    canManageSubscriptionPlans?: boolean;
     canManageShops?: boolean;
+    canViewMonitoring?: boolean;
     canManageTeam?: boolean;
-    canViewDocs?: boolean;
   };
   isActive?: boolean;
   createdAt?: string;

@@ -10,11 +10,11 @@ const updateUserSchema = z.object({
   role: z.enum(['admin', 'employee']).optional(),
   permissions: z
     .object({
-      canViewPayments: z.boolean().optional(),
       canViewSubscriptions: z.boolean().optional(),
+      canManageSubscriptionPlans: z.boolean().optional(),
       canManageShops: z.boolean().optional(),
+      canViewMonitoring: z.boolean().optional(),
       canManageTeam: z.boolean().optional(),
-      canViewDocs: z.boolean().optional(),
     })
     .optional(),
   isActive: z.boolean().optional(),
@@ -143,8 +143,9 @@ export async function PATCH(
     if (resultingRole === 'employee') {
       finalUpdates.permissions = {
         ...(finalUpdates.permissions || existingUser.permissions),
-        canViewPayments: false,
         canViewSubscriptions: false,
+        canManageSubscriptionPlans: false,
+        canViewMonitoring: false,
         canManageTeam: false,
       };
     }

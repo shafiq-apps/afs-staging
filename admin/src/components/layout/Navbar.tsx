@@ -37,7 +37,8 @@ export default function Navbar() {
     { href: '/dashboard', label: 'Dashboard' },
     { href: '/shops', label: 'Shops', requiresPermission: 'canManageShops' },
     { href: '/subscriptions', label: 'Subscriptions', requiresPermission: 'canViewSubscriptions' },
-    { href: '/subscription-plans', label: 'Subscription Plans', requiresPermission: 'canViewSubscriptions' },
+    { href: '/subscription-plans', label: 'Subscription Plans', requiresPermission: 'canManageSubscriptionPlans' },
+    { href: '/monitoring', label: 'Monitoring', requiresPermission: 'canViewMonitoring' },
   ];
 
   const filteredNavItems = navItems.filter((item) =>

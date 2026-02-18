@@ -6,11 +6,11 @@
 
 export const adminSchema = `
   type AdminUserPermissions {
-    canViewPayments: Boolean!
     canViewSubscriptions: Boolean!
+    canManageSubscriptionPlans: Boolean!
     canManageShops: Boolean!
+    canViewMonitoring: Boolean!
     canManageTeam: Boolean!
-    canViewDocs: Boolean!
   }
 
   enum AdminUserRole {
@@ -31,11 +31,11 @@ export const adminSchema = `
   }
 
   input AdminUserPermissionsInput {
-    canViewPayments: Boolean
     canViewSubscriptions: Boolean
+    canManageSubscriptionPlans: Boolean
     canManageShops: Boolean
+    canViewMonitoring: Boolean
     canManageTeam: Boolean
-    canViewDocs: Boolean
   }
 
   input CreateAdminUserInput {

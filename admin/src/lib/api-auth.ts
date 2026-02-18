@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { User } from '@/types/auth';
 import { verifyToken } from '@/lib/jwt.utils';
-import { getDefaultPermissions, getUserByEmail, getUserById } from '@/lib/user.storage';
+import { getDefaultPermissions, getUserByEmail, getUserById, touchUserActivity } from '@/lib/user.storage';
 import { canAccessTeamManagement, hasPermission, type AppPermission } from '@/lib/rbac';
 
 const AUTH_COOKIE_NAME = 'auth_token';
@@ -53,7 +53,8 @@ export async function resolveAuthenticatedUserFromToken(token?: string | null): 
     user.permissions = getDefaultPermissions(user.role);
   }
 
-  return user;
+  const touchedUser = await touchUserActivity({ userId: user.id, email: user.email });
+  return touchedUser ?? user;
 }
 
 export async function resolveAuthenticatedUserFromRequest(request: NextRequest): Promise<User | null> {

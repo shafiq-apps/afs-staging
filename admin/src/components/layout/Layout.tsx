@@ -4,9 +4,8 @@ import AnimatedBackground from './AnimatedBackground';
 import { User } from '@/types/auth';
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
-import { verifyToken } from '@/lib/jwt.utils';
-import { getUserById, getUserByEmail, getDefaultPermissions } from '@/lib/user.storage';
 import { AuthProvider } from '@/components/providers';
+import { resolveAuthenticatedUserFromToken } from '@/lib/api-auth';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -17,18 +16,7 @@ async function getCurrentUser(): Promise<User | null> {
   const token = cookieStore.get('auth_token')?.value;
 
   if (!token) return null;
-
-  const session = verifyToken(token);
-  if (!session) return null;
-
-  let user = await getUserById(session.userId);
-  if (!user && session.email) user = await getUserByEmail(session.email);
-
-  if (!user || !user.isActive) return null;
-
-  if (!user.permissions) user.permissions = getDefaultPermissions(user.role);
-
-  return user;
+  return resolveAuthenticatedUserFromToken(token);
 }
 
 export default async function Layout({ children }: LayoutProps) {

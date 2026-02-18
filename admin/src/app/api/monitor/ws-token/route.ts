@@ -7,7 +7,7 @@ const WS_TOKEN_EXPIRY = process.env.WS_TOKEN_EXPIRY || '300000';
 
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await requirePermission(request, 'canManageShops');
+    const authResult = await requirePermission(request, 'canViewMonitoring');
     if (authResult instanceof Response) {
       return authResult;
     }
