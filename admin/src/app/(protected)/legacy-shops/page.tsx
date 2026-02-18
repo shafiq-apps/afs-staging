@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { AlertModal, Banner, Button, ButtonGroup, Checkbox, ConfirmModal, DataTable, Input, Modal, Select, Textarea } from '@/components/ui';
-import type { SelectOption } from '@/components/ui';
+import { Banner, Button, ButtonGroup, Checkbox, ConfirmModal, DataTable, Input, Modal, Select, Textarea } from '@/components/ui';
+import type { ButtonVariant, SelectOption } from '@/components/ui';
 import Page from '@/components/ui/Page';
 import LinkComponent from '@/components/ui/LinkComponent';
 import Badge from '@/components/ui/Badge';
@@ -293,9 +293,12 @@ export default function LegacyShopsPage() {
           ...(Boolean(editingShop) ? [
             {
               label: 'Delete',
-              onClick: () => { setDeleteShop(editingShop), closeModal() },
+              onClick: () => {
+                setDeleteShop(editingShop);
+                closeModal()
+              },
               disabled: saving,
-              variant: 'danger' as any
+              variant: 'danger' as ButtonVariant
             }
           ] : []),
           {

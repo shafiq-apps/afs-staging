@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, SubmitEventHandler, DOMAttributes } from 'react';
 import Checkbox from '@/components/ui/Checkbox';
 import { AlertModal, Banner, Button, ButtonGroup, ConfirmModal, DataTable, Input, Modal, Select, Textarea } from '@/components/ui';
 import type { SelectOption } from '@/components/ui';
@@ -95,9 +95,9 @@ export default function SubscriptionPlansPage() {
     }
   };
 
-  const handleSubmit = async (e: any) => {
-    if (e) {
-      e.preventDefault();
+  const handleSubmit = async (event: any) => {
+    if (event) {
+      event.preventDefault();
     }
     try {
       const url = editingPlan ? `/api/subscription-plans/${editingPlan.id}` : '/api/subscription-plans';

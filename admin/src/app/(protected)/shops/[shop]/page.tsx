@@ -7,7 +7,6 @@ import { LoadingBar } from '@/components/ui/LoadingBar';
 import { Banner, Button, Checkbox, Select, Stack, Textarea } from '@/components/ui';
 import type { SelectOption } from '@/components/ui';
 import {
-  ArrowLeft,
   ExternalLink,
   Calendar,
   Clock,
@@ -25,7 +24,7 @@ import {
 } from 'lucide-react';
 import Page from '@/components/ui/Page';
 import { Href } from '@/components/ui/LinkComponent';
-import { formatDate, maskString } from '@/lib/string.utils';
+import { formatDate } from '@/lib/string.utils';
 import { useAuth } from '@/components/providers';
 import { hasPermission } from '@/lib/rbac';
 
