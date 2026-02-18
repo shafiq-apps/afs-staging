@@ -461,34 +461,40 @@ export default function App() {
         shopData={effectiveShopData}
         isLoading={!effectiveShopData}
       >
-        <AppNavBar hasActiveShopifySubscription={hasActiveShopifySubscription} />
-        {
-          !hasActiveShopifySubscription && (
-            <s-page>
-              <div style={{ marginBottom: 16 }}>
-                <s-banner heading="Manage Your Subscription" tone="warning" dismissible>
-                  Please keep your subscription plan active to continue using the application.
-                  <s-button
-                    slot="secondary-actions"
-                    variant="secondary"
-                    href="/app/pricing"
-                  >
-                    View pricing
-                  </s-button>
-                  <s-button
-                    slot="secondary-actions"
-                    variant="secondary"
-                    href="javascript:void(0)"
-                  >
-                    Read more
-                  </s-button>
-                </s-banner>
-              </div>
-            </s-page>
-          )
-        }
-        <Outlet />
-        <AppFooter />
+        <div style={{ minHeight: "100dvh", display: "flex", flexDirection: "column" }}>
+          <main style={{ flex: "1 0 auto" }}>
+            <AppNavBar hasActiveShopifySubscription={hasActiveShopifySubscription} />
+            {
+              !hasActiveShopifySubscription && (
+                <s-page>
+                  <div style={{ marginBottom: 16 }}>
+                    <s-banner heading="Manage Your Subscription" tone="warning" dismissible>
+                      Please keep your subscription plan active to continue using the application.
+                      <s-button
+                        slot="secondary-actions"
+                        variant="secondary"
+                        href="/app/pricing"
+                      >
+                        View pricing
+                      </s-button>
+                      <s-button
+                        slot="secondary-actions"
+                        variant="secondary"
+                        href="javascript:void(0)"
+                      >
+                        Read more
+                      </s-button>
+                    </s-banner>
+                  </div>
+                </s-page>
+              )
+            }
+            <Outlet />
+          </main>
+          <div style={{ flexShrink: 0 }}>
+            <AppFooter />
+          </div>
+        </div>
       </ShopProvider>
     </AppProvider>
   );

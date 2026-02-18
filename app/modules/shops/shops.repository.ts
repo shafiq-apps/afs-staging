@@ -158,17 +158,44 @@ export class ShopsRepository {
    * @param input Shop data
    */
   async saveShop(input: CreateShopInput): Promise<Shop> {
-    const document = {
+    const toIsoString = (value: unknown): string | undefined => {
+      if (!value) {
+        return undefined;
+      }
+      const parsed = value instanceof Date ? value : new Date(String(value));
+      if (Number.isNaN(parsed.getTime())) {
+        return undefined;
+      }
+      return parsed.toISOString();
+    };
+
+    const nowIso = new Date().toISOString();
+    const existingShop = await this.getShop(input.shop);
+    const existingInstalledAt = toIsoString(existingShop?.installedAt);
+    const inputInstalledAt = toIsoString(input.installedAt);
+    const isReinstall =
+      !!existingShop &&
+      (
+        existingShop.state === 'UNINSTALLED' ||
+        !!existingShop.isDeleted ||
+        !!existingShop.uninstalledAt
+      );
+
+    const document: Record<string, any> = {
+      ...(input as any),
       shop: input.shop,
       accessToken: input.accessToken,
       scopes: input.scopes || [],
       refreshToken: input.refreshToken,
-      installedAt: new Date().toISOString(),
-      metadata: input.metadata || {},
-      locals: {},
-      // Include session fields if provided
-      ...(input as any),
+      installedAt: existingInstalledAt || inputInstalledAt || nowIso,
+      metadata: input.metadata || existingShop?.metadata || {},
+      locals: (input as any).locals || existingShop?.locals || {},
+      updatedAt: toIsoString(input.updatedAt) || nowIso,
     };
+
+    if (isReinstall) {
+      document.reinstalledAt = nowIso;
+    }
 
     await this.esClient.update({
       index: this.index,

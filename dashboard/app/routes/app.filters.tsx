@@ -275,7 +275,30 @@ export default function FiltersPage() {
         {t("filters.createFilter")}
       </s-button>
     </s-stack>
-  )
+  );
+
+  const filterDocs = [
+    {
+      title: t("filters.documentation.items.shopperView.title"),
+      description: t("filters.documentation.items.shopperView.description"),
+    },
+    {
+      title: t("filters.documentation.items.narrowResults.title"),
+      description: t("filters.documentation.items.narrowResults.description"),
+    },
+    {
+      title: t("filters.documentation.items.combineChoices.title"),
+      description: t("filters.documentation.items.combineChoices.description"),
+    },
+    {
+      title: t("filters.documentation.items.scopeControl.title"),
+      description: t("filters.documentation.items.scopeControl.description"),
+    },
+    {
+      title: t("filters.documentation.items.publishControl.title"),
+      description: t("filters.documentation.items.publishControl.description"),
+    },
+  ];
 
   return (
     <s-page key={`filters-${location.pathname}`} heading={t("filters.pageTitle")} data-page-id="filters">
@@ -328,66 +351,86 @@ export default function FiltersPage() {
           </s-grid>
         </s-section>
       ) : (
-        <s-stack rowGap="base">
-          {actionButton}
-          <s-section padding="none">
-            <s-table variant="auto" loading={!filters || filters?.length === 0}>
-              <s-table-header-row>
-                <s-table-header listSlot="primary">{t("filters.table.title")}</s-table-header>
-                <s-table-header>{t("filters.table.status")}</s-table-header>
-                <s-table-header>{t("filters.table.collectionDisplay")}</s-table-header>
-                <s-table-header>{t("filters.table.actions")}</s-table-header>
-              </s-table-header-row>
-              <s-table-body>
-                {filters.map((filter) => (
-                  <s-table-row key={filter.id}>
-                    <s-table-cell>
-                      <strong>{filter.title}</strong>
-                    </s-table-cell>
-                    <s-table-cell>
-                      {filter.status && (
-                        <s-badge
-                          tone={filter.status === "PUBLISHED" ? "success" : "warning"}
-                        >
-                          {filter.status === "PUBLISHED" ? "Published" : "Unpublished"}
-                        </s-badge>
-                      )}
-                    </s-table-cell>
-                    <s-table-cell>
-                      <s-text tone="auto">{getCollectionDisplay(filter)}</s-text>
-                    </s-table-cell>
-                    <s-table-cell>
-                      <s-stack direction="inline" gap="small">
-                        <s-button
-                          variant="secondary"
-                          onClick={() => handleEditClick(filter.id)}
-                          icon="edit"
-                          accessibilityLabel={t("filters.table.edit")}
-                        >
-                          {t("filters.table.edit")}
-                        </s-button>
-                        <s-button
-                          variant="secondary"
-                          tone="critical"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            handleDeleteClick(filter);
-                          }}
-                          icon="delete"
-                          accessibilityLabel={t("filters.table.delete")}
-                        >
-                          {t("filters.table.delete")}
-                        </s-button>
-                      </s-stack>
-                    </s-table-cell>
-                  </s-table-row>
-                ))}
-              </s-table-body>
-            </s-table>
-          </s-section>
-        </s-stack>
+        <div style={{ marginBottom: 16 }}>
+          <s-stack rowGap="base">
+            {actionButton}
+            <s-section padding="none">
+              <s-table variant="auto" loading={!filters || filters?.length === 0}>
+                <s-table-header-row>
+                  <s-table-header listSlot="primary">{t("filters.table.title")}</s-table-header>
+                  <s-table-header>{t("filters.table.status")}</s-table-header>
+                  <s-table-header>{t("filters.table.collectionDisplay")}</s-table-header>
+                  <s-table-header>{t("filters.table.actions")}</s-table-header>
+                </s-table-header-row>
+                <s-table-body>
+                  {filters.map((filter) => (
+                    <s-table-row key={filter.id}>
+                      <s-table-cell>
+                        <strong>{filter.title}</strong>
+                      </s-table-cell>
+                      <s-table-cell>
+                        {filter.status && (
+                          <s-badge
+                            tone={filter.status === "PUBLISHED" ? "success" : "warning"}
+                          >
+                            {filter.status === "PUBLISHED" ? "Published" : "Unpublished"}
+                          </s-badge>
+                        )}
+                      </s-table-cell>
+                      <s-table-cell>
+                        <s-text tone="auto">{getCollectionDisplay(filter)}</s-text>
+                      </s-table-cell>
+                      <s-table-cell>
+                        <s-stack direction="inline" gap="small">
+                          <s-button
+                            variant="secondary"
+                            onClick={() => handleEditClick(filter.id)}
+                            icon="edit"
+                            accessibilityLabel={t("filters.table.edit")}
+                          >
+                            {t("filters.table.edit")}
+                          </s-button>
+                          <s-button
+                            variant="secondary"
+                            tone="critical"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleDeleteClick(filter);
+                            }}
+                            icon="delete"
+                            accessibilityLabel={t("filters.table.delete")}
+                          >
+                            {t("filters.table.delete")}
+                          </s-button>
+                        </s-stack>
+                      </s-table-cell>
+                    </s-table-row>
+                  ))}
+                </s-table-body>
+              </s-table>
+            </s-section>
+          </s-stack>
+        </div>
       )}
+
+      <s-section>
+        <s-stack direction="block" gap="base">
+          <s-heading>{t("filters.documentation.title")}</s-heading>
+          <s-text tone="auto">{t("filters.documentation.description")}</s-text>
+          <div style={{ paddingLeft: "1.25rem" }}>
+            <ul style={{ margin: 0, padding: 0 }}>
+              {filterDocs.map((doc) => (
+                <li key={doc.title} style={{ marginBottom: "0.75rem" }}>
+                  <s-text>
+                    <strong>{doc.title}:</strong> {doc.description}
+                  </s-text>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </s-stack>
+      </s-section>
 
       {/* Delete Confirmation Modal */}
       <s-modal id="delete-modal" heading={t("filters.deleteModal.title")} accessibilityLabel="Delete Modal">

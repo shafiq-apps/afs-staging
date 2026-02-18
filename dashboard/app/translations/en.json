@@ -326,6 +326,32 @@
       "all": "All Collections",
       "specific": "{count} Collections",
       "none": "No Collections"
+    },
+    "documentation": {
+      "title": "How Filters Work On Your Storefront",
+      "description": "A simple guide for how shoppers use filters and how your settings affect what they see.",
+      "items": {
+        "shopperView": {
+          "title": "What shoppers see",
+          "description": "Filters appear on collection/search pages so customers can quickly find products by things like price, size, color, brand, or tags."
+        },
+        "narrowResults": {
+          "title": "How filtering changes products",
+          "description": "When a shopper clicks a filter option, the product list is reduced to matching items only. This helps them find the right product faster."
+        },
+        "combineChoices": {
+          "title": "Using multiple filters",
+          "description": "Shoppers can combine filters (for example: Size = M and Color = Black) to narrow results even more. They can also clear filters anytime."
+        },
+        "scopeControl": {
+          "title": "Where each filter appears",
+          "description": "Set a filter to All Collections to show it everywhere, or choose Specific Collections to show it only on selected category pages."
+        },
+        "publishControl": {
+          "title": "Published vs unpublished",
+          "description": "Published filters are visible to shoppers on the storefront. Unpublished filters stay hidden, so you can prepare them before going live."
+        }
+      }
     }
   },
   "filterForm": {
