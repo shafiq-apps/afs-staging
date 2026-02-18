@@ -7,7 +7,7 @@ import { useLoaderData, useNavigate, useLocation } from "react-router";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { useAppBridge } from "@shopify/app-bridge-react";
-import { useTranslation } from "../utils/translations";
+import { useTranslation, t as translate } from "../utils/translations";
 import { useShop } from "../contexts/ShopContext";
 import { graphqlRequest } from "app/graphql.server";
 import { createModuleLogger } from "../utils/logger";
@@ -103,7 +103,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         progress: 0,
         failedItems: [],
       } as IndexingStatus,
-      error: error.message || "Failed to fetch indexing status",
+      error: error.message || translate("indexing.messages.failedToFetch"),
     };
   }
 };
@@ -174,13 +174,13 @@ export default function IndexingPage() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        setError(errorData.error || "Failed to fetch indexing status");
+        setError(errorData.error || t("indexing.messages.failedToFetch"));
         return null;
       }
 
       const result = await response.json();
       if (result.error || (result.errors && result.errors.length > 0)) {
-        setError(result.error || result.errors?.[0]?.message || "Failed to fetch indexing status");
+        setError(result.error || result.errors?.[0]?.message || t("indexing.messages.failedToFetch"));
         return null;
       }
 
@@ -195,7 +195,7 @@ export default function IndexingPage() {
       if (error.name === 'AbortError') {
         return null;
       }
-      setError(error.message || "Failed to fetch indexing status");
+      setError(error.message || t("indexing.messages.failedToFetch"));
       return null;
     }
   };
@@ -231,9 +231,9 @@ export default function IndexingPage() {
                   stopPolling();
                   setIsReindexing(false);
                   if (pollStatus.status === "success") {
-                    shopify.toast.show("Product sync completed successfully!");
+                    shopify.toast.show(t("indexing.messages.syncCompleted"));
                   } else {
-                    shopify.toast.show("Product sync failed. Check the error details below.", { isError: true });
+                    shopify.toast.show(t("indexing.messages.syncFailed"), { isError: true });
                   }
                 }
               }
@@ -251,9 +251,9 @@ export default function IndexingPage() {
               stopPolling();
               setIsReindexing(false);
               if (status.status === "success") {
-                shopify.toast.show("Product sync completed successfully!");
+                shopify.toast.show(t("indexing.messages.syncCompleted"));
               } else {
-                shopify.toast.show("Product sync failed. Check the error details below.", { isError: true });
+                shopify.toast.show(t("indexing.messages.syncFailed"), { isError: true });
               }
               return;
             }
@@ -271,7 +271,7 @@ export default function IndexingPage() {
               // Max attempts reached, stop polling
               stopPolling();
               setIsReindexing(false);
-              shopify.toast.show("Sync request received. Status will update shortly.", { isError: false });
+              shopify.toast.show(t("indexing.messages.syncRequestReceived"), { isError: false });
             }
           }
         } else {
@@ -405,21 +405,21 @@ export default function IndexingPage() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        shopify.toast.show(errorData.error || "Failed to start reindexing", { isError: true });
+        shopify.toast.show(errorData.error || t("indexing.messages.failedToStart"), { isError: true });
         setIsReindexing(false);
         return;
       }
 
       const result = await response.json();
       if (result.error || (result.errors && result.errors.length > 0)) {
-        shopify.toast.show(result.error || result.errors?.[0]?.message || "Failed to start reindexing", { isError: true });
+        shopify.toast.show(result.error || result.errors?.[0]?.message || t("indexing.messages.failedToStart"), { isError: true });
         setIsReindexing(false);
         return;
       }
 
       if (result.reindexProducts) {
         if (result.reindexProducts.success) {
-          shopify.toast.show(result.reindexProducts.message || "Reindexing started successfully. Monitoring progress...");
+          shopify.toast.show(result.reindexProducts.message || t("indexing.messages.syncStarted"));
           // Start polling after 5 seconds delay
           if (shop) {
             startPolling(shop, 5000); // 5 seconds delay
@@ -430,11 +430,11 @@ export default function IndexingPage() {
             }, 1000);
           }
         } else {
-          shopify.toast.show(result.reindexProducts.message || "Failed to start reindexing", { isError: true });
+          shopify.toast.show(result.reindexProducts.message || t("indexing.messages.failedToStart"), { isError: true });
           setIsReindexing(false);
         }
       } else {
-        shopify.toast.show("Reindexing started successfully. Monitoring progress...");
+        shopify.toast.show(t("indexing.messages.syncStarted"));
         // Start polling after 5 seconds delay
         if (shop) {
           startPolling(shop, 5000); // 5 seconds delay
@@ -445,13 +445,13 @@ export default function IndexingPage() {
         }
       }
     } catch (error: any) {
-      shopify.toast.show(error.message || "Failed to start reindexing", { isError: true });
+      shopify.toast.show(error.message || t("indexing.messages.failedToStart"), { isError: true });
       setIsReindexing(false);
     }
   };
 
   const formatDate = (dateString: string | null | undefined) => {
-    if (!dateString) return "Never";
+    if (!dateString) return t("common.never");
     return formatShopDate(dateString, {
       year: "numeric",
       month: "short",
@@ -462,7 +462,7 @@ export default function IndexingPage() {
   };
 
   const formatDuration = (milliseconds: number | null | undefined) => {
-    if (!milliseconds) return "N/A";
+    if (!milliseconds) return t("common.na");
     const seconds = Math.floor(milliseconds / 1000);
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
@@ -509,7 +509,7 @@ export default function IndexingPage() {
         <s-heading>{t("indexing.syncStatus.title")}</s-heading>
         {error && (
           <s-banner tone="critical">
-            <s-text>Error: {error}</s-text>
+            <s-text>{t("common.error")}: {error}</s-text>
           </s-banner>
         )}
         <s-grid gridTemplateColumns="repeat(auto-fit, minmax(200px, 1fr))" gap="base">
@@ -572,7 +572,7 @@ export default function IndexingPage() {
         </s-grid>
         {indexingStatus?.error && (
           <s-banner tone="critical">
-            <s-text>Error: {indexingStatus.error}</s-text>
+            <s-text>{t("common.error")}: {indexingStatus.error}</s-text>
           </s-banner>
         )}
         {indexingStatus?.failedItems && indexingStatus.failedItems.length > 0 && (
@@ -586,10 +586,10 @@ export default function IndexingPage() {
               <s-heading>{t("indexing.syncStatus.failedItems")} ({indexingStatus.failedItems.length})</s-heading>
               <s-table>
                 <s-table-header-row>
-                  <s-table-header>ID</s-table-header>
-                  <s-table-header>Line</s-table-header>
-                  <s-table-header>Error</s-table-header>
-                  <s-table-header>Retry Count</s-table-header>
+                  <s-table-header>{t("indexing.table.id")}</s-table-header>
+                  <s-table-header>{t("indexing.table.line")}</s-table-header>
+                  <s-table-header>{t("indexing.table.error")}</s-table-header>
+                  <s-table-header>{t("indexing.table.retryCount")}</s-table-header>
                 </s-table-header-row>
                 <s-table-body>
                   {indexingStatus.failedItems.map((item, index) => (

@@ -7,7 +7,7 @@ import { useLoaderData, useNavigate, useLocation, useRevalidator } from "react-r
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { useAppBridge } from "@shopify/app-bridge-react";
-import { useTranslation } from "../utils/translations";
+import { useTranslation, t as translate } from "../utils/translations";
 import { TargetScope } from "../utils/filter.enums";
 import { graphqlRequest } from "app/graphql.server";
 
@@ -71,7 +71,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     if (result.errors) {
       return {
         filters: [],
-        error: result.errors[0]?.message || "Failed to fetch filters",
+        error: result.errors[0]?.message || translate("filters.messages.fetchFailed"),
       } as FiltersData;
     }
 
@@ -84,7 +84,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   } catch (error: any) {
     return {
       filters: [],
-      error: error.message || "Failed to fetch filters",
+      error: error.message || translate("filters.messages.fetchFailed"),
     } as FiltersData;
   }
 };
@@ -194,7 +194,7 @@ export default function FiltersPage() {
     setIsDeleting(true);
     try {
       if (!shop) {
-        shopify.toast.show("Shop information is missing", { isError: true });
+        shopify.toast.show(t("filters.messages.shopMissing"), { isError: true });
         setIsDeleting(false);
         return;
       }
@@ -218,10 +218,10 @@ export default function FiltersPage() {
 
       const result = await response.json();
       if (result.error || (result.errors && result.errors.length > 0)) {
-        shopify.toast.show(result.error || result.errors?.[0]?.message || "Failed to delete filter", { isError: true });
+        shopify.toast.show(result.error || result.errors?.[0]?.message || t("filters.messages.deleteFailed"), { isError: true });
       }
       else {
-        shopify.toast.show("Filter deleted successfully");
+        shopify.toast.show(t("filters.messages.deleteSuccess"));
         // Remove filter from list
         setFilters(filters.filter(f => f.id !== filterToDelete.id));
         // Close modal
@@ -233,7 +233,7 @@ export default function FiltersPage() {
         setFilterToDelete(null);
       }
     } catch (error: any) {
-      shopify.toast.show(error.message || "Failed to delete filter", { isError: true });
+      shopify.toast.show(error.message || t("filters.messages.deleteFailed"), { isError: true });
     } finally {
       setIsDeleting(false);
     }
@@ -305,7 +305,7 @@ export default function FiltersPage() {
       {error && (
         <s-section>
           <s-banner tone="critical">
-            <s-text>Error: {error}</s-text>
+            <s-text>{t("common.error")}: {error}</s-text>
           </s-banner>
         </s-section>
       )}
@@ -373,7 +373,7 @@ export default function FiltersPage() {
                           <s-badge
                             tone={filter.status === "PUBLISHED" ? "success" : "warning"}
                           >
-                            {filter.status === "PUBLISHED" ? "Published" : "Unpublished"}
+                            {filter.status === "PUBLISHED" ? t("filters.status.published") : t("filters.status.unpublished")}
                           </s-badge>
                         )}
                       </s-table-cell>
@@ -433,7 +433,7 @@ export default function FiltersPage() {
       </s-section>
 
       {/* Delete Confirmation Modal */}
-      <s-modal id="delete-modal" heading={t("filters.deleteModal.title")} accessibilityLabel="Delete Modal">
+      <s-modal id="delete-modal" heading={t("filters.deleteModal.title")} accessibilityLabel={t("filters.deleteModal.accessibilityLabel")}>
         {filterToDelete && (
           <s-stack direction="block" gap="base">
             <s-text>

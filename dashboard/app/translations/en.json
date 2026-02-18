@@ -12,6 +12,7 @@
     "failed": "Failed",
     "error": "Error",
     "never": "Never",
+    "na": "N/A",
     "unknown": "Unknown"
   },
   "home": {
@@ -120,6 +121,15 @@
     "howItWorks": {
       "title": "How Search Weights Work",
       "description": "Search weights control how important each field is when matching search queries. Fields with higher weights have more influence on search result rankings and will boost products that match in those fields. The system automatically scales these weights (0-5) to a higher range (0-25) for optimal Elasticsearch performance.",
+      "labels": {
+        "weight5": "Weight 5 (Maximum):",
+        "weight4": "Weight 4 (High):",
+        "weight3": "Weight 3 (Medium):",
+        "weight2": "Weight 2 (Low):",
+        "weight1": "Weight 1 (Very Low):",
+        "weight0": "Weight 0 (Disabled):",
+        "bestPractice": "Best Practice:"
+      },
       "weight5": "Critical priority fields that should have the strongest influence on search results. Best for Product Title, which is the most important field for matching user queries.",
       "weight4": "Very important fields like SKU, Variant Display Name, or Barcode that are frequently used in searches and should rank highly.",
       "weight3": "Important supporting fields such as Tags that provide additional context and help match related products.",
@@ -132,7 +142,8 @@
       "saved": "Search configuration saved successfully",
       "fieldExists": "This field is already added",
       "minOneField": "At least one search field is required",
-      "saveFailed": "Failed to save search configuration"
+      "saveFailed": "Failed to save search configuration",
+      "fetchFailed": "Failed to fetch search configuration"
     }
   },
   "support": {
@@ -250,6 +261,10 @@
     "bannerText": "You are subscribed to \"[planName]\"",
     "pricingCard": {
       "productLimit": "Up to [productLimit] products",
+      "badges": {
+        "mostPopular": "Most popular",
+        "currentPlan": "Your Plan"
+      },
       "interval": {
         "month": "per month",
         "year": "per year"
@@ -286,6 +301,36 @@
       "submit": "Log in"
     }
   },
+  "indexLanding": {
+    "heading": "Sign in",
+    "description": "Connect your Shopify store to continue.",
+    "shopDomainLabel": "Shop domain",
+    "shopDomainPlaceholder": "my-store.myshopify.com",
+    "continueButton": "Continue",
+    "installPrompt": "Want to install the app?",
+    "appStoreLink": "Go to Shopify App Store",
+    "validation": {
+      "looksGood": "Looks good",
+      "mustEndWithMyShopify": "Shop domain must end with '.myshopify.com'",
+      "invalidFormat": "Invalid characters or format in shop domain"
+    },
+    "tags": {
+      "price": "Price",
+      "collections": "Collections",
+      "brand": "Brand",
+      "rating": "Rating",
+      "color": "Color",
+      "size": "Size",
+      "popularity": "Popularity",
+      "advancedFiltersSearch": "Advanced Filters & Search",
+      "digitalcoo": "Digitalcoo"
+    },
+    "footer": {
+      "support": "Support",
+      "docs": "Docs",
+      "privacyPolicy": "Privacy Policy"
+    }
+  },
   "errors": {
     "generic": "An error occurred",
     "unableToLoad": "Unable to Load Data",
@@ -316,11 +361,22 @@
       "edit": "Edit",
       "delete": "Delete"
     },
+    "status": {
+      "published": "Published",
+      "unpublished": "Unpublished"
+    },
     "deleteModal": {
       "title": "Delete Filter",
       "message": "Are you sure you want to delete \"{title}\"? This action cannot be undone.",
       "confirm": "Delete",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "accessibilityLabel": "Delete Modal"
+    },
+    "messages": {
+      "fetchFailed": "Failed to fetch filters",
+      "shopMissing": "Shop information is missing",
+      "deleteFailed": "Failed to delete filter",
+      "deleteSuccess": "Filter deleted successfully"
     },
     "collectionDisplay": {
       "all": "All Collections",
@@ -542,6 +598,12 @@
       "syncRequestReceived": "Sync request received. Status will update shortly.",
       "failedToStart": "Failed to start reindexing",
       "failedToFetch": "Failed to fetch indexing status"
+    },
+    "table": {
+      "id": "ID",
+      "line": "Line",
+      "error": "Error",
+      "retryCount": "Retry Count"
     }
   },
   "templates": {
@@ -552,8 +614,11 @@
     "legacyshop": {
       "heading": "Ready to migrate to the new version?",
       "description": "You are currently using the legacy version of the app. To continue receiving support, security updates, and access to the latest features, please migrate to the new version.",
+      "loadApp": "Load App",
+      "submitLegacyInfo": "Submit legacy shop info",
       "migrateButton": "Request migration",
       "learnMore": "Learn More",
+      "learnMoreUrl": "https://fstaging.digitalcoo.com/auth/login",
       "inputfield": {
         "label": "Migration Notes / Instructions:",
         "placeholder": "Provide any requirements, dependencies, or steps needed for a smooth transition (e.g., configuration changes, environment variables, API updates, data migration steps, or testing requirements)."
@@ -562,6 +627,12 @@
       "migrateError": "Failed to submit migration request. Please try again later or contact support for assistance.",
       "upgradeRequested": "Your migration request has been received. Our team will review your request and contact you shortly to assist with the migration process.",
       "upgradeRequestedHeading": "Migration Request Received"
+    },
+    "subscriptionBanner": {
+      "heading": "Manage Your Subscription",
+      "description": "Please keep your subscription plan active to continue using the application.",
+      "viewPricing": "View pricing",
+      "readMore": "Read more"
     }
   },
   "footer": {

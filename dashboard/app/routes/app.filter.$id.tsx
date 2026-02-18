@@ -247,7 +247,7 @@ export default function EditFilterPage() {
       heading={`${t("filterForm.edit.pageTitle")}: ${filter.title}`}
     >
       <s-link slot="breadcrumb-actions" href="/app/filters">
-        Filters
+        {t("filterForm.breadcrumb")}
       </s-link>
 
       <FilterForm
