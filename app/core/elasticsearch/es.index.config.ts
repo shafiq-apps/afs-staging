@@ -380,11 +380,11 @@ export const STATIC_INDEX_CONFIGS: StaticIndexConfig[] = [
         permissions: {
           type: 'object',
           properties: {
-            canViewPayments: { type: 'boolean' },
             canViewSubscriptions: { type: 'boolean' },
+            canManageSubscriptionPlans: { type: 'boolean' },
             canManageShops: { type: 'boolean' },
+            canViewMonitoring: { type: 'boolean' },
             canManageTeam: { type: 'boolean' },
-            canViewDocs: { type: 'boolean' },
           },
         },
         apiKey: { type: 'keyword' },

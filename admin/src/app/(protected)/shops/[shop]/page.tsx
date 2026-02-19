@@ -7,7 +7,6 @@ import { LoadingBar } from '@/components/ui/LoadingBar';
 import { Banner, Button, Checkbox, Select, Stack, Textarea } from '@/components/ui';
 import type { SelectOption } from '@/components/ui';
 import {
-  ArrowLeft,
   ExternalLink,
   Calendar,
   Clock,
@@ -25,7 +24,9 @@ import {
 } from 'lucide-react';
 import Page from '@/components/ui/Page';
 import { Href } from '@/components/ui/LinkComponent';
-import { formatDate, maskString } from '@/lib/string.utils';
+import { formatDate } from '@/lib/string.utils';
+import { useAuth } from '@/components/providers';
+import { hasPermission } from '@/lib/rbac';
 
 const legacyStatusOptions: SelectOption[] = [
   { value: 'PENDING', label: 'PENDING' },
@@ -33,6 +34,7 @@ const legacyStatusOptions: SelectOption[] = [
   { value: 'COMPLETED', label: 'COMPLETED' },
   { value: 'REJECTED', label: 'REJECTED' },
 ];
+const SHOP_ONLINE_WINDOW_MS = 2 * 60 * 1000;
 
 export interface Shop {
   shop: string;
@@ -76,6 +78,7 @@ export interface Shop {
 }
 
 export default function ShopDetailPage() {
+  const { user, isLoading: isAuthLoading } = useAuth();
   const params = useParams();
   const shopDomain = params?.shop as string;
   const [shop, setShop] = useState<Shop | null>(null);
@@ -90,6 +93,7 @@ export default function ShopDetailPage() {
     statusMessage: '',
   });
   const [savingLegacy, setSavingLegacy] = useState(false);
+  const canManageShops = hasPermission(user, 'canManageShops');
 
   const getErrorMessage = (error: unknown, fallback: string) => {
     if (error instanceof Error && error.message) {
@@ -257,6 +261,22 @@ export default function ShopDetailPage() {
     );
   }
 
+  if (isAuthLoading) {
+    return (
+      <Page title=''>
+        <LoadingBar loading={true} />
+      </Page>
+    );
+  }
+
+  if (!canManageShops) {
+    return (
+      <Page title='' backButton={{ label: 'Back to Shops', href: '/shops' }}>
+        <Banner variant='warning'>You do not have permission to access shop details.</Banner>
+      </Page>
+    );
+  }
+
   if (error || !shop) {
     return (
       <Page
@@ -281,6 +301,9 @@ export default function ShopDetailPage() {
   }
 
   const status = getShopStatus(shop);
+  const lastAccessedMs = shop.lastAccessed ? Date.parse(shop.lastAccessed) : Number.NaN;
+  const isRecentlyActive = Number.isFinite(lastAccessedMs) && Date.now() - lastAccessedMs <= SHOP_ONLINE_WINDOW_MS;
+  const isShopOnline = Boolean(shop.isOnline) || isRecentlyActive;
 
   return (
     <Page
@@ -318,7 +341,7 @@ export default function ShopDetailPage() {
             <status.icon className="h-3 w-3" />
             <span>{status.label}</span>
           </span>
-          {shop.isOnline ? (
+          {isShopOnline ? (
             <span className="inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
               <div className="h-2 w-2 bg-blue-500 rounded-full animate-pulse"></div>
               <span>Online</span>

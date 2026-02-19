@@ -1,49 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/jwt.utils';
-import { getUserById, getUserByEmail, getOrCreateUserByEmail, getDefaultPermissions } from '@/lib/user.storage';
+import { requireAuthenticatedUser } from '@/lib/api-auth';
 
 export async function GET(request: NextRequest) {
   try {
-    const token = request.cookies.get('auth_token')?.value;
-
-    if (!token) {
-      return NextResponse.json(
-        { error: 'Not authenticated' },
-        { status: 401 }
-      );
+    const authResult = await requireAuthenticatedUser(request);
+    if (authResult instanceof Response) {
+      return authResult;
     }
 
-    const session = verifyToken(token);
-    if (!session) {
-      return NextResponse.json(
-        { error: 'Invalid or expired token' },
-        { status: 401 }
-      );
-    }
-
-    let user = await getUserById(session.userId);
-
-    // In development/fallback mode the user ID in token can become stale.
-    if (!user && session.email) {
-      user = await getUserByEmail(session.email);
-    }
-
-    // Final fallback: recreate by email so existing login session continues to work.
-    if (!user && session.email) {
-      user = await getOrCreateUserByEmail(session.email);
-    }
-
-    if (!user || !user.isActive) {
-      return NextResponse.json(
-        { error: 'User not found or inactive' },
-        { status: 404 }
-      );
-    }
-
-    // Ensure permissions are set (fallback to defaults if missing)
-    if (!user.permissions) {
-      user.permissions = getDefaultPermissions(user.role);
-    }
+    const { user } = authResult;
 
     return NextResponse.json({
       user: {
@@ -52,6 +17,7 @@ export async function GET(request: NextRequest) {
         name: user.name,
         role: user.role,
         permissions: user.permissions,
+        lastActiveAt: user.lastActiveAt,
       },
     });
   } catch (error) {

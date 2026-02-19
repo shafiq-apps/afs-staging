@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getESClient } from '@/lib/elasticsearch';
 import { SUBSCRIPTIONS_INDEX_NAME } from '@/lib/es.constants';
+import { requirePermission } from '@/lib/api-auth';
 
 interface StoredSubscription {
   id: string;
@@ -23,6 +24,11 @@ type SubscriptionRecord = StoredSubscription & {
 
 export async function GET(request: NextRequest) {
   try {
+    const authResult = await requirePermission(request, 'canViewSubscriptions');
+    if (authResult instanceof Response) {
+      return authResult;
+    }
+
     const esClient = getESClient();
 
     const searchParams = request.nextUrl.searchParams;

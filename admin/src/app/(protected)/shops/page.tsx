@@ -2,13 +2,14 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { LoadingBar } from '@/components/ui/LoadingBar';
-import { ExternalLink, Calendar, Search, Edit } from 'lucide-react';
-import { AlertModal, Button, Checkbox, DataTable, Input, Modal, Select, Stack, Textarea } from '@/components/ui';
+import { AlertModal, Banner, Button, Checkbox, DataTable, Modal, Select, Textarea } from '@/components/ui';
 import type { SelectOption } from '@/components/ui';
 import Page from '@/components/ui/Page';
 import LinkComponent, { Href } from '@/components/ui/LinkComponent';
 import Badge from '@/components/ui/Badge';
 import { formatDate } from '@/lib/string.utils';
+import { useAuth } from '@/components/providers';
+import { hasPermission } from '@/lib/rbac';
 
 type LegacyShopStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED';
 type ShopStatusFilter =
@@ -44,6 +45,7 @@ const legacyStatusOptions: SelectOption[] = [
   { value: 'COMPLETED', label: 'COMPLETED' },
   { value: 'REJECTED', label: 'REJECTED' },
 ] as const;
+const SHOP_ONLINE_WINDOW_MS = 2 * 60 * 1000;
 
 export interface LegacyShop {
   shop: string;
@@ -90,6 +92,7 @@ export interface Shop {
 }
 
 export default function ShopsPage() {
+  const { user, isLoading: isAuthLoading } = useAuth();
   const [shops, setShops] = useState<Shop[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -119,6 +122,8 @@ export default function ShopsPage() {
   useEffect(() => {
     fetchShops();
   }, []);
+
+  const canManageShops = hasPermission(user, 'canManageShops');
 
   const showErrorAlert = (message: string) => {
     setAlertState({
@@ -154,6 +159,23 @@ export default function ShopsPage() {
     if (shop.isDeleted) return { label: 'Deleted', color: 'red' };
     if (shop.installedAt) return { label: 'Active', color: 'green' };
     return { label: 'Unknown', color: 'gray' };
+  };
+
+  const getShopActivity = (shop: Shop): { isOnline: boolean; label: string } => {
+    const lastAccessedMs = shop.lastAccessed ? Date.parse(shop.lastAccessed) : Number.NaN;
+    const isRecentlyActive =
+      Number.isFinite(lastAccessedMs) &&
+      Date.now() - lastAccessedMs <= SHOP_ONLINE_WINDOW_MS;
+
+    if (shop.isOnline || isRecentlyActive) {
+      return { isOnline: true, label: 'Online' };
+    }
+
+    if (shop.lastAccessed) {
+      return { isOnline: false, label: formatDate(shop.lastAccessed) };
+    }
+
+    return { isOnline: false, label: 'Never active' };
   };
 
   const filteredShops = useMemo(() => {
@@ -277,6 +299,22 @@ export default function ShopsPage() {
     );
   }
 
+  if (isAuthLoading) {
+    return (
+      <Page title='Shops'>
+        <LoadingBar loading={true} />
+      </Page>
+    );
+  }
+
+  if (!canManageShops) {
+    return (
+      <Page title='Shops'>
+        <Banner variant='warning'>You do not have permission to access shops.</Banner>
+      </Page>
+    );
+  }
+
   return (
     <Page
       title='Shops'
@@ -293,6 +331,17 @@ export default function ShopsPage() {
         columns={[
           { header: "Shop Domain", key: "shop", render: (item) => (<LinkComponent href={`/shops/${decodeURIComponent(item.shop)}`}>{item.shop}</LinkComponent>) },
           { header: "Status", key: "status", render: (item) => <Badge variant={item.state === "ACTIVE" ? "success" : "info"}>{item.state || "UNKNOWN"}</Badge> },
+          {
+            header: "Activity",
+            key: "lastAccessed",
+            render: (item: Shop) => {
+              const activity = getShopActivity(item);
+              if (activity.isOnline) {
+                return <Badge variant='success'>ONLINE</Badge>;
+              }
+              return <span className="text-sm text-gray-600 dark:text-gray-300">{activity.label}</span>;
+            }
+          },
           { header: "Installed", key: "installedAt", render: (item: Shop) => formatDate(item.installedAt, { month:"short", day:"numeric", year:"numeric" }) },
           { header: "UnInstalled", key: "uninstalledAt", render: (item: Shop) => formatDate(item.uninstalledAt, { month:"short", day:"numeric", year:"numeric" }) },
           {

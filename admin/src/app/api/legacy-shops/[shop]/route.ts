@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getESClient } from '@/lib/elasticsearch';
 import { LEGACY_SHOPS_INDEX_NAME } from '@/lib/es.constants';
 import { authenticatedGraphQLRequest } from '@/lib/app-server-graphql';
+import { requirePermission } from '@/lib/api-auth';
 
 type LegacyShopStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED';
 
@@ -66,6 +67,11 @@ function normalizeStatus(value?: string): LegacyShopStatus | undefined {
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
+    const authResult = await requirePermission(request, 'canManageShops');
+    if (authResult instanceof Response) {
+      return authResult;
+    }
+
     const { shop } = await params;
     const shopDomain = decodeURIComponent(shop);
 
@@ -143,6 +149,11 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
+    const authResult = await requirePermission(request, 'canManageShops');
+    if (authResult instanceof Response) {
+      return authResult;
+    }
+
     const { shop } = await params;
     const shopDomain = decodeURIComponent(shop);
     const body = (await request.json()) as Partial<LegacyShop>;
@@ -208,6 +219,11 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
+    const authResult = await requirePermission(request, 'canManageShops');
+    if (authResult instanceof Response) {
+      return authResult;
+    }
+
     const { shop } = await params;
     const shopDomain = decodeURIComponent(shop);
 

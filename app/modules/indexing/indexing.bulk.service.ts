@@ -28,6 +28,13 @@ import { ensureProductIndex } from '@shared/storefront/index.util';
 import { BestSellerCollectionService } from './indexing.best-seller-collection.service';
 import { PRODUCT_INDEX_NAME } from '@shared/constants/products.constants';
 import { SystemMonitor } from '@core/utils/system-monitor.util';
+import { FiltersRepository } from '@modules/filters/filters.repository';
+import { SearchRepository } from '@modules/search/search.repository';
+import { StorefrontSearchRepository } from '@shared/storefront/repository';
+import { StorefrontSearchService } from '@shared/storefront/service';
+import { ProductFilters } from '@shared/storefront/types';
+import { CreateFilterInput, UpdateFilterInput } from '@shared/filters/types';
+import { SEARCH_INDEX_NAME } from '@shared/constants/es.constant';
 
 const LOGGER = createModuleLogger('ProductBulkIndexer');
 
@@ -82,6 +89,293 @@ export class ProductBulkIndexer {
       indexName: this.indexName,
       hasBestSellerService: !!this.bestSellerCollectionService,
     });
+  }
+
+  private createUniqueHandle(base: string, usedHandles: Set<string>): string {
+    const normalizedBase = base
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+
+    const fallback = normalizedBase || 'option';
+    let handle = fallback;
+    let suffix = 1;
+
+    while (usedHandles.has(handle)) {
+      handle = `${fallback}-${suffix++}`;
+    }
+
+    usedHandles.add(handle);
+    return handle;
+  }
+
+  private buildDefaultFilterOption(input: {
+    handle: string;
+    position: number;
+    label: string;
+    optionType: string;
+    baseOptionType: string;
+    displayType?: string;
+    selectionType?: string;
+    variantOptionKey?: string;
+  }): CreateFilterInput['options'][number] {
+    const optionSettings: NonNullable<CreateFilterInput['options'][number]['optionSettings']> = {
+      baseOptionType: input.baseOptionType,
+      removeSuffix: [],
+      replaceText: [],
+      valueNormalization: {},
+      groupBySimilarValues: false,
+      removePrefix: [],
+      filterByPrefix: [],
+      sortBy: 'COUNT',
+      manualSortedValues: [],
+      groups: [],
+      menus: [],
+      textTransform: 'NONE',
+      paginationType: 'PAGES',
+    };
+
+    if (input.variantOptionKey) {
+      optionSettings.variantOptionKey = input.variantOptionKey;
+    }
+
+    return {
+      handle: input.handle,
+      position: input.position,
+      label: input.label,
+      optionType: input.optionType,
+      displayType: input.displayType || 'CHECKBOX',
+      selectionType: input.selectionType || 'MULTIPLE',
+      allowedOptions: [],
+      collapsed: false,
+      searchable: true,
+      showTooltip: false,
+      tooltipContent: '',
+      showCount: true,
+      showMenu: false,
+      status: 'PUBLISHED',
+      optionSettings,
+    };
+  }
+
+  private buildDefaultFilterInput(storefrontFilters: ProductFilters): CreateFilterInput {
+    const options: CreateFilterInput['options'] = [];
+    const usedHandles = new Set<string>();
+    let position = 0;
+
+    const pushOption = (option: CreateFilterInput['options'][number]) => {
+      options.push({
+        ...option,
+        position: position++,
+      });
+    };
+
+    const hasValues = (values?: Array<{ value: string; count: number }>) =>
+      Array.isArray(values) && values.length > 0;
+
+    const price = storefrontFilters.price;
+    if (
+      price &&
+      typeof price.min === 'number' &&
+      typeof price.max === 'number' &&
+      price.max > price.min
+    ) {
+      pushOption(
+        this.buildDefaultFilterOption({
+          handle: this.createUniqueHandle('price', usedHandles),
+          position,
+          label: 'Price',
+          optionType: 'Price',
+          baseOptionType: 'PRICE',
+          displayType: 'RANGE',
+          selectionType: 'RANGE',
+        })
+      );
+    }
+
+    if (hasValues(storefrontFilters.vendors)) {
+      pushOption(
+        this.buildDefaultFilterOption({
+          handle: this.createUniqueHandle('vendor', usedHandles),
+          position,
+          label: 'Vendor',
+          optionType: 'Vendor',
+          baseOptionType: 'VENDOR',
+        })
+      );
+    }
+
+    if (hasValues(storefrontFilters.productTypes)) {
+      pushOption(
+        this.buildDefaultFilterOption({
+          handle: this.createUniqueHandle('product-type', usedHandles),
+          position,
+          label: 'ProductType',
+          optionType: 'ProductType',
+          baseOptionType: 'PRODUCT_TYPE',
+        })
+      );
+    }
+
+    if (hasValues(storefrontFilters.tags)) {
+      pushOption(
+        this.buildDefaultFilterOption({
+          handle: this.createUniqueHandle('tags', usedHandles),
+          position,
+          label: 'Tags',
+          optionType: 'Tags',
+          baseOptionType: 'TAGS',
+        })
+      );
+    }
+
+    if (hasValues(storefrontFilters.collections)) {
+      pushOption(
+        this.buildDefaultFilterOption({
+          handle: this.createUniqueHandle('collection', usedHandles),
+          position,
+          label: 'Collection',
+          optionType: 'Collection',
+          baseOptionType: 'COLLECTION',
+        })
+      );
+    }
+
+    const variantOptionKeys = Object.keys(storefrontFilters.options || {}).sort((a, b) => a.localeCompare(b));
+    for (const optionKey of variantOptionKeys) {
+      const optionValues = storefrontFilters.options?.[optionKey];
+      if (!hasValues(optionValues)) {
+        continue;
+      }
+
+      pushOption(
+        this.buildDefaultFilterOption({
+          handle: this.createUniqueHandle(optionKey, usedHandles),
+          position,
+          label: optionKey.charAt(0).toUpperCase() + optionKey.slice(1),
+          optionType: optionKey,
+          baseOptionType: 'OPTION',
+          variantOptionKey: optionKey.trim(),
+        })
+      );
+    }
+
+    return {
+      title: 'Default Filter',
+      description: 'Default filter created automatically after product indexing',
+      filterType: 'default',
+      targetScope: 'all',
+      options,
+      status: 'PUBLISHED',
+      deploymentChannel: 'APP',
+      settings: {
+        defaultView: 'grid',
+        filterOrientation: 'vertical',
+        showFilterCount: true,
+        showActiveFilters: true,
+        showResetButton: true,
+        showClearAllButton: true,
+        productDisplay: {
+          gridColumns: 3,
+          showProductCount: true,
+          showSortOptions: true,
+          defaultSort: 'relevance',
+        },
+        pagination: {
+          type: 'PAGES',
+          itemsPerPage: 24,
+          showPageInfo: true,
+          pageInfoFormat: '',
+        },
+      },
+      tags: ['auto-created'],
+    };
+  }
+
+  private normalizeSearchConfigId(shop: string): string {
+    return shop.trim().replace(/[/\*\?"<>|,\s#]/g, '_');
+  }
+
+  private async ensureDefaultSearchConfig(): Promise<void> {
+    const searchConfigId = this.normalizeSearchConfigId(this.shop);
+    let configExists = false;
+
+    try {
+      configExists = await this.esClient.exists({
+        index: SEARCH_INDEX_NAME,
+        id: searchConfigId,
+      });
+    } catch (error: any) {
+      if (error?.statusCode !== 404) {
+        throw error;
+      }
+      configExists = false;
+    }
+
+    if (configExists) {
+      LOGGER.log(`Search config already exists for shop ${this.shop}, skipping default creation`);
+      return;
+    }
+
+    const searchRepo = new SearchRepository(this.esClient);
+    const defaultSearchConfig = await searchRepo.getSearchConfig(this.shop);
+    await searchRepo.updateSearchConfig(this.shop, {
+      fields: defaultSearchConfig.fields,
+    });
+
+    LOGGER.log(`Default search config created for shop ${this.shop}`);
+  }
+
+  private async ensureDefaultFilterAndSearchConfig(): Promise<void> {
+    try {
+      await this.esClient.indices.refresh({ index: this.indexName });
+    } catch (error: any) {
+      LOGGER.warn(`Failed to refresh product index before onboarding defaults for shop ${this.shop}`, {
+        error: error?.message || error,
+      });
+    }
+
+    const filtersRepo = new FiltersRepository(this.esClient);
+    const storefrontService = new StorefrontSearchService(
+      new StorefrontSearchRepository(this.esClient)
+    );
+    const storefrontFilters = await storefrontService.getFilters(this.shop);
+    const defaultFilterInput = this.buildDefaultFilterInput(storefrontFilters);
+    const existingFilters = await filtersRepo.listFilters(this.shop);
+
+    if (existingFilters.total === 0) {
+      LOGGER.log(`No filters found for shop ${this.shop}, creating default filter`);
+      await filtersRepo.createFilter(this.shop, defaultFilterInput);
+      LOGGER.log(`Default filter created successfully for shop ${this.shop}`);
+    } else {
+      const staleDefaultFilter = existingFilters.filters.find((filter) => {
+        const hasNoOptions = !Array.isArray(filter.options) || filter.options.length === 0;
+        const isDefaultTitle = (filter.title || '').trim().toLowerCase() === 'default filter';
+        return hasNoOptions && isDefaultTitle;
+      });
+
+      if (staleDefaultFilter) {
+        const updateInput: UpdateFilterInput = {
+          title: defaultFilterInput.title,
+          description: defaultFilterInput.description,
+          filterType: defaultFilterInput.filterType,
+          targetScope: defaultFilterInput.targetScope,
+          options: defaultFilterInput.options,
+          status: defaultFilterInput.status,
+          deploymentChannel: defaultFilterInput.deploymentChannel,
+          settings: defaultFilterInput.settings,
+          tags: defaultFilterInput.tags,
+        };
+
+        LOGGER.log(`Updating stale default filter for shop ${this.shop}`, { filterId: staleDefaultFilter.id });
+        await filtersRepo.updateFilter(this.shop, staleDefaultFilter.id, updateInput);
+      } else {
+        LOGGER.log(`Filters already exist for shop ${this.shop} (${existingFilters.total}), skipping default filter creation`);
+      }
+    }
+
+    await this.ensureDefaultSearchConfig();
   }
 
   /**
@@ -432,41 +726,16 @@ export class ProductBulkIndexer {
           const finalCheckpoint = this.checkpointService.getCheckpoint();
           appendLog(`Indexer finished successfully. Indexed: ${finalCheckpoint.totalIndexed}, Failed: ${finalCheckpoint.totalFailed}, Deleted: ${deletedCount}`);
           
-          // Create default filter if no filters exist (only on successful completion)
+          // Create default filter + default search config after successful indexing.
+          // This keeps first-install onboarding automatic and idempotent.
           if (finalCheckpoint.status === 'success') {
             try {
-              const { FiltersRepository } = await import('@modules/filters/filters.repository');
-              const filtersRepo = new FiltersRepository(this.esClient);
-              const existingFilters = await filtersRepo.listFilters(this.shop);
-              
-              if (existingFilters.total === 0) {
-                LOGGER.log(`No filters found for shop ${this.shop}, creating default filter`);
-                
-                const defaultFilter = {
-                  title: 'Default Filter',
-                  description: 'Default filter created automatically after product indexing',
-                  targetScope: 'all',
-                  status: 'PUBLISHED',
-                  options: [],
-                  settings: {
-                    defaultView: 'grid',
-                    showFilterCount: true,
-                    showActiveFilters: true,
-                    showProductCount: true,
-                    showSortOptions: true,
-                  },
-                };
-                
-                await filtersRepo.createFilter(this.shop, defaultFilter);
-                LOGGER.log(`Default filter created successfully for shop ${this.shop}`);
-              } else {
-                LOGGER.log(`Filters already exist for shop ${this.shop} (${existingFilters.total}), skipping default filter creation`);
-              }
-            } catch (filterError: any) {
-              LOGGER.warn(`Failed to create default filter for shop ${this.shop}`, {
-                error: filterError?.message || filterError,
+              await this.ensureDefaultFilterAndSearchConfig();
+            } catch (onboardingError: any) {
+              LOGGER.warn(`Failed to apply onboarding defaults for shop ${this.shop}`, {
+                error: onboardingError?.message || onboardingError,
               });
-              // Don't fail the indexing process if filter creation fails
+              // Don't fail the indexing process if onboarding defaults fail
             }
           }
         } catch (error: any) {

@@ -8,7 +8,7 @@ import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { graphqlRequest } from "app/graphql.server";
-import { useTranslation } from "app/utils/translations";
+import { useTranslation, t as translate } from "app/utils/translations";
 
 // Types - Keep in sync with app/shared/search/types.ts
 // Note: Dashboard is a separate app, so we define types locally
@@ -95,7 +95,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           fields: [...DEFAULT_FIELDS],
           createdAt: new Date().toISOString(),
         } as SearchConfig,
-        error: result.errors[0]?.message || "Failed to fetch search configuration",
+        error: result.errors[0]?.message || translate("search.messages.fetchFailed"),
         shop,
       } as SearchPageData;
     }
@@ -142,7 +142,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         fields: [...DEFAULT_FIELDS],
         createdAt: new Date().toISOString(),
       } as SearchConfig,
-      error: error.message || "Failed to fetch search configuration",
+      error: error.message || translate("search.messages.fetchFailed"),
       shop: session?.shop || "",
     } as SearchPageData;
   }
@@ -425,37 +425,37 @@ export default function SearchPage() {
             <s-unordered-list>
               <s-list-item>
                 <s-text tone="auto">
-                  <s-text type="strong">Weight 5 (Maximum):</s-text> {t("search.howItWorks.weight5")}
+                  <s-text type="strong">{t("search.howItWorks.labels.weight5")}</s-text> {t("search.howItWorks.weight5")}
                 </s-text>
               </s-list-item>
               <s-list-item>
                 <s-text tone="auto">
-                  <s-text type="strong">Weight 4 (High):</s-text> {t("search.howItWorks.weight4")}
+                  <s-text type="strong">{t("search.howItWorks.labels.weight4")}</s-text> {t("search.howItWorks.weight4")}
                 </s-text>
               </s-list-item>
               <s-list-item>
                 <s-text tone="auto">
-                  <s-text type="strong">Weight 3 (Medium):</s-text> {t("search.howItWorks.weight3")}
+                  <s-text type="strong">{t("search.howItWorks.labels.weight3")}</s-text> {t("search.howItWorks.weight3")}
                 </s-text>
               </s-list-item>
               <s-list-item>
                 <s-text tone="auto">
-                  <s-text type="strong">Weight 2 (Low):</s-text> {t("search.howItWorks.weight2")}
+                  <s-text type="strong">{t("search.howItWorks.labels.weight2")}</s-text> {t("search.howItWorks.weight2")}
                 </s-text>
               </s-list-item>
               <s-list-item>
                 <s-text tone="auto">
-                  <s-text type="strong">Weight 1 (Very Low):</s-text> {t("search.howItWorks.weight1")}
+                  <s-text type="strong">{t("search.howItWorks.labels.weight1")}</s-text> {t("search.howItWorks.weight1")}
                 </s-text>
               </s-list-item>
               <s-list-item>
                 <s-text tone="auto">
-                  <s-text type="strong">Weight 0 (Disabled):</s-text> {t("search.howItWorks.weight0")}
+                  <s-text type="strong">{t("search.howItWorks.labels.weight0")}</s-text> {t("search.howItWorks.weight0")}
                 </s-text>
               </s-list-item>
             </s-unordered-list>
             <s-text tone="auto">
-              <s-text type="strong">Best Practice:</s-text> {t("search.howItWorks.bestPractice")}
+              <s-text type="strong">{t("search.howItWorks.labels.bestPractice")}</s-text> {t("search.howItWorks.bestPractice")}
             </s-text>
           </s-stack>
       </s-section>

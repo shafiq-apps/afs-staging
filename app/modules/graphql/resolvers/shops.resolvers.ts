@@ -47,6 +47,180 @@ function getShopsRepository(context: GraphQLContext): ShopsRepository {
   return shopsRepo;
 }
 
+type ReindexMutationResult = {
+  success: boolean;
+  message: string;
+};
+
+async function startBackgroundReindex(
+  shop: string,
+  repo: ShopsRepository,
+  context: GraphQLContext,
+  source: 'manual' | 'auto_install' = 'manual'
+): Promise<ReindexMutationResult> {
+  try {
+    if (!shop) {
+      throw new Error('Shop is required');
+    }
+
+    logger.info('Reindex products request received', { shop, source });
+
+    // Verify shop exists and has access token
+    logger.info(`Looking up shop in ES: ${shop}`);
+    const shopData = await repo.getShop(shop);
+
+    if (!shopData) {
+      logger.error(`Shop not found in ES: ${shop}`);
+      return {
+        success: false,
+        message: `Shop not found: ${shop}`
+      };
+    }
+
+    logger.info('Shop found in ES', {
+      shop: shopData.shop,
+      hasAccessToken: !!shopData.accessToken
+    });
+
+    if (!shopData.accessToken) {
+      logger.error(`Shop missing access token: ${shop}`);
+      return {
+        success: false,
+        message: `Shop missing access token: ${shop}`
+      };
+    }
+
+    // Check if indexing is already in progress
+    const esClient = getESClient(context);
+    if (!esClient) {
+      throw new Error('ES client not available in context');
+    }
+
+    const lockService = new IndexingLockService(esClient);
+    const isLocked = await lockService.isLocked(shop);
+
+    if (isLocked) {
+      // Check if the lock is stale (exists but no actual process running)
+      const isStale = await lockService.isLockStale(shop);
+      if (isStale) {
+        logger.warn(`Stale lock detected for shop: ${shop}, releasing and allowing new indexing`);
+        await lockService.releaseLock(shop);
+        // Continue to acquire new lock below
+      } else {
+        logger.warn(`Indexing already in progress for shop: ${shop}`);
+        return {
+          success: false,
+          message: 'Indexing is already in progress for this shop. Please wait for the current indexing to complete.'
+        };
+      }
+    }
+
+    // Try to acquire lock
+    const lockAcquired = await lockService.acquireLock(shop);
+    if (!lockAcquired) {
+      // Double-check if lock is stale before giving up
+      const isStale = await lockService.isLockStale(shop);
+      if (isStale) {
+        logger.warn(`Stale lock detected after failed acquisition for shop: ${shop}, releasing and retrying`);
+        await lockService.releaseLock(shop);
+        const retryAcquired = await lockService.acquireLock(shop);
+        if (!retryAcquired) {
+          logger.warn(`Failed to acquire indexing lock for shop: ${shop} (another process may have started)`);
+          return {
+            success: false,
+            message: 'Indexing is already in progress for this shop. Please wait for the current indexing to complete.'
+          };
+        }
+      } else {
+        logger.warn(`Failed to acquire indexing lock for shop: ${shop} (another process may have started)`);
+        return {
+          success: false,
+          message: 'Indexing is already in progress for this shop. Please wait for the current indexing to complete.'
+        };
+      }
+    }
+
+    // Start indexing in background and return success
+    (async () => {
+      try {
+        logger.info(`Starting background reindex for shop=${shop}`, {
+          shop: shopData.shop,
+          hasToken: !!shopData.accessToken,
+          source,
+        });
+
+        const globalESClient = getGlobalESClient(); // Use global ES client like REST endpoint
+        const productMapping = getProductMapping();
+
+        // Set status to in_progress immediately in checkpoint before starting indexer
+        const checkpointService = new IndexerCheckpointService(globalESClient, shop, 2000);
+
+        // Initialize checkpoint with in_progress status immediately
+        checkpointService.updateCheckpoint({
+          status: 'in_progress',
+          startedAt: new Date().toISOString(),
+          totalIndexed: 0,
+          totalFailed: 0,
+          failedItems: [],
+        });
+        // Force save immediately to make status visible
+        await checkpointService.forceSave();
+
+        logger.info(`Indexing status set to in_progress for shop=${shop}`);
+
+        const deps: BulkIndexerDependencies = {
+          esClient: globalESClient,
+          shopsRepository: repo,
+          esMapping: productMapping, // Pass mapping to filter fields and prevent field limit errors
+        };
+
+        const opts: IndexerOptions = {
+          shop: shop,
+        };
+
+        logger.info('Creating ProductBulkIndexer instance...');
+        const indexer = new ProductBulkIndexer(opts, deps);
+
+        logger.info('Starting indexer.run()...');
+        await indexer.run();
+
+        logger.info(`Background reindex finished successfully for shop=${shop}`);
+      } catch (err: any) {
+        logger.error(`Background reindex error for shop=${shop}`, {
+          error: err?.message || err,
+          stack: err?.stack,
+        });
+      } finally {
+        // Always release the lock when done
+        try {
+          await lockService.releaseLock(shop);
+          logger.info(`Indexing lock released for shop=${shop}`);
+        } catch (releaseError: any) {
+          logger.warn(`Error releasing lock for shop=${shop}`, {
+            error: releaseError?.message || releaseError,
+          });
+        }
+      }
+    })();
+
+    return {
+      success: true,
+      message: source === 'auto_install' ? 'Indexing started automatically after installation' : 'Indexing started'
+    };
+  } catch (error: any) {
+    logger.error('Error starting reindex', {
+      error: error?.message || error,
+      stack: error?.stack,
+      shop,
+      source,
+    });
+    return {
+      success: false,
+      message: error?.message || 'Failed to start indexing'
+    };
+  }
+}
+
 export const shopsResolvers = {
   Query: {
     /**
@@ -261,9 +435,48 @@ export const shopsResolvers = {
 
         const repo = getShopsRepository(context);
 
+        const existingShop = await repo.getShop(input.shop);
+        const isFirstInstall = !existingShop?.installedAt;
+        const isReinstall =
+          !!existingShop &&
+          (
+            existingShop.state === 'UNINSTALLED' ||
+            !!existingShop.uninstalledAt ||
+            !!existingShop.isDeleted
+          );
+
         // ShopsRepository.saveShop handles creation
         const shop = await repo.saveShop(input);
         logger.info('Shop created', { shop: shop?.shop });
+
+        if (isFirstInstall || isReinstall) {
+          const autoReindexResult = await startBackgroundReindex(
+            input.shop,
+            repo,
+            context,
+            'auto_install'
+          );
+
+          if (!autoReindexResult.success) {
+            const alreadyRunning = autoReindexResult.message.toLowerCase().includes('already in progress');
+            if (alreadyRunning) {
+              logger.info('Auto indexing already running', { shop: input.shop });
+            } else {
+              logger.warn('Failed to auto-start indexing after createShop', {
+                shop: input.shop,
+                message: autoReindexResult.message,
+                isFirstInstall,
+                isReinstall,
+              });
+            }
+          } else {
+            logger.info('Auto indexing started after createShop', {
+              shop: input.shop,
+              isFirstInstall,
+              isReinstall,
+            });
+          }
+        }
 
         return shop;
       } catch (error: any) {
@@ -349,156 +562,8 @@ export const shopsResolvers = {
      */
     async reindexProducts(parent: any, args: { shop: string }, context: GraphQLContext) {
       try {
-        const { shop } = args;
-        if (!shop) {
-          throw new Error('Shop is required');
-        }
-
-        logger.info('Reindex products request received', { shop });
-
         const repo = getShopsRepository(context);
-
-        // Verify shop exists and has access token
-        logger.info(`Looking up shop in ES: ${shop}`);
-        const shopData = await repo.getShop(shop);
-
-        if (!shopData) {
-          logger.error(`Shop not found in ES: ${shop}`);
-          return {
-            success: false,
-            message: `Shop not found: ${shop}`
-          };
-        }
-
-        logger.info(`Shop found in ES`, {
-          shop: shopData.shop,
-          hasAccessToken: !!shopData.accessToken
-        });
-
-        if (!shopData.accessToken) {
-          logger.error(`Shop missing access token: ${shop}`);
-          return {
-            success: false,
-            message: `Shop missing access token: ${shop}`
-          };
-        }
-
-        // Check if indexing is already in progress
-        const esClient = getESClient(context);
-        if (!esClient) {
-          throw new Error('ES client not available in context');
-        }
-
-        const lockService = new IndexingLockService(esClient);
-        const isLocked = await lockService.isLocked(shop);
-
-        if (isLocked) {
-          // Check if the lock is stale (exists but no actual process running)
-          const isStale = await lockService.isLockStale(shop);
-          if (isStale) {
-            logger.warn(`Stale lock detected for shop: ${shop}, releasing and allowing new indexing`);
-            await lockService.releaseLock(shop);
-            // Continue to acquire new lock below
-          } else {
-            logger.warn(`Indexing already in progress for shop: ${shop}`);
-            return {
-              success: false,
-              message: `Indexing is already in progress for this shop. Please wait for the current indexing to complete.`
-            };
-          }
-        }
-
-        // Try to acquire lock
-        const lockAcquired = await lockService.acquireLock(shop);
-        if (!lockAcquired) {
-          // Double-check if lock is stale before giving up
-          const isStale = await lockService.isLockStale(shop);
-          if (isStale) {
-            logger.warn(`Stale lock detected after failed acquisition for shop: ${shop}, releasing and retrying`);
-            await lockService.releaseLock(shop);
-            const retryAcquired = await lockService.acquireLock(shop);
-            if (!retryAcquired) {
-              logger.warn(`Failed to acquire indexing lock for shop: ${shop} (another process may have started)`);
-              return {
-                success: false,
-                message: `Indexing is already in progress for this shop. Please wait for the current indexing to complete.`
-              };
-            }
-          } else {
-            logger.warn(`Failed to acquire indexing lock for shop: ${shop} (another process may have started)`);
-            return {
-              success: false,
-              message: `Indexing is already in progress for this shop. Please wait for the current indexing to complete.`
-            };
-          }
-        }
-
-        // Start indexing in background and return success
-        (async () => {
-          try {
-            logger.info(`Starting background reindex for shop=${shop}`, {
-              shop: shopData.shop,
-              hasToken: !!shopData.accessToken,
-            });
-
-            const globalESClient = getGlobalESClient(); // Use global ES client like REST endpoint
-            const productMapping = getProductMapping();
-
-            // Set status to in_progress immediately in checkpoint before starting indexer
-            const checkpointService = new IndexerCheckpointService(globalESClient, shop, 2000);
-
-            // Initialize checkpoint with in_progress status immediately
-            checkpointService.updateCheckpoint({
-              status: 'in_progress',
-              startedAt: new Date().toISOString(),
-              totalIndexed: 0,
-              totalFailed: 0,
-              failedItems: [],
-            });
-            // Force save immediately to make status visible
-            await checkpointService.forceSave();
-
-            logger.info(`Indexing status set to in_progress for shop=${shop}`);
-
-            const deps: BulkIndexerDependencies = {
-              esClient: globalESClient,
-              shopsRepository: repo,
-              esMapping: productMapping, // Pass mapping to filter fields and prevent field limit errors
-            };
-
-            const opts: IndexerOptions = {
-              shop: shop,
-            };
-
-            logger.info('Creating ProductBulkIndexer instance...');
-            const indexer = new ProductBulkIndexer(opts, deps);
-
-            logger.info('Starting indexer.run()...');
-            await indexer.run();
-
-            logger.info(`Background reindex finished successfully for shop=${shop}`);
-          } catch (err: any) {
-            logger.error(`Background reindex error for shop=${shop}`, {
-              error: err?.message || err,
-              stack: err?.stack,
-            });
-          } finally {
-            // Always release the lock when done
-            try {
-              await lockService.releaseLock(shop);
-              logger.info(`Indexing lock released for shop=${shop}`);
-            } catch (releaseError: any) {
-              logger.warn(`Error releasing lock for shop=${shop}`, {
-                error: releaseError?.message || releaseError,
-              });
-            }
-          }
-        })();
-
-        return {
-          success: true,
-          message: 'Indexing started'
-        };
+        return await startBackgroundReindex(args.shop, repo, context, 'manual');
       } catch (error: any) {
         logger.error('Error in reindexProducts resolver', {
           error: error?.message || error,

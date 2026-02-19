@@ -10,6 +10,10 @@ import { extractShopifyDomain } from "app/utils/extract-shopify-domain";
 import { createModuleLogger } from "app/utils/logger";
 
 const logger = createModuleLogger("elasticsearch-session-storage");
+const SHOP_ACTIVITY_TOUCH_WINDOW_MS = Math.max(
+  10_000,
+  Number.parseInt(process.env.SHOP_ACTIVITY_TOUCH_WINDOW_MS || "60000", 10)
+);
 
 /**
  * Convert Shopify Session to shop document format
@@ -27,7 +31,7 @@ function sessionToShopDocument(session: Session): any {
     state: "ACTIVE",
     // Session fields
     sessionId: session.id,
-    isOnline: session.isOnline || false,
+    isOnline: session.isOnline || Boolean(session.onlineAccessInfo?.associated_user?.id),
     scope: session.scope,
     expires: session.expires ? session.expires.toISOString() : null,
     userId: session.onlineAccessInfo?.associated_user?.id?.toString(),
@@ -123,6 +127,53 @@ const localCache = new LocalSessionCache();
  * Implements Shopify SessionStorage interface
 */
 export class ElasticsearchSessionStorage {
+  private shouldSkipActivityTouch(lastAccessed?: string): boolean {
+    if (!lastAccessed) {
+      return false;
+    }
+
+    const lastAccessedMs = Date.parse(lastAccessed);
+    if (!Number.isFinite(lastAccessedMs)) {
+      return false;
+    }
+
+    return Date.now() - lastAccessedMs < SHOP_ACTIVITY_TOUCH_WINDOW_MS;
+  }
+
+  private async touchSessionActivity(shopDomain: string, lastAccessed?: string): Promise<void> {
+    if (!shopDomain || this.shouldSkipActivityTouch(lastAccessed)) {
+      return;
+    }
+
+    const nowIso = new Date().toISOString();
+    const mutation = `
+      mutation TouchShopActivity($domain: String!, $input: UpdateShopInput!) {
+        updateShop(domain: $domain, input: $input) {
+          shop
+          lastAccessed
+          isOnline
+        }
+      }
+    `;
+
+    try {
+      await graphqlRequest(mutation, {
+        domain: shopDomain,
+        input: {
+          lastAccessed: nowIso,
+          updatedAt: nowIso,
+          isOnline: true,
+        },
+        shop: shopDomain,
+      });
+    } catch (error: any) {
+      logger.warn("Failed to touch shop activity", {
+        shop: shopDomain,
+        error: error?.message || error,
+      });
+    }
+  }
+
   /**
    * Store a session
   */
@@ -181,6 +232,8 @@ export class ElasticsearchSessionStorage {
             accessToken
             refreshToken
             scopes
+            lastAccessed
+            updatedAt
             sessionId
             state
             isOnline
@@ -206,6 +259,9 @@ export class ElasticsearchSessionStorage {
         logger.warn('Shop not found', { shop });
         return;
       }
+
+      const normalizedShop = extractShopifyDomain(shop) || shop;
+      await this.touchSessionActivity(normalizedShop, data.shop.lastAccessed);
 
       const session = shopDocumentToSession(data.shop);
 
@@ -274,6 +330,8 @@ export class ElasticsearchSessionStorage {
             accessToken
             refreshToken
             scopes
+            lastAccessed
+            updatedAt
             sessionId
             state
             isOnline
@@ -299,6 +357,9 @@ export class ElasticsearchSessionStorage {
         logger.warn('Shop not found or no active session', { shop });
         return [];
       }
+
+      const normalizedShop = extractShopifyDomain(shop) || shop;
+      await this.touchSessionActivity(normalizedShop, data.shop.lastAccessed);
 
       const session = shopDocumentToSession(data.shop);
 

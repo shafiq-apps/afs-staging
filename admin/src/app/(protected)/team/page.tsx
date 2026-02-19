@@ -2,17 +2,52 @@
 
 import { useState, useEffect } from 'react';
 import { User, UserRole } from '@/types/auth';
-import { Plus, Edit, Trash2, X, Save } from 'lucide-react';
-import { LoadingBar } from '@/components/ui/LoadingBar';
-import { AlertModal, Checkbox, ConfirmModal, Input, Select } from '@/components/ui';
+import { Edit, Trash2 } from 'lucide-react';
+import { AlertModal, Banner, Button, ButtonGroup, Checkbox, ConfirmModal, DataTable, Input, Modal, Select } from '@/components/ui';
 import type { SelectOption } from '@/components/ui';
+import Page from '@/components/ui/Page';
+import Badge from '@/components/ui/Badge';
+import { useAuth } from '@/components/providers';
+import { canAccessTeamManagement, isSuperAdmin } from '@/lib/rbac';
 
 const roleOptions: SelectOption[] = [
   { value: 'employee', label: 'Employee' },
   { value: 'admin', label: 'Admin' },
 ];
+const ONLINE_WINDOW_MS = 2 * 60 * 1000;
+
+function getActivityState(lastActiveAt?: string): { isOnline: boolean; label: string } {
+  if (!lastActiveAt) {
+    return { isOnline: false, label: 'Never active' };
+  }
+
+  const lastSeenAt = Date.parse(lastActiveAt);
+  if (!Number.isFinite(lastSeenAt)) {
+    return { isOnline: false, label: 'Unknown' };
+  }
+
+  const now = Date.now();
+  const diffMs = now - lastSeenAt;
+  if (diffMs <= ONLINE_WINDOW_MS) {
+    return { isOnline: true, label: 'Online' };
+  }
+
+  const diffMinutes = Math.floor(diffMs / 60_000);
+  if (diffMinutes < 60) {
+    return { isOnline: false, label: `${diffMinutes}m ago` };
+  }
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) {
+    return { isOnline: false, label: `${diffHours}h ago` };
+  }
+
+  const diffDays = Math.floor(diffHours / 24);
+  return { isOnline: false, label: `${diffDays}d ago` };
+}
 
 export default function TeamPage() {
+  const { user: currentUser, isLoading: isAuthLoading } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -34,16 +69,26 @@ export default function TeamPage() {
     name: '',
     role: 'employee' as UserRole,
     permissions: {
-      canViewPayments: false,
       canViewSubscriptions: false,
+      canManageSubscriptionPlans: false,
       canManageShops: true,
+      canViewMonitoring: false,
       canManageTeam: false,
-      canViewDocs: true,
     },
   });
+  const canManageTeam = canAccessTeamManagement(currentUser);
+  const actorIsSuperAdmin = isSuperAdmin(currentUser);
+  const selectableRoleOptions = actorIsSuperAdmin
+    ? roleOptions
+    : roleOptions.filter((option) => option.value === 'employee');
 
   useEffect(() => {
-    fetchUsers();
+    void fetchUsers();
+    const intervalId = setInterval(() => {
+      void fetchUsers();
+    }, 30_000);
+
+    return () => clearInterval(intervalId);
   }, []);
 
   const showErrorAlert = (message: string) => {
@@ -123,150 +168,158 @@ export default function TeamPage() {
       name: '',
       role: 'employee',
       permissions: {
-        canViewPayments: false,
         canViewSubscriptions: false,
+        canManageSubscriptionPlans: false,
         canManageShops: true,
+        canViewMonitoring: false,
         canManageTeam: false,
-        canViewDocs: true,
       },
     });
     setEditingUser(null);
   };
 
-  if (loading) {
+  if (isAuthLoading) {
     return (
-      <>
-        <LoadingBar loading={true} />
-        <div className="flex justify-center items-center h-64">
-          <div className="text-gray-500 dark:text-gray-400">Loading team members...</div>
-        </div>
-      </>
+      <Page title='Team Management'>
+        <div>Loading...</div>
+      </Page>
     );
   }
 
+  if (!canManageTeam) {
+    return (
+      <Page title='Team Management'>
+        <Banner variant='warning'>You do not have permission to manage team members.</Banner>
+      </Page>
+    );
+  }
+
+
   return (
-    <>
+    <Page
+      title='Team Management'
+      actions={[
+        {
+          label: "Add Member",
+          onClick: () => {
+            resetForm();
+            setShowAddModal(true);
+          }
+        }
+      ]}
+    >
       <div>
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Team Management</h1>
-          <button
-            onClick={() => {
-              resetForm();
-              setShowAddModal(true);
-            }}
-            className="flex items-center space-x-2 bg-blue-500/90 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors duration-200 shadow-md shadow-blue-500/20 hover:shadow-blue-500/30 cursor-pointer"
-          >
-            <Plus className="h-5 w-5" />
-            <span>Add Member</span>
-          </button>
-        </div>
+        <DataTable
+          pageSize={50}
+          searchable={users.length > 20}
+          loading={loading}
+          data={users}
+          keyExtractor={(item) => item.id + item.email}
+          emptyMessage='no user found'
+          columns={[
+            {
+              header: "Name", key: "name"
+            },
+            {
+              header: "Email", key: "email"
+            },
+            {
+              header: "Role", key: "role", render: (item) => item.role.replace('_', ' ').toUpperCase()
+            },
+            {
+              header: "Status", key: "status", render: (item) => item.isActive ? <Badge variant='success'>ACTIVE</Badge> : <Badge variant='warning'>DISABLED</Badge>
+            },
+            {
+              header: "Activity", key: "lastActiveAt", render: (item) => {
+                const { isOnline, label } = getActivityState(item.lastActiveAt);
+                if (isOnline) {
+                  return <Badge variant='success'>ONLINE</Badge>;
+                }
+                if (label === 'Never active') {
+                  return <Badge variant='default'>NEVER</Badge>;
+                }
+                return (
+                  <span className="text-sm text-gray-600 dark:text-gray-300">
+                    {label}
+                  </span>
+                );
+              }
+            },
+            {
+              header: "Actions", key: "id", render: (item) => (
+                <ButtonGroup>
+                  {
+                    item.role !== 'super_admin' &&
+                    (actorIsSuperAdmin || item.role === 'employee' || item.id === currentUser?.id) && (
+                      <Button
+                        onClick={() => handleEdit(item)}
+                        icon={Edit}
+                        iconOnly
+                        size='sm'
+                      />
+                    )
+                  }
+                  {
+                    item.role !== 'super_admin' &&
+                    item.id !== currentUser?.id &&
+                    (actorIsSuperAdmin || item.role === 'employee') && (
+                      <Button
+                        onClick={() => setConfirmDeleteUserId(item.id)}
+                        icon={Trash2}
+                        iconOnly
+                        size='sm'
+                      />
+                    )
+                  }
+                </ButtonGroup>
+              )
+            }
+          ]}
+        />
 
-        <div className="bg-white dark:bg-slate-800 rounded-lg overflow-hidden border border-gray-200 dark:border-slate-700">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
-            <thead className="bg-gray-50 dark:bg-slate-900">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Name
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Email
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Role
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white dark:bg-slate-800 divide-y divide-gray-200 dark:divide-slate-700">
-              {users.map((user) => (
-                <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-slate-700/50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{user.name}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-500 dark:text-gray-400">{user.email}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300">
-                      {user.role.replace('_', ' ').toUpperCase()}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span
-                      className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        user.isActive
-                          ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300'
-                          : 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300'
-                      }`}
-                    >
-                      {user.isActive ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={() => handleEdit(user)}
-                        className="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 cursor-pointer"
-                      >
-                        <Edit className="h-5 w-5" />
-                      </button>
-                      {user.role !== 'super_admin' && (
-                        <button
-                          onClick={() => setConfirmDeleteUserId(user.id)}
-                          className="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 cursor-pointer"
-                        >
-                          <Trash2 className="h-5 w-5" />
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Modal
+          isOpen={showAddModal}
+          title={editingUser ? 'Edit Team Member' : 'Add Team Member'}
+          onClose={() => {
+            setShowAddModal(false);
+            resetForm();
+          }}
+          actions={[
+            {
+              label: "Cancel",
+              onClick: () => {
+                setShowAddModal(false);
+                resetForm();
+              }
+            },
+            {
+              label: editingUser ? 'Update' : 'Create',
+              type: "submit",
+              variant: "primary",
+              onClick: handleSubmit
+            }
+          ]}
+        >
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <Input
+              label="Name"
+              type="text"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              required
+            />
 
-        {showAddModal && (
-          <div className="fixed inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm flex items-start sm:items-center justify-center overflow-y-auto z-[1000] p-4 sm:py-8">
-            <div className="bg-white dark:bg-slate-800 rounded-lg max-w-2xl w-full border border-gray-200 dark:border-slate-700">
-              <div className="flex justify-between items-center p-6 border-b dark:border-slate-700">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-                  {editingUser ? 'Edit Team Member' : 'Add Team Member'}
-                </h2>
-                <button
-                  onClick={() => {
-                    setShowAddModal(false);
-                    resetForm();
-                  }}
-                  className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer"
-                >
-                  <X className="h-6 w-6" />
-                </button>
-              </div>
+            <Input
+              label="Email"
+              type="email"
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              required
+              disabled={!!editingUser}
+            />
 
-              <form onSubmit={handleSubmit} className="p-6 space-y-6">
-                <Input
-                  label="Name"
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  required
-                />
-
-                <Input
-                  label="Email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  required
-                  disabled={!!editingUser}
-                />
-
+            {
+              editingUser?.role !== "super_admin" && (
                 <Select
                   label="Role"
                   value={formData.role}
@@ -277,14 +330,19 @@ export default function TeamPage() {
                       role,
                       permissions: {
                         ...formData.permissions,
-                        canViewPayments: role !== 'employee',
                         canViewSubscriptions: role !== 'employee',
+                        canManageSubscriptionPlans: role !== 'employee',
+                        canViewMonitoring: role !== 'employee',
                       },
                     });
                   }}
-                  options={roleOptions}
+                  options={selectableRoleOptions}
                 />
+              )
+            }
 
+            {
+              editingUser?.role !== "super_admin" && (
                 <div>
                   <label className="block text-sm font-medium text-white dark:text-gray-300 mb-4">
                     Permissions
@@ -303,34 +361,8 @@ export default function TeamPage() {
                       }
                       label="Manage Shops"
                     />
-                    <Checkbox
-                      checked={formData.permissions.canViewDocs}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          permissions: {
-                            ...formData.permissions,
-                            canViewDocs: e.target.checked,
-                          },
-                        })
-                      }
-                      label="View Docs"
-                    />
                     {formData.role !== 'employee' && (
                       <>
-                        <Checkbox
-                          checked={formData.permissions.canViewPayments}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              permissions: {
-                                ...formData.permissions,
-                                canViewPayments: e.target.checked,
-                              },
-                            })
-                          }
-                          label="View Payments"
-                        />
                         <Checkbox
                           checked={formData.permissions.canViewSubscriptions}
                           onChange={(e) =>
@@ -344,9 +376,35 @@ export default function TeamPage() {
                           }
                           label="View Subscriptions"
                         />
+                        <Checkbox
+                          checked={formData.permissions.canManageSubscriptionPlans}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              permissions: {
+                                ...formData.permissions,
+                                canManageSubscriptionPlans: e.target.checked,
+                              },
+                            })
+                          }
+                          label="Manage Subscription Plans"
+                        />
+                        <Checkbox
+                          checked={formData.permissions.canViewMonitoring}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              permissions: {
+                                ...formData.permissions,
+                                canViewMonitoring: e.target.checked,
+                              },
+                            })
+                          }
+                          label="View Monitoring"
+                        />
                       </>
                     )}
-                    {formData.role === 'admin' && (
+                    {formData.role === 'admin' && actorIsSuperAdmin && (
                       <Checkbox
                         checked={formData.permissions.canManageTeam}
                         onChange={(e) =>
@@ -363,30 +421,12 @@ export default function TeamPage() {
                     )}
                   </div>
                 </div>
+              )
+            }
+          </form>
+        </Modal>
 
-                <div className="flex justify-end space-x-3 pt-4 border-t dark:border-slate-700">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowAddModal(false);
-                      resetForm();
-                    }}
-                    className="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg text-white dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="flex items-center space-x-2 px-4 py-2 bg-blue-500/90 hover:bg-blue-600 text-white rounded-lg transition-colors duration-200 shadow-md shadow-blue-500/20 hover:shadow-blue-500/30 cursor-pointer"
-                  >
-                    <Save className="h-5 w-5" />
-                    <span>{editingUser ? 'Update' : 'Create'}</span>
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
+
       </div>
 
       <ConfirmModal
@@ -411,7 +451,7 @@ export default function TeamPage() {
         message={alertState.message}
         variant={alertState.variant}
       />
-    </>
+    </Page>
   );
 }
 

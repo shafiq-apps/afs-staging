@@ -16,7 +16,8 @@
     "admin": "cd ./admin && npm run dev",
     "admin:build": "cd ./admin && npm run build",
     "generate:keys": "cd ./app && npm run generate:keys",
-    "zip": "cd ./app && npm run zip"
+    "zip:app": "cd ./app && npm run zip",
+    "zip": "bash zip-targz.sh"
   },
   "repository": {
     "type": "git",

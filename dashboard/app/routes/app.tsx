@@ -381,12 +381,12 @@ export default function App() {
               <s-stack direction="inline" alignItems="center" justifyContent="center">
                 <s-button
                   onClick={handleLoadLegacyApp}
-                  accessibilityLabel="Load app"
+                  accessibilityLabel={t("app.legacyshop.loadApp")}
                   type="button"
                   variant="primary"
                   icon="external"
                 >
-                  Load App
+                  {t("app.legacyshop.loadApp")}
                 </s-button>
               </s-stack>
             </div>
@@ -424,7 +424,7 @@ export default function App() {
                           <s-button
                             type="submit"
                             variant="primary"
-                            accessibilityLabel="Submit legacy shop info"
+                            accessibilityLabel={t("app.legacyshop.submitLegacyInfo")}
                             icon="send"
                           >
                             {
@@ -433,7 +433,7 @@ export default function App() {
                           </s-button>
                         </s-stack>
                       </Form>
-                      <s-text color="subdued">{t("app.legacyshop.learnMore")}: <a href="https://fstaging.digitalcoo.com/auth/login" target="_blank" rel="noopener noreferrer">https://fstaging.digitalcoo.com/auth/login</a></s-text>
+                      <s-text color="subdued">{t("app.legacyshop.learnMore")}: <a href={t("app.legacyshop.learnMoreUrl")} target="_blank" rel="noopener noreferrer">{t("app.legacyshop.learnMoreUrl")}</a></s-text>
                     </s-stack>
                   </s-section>
                 </>
@@ -461,34 +461,40 @@ export default function App() {
         shopData={effectiveShopData}
         isLoading={!effectiveShopData}
       >
-        <AppNavBar hasActiveShopifySubscription={hasActiveShopifySubscription} />
-        {
-          !hasActiveShopifySubscription && (
-            <s-page>
-              <div style={{ marginBottom: 16 }}>
-                <s-banner heading="Manage Your Subscription" tone="warning" dismissible>
-                  Please keep your subscription plan active to continue using the application.
-                  <s-button
-                    slot="secondary-actions"
-                    variant="secondary"
-                    href="/app/pricing"
-                  >
-                    View pricing
-                  </s-button>
-                  <s-button
-                    slot="secondary-actions"
-                    variant="secondary"
-                    href="javascript:void(0)"
-                  >
-                    Read more
-                  </s-button>
-                </s-banner>
-              </div>
-            </s-page>
-          )
-        }
-        <Outlet />
-        <AppFooter />
+        <div style={{ minHeight: "100dvh", display: "flex", flexDirection: "column" }}>
+          <main style={{ flex: "1 0 auto" }}>
+            <AppNavBar hasActiveShopifySubscription={hasActiveShopifySubscription} />
+            {
+              !hasActiveShopifySubscription && (
+                <s-page>
+                  <div style={{ marginBottom: 16 }}>
+                    <s-banner heading={t("app.subscriptionBanner.heading")} tone="warning" dismissible>
+                      {t("app.subscriptionBanner.description")}
+                      <s-button
+                        slot="secondary-actions"
+                        variant="secondary"
+                        href="/app/pricing"
+                      >
+                        {t("app.subscriptionBanner.viewPricing")}
+                      </s-button>
+                      <s-button
+                        slot="secondary-actions"
+                        variant="secondary"
+                        href="javascript:void(0)"
+                      >
+                        {t("app.subscriptionBanner.readMore")}
+                      </s-button>
+                    </s-banner>
+                  </div>
+                </s-page>
+              )
+            }
+            <Outlet />
+          </main>
+          <div style={{ flexShrink: 0 }}>
+            <AppFooter />
+          </div>
+        </div>
       </ShopProvider>
     </AppProvider>
   );

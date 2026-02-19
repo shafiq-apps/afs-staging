@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getESClient } from '@/lib/elasticsearch';
+import { requirePermission } from '@/lib/api-auth';
 
 interface NodeStats {
   nodeId: string;
@@ -20,6 +21,11 @@ interface NodeStats {
 
 export async function GET(request: NextRequest) {
   try {
+    const authResult = await requirePermission(request, 'canViewMonitoring');
+    if (authResult instanceof Response) {
+      return authResult;
+    }
+
     const esClient = getESClient();
 
     // Get node stats from Elasticsearch

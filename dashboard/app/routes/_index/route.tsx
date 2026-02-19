@@ -3,6 +3,7 @@ import { redirect, Form, useLoaderData } from "react-router";
 import { useState, useEffect, useRef } from "react";
 
 import { login, authenticate } from "../../shopify.server";
+import { useTranslation } from "app/utils/translations";
 import styles from "./styles.module.css";
 
 type Tag = {
@@ -17,12 +18,12 @@ type Tag = {
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);
-  
+
   // If shop parameter is present, redirect to /app
   if (url.searchParams.get("shop")) {
     throw redirect(`/app?${url.searchParams.toString()}`);
   }
-  
+
   // Check if user is already authenticated
   try {
     const { session } = await authenticate.admin(request);
@@ -39,26 +40,36 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     }
     // If it's not a redirect, user is not authenticated - show login form
   }
-  
+
   return { showForm: Boolean(login) };
 };
 
 export default function App() {
   const { showForm } = useLoaderData<typeof loader>();
+  const { t } = useTranslation();
 
   const [shop, setShop] = useState("");
   const [isValid, setIsValid] = useState(false);
   const [message, setMessage] = useState("");
 
   const [tags, setTags] = useState<Tag[]>(() =>
-    ["Price","Collections","Brand","Rating","Color","Size","Popularity","Advanced Filters & Search","Digitalcoo"]
-      .map(tag => ({
-        tag,
-        top: Math.random() * 80 + 10,
-        left: Math.random() * 80 + 10,
-        duration: 5 + Math.random() * 5,
-        attachedToCursor: false,
-      }))
+    [
+      t("indexLanding.tags.price"),
+      t("indexLanding.tags.collections"),
+      t("indexLanding.tags.brand"),
+      t("indexLanding.tags.rating"),
+      t("indexLanding.tags.color"),
+      t("indexLanding.tags.size"),
+      t("indexLanding.tags.popularity"),
+      t("indexLanding.tags.advancedFiltersSearch"),
+      t("indexLanding.tags.digitalcoo"),
+    ].map(tag => ({
+      tag,
+      top: Math.random() * 80 + 10,
+      left: Math.random() * 80 + 10,
+      duration: 5 + Math.random() * 5,
+      attachedToCursor: false,
+    }))
   );
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -66,17 +77,23 @@ export default function App() {
   // Shopify domain validation
   useEffect(() => {
     const trimmed = shop.trim();
-    if (!trimmed) { setIsValid(false); setMessage(""); return; }
+    if (!trimmed) {
+      setIsValid(false);
+      setMessage("");
+      return;
+    }
+
     const regex = /^[a-z0-9][a-z0-9\-]*\.myshopify\.com$/i;
     if (regex.test(trimmed)) {
-      setIsValid(true); setMessage("Looks good ✅");
+      setIsValid(true);
+      setMessage(t("indexLanding.validation.looksGood"));
     } else {
       setIsValid(false);
       setMessage(!trimmed.includes(".myshopify.com")
-        ? "Shop domain must end with '.myshopify.com'"
-        : "Invalid characters or format in shop domain");
+        ? t("indexLanding.validation.mustEndWithMyShopify")
+        : t("indexLanding.validation.invalidFormat"));
     }
-  }, [shop]);
+  }, [shop, t]);
 
   // Mouse movement to attach nearest tag
   useEffect(() => {
@@ -90,23 +107,26 @@ export default function App() {
       let nearestIndex = -1;
       let nearestDistance = Infinity;
 
-      tags.forEach((t, i) => {
-        const tagX = t.attachedToCursor ? t.leftPx! : (t.left / 100) * rect.width;
-        const tagY = t.attachedToCursor ? t.topPx! : (t.top / 100) * rect.height;
+      tags.forEach((item, i) => {
+        const tagX = item.attachedToCursor ? item.leftPx! : (item.left / 100) * rect.width;
+        const tagY = item.attachedToCursor ? item.topPx! : (item.top / 100) * rect.height;
         const dx = tagX - mouseX;
         const dy = tagY - mouseY;
-        const dist = Math.sqrt(dx*dx + dy*dy);
-        if (dist < nearestDistance) { nearestDistance = dist; nearestIndex = i; }
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < nearestDistance) {
+          nearestDistance = dist;
+          nearestIndex = i;
+        }
       });
 
-      setTags(prev => prev.map((t, i) => {
-        if (i === nearestIndex && nearestDistance < 80) { // attach
-          return { ...t, attachedToCursor: true, topPx: mouseY, leftPx: mouseX };
-        } else if (t.attachedToCursor) { // release
-          return { ...t, attachedToCursor: false, topPx: undefined, leftPx: undefined };
-        } else {
-          return t;
+      setTags(prev => prev.map((item, i) => {
+        if (i === nearestIndex && nearestDistance < 80) {
+          return { ...item, attachedToCursor: true, topPx: mouseY, leftPx: mouseX };
         }
+        if (item.attachedToCursor) {
+          return { ...item, attachedToCursor: false, topPx: undefined, leftPx: undefined };
+        }
+        return item;
       }));
     };
 
@@ -115,9 +135,9 @@ export default function App() {
   }, [tags]);
 
   const footerLinks = [
-    { label: "Support", href: "/support" },
-    { label: "Docs", href: "/docs" },
-    { label: "Privacy Policy", href: "/privacy" },
+    { label: t("indexLanding.footer.support"), href: "/support" },
+    { label: t("indexLanding.footer.docs"), href: "/docs" },
+    { label: t("indexLanding.footer.privacyPolicy"), href: "/privacy" },
   ];
 
   const shopifyAppUrl = "https://apps.shopify.com/advanced-filters-search";
@@ -134,34 +154,34 @@ export default function App() {
       </svg>
 
       {/* Floating Tags */}
-      {tags.map((t, i) => (
+      {tags.map((item, i) => (
         <div
           key={i}
-          className={`${styles.tag} ${t.attachedToCursor ? "attached" : ""}`}
+          className={`${styles.tag} ${item.attachedToCursor ? "attached" : ""}`}
           style={{
-            top: t.attachedToCursor ? `${t.topPx}px` : `${t.top}%`,
-            left: t.attachedToCursor ? `${t.leftPx}px` : `${t.left}%`,
-            animationDuration: `${t.duration}s`,
+            top: item.attachedToCursor ? `${item.topPx}px` : `${item.top}%`,
+            left: item.attachedToCursor ? `${item.leftPx}px` : `${item.left}%`,
+            animationDuration: `${item.duration}s`,
           }}
         >
-          {t.tag}
+          {item.tag}
         </div>
       ))}
 
       {/* Login Card */}
       <div className={styles.card}>
-        <h1 className={styles.heading}>Sign in</h1>
-        <p className={styles.text}>Connect your Shopify store to continue.</p>
+        <h1 className={styles.heading}>{t("indexLanding.heading")}</h1>
+        <p className={styles.text}>{t("indexLanding.description")}</p>
 
         {showForm && (
           <Form className={styles.form} method="post" action="/auth/login">
             <label className={styles.label}>
-              <span>Shop domain</span>
+              <span>{t("indexLanding.shopDomainLabel")}</span>
               <input
                 className={styles.input}
                 type="text"
                 name="shop"
-                placeholder="my-store.myshopify.com"
+                placeholder={t("indexLanding.shopDomainPlaceholder")}
                 value={shop}
                 onChange={e => setShop(e.target.value)}
                 required
@@ -186,20 +206,20 @@ export default function App() {
                 cursor: isValid ? "pointer" : "not-allowed",
               }}
             >
-              Continue
+              {t("indexLanding.continueButton")}
             </button>
           </Form>
         )}
 
         <p style={{ marginTop: "1rem", fontSize: "0.9rem", color: "#374151" }}>
-          Want to install the app?{" "}
+          {t("indexLanding.installPrompt")} {" "}
           <a
             href={shopifyAppUrl}
             target="_blank"
             rel="noopener noreferrer"
             style={{ color: "#dc2626", fontWeight: "600" }}
           >
-            Go to Shopify App Store
+            {t("indexLanding.appStoreLink")}
           </a>
         </p>
       </div>

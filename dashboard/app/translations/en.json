@@ -1,281 +1,28 @@
 {
-  "common": {
-    "save": "Save",
-    "cancel": "Cancel",
-    "delete": "Delete",
-    "edit": "Edit",
-    "remove": "Remove",
-    "add": "Add",
-    "loading": "Loading...",
-    "saving": "Saving...",
-    "success": "Success",
-    "failed": "Failed",
-    "error": "Error",
-    "never": "Never",
-    "unknown": "Unknown"
-  },
-  "home": {
-    "pageTitle": "Home",
-    "overview": {
-      "title": "Overview",
-      "totalFilters": "Total Filters",
-      "published": "Published",
-      "draft": "Draft",
-      "productsIndexed": "Products Indexed"
+  "app": {
+    "legacyshop": {
+      "description": "You are currently using the legacy version of the app. To continue receiving support, security updates, and access to the latest features, please migrate to the new version.",
+      "heading": "Ready to migrate to the new version?",
+      "inputfield": {
+        "label": "Migration Notes / Instructions:",
+        "placeholder": "Provide any requirements, dependencies, or steps needed for a smooth transition (e.g., configuration changes, environment variables, API updates, data migration steps, or testing requirements)."
+      },
+      "learnMore": "Learn More",
+      "learnMoreUrl": "https://fstaging.digitalcoo.com/auth/login",
+      "loadApp": "Load App",
+      "migrateButton": "Request migration",
+      "migrateError": "Failed to submit migration request. Please try again later or contact support for assistance.",
+      "migrateSuccess": "Migration request submitted successfully. Our team will review your request and contact you shortly to assist with the migration process.",
+      "submitLegacyInfo": "Submit legacy shop info",
+      "upgradeRequested": "Your migration request has been received. Our team will review your request and contact you shortly to assist with the migration process.",
+      "upgradeRequestedHeading": "Migration Request Received"
     },
-    "quickActions": {
-      "title": "Quick Actions",
-      "createFilter": {
-        "title": "Create Filter",
-        "description": "Build custom filters to help customers find products quickly.",
-        "button": "Create New Filter",
-        "accessibilityLabel": "Create New Filter"
-      },
-      "manageFilters": {
-        "title": "Manage Filters",
-        "description": "View, edit, and organize all your storefront filters.",
-        "button": "View All Filters"
-      },
-      "productSync": {
-        "title": "Product Sync",
-        "description": "Sync your products to keep filter options up-to-date.",
-        "button": "Sync Products"
-      }
-    },
-    "recentFilters": {
-      "title": "Recent Filters",
-      "noFilters": "No filters yet",
-      "createFirst": "Create Your First Filter",
-      "viewAll": "View All {count} Filters"
-    },
-    "syncStatus": {
-      "title": "Product Sync Status",
-      "status": "Status",
-      "productsIndexed": "Products Indexed",
-      "failed": "Failed",
-      "progress": "Progress",
-      "lastSync": "Last Sync",
-      "button": "Manage Product Sync",
-      "accessibilityLabel": "Manage Product Sync"
-    },
-    "gettingStarted": {
-      "title": "Getting Started",
-      "whatIs": {
-        "title": "What is Advanced Filters & Search?",
-        "description": "This app helps you create powerful, customizable filters for your storefront. Enable customers to find products quickly by filtering by price, color, size, brand, tags, and more. Customize filter display types, organize filter options, and control exactly how filters appear on your storefront."
-      },
-      "quickStart": {
-        "title": "Quick Start Guide",
-        "step1": "Sync your products to index product data for filtering",
-        "step2": "Create your first filter with custom options and settings",
-        "step3": "Configure filter options like price ranges, colors, sizes, and more",
-        "step4": "Publish your filter to make it available on your storefront"
-      },
-      "features": {
-        "title": "Features",
-        "customFilters": {
-          "title": "Custom Filter Options",
-          "description": "Create filters for price, variants, tags, collections, and more"
-        },
-        "flexibleDisplay": {
-          "title": "Flexible Display Types",
-          "description": "Choose from checkboxes, radio buttons, swatches, ranges, and more"
-        },
-        "collectionTargeting": {
-          "title": "Collection Targeting",
-          "description": "Show filters on all collections or specific collections only"
-        },
-        "dragAndDrop": {
-          "title": "Drag & Drop Organization",
-          "description": "Easily reorder filter options to control display priority"
-        }
-      }
-    }
-  },
-  "search": {
-    "pageTitle": "Search",
-    "saveButton": "Save",
-    "searchableFields": {
-      "title": "Searchable Fields",
-      "description": "Configure which fields are searchable and their relative importance (weight). Higher weights mean the field has more influence on search results.",
-      "addFieldPrompt": "Click on a field below to add it to your search configuration",
-      "addButton": "add field",
-      "activeFields": "{count} active search field(s)"
-    },
-    "table": {
-      "fieldName": "Field Name",
-      "weight": "Weight",
-      "actions": "Actions",
-      "removeButton": "Remove",
-      "labelAccessibility": "Weight"
-    },
-    "weights": {
-      "disabled": "Disabled",
-      "veryLow": "Very Low",
-      "low": "Low",
-      "medium": "Medium",
-      "high": "High",
-      "maximum": "Maximum"
-    },
-    "howItWorks": {
-      "title": "How Search Weights Work",
-      "description": "Search weights control how important each field is when matching search queries. Fields with higher weights have more influence on search result rankings and will boost products that match in those fields. The system automatically scales these weights (0-5) to a higher range (0-25) for optimal Elasticsearch performance.",
-      "weight5": "Critical priority fields that should have the strongest influence on search results. Best for Product Title, which is the most important field for matching user queries.",
-      "weight4": "Very important fields like SKU, Variant Display Name, or Barcode that are frequently used in searches and should rank highly.",
-      "weight3": "Important supporting fields such as Tags that provide additional context and help match related products.",
-      "weight2": "Secondary fields like Variant Title that provide supplementary matching but shouldn't override primary fields.",
-      "weight1": "Supporting fields such as Vendor or Product Type that add minimal influence but can help differentiate similar products.",
-      "weight0": "Fields that are not used in search queries. You can remove disabled fields and add them back later if needed.",
-      "bestPractice": "Start with Product Title at maximum weight (5), then adjust other fields based on how important they are for your store. Only active fields (weight 1-5) are used in search queries. The system optimizes performance by using only the top 2 weighted fields for fastest search results."
-    },
-    "messages": {
-      "saved": "Search configuration saved successfully",
-      "fieldExists": "This field is already added",
-      "minOneField": "At least one search field is required",
-      "saveFailed": "Failed to save search configuration"
-    }
-  },
-  "support": {
-    "pageTitle": "Support",
-    "contactUs": {
-      "title": "Contact Us",
-      "description": "Get in touch with our support team for assistance",
-      "phone": {
-        "title": "Phone Support",
-        "description": "Call us for immediate assistance with urgent issues",
-        "label": "Phone"
-      },
-      "email": {
-        "title": "Email Support",
-        "description": "Send us an email and we'll respond within 24 hours",
-        "label": "Email"
-      },
-      "hours": {
-        "title": "Support Hours",
-        "label": "Hours",
-        "line1": "Monday - Friday: 11:00 AM - 8:00 PM EST",
-        "line2": "Saturday: 11:00 AM - 7:00 PM EST",
-        "line3": "Sunday: Closed"
-      }
-    },
-    "documentation": {
-      "title": "Documentation & Resources",
-      "description": "Browse our comprehensive documentation to find answers to common questions",
-      "links": {
-        "link1": {
-          "title": "Getting Started Guide",
-          "url": "https://support.digitalcoo.com/hc/en-us/sections/360007159931-To-Get-Started",
-          "description": "Learn the basics of setting up and using Advanced Filters & Search",
-          "icon": "🚀"
-        },
-        "link2": {
-          "title": "Filter Configuration",
-          "url": "https://support.digitalcoo.com/hc/en-us/sections/360007159931-To-Get-Started",
-          "description": "Detailed guide on creating and customizing filters",
-          "icon": "⚙️"
-        },
-        "link3": {
-          "title": "Troubleshooting",
-          "url": "https://support.digitalcoo.com/hc/en-us/sections/360007159931-To-Get-Started",
-          "description": "Common issues and their solutions",
-          "icon": "🔧"
-        },
-        "link4": {
-          "title": "Video Tutorials",
-          "url": "https://support.digitalcoo.com/hc/en-us/sections/360007159931-To-Get-Started",
-          "description": "Step-by-step video guides",
-          "icon": "🎥"
-        },
-        "link5": {
-          "title": "FAQs",
-          "url": "https://support.digitalcoo.com/hc/en-us/sections/360007159931-To-Get-Started",
-          "description": "Frequently asked questions",
-          "icon": "❓"
-        }
-      }
-    },
-    "form": {
-      "title": "Submit a Support Request",
-      "description": "Fill out the form below and our support team will get back to you as soon as possible",
-      "name": {
-        "label": "Name",
-        "placeholder": "Your name",
-        "required": "Name is required"
-      },
-      "email": {
-        "label": "Email",
-        "placeholder": "your.email@example.com",
-        "required": "Email is required",
-        "invalid": "Please provide a valid email address"
-      },
-      "subject": {
-        "label": "Subject",
-        "placeholder": "Brief summary of your issue",
-        "required": "Subject is required"
-      },
-      "priority": {
-        "label": "Priority",
-        "low": "Low",
-        "medium": "Medium",
-        "high": "High",
-        "urgent": "Urgent"
-      },
-      "message": {
-        "label": "Message",
-        "placeholder": "Please describe your issue in detail. Include any error messages, steps to reproduce, and relevant screenshots.",
-        "required": "Message is required",
-        "minLength": "Message must be at least {min} characters long",
-        "maxLength": "Message must not exceed {max} characters",
-        "characterCount": "{current} / {max} characters",
-        "minWarning": "Minimum {min} characters required"
-      },
-      "submit": "Send Support Request",
-      "submitting": "Sending...",
-      "pleaseWait": "Please wait..."
-    },
-    "messages": {
-      "success": "Your support request has been sent successfully. We'll get back to you soon!",
-      "error": "Failed to send support request. Please try again or email us directly.",
-      "serverDown": "Our support system is currently unavailable. Please try again later or email us directly at {email}",
-      "validationError": "Please fill in all required fields"
-    },
-    "footer": {
-      "note": "If you don't hear back within the expected timeframe, please follow up via email."
-    }
-  },
-  "pricing": {
-    "pageTitle": "Pricing Plans",
-    "description": "Choose a plan that fits your business. Upgrade or cancel anytime.",
-    "heading": "Your store currently has [productsCount] products",
-    "bannerText": "You are subscribed to \"[planName]\"",
-    "pricingCard": {
-      "productLimit": "Up to [productLimit] products",
-      "interval": {
-        "month": "per month",
-        "year": "per year"
-      },
-      "buttonLabel": {
-        "unsupported": "This plan is unsupported",
-        "subscribed": "Already subscribed",
-        "subscribe": "Get started with [planName]"
-      }
-    }
-  },
-  "subscription": {
-    "pageTitle": "Subscriptions",
-    "thankYou": {
-      "pageTitle": "Thank you",
-      "success": {
-        "title": "Subscription successful!",
-        "message": "Your plan has been upgraded."
-      },
-      "error": {
-        "title": "Error",
-        "defaultMessage": "Something went wrong while confirming your subscription.",
-        "shopNotFound": "Shop not found",
-        "missingChargeId": "Missing charge_id",
-        "updateFailed": "Failed to update subscription"
-      }
+    "pageTitle": "DigitalCoo AI Filters & Search",
+    "subscriptionBanner": {
+      "description": "Please keep your subscription plan active to continue using the application.",
+      "heading": "Manage Your Subscription",
+      "readMore": "Read more",
+      "viewPricing": "View pricing"
     }
   },
   "auth": {
@@ -286,49 +33,55 @@
       "submit": "Log in"
     }
   },
+  "common": {
+    "add": "Add",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "error": "Error",
+    "failed": "Failed",
+    "loading": "Loading...",
+    "na": "N/A",
+    "never": "Never",
+    "remove": "Remove",
+    "save": "Save",
+    "saving": "Saving...",
+    "success": "Success",
+    "unknown": "Unknown"
+  },
   "errors": {
-    "generic": "An error occurred",
-    "unableToLoad": "Unable to Load Data",
-    "tryAgain": "Try Again",
     "contactSupport": "Contact Support",
-    "showDetails": "Show Technical Details",
+    "generic": "An error occurred",
     "hideDetails": "Hide Technical Details",
+    "retry": "Retry",
+    "showDetails": "Show Technical Details",
     "technicalDetails": {
-      "error": "Error",
       "endpoint": "Endpoint",
+      "error": "Error",
       "time": "Time"
     },
-    "retry": "Retry"
-  },
-  "filters": {
-    "pageTitle": "Filters",
-    "createFilter": "Create filter",
-    "noFilters": {
-      "title": "No filters yet",
-      "description": "Create custom filters to help customers find products quickly. Set up filters for price, color, size, brand, and more to improve your storefront shopping experience.",
-      "createFirst": "Create your first filter"
-    },
-    "table": {
-      "title": "Title",
-      "status": "Status",
-      "collectionDisplay": "Collection Display",
-      "actions": "Actions",
-      "edit": "Edit",
-      "delete": "Delete"
-    },
-    "deleteModal": {
-      "title": "Delete Filter",
-      "message": "Are you sure you want to delete \"{title}\"? This action cannot be undone.",
-      "confirm": "Delete",
-      "cancel": "Cancel"
-    },
-    "collectionDisplay": {
-      "all": "All Collections",
-      "specific": "{count} Collections",
-      "none": "No Collections"
-    }
+    "tryAgain": "Try Again",
+    "unableToLoad": "Unable to Load Data"
   },
   "filterForm": {
+    "basicInformation": {
+      "statusActive": "Active",
+      "statusInactive": "Inactive",
+      "statusLabel": "Status:",
+      "title": "Basic Information",
+      "titleError": "Filter title is required",
+      "titleLabel": "Title",
+      "titlePlaceholder": "Enter filter title"
+    },
+    "breadcrumb": "Filters",
+    "collectionDisplay": {
+      "all": "All collections",
+      "allowedCollections": "Selected collections:",
+      "question": "Where should this filter be displayed?",
+      "selectCollections": "Select collections",
+      "specific": "Specific collections",
+      "title": "Collection Display"
+    },
     "create": {
       "pageTitle": "Create Filter",
       "saveButton": "Create Filter"
@@ -337,57 +90,89 @@
       "pageTitle": "Edit Filter",
       "saveButton": "Save Filter"
     },
-    "breadcrumb": "Filters",
-    "basicInformation": {
-      "title": "Basic Information",
-      "titleLabel": "Title",
-      "titlePlaceholder": "Enter filter title",
-      "titleError": "Filter title is required",
-      "statusLabel": "Status:",
-      "statusActive": "Active",
-      "statusInactive": "Inactive"
-    },
-    "collectionDisplay": {
-      "title": "Collection Display",
-      "question": "Where should this filter be displayed?",
-      "all": "All collections",
-      "specific": "Specific collections",
-      "selectCollections": "Select collections",
-      "allowedCollections": "Selected collections:"
-    },
     "filterOptions": {
-      "title": "Filter Options",
       "addOption": "Add filter option",
-      "noOptions": "No filter options added yet. Click \"Add filter option\" to start.",
-      "dragIcon": "Drag handle",
-      "showSettings": "Show settings",
-      "hideSettings": "Hide settings",
       "delete": "Delete",
+      "dragIcon": "Drag handle",
+      "hideSettings": "Hide settings",
       "newFilter": "New Filter",
+      "noOptions": "No filter options added yet. Click \"Add filter option\" to start.",
+      "showSettings": "Show settings",
+      "title": "Filter Options",
       "validationError": "At least one filter option must be active."
+    },
+    "generalSettings": {
+      "hideSettings": "Hide settings",
+      "layout": {
+        "defaultView": "Default product view",
+        "filterOrientation": "Filter orientation",
+        "gridColumns": "Grid columns (for grid view)",
+        "gridView": "Grid view",
+        "horizontal": "Horizontal",
+        "listView": "List view",
+        "title": "Layout & Display",
+        "vertical": "Vertical"
+      },
+      "productInfo": {
+        "showActiveFilters": "Show active filters summary",
+        "showFilterCount": "Show product count in filters",
+        "showProductCount": "Show total product count on page",
+        "showSortOptions": "Show sorting options",
+        "title": "Product Information"
+      },
+      "showSettings": "Show settings",
+      "title": "General Settings"
+    },
+    "save": {
+      "error": "Failed to {mode} filter",
+      "saving": "Saving...",
+      "success": "Filter {mode} successfully"
     },
     "settings": {
       "basic": {
-        "title": "Basic Settings",
-        "selectionType": "Selection Type",
         "displayStyle": "Display Style",
         "enableFilter": "Enable this filter",
-        "priceRangeNote": "Price filters use a range slider. Display style is automatically set to \"Range\"."
+        "priceRangeNote": "Price filters use a range slider. Display style is automatically set to \"Range\".",
+        "selectionType": "Selection Type",
+        "title": "Basic Settings"
       },
       "display": {
-        "title": "Display & Behavior",
-        "startCollapsed": "Start collapsed",
         "enableSearch": "Enable search bar",
+        "showProductCount": "Show product count",
         "showTooltip": "Show tooltip",
+        "startCollapsed": "Start collapsed",
+        "title": "Display & Behavior",
         "tooltipContent": "Tooltip content",
-        "tooltipPlaceholder": "Enter tooltip text",
-        "showProductCount": "Show product count"
+        "tooltipPlaceholder": "Enter tooltip text"
+      },
+      "grouping": {
+        "groupSimilar": "Group similar values",
+        "menuTree": "Menu Tree Configuration",
+        "menuTreeDescription": "Organize filter values into a hierarchical menu. Select values to include in the menu tree.",
+        "noValues": "No values available to build a menu tree.",
+        "title": "Value Grouping & Normalization",
+        "valueNormalization": "Value normalization (original:normalized, ...)",
+        "valueNormalizationPlaceholder": "e.g., jacket:Jacket, jackets:Jacket"
+      },
+      "priceRange": {
+        "currentRange": "Current available price range in your store:",
+        "sliderNote": "Customers can drag the slider handles to select their desired price range.",
+        "title": "Price Range Information"
+      },
+      "sorting": {
+        "ascending": "Alphabetical (A-Z)",
+        "countAsc": "Product Count (Low to High)",
+        "countDesc": "Product Count (High to Low)",
+        "descending": "Alphabetical (Z-A)",
+        "manual": "Manual",
+        "manualSortedValues": "Manually sorted values (comma-separated)",
+        "manualSortedValuesPlaceholder": "e.g., Red, Blue, Green",
+        "sortOrder": "Sort order",
+        "title": "Sorting"
       },
       "valueSelection": {
-        "title": "Value Selection & Filtering",
         "availableValues": "Available Values",
         "availableValuesDescription": "Select specific values to include in this filter. If no values are selected, all available values will be used.",
-        "searchValues": "Search values",
         "filterByPrefix": "Filter by prefix (comma-separated)",
         "filterByPrefixPlaceholder": "e.g., winter_, summer_",
         "removePrefix": "Remove prefix (comma-separated)",
@@ -395,159 +180,79 @@
         "removeSuffix": "Remove suffix (comma-separated)",
         "removeSuffixPlaceholder": "e.g., _sale, _new",
         "replaceText": "Replace text (from:to, from:to)",
-        "replaceTextPlaceholder": "e.g., old:new, red:crimson"
-      },
-      "grouping": {
-        "title": "Value Grouping & Normalization",
-        "groupSimilar": "Group similar values",
-        "valueNormalization": "Value normalization (original:normalized, ...)",
-        "valueNormalizationPlaceholder": "e.g., jacket:Jacket, jackets:Jacket",
-        "menuTree": "Menu Tree Configuration",
-        "menuTreeDescription": "Organize filter values into a hierarchical menu. Select values to include in the menu tree.",
-        "noValues": "No values available to build a menu tree."
-      },
-      "sorting": {
-        "title": "Sorting",
-        "sortOrder": "Sort order",
-        "ascending": "Alphabetical (A-Z)",
-        "descending": "Alphabetical (Z-A)",
-        "countDesc": "Product Count (High to Low)",
-        "countAsc": "Product Count (Low to High)",
-        "manual": "Manual",
-        "manualSortedValues": "Manually sorted values (comma-separated)",
-        "manualSortedValuesPlaceholder": "e.g., Red, Blue, Green"
-      },
-      "priceRange": {
-        "title": "Price Range Information",
-        "currentRange": "Current available price range in your store:",
-        "sliderNote": "Customers can drag the slider handles to select their desired price range."
+        "replaceTextPlaceholder": "e.g., old:new, red:crimson",
+        "searchValues": "Search values",
+        "title": "Value Selection & Filtering"
       }
-    },
-    "generalSettings": {
-      "title": "General Settings",
-      "showSettings": "Show settings",
-      "hideSettings": "Hide settings",
-      "layout": {
-        "title": "Layout & Display",
-        "filterOrientation": "Filter orientation",
-        "vertical": "Vertical",
-        "horizontal": "Horizontal",
-        "defaultView": "Default product view",
-        "gridView": "Grid view",
-        "listView": "List view",
-        "gridColumns": "Grid columns (for grid view)"
-      },
-      "productInfo": {
-        "title": "Product Information",
-        "showFilterCount": "Show product count in filters",
-        "showProductCount": "Show total product count on page",
-        "showActiveFilters": "Show active filters summary",
-        "showSortOptions": "Show sorting options"
-      }
-    },
-    "save": {
-      "saving": "Saving...",
-      "success": "Filter {mode} successfully",
-      "error": "Failed to {mode} filter"
     }
   },
-  "indexing": {
-    "pageTitle": "Synchronizations",
-    "syncStatus": {
-      "title": "Sync Status",
-      "status": "Status",
-      "progress": "Progress",
-      "productsIndexed": "Products Indexed",
-      "failed": "Failed",
-      "startedAt": "Started At",
-      "completedAt": "Completed At",
-      "duration": "Duration",
-      "failedItems": "Failed Items",
-      "syncButton": "Sync Products Now",
-      "syncing": "Syncing... {progress}%"
+  "filters": {
+    "collectionDisplay": {
+      "all": "All Collections",
+      "none": "No Collections",
+      "specific": "{count} Collections"
     },
-    "status": {
-      "success": "Success",
-      "failed": "Failed",
-      "inProgress": "In Progress",
-      "notStarted": "Not Started",
-      "unknown": "Unknown"
+    "createFilter": "Create filter",
+    "deleteModal": {
+      "accessibilityLabel": "Delete Modal",
+      "cancel": "Cancel",
+      "confirm": "Delete",
+      "message": "Are you sure you want to delete \"{title}\"? This action cannot be undone.",
+      "title": "Delete Filter"
     },
     "documentation": {
-      "title": "About Product Sync",
-      "whyRequired": {
-        "question": "Why is sync required?",
-        "answer": "Product sync keeps your filter options up-to-date with your store's products. When you add new products, update variants, or change product information, these changes need to be synced so your filters can accurately display available options like colors, sizes, brands, and other attributes."
-      },
-      "howOften": {
-        "question": "How often are changes applied?",
-        "answer": "Product sync runs automatically on a schedule, typically every few hours. When you make changes to your products, they will be reflected in your filters after the next sync completes. You can also manually trigger a sync using the \"Sync Products Now\" button above if you need immediate updates."
-      }
-    },
-    "faq": {
-      "title": "Frequently Asked Questions",
+      "description": "A simple guide for how shoppers use filters and how your settings affect what they see.",
       "items": {
-        "duration": {
-          "question": "How long does a sync take?",
-          "answer": "Sync time depends on the number of products in your store. Typically, it takes a few minutes for stores with hundreds of products, and up to 5-10 minutes for stores with thousands of products."
+        "combineChoices": {
+          "description": "Shoppers can combine filters (for example: Size = M and Color = Black) to narrow results even more. They can also clear filters anytime.",
+          "title": "Using multiple filters"
         },
-        "performance": {
-          "question": "Will syncing affect my store's performance?",
-          "answer": "No, product sync runs in the background and does not impact your store's performance or customer experience. Your storefront remains fully functional during the sync process."
+        "narrowResults": {
+          "description": "When a shopper clicks a filter option, the product list is reduced to matching items only. This helps them find the right product faster.",
+          "title": "How filtering changes products"
         },
-        "failure": {
-          "question": "What happens if a sync fails?",
-          "answer": "If a sync fails, you'll see an error message in the status section. You can try syncing again using the \"Sync Products Now\" button. If the issue persists, check that your products are properly configured and contact support if needed."
+        "publishControl": {
+          "description": "Published filters are visible to shoppers on the storefront. Unpublished filters stay hidden, so you can prepare them before going live.",
+          "title": "Published vs unpublished"
         },
-        "newFilter": {
-          "question": "Do I need to sync after creating a new filter?",
-          "answer": "No, new filters automatically use the existing synced product data. You only need to sync when you've made changes to your products, such as adding new products, updating variants, or modifying product attributes."
+        "scopeControl": {
+          "description": "Set a filter to All Collections to show it everywhere, or choose Specific Collections to show it only on selected category pages.",
+          "title": "Where each filter appears"
         },
-        "automatic": {
-          "question": "Can I schedule automatic syncs?",
-          "answer": "Yes, automatic syncs are enabled by default and run periodically to keep your product data up-to-date. You don't need to configure anything - it happens automatically in the background."
+        "shopperView": {
+          "description": "Filters appear on collection/search pages so customers can quickly find products by things like price, size, color, brand, or tags.",
+          "title": "What shoppers see"
         }
-      }
+      },
+      "title": "How Filters Work On Your Storefront"
     },
     "messages": {
-      "syncStarted": "Reindexing started successfully. Monitoring progress...",
-      "syncCompleted": "Product sync completed successfully!",
-      "syncFailed": "Product sync failed. Check the error details below.",
-      "syncRequestReceived": "Sync request received. Status will update shortly.",
-      "failedToStart": "Failed to start reindexing",
-      "failedToFetch": "Failed to fetch indexing status"
-    }
-  },
-  "templates": {
-    "pageTitle": "Templates"
-  },
-  "app": {
-    "pageTitle": "DigitalCoo AI Filters & Search",
-    "legacyshop": {
-      "heading": "Ready to migrate to the new version?",
-      "description": "You are currently using the legacy version of the app. To continue receiving support, security updates, and access to the latest features, please migrate to the new version.",
-      "migrateButton": "Request migration",
-      "learnMore": "Learn More",
-      "inputfield": {
-        "label": "Migration Notes / Instructions:",
-        "placeholder": "Provide any requirements, dependencies, or steps needed for a smooth transition (e.g., configuration changes, environment variables, API updates, data migration steps, or testing requirements)."
-      },
-      "migrateSuccess": "Migration request submitted successfully. Our team will review your request and contact you shortly to assist with the migration process.",
-      "migrateError": "Failed to submit migration request. Please try again later or contact support for assistance.",
-      "upgradeRequested": "Your migration request has been received. Our team will review your request and contact you shortly to assist with the migration process.",
-      "upgradeRequestedHeading": "Migration Request Received"
+      "deleteFailed": "Failed to delete filter",
+      "deleteSuccess": "Filter deleted successfully",
+      "fetchFailed": "Failed to fetch filters",
+      "shopMissing": "Shop information is missing"
+    },
+    "noFilters": {
+      "createFirst": "Create your first filter",
+      "description": "Create custom filters to help customers find products quickly. Set up filters for price, color, size, brand, and more to improve your storefront shopping experience.",
+      "title": "No filters yet"
+    },
+    "pageTitle": "Filters",
+    "status": {
+      "published": "Published",
+      "unpublished": "Unpublished"
+    },
+    "table": {
+      "actions": "Actions",
+      "collectionDisplay": "Collection Display",
+      "delete": "Delete",
+      "edit": "Edit",
+      "status": "Status",
+      "title": "Title"
     }
   },
   "footer": {
     "links": {
-      "link1": {
-        "label": "Filters",
-        "url": "/app/filters"
-      },
-      "link2": {
-        "label": "Support",
-        "url": "/app/support"
-      },
       "external": {
         "link1": {
           "label": "Documentation",
@@ -557,7 +262,399 @@
           "label": "Help",
           "url": "https://support.digitalcoo.com/hc/en-us/sections/360007159931-To-Get-Started"
         }
+      },
+      "link1": {
+        "label": "Filters",
+        "url": "/app/filters"
+      },
+      "link2": {
+        "label": "Support",
+        "url": "/app/support"
       }
     }
+  },
+  "home": {
+    "gettingStarted": {
+      "features": {
+        "collectionTargeting": {
+          "description": "Show filters on all collections or specific collections only",
+          "title": "Collection Targeting"
+        },
+        "customFilters": {
+          "description": "Create filters for price, variants, tags, collections, and more",
+          "title": "Custom Filter Options"
+        },
+        "dragAndDrop": {
+          "description": "Easily reorder filter options to control display priority",
+          "title": "Drag & Drop Organization"
+        },
+        "flexibleDisplay": {
+          "description": "Choose from checkboxes, radio buttons, swatches, ranges, and more",
+          "title": "Flexible Display Types"
+        },
+        "title": "Features"
+      },
+      "quickStart": {
+        "step1": "Sync your products to index product data for filtering",
+        "step2": "Create your first filter with custom options and settings",
+        "step3": "Configure filter options like price ranges, colors, sizes, and more",
+        "step4": "Publish your filter to make it available on your storefront",
+        "title": "Quick Start Guide"
+      },
+      "title": "Getting Started",
+      "whatIs": {
+        "description": "This app helps you create powerful, customizable filters for your storefront. Enable customers to find products quickly by filtering by price, color, size, brand, tags, and more. Customize filter display types, organize filter options, and control exactly how filters appear on your storefront.",
+        "title": "What is Advanced Filters & Search?"
+      }
+    },
+    "overview": {
+      "draft": "Draft",
+      "productsIndexed": "Products Indexed",
+      "published": "Published",
+      "title": "Overview",
+      "totalFilters": "Total Filters"
+    },
+    "pageTitle": "Home",
+    "quickActions": {
+      "createFilter": {
+        "accessibilityLabel": "Create New Filter",
+        "button": "Create New Filter",
+        "description": "Build custom filters to help customers find products quickly.",
+        "title": "Create Filter"
+      },
+      "manageFilters": {
+        "button": "View All Filters",
+        "description": "View, edit, and organize all your storefront filters.",
+        "title": "Manage Filters"
+      },
+      "productSync": {
+        "button": "Sync Products",
+        "description": "Sync your products to keep filter options up-to-date.",
+        "title": "Product Sync"
+      },
+      "title": "Quick Actions"
+    },
+    "recentFilters": {
+      "createFirst": "Create Your First Filter",
+      "noFilters": "No filters yet",
+      "title": "Recent Filters",
+      "viewAll": "View All {count} Filters"
+    },
+    "syncStatus": {
+      "accessibilityLabel": "Manage Product Sync",
+      "button": "Manage Product Sync",
+      "failed": "Failed",
+      "lastSync": "Last Sync",
+      "productsIndexed": "Products Indexed",
+      "progress": "Progress",
+      "status": "Status",
+      "title": "Product Sync Status"
+    }
+  },
+  "indexLanding": {
+    "appStoreLink": "Go to Shopify App Store",
+    "continueButton": "Continue",
+    "description": "Connect your Shopify store to continue.",
+    "footer": {
+      "docs": "Docs",
+      "privacyPolicy": "Privacy Policy",
+      "support": "Support"
+    },
+    "heading": "Sign in",
+    "installPrompt": "Want to install the app?",
+    "shopDomainLabel": "Shop domain",
+    "shopDomainPlaceholder": "my-store.myshopify.com",
+    "tags": {
+      "advancedFiltersSearch": "Advanced Filters & Search",
+      "brand": "Brand",
+      "collections": "Collections",
+      "color": "Color",
+      "digitalcoo": "Digitalcoo",
+      "popularity": "Popularity",
+      "price": "Price",
+      "rating": "Rating",
+      "size": "Size"
+    },
+    "validation": {
+      "invalidFormat": "Invalid characters or format in shop domain",
+      "looksGood": "Looks good",
+      "mustEndWithMyShopify": "Shop domain must end with '.myshopify.com'"
+    }
+  },
+  "indexing": {
+    "documentation": {
+      "howOften": {
+        "answer": "Product sync runs automatically on a schedule, typically every few hours. When you make changes to your products, they will be reflected in your filters after the next sync completes. You can also manually trigger a sync using the \"Sync Products Now\" button above if you need immediate updates.",
+        "question": "How often are changes applied?"
+      },
+      "title": "About Product Sync",
+      "whyRequired": {
+        "answer": "Product sync keeps your filter options up-to-date with your store's products. When you add new products, update variants, or change product information, these changes need to be synced so your filters can accurately display available options like colors, sizes, brands, and other attributes.",
+        "question": "Why is sync required?"
+      }
+    },
+    "faq": {
+      "items": {
+        "automatic": {
+          "answer": "Yes, automatic syncs are enabled by default and run periodically to keep your product data up-to-date. You don't need to configure anything - it happens automatically in the background.",
+          "question": "Can I schedule automatic syncs?"
+        },
+        "duration": {
+          "answer": "Sync time depends on the number of products in your store. Typically, it takes a few minutes for stores with hundreds of products, and up to 5-10 minutes for stores with thousands of products.",
+          "question": "How long does a sync take?"
+        },
+        "failure": {
+          "answer": "If a sync fails, you'll see an error message in the status section. You can try syncing again using the \"Sync Products Now\" button. If the issue persists, check that your products are properly configured and contact support if needed.",
+          "question": "What happens if a sync fails?"
+        },
+        "newFilter": {
+          "answer": "No, new filters automatically use the existing synced product data. You only need to sync when you've made changes to your products, such as adding new products, updating variants, or modifying product attributes.",
+          "question": "Do I need to sync after creating a new filter?"
+        },
+        "performance": {
+          "answer": "No, product sync runs in the background and does not impact your store's performance or customer experience. Your storefront remains fully functional during the sync process.",
+          "question": "Will syncing affect my store's performance?"
+        }
+      },
+      "title": "Frequently Asked Questions"
+    },
+    "messages": {
+      "failedToFetch": "Failed to fetch indexing status",
+      "failedToStart": "Failed to start reindexing",
+      "syncCompleted": "Product sync completed successfully!",
+      "syncFailed": "Product sync failed. Check the error details below.",
+      "syncRequestReceived": "Sync request received. Status will update shortly.",
+      "syncStarted": "Reindexing started successfully. Monitoring progress..."
+    },
+    "pageTitle": "Synchronizations",
+    "status": {
+      "failed": "Failed",
+      "inProgress": "In Progress",
+      "notStarted": "Not Started",
+      "success": "Success",
+      "unknown": "Unknown"
+    },
+    "syncStatus": {
+      "completedAt": "Completed At",
+      "duration": "Duration",
+      "failed": "Failed",
+      "failedItems": "Failed Items",
+      "productsIndexed": "Products Indexed",
+      "progress": "Progress",
+      "startedAt": "Started At",
+      "status": "Status",
+      "syncButton": "Sync Products Now",
+      "syncing": "Syncing... {progress}%",
+      "title": "Sync Status"
+    },
+    "table": {
+      "error": "Error",
+      "id": "ID",
+      "line": "Line",
+      "retryCount": "Retry Count"
+    }
+  },
+  "pricing": {
+    "bannerText": "You are subscribed to \"[planName]\"",
+    "description": "Choose a plan that fits your business. Upgrade or cancel anytime.",
+    "heading": "Your store currently has [productsCount] products",
+    "pageTitle": "Pricing Plans",
+    "pricingCard": {
+      "badges": {
+        "currentPlan": "Your Plan",
+        "mostPopular": "Most popular"
+      },
+      "buttonLabel": {
+        "subscribe": "Get started with [planName]",
+        "subscribed": "Already subscribed",
+        "unsupported": "This plan is unsupported"
+      },
+      "interval": {
+        "month": "per month",
+        "year": "per year"
+      },
+      "productLimit": "Up to [productLimit] products"
+    }
+  },
+  "search": {
+    "howItWorks": {
+      "bestPractice": "Start with Product Title at maximum weight (5), then adjust other fields based on how important they are for your store. Only active fields (weight 1-5) are used in search queries. The system optimizes performance by using only the top 2 weighted fields for fastest search results.",
+      "description": "Search weights control how important each field is when matching search queries. Fields with higher weights have more influence on search result rankings and will boost products that match in those fields. The system automatically scales these weights (0-5) to a higher range (0-25) for optimal Elasticsearch performance.",
+      "labels": {
+        "bestPractice": "Best Practice:",
+        "weight0": "Weight 0 (Disabled):",
+        "weight1": "Weight 1 (Very Low):",
+        "weight2": "Weight 2 (Low):",
+        "weight3": "Weight 3 (Medium):",
+        "weight4": "Weight 4 (High):",
+        "weight5": "Weight 5 (Maximum):"
+      },
+      "title": "How Search Weights Work",
+      "weight0": "Fields that are not used in search queries. You can remove disabled fields and add them back later if needed.",
+      "weight1": "Supporting fields such as Vendor or Product Type that add minimal influence but can help differentiate similar products.",
+      "weight2": "Secondary fields like Variant Title that provide supplementary matching but shouldn't override primary fields.",
+      "weight3": "Important supporting fields such as Tags that provide additional context and help match related products.",
+      "weight4": "Very important fields like SKU, Variant Display Name, or Barcode that are frequently used in searches and should rank highly.",
+      "weight5": "Critical priority fields that should have the strongest influence on search results. Best for Product Title, which is the most important field for matching user queries."
+    },
+    "messages": {
+      "fetchFailed": "Failed to fetch search configuration",
+      "fieldExists": "This field is already added",
+      "minOneField": "At least one search field is required",
+      "saveFailed": "Failed to save search configuration",
+      "saved": "Search configuration saved successfully"
+    },
+    "pageTitle": "Search",
+    "saveButton": "Save",
+    "searchableFields": {
+      "activeFields": "{count} active search field(s)",
+      "addButton": "add field",
+      "addFieldPrompt": "Click on a field below to add it to your search configuration",
+      "description": "Configure which fields are searchable and their relative importance (weight). Higher weights mean the field has more influence on search results.",
+      "title": "Searchable Fields"
+    },
+    "table": {
+      "actions": "Actions",
+      "fieldName": "Field Name",
+      "labelAccessibility": "Weight",
+      "removeButton": "Remove",
+      "weight": "Weight"
+    },
+    "weights": {
+      "disabled": "Disabled",
+      "high": "High",
+      "low": "Low",
+      "maximum": "Maximum",
+      "medium": "Medium",
+      "veryLow": "Very Low"
+    }
+  },
+  "subscription": {
+    "pageTitle": "Subscriptions",
+    "thankYou": {
+      "error": {
+        "defaultMessage": "Something went wrong while confirming your subscription.",
+        "missingChargeId": "Missing charge_id",
+        "shopNotFound": "Shop not found",
+        "title": "Error",
+        "updateFailed": "Failed to update subscription"
+      },
+      "pageTitle": "Thank you",
+      "success": {
+        "message": "Your plan has been upgraded.",
+        "title": "Subscription successful!"
+      }
+    }
+  },
+  "support": {
+    "contactUs": {
+      "description": "Get in touch with our support team for assistance",
+      "email": {
+        "description": "Send us an email and we'll respond within 24 hours",
+        "label": "Email",
+        "title": "Email Support"
+      },
+      "hours": {
+        "label": "Hours",
+        "line1": "Monday - Friday: 11:00 AM - 8:00 PM EST",
+        "line2": "Saturday: 11:00 AM - 7:00 PM EST",
+        "line3": "Sunday: Closed",
+        "title": "Support Hours"
+      },
+      "phone": {
+        "description": "Call us for immediate assistance with urgent issues",
+        "label": "Phone",
+        "title": "Phone Support"
+      },
+      "title": "Contact Us"
+    },
+    "documentation": {
+      "description": "Browse our comprehensive documentation to find answers to common questions",
+      "links": {
+        "link1": {
+          "description": "Learn the basics of setting up and using Advanced Filters & Search",
+          "icon": "🚀",
+          "title": "Getting Started Guide",
+          "url": "https://support.digitalcoo.com/hc/en-us/sections/360007159931-To-Get-Started"
+        },
+        "link2": {
+          "description": "Detailed guide on creating and customizing filters",
+          "icon": "⚙️",
+          "title": "Filter Configuration",
+          "url": "https://support.digitalcoo.com/hc/en-us/sections/360007159931-To-Get-Started"
+        },
+        "link3": {
+          "description": "Common issues and their solutions",
+          "icon": "🔧",
+          "title": "Troubleshooting",
+          "url": "https://support.digitalcoo.com/hc/en-us/sections/360007159931-To-Get-Started"
+        },
+        "link4": {
+          "description": "Step-by-step video guides",
+          "icon": "🎥",
+          "title": "Video Tutorials",
+          "url": "https://support.digitalcoo.com/hc/en-us/sections/360007159931-To-Get-Started"
+        },
+        "link5": {
+          "description": "Frequently asked questions",
+          "icon": "❓",
+          "title": "FAQs",
+          "url": "https://support.digitalcoo.com/hc/en-us/sections/360007159931-To-Get-Started"
+        }
+      },
+      "title": "Documentation & Resources"
+    },
+    "footer": {
+      "note": "If you don't hear back within the expected timeframe, please follow up via email."
+    },
+    "form": {
+      "description": "Fill out the form below and our support team will get back to you as soon as possible",
+      "email": {
+        "invalid": "Please provide a valid email address",
+        "label": "Email",
+        "placeholder": "your.email@example.com",
+        "required": "Email is required"
+      },
+      "message": {
+        "characterCount": "{current} / {max} characters",
+        "label": "Message",
+        "maxLength": "Message must not exceed {max} characters",
+        "minLength": "Message must be at least {min} characters long",
+        "minWarning": "Minimum {min} characters required",
+        "placeholder": "Please describe your issue in detail. Include any error messages, steps to reproduce, and relevant screenshots.",
+        "required": "Message is required"
+      },
+      "name": {
+        "label": "Name",
+        "placeholder": "Your name",
+        "required": "Name is required"
+      },
+      "pleaseWait": "Please wait...",
+      "priority": {
+        "high": "High",
+        "label": "Priority",
+        "low": "Low",
+        "medium": "Medium",
+        "urgent": "Urgent"
+      },
+      "subject": {
+        "label": "Subject",
+        "placeholder": "Brief summary of your issue",
+        "required": "Subject is required"
+      },
+      "submit": "Send Support Request",
+      "submitting": "Sending...",
+      "title": "Submit a Support Request"
+    },
+    "messages": {
+      "error": "Failed to send support request. Please try again or email us directly.",
+      "serverDown": "Our support system is currently unavailable. Please try again later or email us directly at {email}",
+      "success": "Your support request has been sent successfully. We'll get back to you soon!",
+      "validationError": "Please fill in all required fields"
+    },
+    "pageTitle": "Support"
+  },
+  "templates": {
+    "pageTitle": "Templates"
   }
 }

@@ -3,6 +3,7 @@ import { getESClient } from '@/lib/elasticsearch';
 import { SUBSCRIPTION_PLANS_INDEX_NAME } from '@/lib/es.constants';
 import { CreateSubscriptionPlanInput } from '../route';
 import { authenticatedGraphQLRequest } from '@/lib/app-server-graphql';
+import { requirePermission } from '@/lib/api-auth';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -131,6 +132,11 @@ export async function GET(
   { params }: RouteParams
 ) {
   try {
+    const authResult = await requirePermission(request, 'canManageSubscriptionPlans');
+    if (authResult instanceof Response) {
+      return authResult;
+    }
+
     const { id } = await params;
 
     // Primary source: app GraphQL subscriptionPlan query.
@@ -205,6 +211,11 @@ export async function PATCH(
   { params }: RouteParams
 ) {
   try {
+    const authResult = await requirePermission(request, 'canManageSubscriptionPlans');
+    if (authResult instanceof Response) {
+      return authResult;
+    }
+
     const { id } = await params;
     const esClient = getESClient();
     const rawUpdates: unknown = await request.json();
@@ -367,6 +378,11 @@ export async function DELETE(
   { params }: RouteParams
 ) {
   try {
+    const authResult = await requirePermission(request, 'canManageSubscriptionPlans');
+    if (authResult instanceof Response) {
+      return authResult;
+    }
+
     const { id } = await params;
 
     // Primary source: app GraphQL deleteSubscriptionPlan mutation.

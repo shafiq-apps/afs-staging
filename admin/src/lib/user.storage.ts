@@ -12,6 +12,7 @@ type AdminUserDocument = {
   isActive?: boolean;
   createdAt?: string;
   updatedAt?: string;
+  lastActiveAt?: string;
 };
 
 const SUPER_ADMIN_EMAILS = new Set(
@@ -22,6 +23,10 @@ const SUPER_ADMIN_EMAILS = new Set(
 );
 
 let ensureIndexPromise: Promise<void> | null = null;
+const USER_ACTIVITY_TOUCH_WINDOW_MS = Math.max(
+  5_000,
+  Number.parseInt(process.env.USER_ACTIVITY_TOUCH_WINDOW_MS || '60000', 10)
+);
 
 async function getClient() {
   await initializeES();
@@ -58,16 +63,17 @@ async function ensureAdminUsersIndex(): Promise<void> {
           permissions: {
             type: 'object',
             properties: {
-              canViewPayments: { type: 'boolean' },
               canViewSubscriptions: { type: 'boolean' },
+              canManageSubscriptionPlans: { type: 'boolean' },
               canManageShops: { type: 'boolean' },
+              canViewMonitoring: { type: 'boolean' },
               canManageTeam: { type: 'boolean' },
-              canViewDocs: { type: 'boolean' },
             },
           },
           isActive: { type: 'boolean' },
           createdAt: { type: 'date' },
           updatedAt: { type: 'date' },
+          lastActiveAt: { type: 'date' },
         },
       },
       settings: {
@@ -100,37 +106,56 @@ export function getDefaultPermissions(role: UserRole): UserPermissions {
   switch (role) {
     case 'super_admin':
       return {
-        canViewPayments: true,
         canViewSubscriptions: true,
+        canManageSubscriptionPlans: true,
         canManageShops: true,
+        canViewMonitoring: true,
         canManageTeam: true,
-        canViewDocs: true,
       };
     case 'admin':
       return {
-        canViewPayments: true,
         canViewSubscriptions: true,
+        canManageSubscriptionPlans: true,
         canManageShops: true,
+        canViewMonitoring: true,
         canManageTeam: false,
-        canViewDocs: true,
       };
     case 'employee':
       return {
-        canViewPayments: false,
         canViewSubscriptions: false,
+        canManageSubscriptionPlans: false,
         canManageShops: true,
+        canViewMonitoring: false,
         canManageTeam: false,
-        canViewDocs: true,
       };
     default:
       return {
-        canViewPayments: false,
         canViewSubscriptions: false,
+        canManageSubscriptionPlans: false,
         canManageShops: false,
+        canViewMonitoring: false,
         canManageTeam: false,
-        canViewDocs: false,
       };
   }
+}
+
+function normalizePermissions(role: UserRole, permissions?: Partial<UserPermissions>): UserPermissions {
+  const defaults = getDefaultPermissions(role);
+  const input = permissions || {};
+
+  const merged = {
+    ...defaults,
+    ...input,
+  };
+
+  if (role === 'employee') {
+    merged.canViewSubscriptions = false;
+    merged.canManageSubscriptionPlans = false;
+    merged.canViewMonitoring = false;
+    merged.canManageTeam = false;
+  }
+
+  return merged;
 }
 
 function determineRoleFromEmail(email: string): UserRole {
@@ -144,10 +169,7 @@ function determineRoleFromEmail(email: string): UserRole {
 function toUser(source: Partial<AdminUserDocument>, fallbackId: string): User {
   const role = isUserRole(source.role) ? source.role : 'employee';
   const email = (source.email || '').trim().toLowerCase();
-  const permissions = {
-    ...getDefaultPermissions(role),
-    ...(source.permissions || {}),
-  };
+  const permissions = normalizePermissions(role, source.permissions);
   const nowIso = new Date().toISOString();
 
   return {
@@ -159,6 +181,7 @@ function toUser(source: Partial<AdminUserDocument>, fallbackId: string): User {
     isActive: source.isActive ?? true,
     createdAt: source.createdAt || nowIso,
     updatedAt: source.updatedAt || nowIso,
+    lastActiveAt: source.lastActiveAt,
   };
 }
 
@@ -209,7 +232,9 @@ async function resolveUserDocumentById(
   };
 }
 
-export async function getUserByEmail(email: string): Promise<User | null> {
+async function resolveUserDocumentByEmail(
+  email: string
+): Promise<{ docId: string; user: User } | null> {
   const normalizedEmail = email.trim().toLowerCase();
   const client = await getClient();
 
@@ -230,7 +255,15 @@ export async function getUserByEmail(email: string): Promise<User | null> {
     return null;
   }
 
-  return toUser(hit._source, hit._id ?? hit._source.id);
+  return {
+    docId: hit._id ?? hit._source.id,
+    user: toUser(hit._source, hit._id ?? hit._source.id),
+  };
+}
+
+export async function getUserByEmail(email: string): Promise<User | null> {
+  const record = await resolveUserDocumentByEmail(email);
+  return record?.user ?? null;
 }
 
 export async function getUserById(id: string): Promise<User | null> {
@@ -256,6 +289,7 @@ export async function getOrCreateUserByEmail(email: string): Promise<User> {
     isActive: true,
     createdAt: nowIso,
     updatedAt: nowIso,
+    lastActiveAt: nowIso,
   };
 
   const client = await getClient();
@@ -317,6 +351,7 @@ export async function createUser(
     email: normalizedEmail,
     createdAt: nowIso,
     updatedAt: nowIso,
+    lastActiveAt: nowIso,
   };
 
   const client = await getClient();
@@ -339,11 +374,13 @@ export async function updateUser(id: string, updates: Partial<User>): Promise<Us
   const current = record.user;
   const role = updates.role ?? current.role;
   const normalizedEmail = (updates.email ?? current.email).trim().toLowerCase();
-  const mergedPermissions = {
-    ...getDefaultPermissions(role),
-    ...current.permissions,
-    ...(updates.permissions || {}),
-  };
+  const currentPermissions = normalizePermissions(role, current.permissions);
+  const mergedPermissions = updates.permissions
+    ? normalizePermissions(role, {
+        ...currentPermissions,
+        ...updates.permissions,
+      })
+    : currentPermissions;
 
   const updatedUser: User = {
     ...current,
@@ -364,6 +401,54 @@ export async function updateUser(id: string, updates: Partial<User>): Promise<Us
   });
 
   return updatedUser;
+}
+
+function shouldSkipActivityTouch(lastActiveAt?: string): boolean {
+  if (!lastActiveAt) {
+    return false;
+  }
+
+  const lastActiveMs = Date.parse(lastActiveAt);
+  if (!Number.isFinite(lastActiveMs)) {
+    return false;
+  }
+
+  return Date.now() - lastActiveMs < USER_ACTIVITY_TOUCH_WINDOW_MS;
+}
+
+export async function touchUserActivity(input: {
+  userId?: string;
+  email?: string;
+  force?: boolean;
+}): Promise<User | null> {
+  const record = input.userId
+    ? await resolveUserDocumentById(input.userId)
+    : input.email
+      ? await resolveUserDocumentByEmail(input.email)
+      : null;
+
+  if (!record) {
+    return null;
+  }
+
+  if (!input.force && shouldSkipActivityTouch(record.user.lastActiveAt)) {
+    return record.user;
+  }
+
+  const lastActiveAt = new Date().toISOString();
+  const client = await getClient();
+
+  await client.update({
+    index: ADMIN_USERS_INDEX_NAME,
+    id: record.docId,
+    doc: { lastActiveAt },
+    refresh: false,
+  });
+
+  return {
+    ...record.user,
+    lastActiveAt,
+  };
 }
 
 export async function deleteUser(id: string): Promise<boolean> {

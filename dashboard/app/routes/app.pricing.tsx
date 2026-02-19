@@ -184,11 +184,11 @@ export default function PricingPage() {
                         <s-stack direction="inline" gap="small" alignItems="center">
                           <s-heading>{plan.name}</s-heading>
                           {isPopular && !isCurrent && (
-                            <s-badge tone="success">Most popular</s-badge>
+                            <s-badge tone="success">{t("pricing.pricingCard.badges.mostPopular")}</s-badge>
                           )}
                           {
                             isCurrent && (
-                              <s-badge tone="success">Your Plan</s-badge>
+                              <s-badge tone="success">{t("pricing.pricingCard.badges.currentPlan")}</s-badge>
                             )
                           }
                         </s-stack>
@@ -235,7 +235,11 @@ export default function PricingPage() {
                         onClick={() => handleSubscribePlan(plan.id)}
                         disabled={fetcher.state !== "idle" || isCurrent || ineligiblePlan}
                       >
-                        {ineligiblePlan ? 'This plan is unsupported' : isCurrent ? 'Already subscribed' : t("pricing.pricingCard.buttonLabel.subscribe").replace("[planName]", plan.name)}
+                        {ineligiblePlan
+                          ? t("pricing.pricingCard.buttonLabel.unsupported")
+                          : isCurrent
+                            ? t("pricing.pricingCard.buttonLabel.subscribed")
+                            : t("pricing.pricingCard.buttonLabel.subscribe").replace("[planName]", plan.name)}
                       </s-button>
                     </s-stack>
                   </s-box>

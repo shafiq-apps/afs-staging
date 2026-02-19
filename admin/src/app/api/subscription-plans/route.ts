@@ -3,6 +3,7 @@ import { getESClient } from '@/lib/elasticsearch';
 import { SUBSCRIPTION_PLANS_INDEX_NAME } from '@/lib/es.constants';
 import { v4 as uuidv4 } from 'uuid';
 import { authenticatedGraphQLRequest } from '@/lib/app-server-graphql';
+import { requirePermission } from '@/lib/api-auth';
 
 export interface SubscriptionPlan {
   id: string;
@@ -60,6 +61,11 @@ const SUBSCRIPTION_PLAN_FIELDS = `
 // GET - List all subscription plans
 export async function GET(request: NextRequest) {
   try {
+    const authResult = await requirePermission(request, 'canManageSubscriptionPlans');
+    if (authResult instanceof Response) {
+      return authResult;
+    }
+
     const searchParams = request.nextUrl.searchParams;
     const limit = Math.max(1, parseInt(searchParams.get('limit') || '100', 10));
     const offset = Math.max(0, parseInt(searchParams.get('offset') || '0', 10));
@@ -129,6 +135,11 @@ export async function GET(request: NextRequest) {
 // POST - Create a new subscription plan
 export async function POST(request: NextRequest) {
   try {
+    const authResult = await requirePermission(request, 'canManageSubscriptionPlans');
+    if (authResult instanceof Response) {
+      return authResult;
+    }
+
     const body: CreateSubscriptionPlanInput = await request.json();
 
     // Validate required fields

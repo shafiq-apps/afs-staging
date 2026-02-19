@@ -1,11 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { AlertModal, Banner, Button, ButtonGroup, Checkbox, ConfirmModal, DataTable, Input, Modal, Select, Textarea } from '@/components/ui';
-import type { SelectOption } from '@/components/ui';
+import { Banner, Button, ButtonGroup, Checkbox, ConfirmModal, DataTable, Input, Modal, Select, Textarea } from '@/components/ui';
+import type { ButtonVariant, SelectOption } from '@/components/ui';
 import Page from '@/components/ui/Page';
 import LinkComponent from '@/components/ui/LinkComponent';
 import Badge from '@/components/ui/Badge';
+import { useAuth } from '@/components/providers';
+import { hasPermission } from '@/lib/rbac';
 
 type LegacyShopStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED';
 
@@ -33,6 +35,7 @@ const legacyStatusOptions: SelectOption[] = [
 ];
 
 export default function LegacyShopsPage() {
+  const { user, isLoading: isAuthLoading } = useAuth();
   const [legacyShops, setLegacyShops] = useState<LegacyShopRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -42,6 +45,7 @@ export default function LegacyShopsPage() {
   const [editingShop, setEditingShop] = useState<string | null>(null);
   const [deletingShop, setDeleteShop] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const canManageShops = hasPermission(user, 'canManageShops');
 
   const fetchLegacyShops = async (): Promise<void> => {
     try {
@@ -194,6 +198,22 @@ export default function LegacyShopsPage() {
     }
   };
 
+  if (isAuthLoading) {
+    return (
+      <Page title='Legacy Shops'>
+        <div>Loading...</div>
+      </Page>
+    );
+  }
+
+  if (!canManageShops) {
+    return (
+      <Page title='Legacy Shops'>
+        <Banner variant='warning'>You do not have permission to access legacy shops.</Banner>
+      </Page>
+    );
+  }
+
   return (
     <Page
       title="Legacy Shops"
@@ -273,9 +293,12 @@ export default function LegacyShopsPage() {
           ...(Boolean(editingShop) ? [
             {
               label: 'Delete',
-              onClick: () => { setDeleteShop(editingShop), closeModal() },
+              onClick: () => {
+                setDeleteShop(editingShop);
+                closeModal()
+              },
               disabled: saving,
-              variant: 'danger' as any
+              variant: 'danger' as ButtonVariant
             }
           ] : []),
           {

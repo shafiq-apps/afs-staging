@@ -105,6 +105,7 @@ const flipWebSocketProtocol = (url: string): string | undefined => {
 const getWebSocketUrls = (): string[] => {
     const urls: string[] = [];
     const seen = new Set<string>();
+    const enableApiWsFallback = process.env.NEXT_PUBLIC_MONITOR_API_WS_FALLBACK === 'true';
 
     const addUrl = (candidate?: string): void => {
         if (!candidate || !candidate.trim()) {
@@ -129,7 +130,9 @@ const getWebSocketUrls = (): string[] => {
     if (typeof window !== 'undefined') {
         const wsProtocol = getDefaultWebSocketProtocol();
         addUrl(`${wsProtocol}//${window.location.hostname}:3001`);
-        addUrl(`${wsProtocol}//${window.location.host}/api/monitor/websocket`);
+        if (enableApiWsFallback) {
+            addUrl(`${wsProtocol}//${window.location.host}/api/monitor/websocket`);
+        }
     }
 
     if (urls.length === 0) {
@@ -254,6 +257,7 @@ export default function ESMonitoring() {
     const connectAttemptRef = useRef(0);
     const manualDisconnectRef = useRef(false);
     const fallbackPollTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const lastSuccessfulWsTokenRef = useRef<string | null>(null);
     const reconnectFnRef = useRef<() => void>(() => undefined);
     const maxReconnectAttempts = 10;
     const reconnectDelayMs = 3000;
@@ -314,7 +318,8 @@ export default function ESMonitoring() {
 
         const connectWithFallbacks = async (): Promise<void> => {
             const wsUrls = getWebSocketUrls();
-            const wsToken = await fetchWebSocketToken();
+            const fetchedToken = await fetchWebSocketToken();
+            const wsToken = fetchedToken || lastSuccessfulWsTokenRef.current || undefined;
             let lastError = 'WebSocket connection error';
 
             for (const wsUrl of wsUrls) {
@@ -368,6 +373,9 @@ export default function ESMonitoring() {
                         setIsConnecting(false);
                         setError(null);
                         reconnectAttemptsRef.current = 0;
+                        if (fetchedToken) {
+                            lastSuccessfulWsTokenRef.current = fetchedToken;
+                        }
 
                         console.log('[ESMonitoring] WebSocket connected:', wsUrl);
 
