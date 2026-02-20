@@ -3,8 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { RefreshCw } from 'lucide-react';
-import { useAuth } from '@/components/providers';
-import { hasPermission } from '@/lib/rbac';
 import { Banner, Button, Card } from '@/components/ui';
 import { formatDate } from '@/lib/string.utils';
 
@@ -92,7 +90,6 @@ function formatMoney(amount: number | null, currencyCode: string | null): string
 }
 
 export default function DashboardPage() {
-  const { user, isLoading } = useAuth();
   const [overview, setOverview] = useState<DashboardOverviewPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

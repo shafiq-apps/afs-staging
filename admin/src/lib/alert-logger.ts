@@ -188,7 +188,7 @@ class AlertLogger {
     const start = new Date(startDate);
     const end = new Date(endDate);
 
-    let current = new Date(start);
+    const current = new Date(start);
     while (current <= end) {
       const dateString = current.toISOString().split('T')[0];
       alerts.push(...this.getAlertsByDate(dateString));

@@ -26,10 +26,10 @@ export async function sendEmail(options: EmailOptions): Promise<void> {
 
   // Log email configuration (without exposing API key)
   console.log('Email Configuration:');
-  console.log(`  From: ${APP_EMAIL_FROM} (${APP_EMAIL_NAME})`);
-  console.log(`  To: ${options.to}`);
-  console.log(`  Subject: ${options.subject}`);
-  console.log(`  API Key: ${SENDGRID_API_KEY ? 'Set' : 'Missing'}`);
+  console.log(`From: ${APP_EMAIL_FROM} (${APP_EMAIL_NAME})`);
+  console.log(`To: ${options.to}`);
+  console.log(`Subject: ${options.subject}`);
+  console.log(`API Key: ${SENDGRID_API_KEY ? 'Set' : 'Missing'}`);
 
   try {
     const msg = {
@@ -52,24 +52,24 @@ export async function sendEmail(options: EmailOptions): Promise<void> {
     });
   } catch (error: any) {
     console.error('SendGrid Error Details:');
-    console.error('  Message:', error?.message);
-    console.error('  Code:', error?.code);
+    console.error('Message:', error?.message);
+    console.error('Code:', error?.code);
     
     if (error?.response) {
-      console.error('  Response Status:', error.response.statusCode);
-      console.error('  Response Body:', JSON.stringify(error.response.body, null, 2));
-      console.error('  Response Headers:', error.response.headers);
+      console.error('Response Status:', error.response.statusCode);
+      console.error('Response Body:', JSON.stringify(error.response.body, null, 2));
+      console.error('Response Headers:', error.response.headers);
     }
 
     // Common SendGrid errors
     if (error?.code === 401) {
-      console.error('  Authentication failed - Check your SENDGRID_API_KEY');
+      console.error('Authentication failed - Check your SENDGRID_API_KEY');
     } else if (error?.code === 403) {
-      console.error('  Forbidden - Check your SendGrid account permissions');
+      console.error('Forbidden - Check your SendGrid account permissions');
     } else if (error?.response?.body?.errors) {
-      console.error('  SendGrid Validation Errors:');
+      console.error('SendGrid Validation Errors:');
       error.response.body.errors.forEach((err: any, index: number) => {
-        console.error(`    Error ${index + 1}:`, err);
+        console.error(`Error ${index + 1}:`, err);
       });
     }
 
