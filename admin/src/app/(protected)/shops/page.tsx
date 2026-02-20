@@ -5,7 +5,7 @@ import { LoadingBar } from '@/components/ui/LoadingBar';
 import { AlertModal, Banner, Button, Checkbox, DataTable, Modal, Select, Textarea } from '@/components/ui';
 import type { SelectOption } from '@/components/ui';
 import Page from '@/components/ui/Page';
-import LinkComponent, { Href } from '@/components/ui/LinkComponent';
+import LinkComponent from '@/components/ui/LinkComponent';
 import Badge from '@/components/ui/Badge';
 import { formatDate } from '@/lib/string.utils';
 import { useAuth } from '@/components/providers';
@@ -25,19 +25,6 @@ type ShopStatusFilter =
   | 'LEGACY_REJECTED'
   | 'NON_LEGACY';
 
-const shopStatusFilterOptions: SelectOption[] = [
-  { value: 'ALL', label: 'All Statuses' },
-  { value: 'ACTIVE', label: 'Active' },
-  { value: 'UNINSTALLED', label: 'Uninstalled' },
-  { value: 'DELETED', label: 'Deleted' },
-  { value: 'UNKNOWN', label: 'Unknown' },
-  { value: 'LEGACY', label: 'Legacy (All)' },
-  { value: 'NON_LEGACY', label: 'Non Legacy' },
-  { value: 'LEGACY_PENDING', label: 'Legacy: PENDING' },
-  { value: 'LEGACY_IN_PROGRESS', label: 'Legacy: IN_PROGRESS' },
-  { value: 'LEGACY_COMPLETED', label: 'Legacy: COMPLETED' },
-  { value: 'LEGACY_REJECTED', label: 'Legacy: REJECTED' },
-] as const;
 
 const legacyStatusOptions: SelectOption[] = [
   { value: 'PENDING', label: 'PENDING' },

@@ -247,7 +247,7 @@ button:disabled {
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(148, 163, 184, 0.08);
   border-radius: 16px;
-  padding: 3rem;
+  padding: 33px 26px 33px 26px;
   box-shadow: 
     0 8px 32px 0 rgba(0, 0, 0, 0.4),
     0 0 0 1px rgba(59, 130, 246, 0.1),
