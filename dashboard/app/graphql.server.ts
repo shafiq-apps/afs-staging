@@ -223,8 +223,6 @@ export async function graphqlRequest<T = any>(
       );
     }
 
-    logger.info("result", result);
-
     // Check for GraphQL errors
     if (result.errors?.length) {
       const gqlError = result.errors[0];
